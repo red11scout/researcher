@@ -125,12 +125,20 @@ Table columns: ID, Use Case Name, Function, Sub-Function, AI Primitives, Descrip
 (Generate exactly 10 AI use cases mapped to primitives)
 
 STEP 5: Benefits Quantification by Driver
-Table columns: ID, Use Case, Revenue Benefit ($), Cost Benefit ($), Cash Flow Benefit ($), Risk Benefit ($), Benefit Formula, Total Annual Value ($), Probability of Success (0-1)
-(Quantify each use case's impact on all 4 drivers)
-IMPORTANT: The "Benefit Formula" column MUST show the actual calculation with real numbers in this exact format:
-"$28.5M + $12.4M + $4.2M + $0.9M = $46.0M"
-This shows: Revenue + Cost + Cash Flow + Risk = Total
-Use M for millions, K for thousands. The formula must use the ACTUAL values from that row.
+Table columns: ID, Use Case, Revenue Benefit ($), Revenue Formula, Cost Benefit ($), Cost Formula, Cash Flow Benefit ($), Cash Flow Formula, Risk Benefit ($), Risk Formula, Total Annual Value ($), Probability of Success (0-1)
+(Quantify each use case's impact on all 4 drivers with detailed formulas)
+
+CRITICAL - Each driver MUST have its own formula column showing the calculation:
+- "Revenue Formula": Show how revenue benefit is calculated. Example: "15% conversion lift × $190M pipeline = $28.5M"
+- "Cost Formula": Show how cost savings are calculated. Example: "2.5 FTE saved × $85K/FTE + $8.4M automation = $12.4M"
+- "Cash Flow Formula": Show cash flow improvement calculation. Example: "DSO -12 days × $350K/day = $4.2M"
+- "Risk Formula": Show risk reduction calculation. Example: "15% compliance risk reduction × $6M exposure = $0.9M"
+
+Each formula must:
+1. Use actual metrics relevant to that use case
+2. Show the math with real numbers
+3. Equal the corresponding benefit value in that row
+4. Use M for millions, K for thousands
 
 STEP 6: Effort & Token Modeling
 Table columns: ID, Use Case, Data Readiness (1-5), Integration Complexity (1-5), Change Mgmt (1-5), Effort Score (1-5), Time-to-Value (months), Input Tokens/Run, Output Tokens/Run, Runs/Month, Monthly Tokens, Annual Token Cost ($)

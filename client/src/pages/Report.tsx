@@ -1049,7 +1049,9 @@ function StepCard({ step }: { step: any }) {
                 <TableHeader>
                   <TableRow className="bg-muted/50">
                     <TableHead className="w-8"></TableHead>
-                    {Object.keys(step.data[0]).filter((k: string) => k !== 'Benefit Formula').map((key: string, i: number) => (
+                    {Object.keys(step.data[0]).filter((k: string) => 
+                      !k.includes('Formula') && k !== 'Benefit Formula'
+                    ).map((key: string, i: number) => (
                       <TableHead key={i} className="font-semibold text-primary whitespace-nowrap">{key}</TableHead>
                     ))}
                   </TableRow>
@@ -1057,8 +1059,7 @@ function StepCard({ step }: { step: any }) {
                 <TableBody>
                   {step.data.map((row: any, i: number) => {
                     const isExpanded = expandedRows.has(i);
-                    const formula = row['Benefit Formula'] || '';
-                    const colCount = Object.keys(row).filter(k => k !== 'Benefit Formula').length + 1;
+                    const colCount = Object.keys(row).filter(k => !k.includes('Formula')).length + 1;
                     
                     return (
                       <>
@@ -1076,7 +1077,9 @@ function StepCard({ step }: { step: any }) {
                               )}
                             </div>
                           </TableCell>
-                          {Object.entries(row).filter(([key]) => key !== 'Benefit Formula').map(([key, value]: [string, any], j: number) => (
+                          {Object.entries(row).filter(([key]) => 
+                            !key.includes('Formula') && key !== 'Benefit Formula'
+                          ).map(([key, value]: [string, any], j: number) => (
                             <TableCell key={j} className={j === 0 ? "font-medium" : ""}>
                               {renderCellValue(key, value)}
                             </TableCell>
@@ -1085,39 +1088,72 @@ function StepCard({ step }: { step: any }) {
                         {isExpanded && (
                           <TableRow key={`${i}-expanded`} className="bg-primary/5 border-l-4 border-l-primary">
                             <TableCell colSpan={colCount} className="py-4">
-                              <div className="flex flex-col gap-2 px-4">
-                                <div className="text-sm font-medium text-primary">Benefit Calculation Formula:</div>
-                                <div className="flex items-center gap-3 flex-wrap">
-                                  <div className="flex items-center gap-2 p-2 bg-green-50 rounded border border-green-200">
-                                    <TrendingUp className="h-4 w-4 text-green-600" />
-                                    <span className="text-sm"><span className="text-muted-foreground">Revenue:</span> <span className="font-semibold text-green-700">{row['Revenue Benefit ($)'] || '$0'}</span></span>
+                              <div className="flex flex-col gap-4 px-4">
+                                <div className="text-sm font-medium text-primary">Benefit Calculation Breakdown by Driver:</div>
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  {/* Revenue Driver */}
+                                  <div className="p-3 bg-green-50 rounded-lg border border-green-200">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <TrendingUp className="h-5 w-5 text-green-600" />
+                                      <span className="font-semibold text-green-700">Grow Revenue</span>
+                                    </div>
+                                    <div className="text-lg font-bold text-green-800 mb-1">{row['Revenue Benefit ($)'] || '$0'}</div>
+                                    {row['Revenue Formula'] && (
+                                      <div className="text-sm text-green-700 font-mono bg-green-100/50 p-2 rounded">
+                                        {row['Revenue Formula']}
+                                      </div>
+                                    )}
                                   </div>
-                                  <span className="text-lg font-bold text-muted-foreground">+</span>
-                                  <div className="flex items-center gap-2 p-2 bg-blue-50 rounded border border-blue-200">
-                                    <TrendingDown className="h-4 w-4 text-blue-600" />
-                                    <span className="text-sm"><span className="text-muted-foreground">Cost:</span> <span className="font-semibold text-blue-700">{row['Cost Benefit ($)'] || '$0'}</span></span>
+                                  
+                                  {/* Cost Driver */}
+                                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <TrendingDown className="h-5 w-5 text-blue-600" />
+                                      <span className="font-semibold text-blue-700">Reduce Cost</span>
+                                    </div>
+                                    <div className="text-lg font-bold text-blue-800 mb-1">{row['Cost Benefit ($)'] || '$0'}</div>
+                                    {row['Cost Formula'] && (
+                                      <div className="text-sm text-blue-700 font-mono bg-blue-100/50 p-2 rounded">
+                                        {row['Cost Formula']}
+                                      </div>
+                                    )}
                                   </div>
-                                  <span className="text-lg font-bold text-muted-foreground">+</span>
-                                  <div className="flex items-center gap-2 p-2 bg-purple-50 rounded border border-purple-200">
-                                    <DollarSign className="h-4 w-4 text-purple-600" />
-                                    <span className="text-sm"><span className="text-muted-foreground">Cash Flow:</span> <span className="font-semibold text-purple-700">{row['Cash Flow Benefit ($)'] || '$0'}</span></span>
+                                  
+                                  {/* Cash Flow Driver */}
+                                  <div className="p-3 bg-purple-50 rounded-lg border border-purple-200">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <DollarSign className="h-5 w-5 text-purple-600" />
+                                      <span className="font-semibold text-purple-700">Increase Cash Flow</span>
+                                    </div>
+                                    <div className="text-lg font-bold text-purple-800 mb-1">{row['Cash Flow Benefit ($)'] || '$0'}</div>
+                                    {row['Cash Flow Formula'] && (
+                                      <div className="text-sm text-purple-700 font-mono bg-purple-100/50 p-2 rounded">
+                                        {row['Cash Flow Formula']}
+                                      </div>
+                                    )}
                                   </div>
-                                  <span className="text-lg font-bold text-muted-foreground">+</span>
-                                  <div className="flex items-center gap-2 p-2 bg-orange-50 rounded border border-orange-200">
-                                    <ShieldCheck className="h-4 w-4 text-orange-600" />
-                                    <span className="text-sm"><span className="text-muted-foreground">Risk:</span> <span className="font-semibold text-orange-700">{row['Risk Benefit ($)'] || '$0'}</span></span>
-                                  </div>
-                                  <span className="text-lg font-bold text-muted-foreground">=</span>
-                                  <div className="flex items-center gap-2 p-3 bg-primary/10 rounded border-2 border-primary">
-                                    <Target className="h-5 w-5 text-primary" />
-                                    <span className="text-base font-bold text-primary">{row['Total Annual Value ($)'] || '$0'}</span>
+                                  
+                                  {/* Risk Driver */}
+                                  <div className="p-3 bg-orange-50 rounded-lg border border-orange-200">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <ShieldCheck className="h-5 w-5 text-orange-600" />
+                                      <span className="font-semibold text-orange-700">Decrease Risk</span>
+                                    </div>
+                                    <div className="text-lg font-bold text-orange-800 mb-1">{row['Risk Benefit ($)'] || '$0'}</div>
+                                    {row['Risk Formula'] && (
+                                      <div className="text-sm text-orange-700 font-mono bg-orange-100/50 p-2 rounded">
+                                        {row['Risk Formula']}
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
-                                {formula && (
-                                  <div className="mt-2 text-sm text-muted-foreground font-mono bg-muted/50 p-2 rounded">
-                                    {formula}
-                                  </div>
-                                )}
+                                
+                                {/* Total Summary */}
+                                <div className="flex items-center justify-center gap-3 p-3 bg-primary/10 rounded-lg border-2 border-primary">
+                                  <Target className="h-6 w-6 text-primary" />
+                                  <span className="text-lg font-bold text-primary">Total Annual Value: {row['Total Annual Value ($)'] || '$0'}</span>
+                                </div>
                               </div>
                             </TableCell>
                           </TableRow>
