@@ -9,7 +9,6 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator
 } from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface LayoutProps {
   children: ReactNode;
@@ -73,10 +72,6 @@ export default function Layout({ children }: LayoutProps) {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-            <Avatar className="h-7 w-7 md:h-8 md:w-8 border">
-              <AvatarImage src="https://github.com/shadcn.png" />
-              <AvatarFallback>AI</AvatarFallback>
-            </Avatar>
           </div>
         </div>
       </header>
