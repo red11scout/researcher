@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Search, Sparkles, ArrowRight, Building2, TrendingUp, ShieldCheck } from "lucide-react";
 import { motion } from "framer-motion";
 import heroBg from "@assets/generated_images/clean_white_and_blue_abstract_enterprise_background.png";
-import blueAllyLogo from "@assets/image_1764371133187.png";
+import blueAllyLogo from "@assets/image_1764371505115.png";
 
 export default function Home() {
   const [query, setQuery] = useState("");
