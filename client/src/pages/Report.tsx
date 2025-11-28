@@ -8,11 +8,20 @@ import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from "@/components/ui/table";
+import { 
   Loader2, CheckCircle2, AlertTriangle, FileText, Download, 
   RefreshCw, FileSpreadsheet, FileType, ChevronRight, 
   TrendingUp, Users, Globe, DollarSign, ExternalLink,
   MoreHorizontal, ArrowLeft, ShieldCheck, Target, 
-  Briefcase, Zap, Layers, PieChart
+  Briefcase, Zap, Layers, PieChart, ListChecks,
+  ArrowRight
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
@@ -33,7 +42,7 @@ import {
   Radar
 } from "recharts";
 
-// Mock Data Generation based on User Requirements
+// Mock Data Generation based on User Requirements for Steps 0-7
 const generateMockData = (company: string) => {
   return {
     overview: {
@@ -41,68 +50,113 @@ const generateMockData = (company: string) => {
       headquarters: "San Francisco, CA",
       employees: "5,000+",
       industry: "Technology",
-      description: `${company} is a leading technology company focused on innovative solutions. They have established a strong market presence through continuous R&D and strategic acquisitions. Their primary focus is on scalable software infrastructure and consumer-facing applications.`,
-      mission: "To organize the world's information and make it universally accessible and useful."
+      description: `${company} is a leading technology company focused on innovative solutions. They have established a strong market presence through continuous R&D and strategic acquisitions.`,
     },
-    financials: [
-      { year: '2020', revenue: 450, profit: 120 },
-      { year: '2021', revenue: 580, profit: 160 },
-      { year: '2022', revenue: 720, profit: 210 },
-      { year: '2023', revenue: 890, profit: 290 },
-      { year: '2024', revenue: 1100, profit: 350 },
-    ],
-    risks: [
-      { level: "High", category: "Regulatory", description: "Increasing scrutiny from antitrust regulators in key markets." },
-      { level: "Medium", category: "Competition", description: "Emerging startups in the AI sector posing threat to market share." },
-      { level: "Low", category: "Operational", description: "Supply chain dependencies for hardware components." }
-    ],
-    competitors: [
-      { name: "Competitor A", marketShare: 25 },
-      { name: "Competitor B", marketShare: 15 },
-      { name: "Competitor C", marketShare: 10 },
-      { name: `${company}`, marketShare: 40 },
-      { name: "Others", marketShare: 10 },
-    ],
-    // New Data Points based on "Image" Requirements
-    drivers: [
-      { name: 'Revenue', value: 85, fullMark: 100 },
-      { name: 'Cost Efficiency', value: 65, fullMark: 100 },
-      { name: 'Cash Flow', value: 75, fullMark: 100 },
-      { name: 'Risk Mgmt', value: 90, fullMark: 100 },
-    ],
-    strategicInitiatives: [
-      { 
-        driver: "Grow Revenue", 
-        initiative: "Enterprise AI Expansion", 
-        details: "Launch dedicated enterprise-tier AI models to capture B2B market share.",
-        impact: "High" 
+    steps: [
+      {
+        id: 0,
+        title: "Company Overview",
+        description: "High-level snapshot of the organization's current standing.",
+        data: [
+          { label: "Company Name", value: company },
+          { label: "Ticker Symbol", value: "TECH" },
+          { label: "Sector", value: "Technology" },
+          { label: "Market Cap", value: "$450B" },
+          { label: "Employees", value: "12,500+" },
+          { label: "Founded", value: "2005" },
+          { label: "CEO", value: "Jane Doe" },
+          { label: "Key Competitors", value: "Competitor A, Competitor B, Competitor C" }
+        ]
       },
-      { 
-        driver: "Decrease Cost", 
-        initiative: "Automated Supply Chain", 
-        details: "Implement machine learning for inventory prediction to reduce holding costs.",
-        impact: "Medium" 
+      {
+        id: 1,
+        title: "Strategic Anchors",
+        description: "Mapping initiatives to the four key business drivers.",
+        columns: ["Business Driver", "Strategic Initiative", "Priority", "Target Metric"],
+        data: [
+          { col1: "Grow Revenue", col2: "Enterprise AI Expansion", col3: "Critical", col4: "+15% YoY Growth" },
+          { col1: "Decrease Cost", col2: "Supply Chain Automation", col3: "High", col4: "-8% OpEx Reduction" },
+          { col1: "Increase Cash Flow", col2: "SaaS Subscription Shift", col3: "Medium", col4: "+20% ARR" },
+          { col1: "Reduce Risk", col2: "Data Sovereignty Compliance", col3: "High", col4: "100% GDPR Compliance" }
+        ]
       },
-      { 
-        driver: "Increase Cash Flow", 
-        initiative: "Subscription Optimization", 
-        details: "Revise pricing tiers to encourage annual prepayments.",
-        impact: "Medium" 
+      {
+        id: 2,
+        title: "Inventory Business Functions",
+        description: "Cataloging key operational functions for analysis.",
+        columns: ["Function ID", "Department", "Primary Responsibility", "Headcount Est."],
+        data: [
+          { col1: "BF-01", col2: "Human Resources", col3: "Talent Acquisition & Retention", col4: "150" },
+          { col1: "BF-02", col2: "Information Technology", col3: "Infrastructure & Security", col4: "400" },
+          { col1: "BF-03", col2: "Marketing", col3: "Brand Awareness & Lead Gen", col4: "250" },
+          { col1: "BF-04", col2: "Operations", col3: "Logistics & Supply Chain", col4: "300" },
+          { col1: "BF-05", col2: "Sales", col3: "Revenue Generation", col4: "500" },
+          { col1: "BF-06", col2: "Procurement", col3: "Vendor Management", col4: "80" },
+          { col1: "BF-07", col2: "Finance", col3: "Accounting & FP&A", col4: "120" },
+          { col1: "BF-08", col2: "Legal", col3: "Compliance & IP Protection", col4: "45" }
+        ]
       },
-      { 
-        driver: "Reduce Risk", 
-        initiative: "Data Sovereignty Compliance", 
-        details: "Establish regional data centers to meet EU and APAC regulations.",
-        impact: "Critical" 
+      {
+        id: 3,
+        title: "Friction Point Identification",
+        description: "Locating bottlenecks within business functions.",
+        columns: ["Function", "Friction Point", "Severity", "Operational Impact"],
+        data: [
+          { col1: "HR", col2: "High Engineering Turnover", col3: "High", col4: "Delayed Product Roadmap" },
+          { col1: "IT", col2: "Legacy Billing System", col3: "Medium", col4: "Invoicing Errors (2%)" },
+          { col1: "Sales", col2: "Long Sales Cycle (>9mo)", col3: "High", col4: "Missed Quarterly Targets" },
+          { col1: "Operations", col2: "Siloed Inventory Data", col3: "Critical", col4: "Stockouts in EU Region" },
+          { col1: "Marketing", col2: "Rising CAC", col3: "Medium", col4: "Lower ROI on Ad Spend" }
+        ]
+      },
+      {
+        id: 4,
+        title: "Root Cause Analysis",
+        description: "Diagnosing the underlying reasons for identified friction.",
+        columns: ["Friction Point", "Root Cause (Primary)", "Root Cause (Secondary)", "Confidence"],
+        data: [
+          { col1: "High Engineering Turnover", col2: "Below Market Compensation", col3: "Lack of Career Growth Path", col4: "95%" },
+          { col1: "Legacy Billing System", col2: "Technical Debt", col3: "Deprioritized Maintenance", col4: "85%" },
+          { col1: "Long Sales Cycle", col2: "Complex Approval Process", col3: "Lack of Sales Enablement", col4: "90%" },
+          { col1: "Siloed Inventory Data", col2: "Incompatible ERP Modules", col3: "Manual Entry Processes", col4: "98%" }
+        ]
+      },
+      {
+        id: 5,
+        title: "Proposed Solutions",
+        description: "AI-generated strategies to mitigate friction points.",
+        columns: ["Friction Point", "Proposed Solution", "Implementation Type", "Difficulty"],
+        data: [
+          { col1: "High Engineering Turnover", col2: "Equity Refresh Program", col3: "Policy Change", col4: "Low" },
+          { col1: "Legacy Billing System", col2: "Migrate to Stripe Billing", col3: "Technology Upgrade", col4: "High" },
+          { col1: "Long Sales Cycle", col2: "Implement CPQ Software", col3: "Tool Implementation", col4: "Medium" },
+          { col1: "Siloed Inventory Data", col2: "Unified Data Warehouse", col3: "Infrastructure Project", col4: "High" }
+        ]
+      },
+      {
+        id: 6,
+        title: "Impact Analysis",
+        description: "Quantifying the potential value of solutions.",
+        columns: ["Solution", "Revenue Impact", "Cost Savings", "Risk Reduction"],
+        data: [
+          { col1: "Equity Refresh Program", col2: "Neutral", col3: "$2M (Recruiting Costs)", col4: "High (IP Retention)" },
+          { col1: "Migrate to Stripe Billing", col2: "+$5M (Churn Reduction)", col3: "$500k (Maintenance)", col4: "Medium" },
+          { col1: "Implement CPQ Software", col2: "+$12M (Faster Close)", col3: "Neutral", col4: "Low" },
+          { col1: "Unified Data Warehouse", col2: "+$8M (Optimization)", col3: "$1.5M (Efficiency)", col4: "High" }
+        ]
+      },
+      {
+        id: 7,
+        title: "Implementation Roadmap",
+        description: "Timeline and ownership for execution.",
+        columns: ["Phase", "Initiative", "Owner", "Timeline"],
+        data: [
+          { col1: "Q3 2025", col2: "Equity Refresh Rollout", col3: "CHRO", col4: "3 Months" },
+          { col1: "Q4 2025", col2: "Data Warehouse MVP", col3: "CTO", col4: "4 Months" },
+          { col1: "Q1 2026", col2: "CPQ Implementation", col3: "CRO", col4: "6 Months" },
+          { col1: "Q2 2026", col2: "Billing Migration", col3: "CIO", col4: "9 Months" }
+        ]
       }
-    ],
-    frictionPoints: [
-      { function: "HR", issue: "Talent Retention", severity: "High", description: "High turnover in engineering due to aggressive competitor poaching." },
-      { function: "IT", issue: "Legacy Systems", severity: "Medium", description: "Technical debt in billing infrastructure slowing down product launches." },
-      { function: "Sales", issue: "Cycle Length", severity: "Medium", description: "Enterprise sales cycles extending beyond 6 months due to budget scrutiny." },
-      { function: "Operations", issue: "Siloed Data", severity: "High", description: "Lack of unified data layer preventing cross-departmental insights." },
-      { function: "Marketing", issue: "CAC Increase", severity: "Medium", description: "Rising ad costs on primary channels reducing ROI." },
-      { function: "Procurement", issue: "Single Source", severity: "Low", description: "Dependency on single chip supplier for data centers." },
     ]
   };
 };
@@ -125,23 +179,16 @@ export default function Report() {
   }, []);
 
   const simulateProcess = async () => {
-    // Researching
     setStatus("researching");
     setProgress(10);
-    await new Promise(r => setTimeout(r, 1500));
+    await new Promise(r => setTimeout(r, 1000));
     setProgress(40);
-    
-    // Benchmarking
     setStatus("benchmarking");
-    await new Promise(r => setTimeout(r, 1500));
+    await new Promise(r => setTimeout(r, 1000));
     setProgress(70);
-
-    // Critiquing
     setStatus("critiquing");
-    await new Promise(r => setTimeout(r, 1500));
+    await new Promise(r => setTimeout(r, 1000));
     setProgress(100);
-    
-    // Complete
     setData(generateMockData(companyName));
     setStatus("complete");
   };
@@ -173,26 +220,27 @@ export default function Report() {
                 </div>
               </div>
               
-              <h2 className="text-2xl font-bold mb-2">Generating Report for {companyName}</h2>
+              <h2 className="text-2xl font-bold mb-2">Generating Strategic Report for {companyName}</h2>
+              <p className="text-muted-foreground mb-8">Executing Steps 0-7 Analysis Framework...</p>
               
-              <div className="w-full max-w-md space-y-6 mt-8">
+              <div className="w-full max-w-md space-y-6">
                 <Step 
                   active={status === "researching"} 
                   completed={["benchmarking", "critiquing", "complete"].includes(status)}
-                  label="Gathering Intelligence" 
-                  subLabel="Scanning public records, news, and financial data..."
+                  label="Steps 0-2: Intelligence Gathering" 
+                  subLabel="Analyzing company, anchors, and business functions..."
                 />
                 <Step 
                   active={status === "benchmarking"} 
                   completed={["critiquing", "complete"].includes(status)}
-                  label="Benchmarking & Analysis" 
-                  subLabel="Comparing against industry standards and competitors..."
+                  label="Steps 3-5: Diagnosis & Strategy" 
+                  subLabel="Identifying friction, root causes, and solutions..."
                 />
                 <Step 
                   active={status === "critiquing"} 
-                  completed={status === "complete"}
-                  label="Critical Review" 
-                  subLabel="AI self-correction and conservative estimation..."
+                  completed={false}
+                  label="Steps 6-7: Value & Roadmap" 
+                  subLabel="Quantifying impact and planning implementation..."
                 />
               </div>
             </CardContent>
@@ -216,7 +264,7 @@ export default function Report() {
                  {companyName}
                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 font-normal">Verified</Badge>
                </h1>
-               <p className="text-xs text-muted-foreground">Report Generated: {new Date().toLocaleDateString()}</p>
+               <p className="text-xs text-muted-foreground">Full 8-Step Strategic Analysis</p>
              </div>
           </div>
           <div className="flex items-center gap-2">
@@ -230,162 +278,11 @@ export default function Report() {
 
         <div className="flex-1 bg-muted/30 p-6">
           <div className="container mx-auto max-w-6xl">
-            
-            <Tabs defaultValue="overview" className="w-full">
-              <TabsList className="mb-6 w-full justify-start bg-transparent border-b rounded-none h-auto p-0">
-                <TabsTrigger value="overview" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2">Overview</TabsTrigger>
-                <TabsTrigger value="strategy" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2">Strategic Initiatives</TabsTrigger>
-                <TabsTrigger value="friction" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2">Friction Points</TabsTrigger>
-                <TabsTrigger value="financials" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-2">Financials</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="overview" className="space-y-6">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                  <div className="lg:col-span-2 space-y-6">
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Executive Summary</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                         <p className="leading-relaxed text-muted-foreground mb-6">{data.overview.description}</p>
-                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                            <StatBox label="Founded" value={data.overview.founded} />
-                            <StatBox label="HQ" value={data.overview.headquarters} />
-                            <StatBox label="Employees" value={data.overview.employees} />
-                            <StatBox label="Industry" value={data.overview.industry} />
-                         </div>
-                      </CardContent>
-                    </Card>
-
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Business Driver Alignment</CardTitle>
-                        <CardDescription>Strategic focus distribution across key drivers</CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="h-[300px] w-full flex justify-center">
-                           <ResponsiveContainer width="100%" height="100%">
-                             <RadarChart cx="50%" cy="50%" outerRadius="80%" data={data.drivers}>
-                               <PolarGrid />
-                               <PolarAngleAxis dataKey="name" />
-                               <PolarRadiusAxis angle={30} domain={[0, 100]} />
-                               <Radar name={companyName} dataKey="value" stroke="hsl(var(--primary))" fill="hsl(var(--primary))" fillOpacity={0.4} />
-                             </RadarChart>
-                           </ResponsiveContainer>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  <div className="space-y-6">
-                     <Card className="bg-blue-50 dark:bg-blue-950/20 border-blue-100 dark:border-blue-900">
-                       <CardHeader>
-                         <CardTitle className="text-blue-700 dark:text-blue-400 flex items-center gap-2">
-                           <ShieldCheck className="h-5 w-5" />
-                           AI Critique
-                         </CardTitle>
-                       </CardHeader>
-                       <CardContent>
-                         <p className="text-sm text-blue-900/80 dark:text-blue-200/80 leading-relaxed">
-                           This report was generated with a conservative bias. Revenue estimates have been adjusted down by 5% to account for market volatility. The analysis prioritizes verified public filings over news speculation.
-                         </p>
-                       </CardContent>
-                     </Card>
-                     <Card>
-                       <CardHeader>
-                         <CardTitle>Market Share</CardTitle>
-                       </CardHeader>
-                       <CardContent className="space-y-4">
-                         {data.competitors.map((comp: any, i: number) => (
-                           <div key={i}>
-                             <div className="flex justify-between text-sm mb-1">
-                               <span>{comp.name}</span>
-                               <span className="font-medium">{comp.marketShare}%</span>
-                             </div>
-                             <div className="h-2 bg-secondary rounded-full overflow-hidden">
-                               <div className="h-full bg-primary" style={{ width: `${comp.marketShare}%` }} />
-                             </div>
-                           </div>
-                         ))}
-                       </CardContent>
-                     </Card>
-                  </div>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="strategy" className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {data.strategicInitiatives.map((item: any, i: number) => (
-                    <Card key={i} className="hover:shadow-md transition-shadow">
-                      <CardHeader className="pb-2">
-                        <div className="flex justify-between items-start">
-                          <Badge variant="outline" className="mb-2">{item.driver}</Badge>
-                          <Badge className={item.impact === 'Critical' ? 'bg-red-100 text-red-800 hover:bg-red-100' : 'bg-blue-100 text-blue-800 hover:bg-blue-100'}>
-                            {item.impact} Impact
-                          </Badge>
-                        </div>
-                        <CardTitle className="text-lg">{item.initiative}</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <p className="text-muted-foreground">{item.details}</p>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              </TabsContent>
-
-              <TabsContent value="friction" className="space-y-6">
-                <Card>
-                   <CardHeader>
-                     <CardTitle>Operational Friction Points</CardTitle>
-                     <CardDescription>Identified bottlenecks across business functions</CardDescription>
-                   </CardHeader>
-                   <CardContent>
-                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                       {data.frictionPoints.map((fp: any, i: number) => (
-                         <div key={i} className="p-4 rounded-lg border bg-card">
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="font-semibold flex items-center gap-2">
-                                <Layers className="h-4 w-4 text-muted-foreground" />
-                                {fp.function}
-                              </div>
-                              <div className={`h-2 w-2 rounded-full ${
-                                fp.severity === 'High' ? 'bg-red-500' : 
-                                fp.severity === 'Medium' ? 'bg-yellow-500' : 'bg-green-500'
-                              }`} />
-                            </div>
-                            <div className="font-medium text-sm mb-1">{fp.issue}</div>
-                            <p className="text-xs text-muted-foreground leading-relaxed">{fp.description}</p>
-                         </div>
-                       ))}
-                     </div>
-                   </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="financials">
-                 <Card>
-                  <CardHeader>
-                    <CardTitle>Financial Performance</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="h-[400px] w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={data.financials}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                          <XAxis dataKey="year" axisLine={false} tickLine={false} />
-                          <YAxis axisLine={false} tickLine={false} />
-                          <Tooltip cursor={{ fill: 'transparent' }} />
-                          <Bar dataKey="revenue" fill="hsl(var(--primary))" name="Revenue" radius={[4, 4, 0, 0]} />
-                          <Bar dataKey="profit" fill="hsl(var(--chart-2))" name="Profit" radius={[4, 4, 0, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </CardContent>
-                 </Card>
-              </TabsContent>
-            </Tabs>
-
+            <div className="flex flex-col space-y-8">
+              {data.steps.map((step: any, index: number) => (
+                <StepCard key={index} step={step} />
+              ))}
+            </div>
           </div>
         </div>
       </div>
@@ -393,12 +290,53 @@ export default function Report() {
   );
 }
 
-function StatBox({ label, value }: { label: string, value: string }) {
+function StepCard({ step }: { step: any }) {
   return (
-    <div className="bg-muted/30 p-3 rounded-lg border">
-      <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wider">{label}</div>
-      <div className="font-medium text-sm md:text-base truncate" title={value}>{value}</div>
-    </div>
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-3 mb-2">
+          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm border border-primary/20">
+            {step.id}
+          </div>
+          <CardTitle className="text-xl">Step {step.id}: {step.title}</CardTitle>
+        </div>
+        <CardDescription>{step.description}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {step.id === 0 ? (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {step.data.map((item: any, i: number) => (
+              <div key={i} className="bg-muted/30 p-3 rounded-lg border">
+                <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wider font-medium">{item.label}</div>
+                <div className="font-medium text-sm">{item.value}</div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/50">
+                  {step.columns.map((col: string, i: number) => (
+                    <TableHead key={i} className="font-semibold text-primary">{col}</TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {step.data.map((row: any, i: number) => (
+                  <TableRow key={i}>
+                    <TableCell className="font-medium">{row.col1}</TableCell>
+                    <TableCell>{row.col2}</TableCell>
+                    <TableCell>{row.col3}</TableCell>
+                    <TableCell>{row.col4}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
