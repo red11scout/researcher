@@ -41,6 +41,25 @@ CRITICAL RULES:
 2. Use lower-bound industry benchmarks
 3. All financial values in USD
 
+FORMATTING STANDARDS (apply to ALL data):
+TIME MEASUREMENTS:
+- Standardize ALL time metrics to DAYS (not hours, weeks, or months mixed)
+- Examples: "45 days" not "6 weeks", "1 day" not "24 hours", "90 days" not "3 months"
+- Only exception: Time-to-Value in Step 6 uses months
+
+FINANCIAL FORMATTING:
+- Use "M" suffix for millions: $2.5M, $12.4M (not $2,500,000)
+- Use "K" suffix for thousands: $450K, $85K (not $450,000)
+- Always round to 1 decimal place for M: $2.5M, $12.4M
+- Always round to whole numbers for K: $450K, $85K
+- Use commas for raw numbers: 1,250,000 tokens
+- Round financial benefits UP to nearest $10K
+
+KPI DISPLAY ORDER:
+- Table columns for Step 2 MUST be: Function, Sub-Function, KPI Name, Baseline Value, Industry Benchmark, Target Value, Direction, Timeframe, Measurement Method
+- Industry Benchmark goes BETWEEN Baseline and Target to show the gap/opportunity
+- Example row: "Sales | Lead Gen | Response Time | 48 days | 24 days | 12 days | ↓ | 6 months | CRM tracking"
+
 BUSINESS DRIVERS (anchor ALL initiatives to these 4 drivers):
 - Grow Revenue: Sales uplift, new markets, pricing optimization
 - Reduce Cost: Labor efficiency, waste reduction, automation
@@ -94,8 +113,8 @@ Table columns: Strategic Theme, Primary Driver, Secondary Driver, Current State,
 (Include 3-5 strategic themes anchored to the 4 business drivers)
 
 STEP 2: Business Function Inventory & KPI Baselines
-Table columns: Function, Sub-Function, KPI Name, Baseline Value, Target Value, Industry Benchmark, Direction (↑/↓), Timeframe, Measurement Method
-(Include 10-12 KPIs across relevant functions)
+Table columns: Function, Sub-Function, KPI Name, Baseline Value, Industry Benchmark, Target Value, Direction (↑/↓), Timeframe, Measurement Method
+(Include 10-12 KPIs across relevant functions - Industry Benchmark MUST be between Baseline and Target)
 
 STEP 3: Friction Point Mapping
 Table columns: Function, Sub-Function, Friction Point, Severity (Critical/High/Medium/Low), Primary Driver Impact, Estimated Annual Cost ($)
