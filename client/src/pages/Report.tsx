@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -1259,6 +1259,43 @@ export default function Report() {
                 <StepCard key={index} step={step} />
               ))}
             </div>
+
+            {/* Save Confirmation & Actions */}
+            <Card className="mt-8 border-green-200 bg-gradient-to-br from-green-50 to-transparent" data-testid="card-save-confirmation">
+              <CardContent className="pt-6">
+                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
+                      <CheckCircle2 className="h-6 w-6 text-green-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-lg text-green-800">Report Saved Successfully</h3>
+                      <p className="text-sm text-green-700">
+                        This analysis is automatically saved and can be accessed from your Saved Reports anytime.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 w-full md:w-auto">
+                    <Button 
+                      variant="outline" 
+                      onClick={regenerateAnalysis}
+                      disabled={!reportId}
+                      className="flex-1 md:flex-none gap-2 border-green-300 text-green-700 hover:bg-green-100"
+                      data-testid="button-update-analysis"
+                    >
+                      <RefreshCw className="h-4 w-4" />
+                      Update Analysis
+                    </Button>
+                    <Link href="/saved">
+                      <Button variant="default" className="flex-1 md:flex-none gap-2 bg-green-600 hover:bg-green-700" data-testid="button-view-saved">
+                        <FileText className="h-4 w-4" />
+                        View All Saved Reports
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>

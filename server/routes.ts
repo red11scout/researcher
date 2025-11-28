@@ -168,7 +168,7 @@ export async function registerRoutes(
     }
   });
 
-  // Get all reports (for potential future features)
+  // Get all reports
   app.get("/api/reports", async (req, res) => {
     try {
       const allReports = await storage.getAllReports();
@@ -176,6 +176,18 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error fetching reports:", error);
       return res.status(500).json({ error: "Failed to fetch reports" });
+    }
+  });
+
+  // Delete a report
+  app.delete("/api/reports/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      await storage.deleteReport(id);
+      return res.json({ success: true, message: "Report deleted" });
+    } catch (error) {
+      console.error("Error deleting report:", error);
+      return res.status(500).json({ error: "Failed to delete report" });
     }
   });
 
