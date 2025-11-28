@@ -1213,6 +1213,20 @@ function renderCellValue(key: string, value: any): React.ReactNode {
     );
   }
 
+  // Format large numbers with commas (Runs/Month, Monthly Tokens, Input/Output Tokens)
+  const numericColumns = ['runs/month', 'monthly tokens', 'input tokens', 'output tokens', 'tokens'];
+  if (numericColumns.some(col => key.toLowerCase().includes(col)) && typeof value === 'number') {
+    return value.toLocaleString('en-US');
+  }
+
+  // Also handle numeric values that might be strings
+  if (numericColumns.some(col => key.toLowerCase().includes(col)) && typeof value === 'string') {
+    const num = parseFloat(value.replace(/[,]/g, ''));
+    if (!isNaN(num)) {
+      return num.toLocaleString('en-US');
+    }
+  }
+
   return strValue;
 }
 
