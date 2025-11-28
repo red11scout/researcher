@@ -701,14 +701,14 @@ export default function Report() {
       }
     });
 
-    XLSX.writeFile(wb, `${companyName}_Insight_AI_Report.xlsx`);
+    XLSX.writeFile(wb, `${companyName}_BlueAlly_Insight_Report.xlsx`);
   };
 
   // Word Generation
   const generateWord = () => {
     const children: (Paragraph | DocxTable)[] = [
       new Paragraph({
-        text: `Insight AI Report: ${companyName}`,
+        text: `BlueAlly Insight Report: ${companyName}`,
         heading: HeadingLevel.TITLE,
       }),
       new Paragraph({
@@ -890,13 +890,13 @@ export default function Report() {
     });
 
     Packer.toBlob(doc).then(blob => {
-      saveAs(blob, `${companyName}_Insight_AI_Report.docx`);
+      saveAs(blob, `${companyName}_BlueAlly_Insight_Report.docx`);
     });
   };
 
   // Markdown Generation
   const generateMarkdown = () => {
-    let mdContent = `# Insight AI Report: ${companyName}\n`;
+    let mdContent = `# BlueAlly Insight Report: ${companyName}\n`;
     mdContent += `*Generated on ${new Date().toLocaleDateString()}*\n\n`;
 
     if (data.summary) {
@@ -936,7 +936,7 @@ export default function Report() {
     });
 
     const blob = new Blob([mdContent], { type: "text/markdown;charset=utf-8" });
-    saveAs(blob, `${companyName}_Insight_AI_Report.md`);
+    saveAs(blob, `${companyName}_BlueAlly_Insight_Report.md`);
   };
 
   const handleDownload = async (format: string) => {

@@ -33,7 +33,7 @@ export default function Layout({ children }: LayoutProps) {
               <div className="h-7 w-7 md:h-8 md:w-8 rounded bg-primary flex items-center justify-center text-white">
                 <Search className="h-4 w-4 md:h-5 md:w-5" />
               </div>
-              <span className="hidden xs:inline">Insight AI</span>
+              <span className="hidden xs:inline">BlueAlly Insight</span>
             </Link>
             <nav className="hidden md:flex items-center gap-6 text-sm font-medium text-muted-foreground">
               <Link href="/" className={`hover:text-primary transition-colors ${isActive("/") && location === "/" ? "text-primary font-semibold" : ""}`}>Research</Link>
@@ -88,7 +88,7 @@ export default function Layout({ children }: LayoutProps) {
       <footer className="border-t py-4 md:py-0">
         <div className="container flex flex-col items-center justify-between gap-3 md:h-16 md:flex-row px-3 md:px-6">
           <p className="text-center text-xs md:text-sm leading-relaxed text-muted-foreground md:text-left">
-            Powered by Claude AI. © 2025 Insight AI.
+            Powered by Claude AI. © 2025 BlueAlly Insight.
           </p>
           <div className="flex items-center gap-2 text-xs md:text-sm text-muted-foreground">
             <span className="flex items-center gap-1.5">
