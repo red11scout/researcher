@@ -151,7 +151,7 @@ Return ONLY valid JSON with this exact structure:
 
   try {
     const message = await anthropic.messages.create({
-      model: "claude-3-5-sonnet-20241022",
+      model: "claude-sonnet-4-5",
       max_tokens: 16000,
       temperature: 0.7,
       system: systemPrompt,

@@ -31,17 +31,24 @@ import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import { Document, Packer, Paragraph, TextRun, Table as DocxTable, TableRow as DocxTableRow, TableCell as DocxTableCell, WidthType, BorderStyle, HeadingLevel } from 'docx';
 
+interface ProgressUpdate {
+  step: number;
+  message: string;
+  detail?: string;
+}
+
 export default function Report() {
   const [location, setLocation] = useLocation();
   const params = new URLSearchParams(window.location.search);
   const companyName = params.get("company") || "Unknown Company";
   const { toast } = useToast();
 
-  const [status, setStatus] = useState<"init" | "researching" | "benchmarking" | "critiquing" | "complete">("init");
+  const [status, setStatus] = useState<"init" | "loading" | "complete">("init");
   const [data, setData] = useState<any>(null);
   const [reportId, setReportId] = useState<string | null>(null);
-  const [progress, setProgress] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [currentStep, setCurrentStep] = useState<ProgressUpdate | null>(null);
+  const [completedSteps, setCompletedSteps] = useState<number[]>([]);
 
   useEffect(() => {
     if (status === "init") {
@@ -51,34 +58,65 @@ export default function Report() {
 
   const fetchAnalysis = async () => {
     try {
-      setStatus("researching");
-      setProgress(10);
+      setStatus("loading");
       setError(null);
+      setCompletedSteps([]);
+      
+      const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Set up SSE connection for progress updates
+      const eventSource = new EventSource(`/api/progress/${sessionId}`);
+      
+      eventSource.onmessage = (event) => {
+        try {
+          const update: ProgressUpdate = JSON.parse(event.data);
+          setCurrentStep(update);
+          
+          if (update.step > 0 && update.step < 100) {
+            setCompletedSteps(prev => {
+              if (!prev.includes(update.step - 1) && update.step > 1) {
+                return [...prev, update.step - 1];
+              }
+              return prev;
+            });
+          }
+          
+          if (update.step === 100) {
+            setCompletedSteps([0, 1, 2, 3, 4, 5, 6, 7, 8]);
+            eventSource.close();
+          }
+          
+          if (update.step === -1) {
+            eventSource.close();
+          }
+        } catch (e) {
+          console.error("Error parsing progress update:", e);
+        }
+      };
+
+      eventSource.onerror = () => {
+        eventSource.close();
+      };
 
       const response = await fetch("/api/analyze", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ companyName }),
+        body: JSON.stringify({ companyName, sessionId }),
       });
 
-      if (!response.ok) {
-        throw new Error("Failed to generate analysis");
-      }
+      eventSource.close();
 
-      setProgress(40);
-      setStatus("benchmarking");
-      await new Promise(r => setTimeout(r, 500));
-      
-      setProgress(70);
-      setStatus("critiquing");
-      await new Promise(r => setTimeout(r, 500));
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to generate analysis");
+      }
 
       const result = await response.json();
       
-      setProgress(100);
       setReportId(result.id);
       setData(result.data);
       setStatus("complete");
+      setCompletedSteps([0, 1, 2, 3, 4, 5, 6, 7, 8]);
 
       if (result.isNew) {
         toast({
@@ -97,7 +135,7 @@ export default function Report() {
       toast({
         variant: "destructive",
         title: "Analysis Failed",
-        description: "Unable to generate analysis. Please try again.",
+        description: err instanceof Error ? err.message : "Unable to generate analysis. Please try again.",
       });
     }
   };
@@ -106,33 +144,43 @@ export default function Report() {
     if (!reportId) return;
 
     try {
-      setStatus("researching");
-      setProgress(10);
+      setStatus("loading");
       setError(null);
+      setCompletedSteps([]);
+      
+      const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      const eventSource = new EventSource(`/api/progress/${sessionId}`);
+      
+      eventSource.onmessage = (event) => {
+        try {
+          const update: ProgressUpdate = JSON.parse(event.data);
+          setCurrentStep(update);
+          if (update.step === 100 || update.step === -1) {
+            eventSource.close();
+          }
+        } catch (e) {
+          console.error("Error parsing progress update:", e);
+        }
+      };
 
       const response = await fetch(`/api/regenerate/${reportId}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ companyName }),
+        body: JSON.stringify({ companyName, sessionId }),
       });
+
+      eventSource.close();
 
       if (!response.ok) {
         throw new Error("Failed to regenerate analysis");
       }
 
-      setProgress(40);
-      setStatus("benchmarking");
-      await new Promise(r => setTimeout(r, 500));
-      
-      setProgress(70);
-      setStatus("critiquing");
-      await new Promise(r => setTimeout(r, 500));
-
       const result = await response.json();
       
-      setProgress(100);
       setData(result.data);
       setStatus("complete");
+      setCompletedSteps([0, 1, 2, 3, 4, 5, 6, 7, 8]);
 
       toast({
         title: "Analysis Refreshed",
@@ -594,42 +642,80 @@ export default function Report() {
     }
   };
 
-  if (status !== "complete") {
+  const analysisSteps = [
+    { step: 0, title: "Company Overview", desc: "Gathering company information..." },
+    { step: 1, title: "Strategic Anchoring", desc: "Identifying business drivers..." },
+    { step: 2, title: "Business Functions", desc: "Analyzing departments and KPIs..." },
+    { step: 3, title: "Friction Points", desc: "Identifying operational bottlenecks..." },
+    { step: 4, title: "AI Use Cases", desc: "Generating opportunities with 6 primitives..." },
+    { step: 5, title: "Benefit Quantification", desc: "Calculating ROI across 4 drivers..." },
+    { step: 6, title: "Token Modeling", desc: "Estimating token costs per use case..." },
+    { step: 7, title: "Priority Scoring", desc: "Computing weighted priority scores..." },
+  ];
+
+  if (status === "loading") {
     return (
       <Layout>
-        <div className="container max-w-3xl mx-auto px-4 py-20">
+        <div className="container max-w-3xl mx-auto px-4 py-12">
           <Card className="border-none shadow-lg">
-            <CardContent className="pt-12 pb-12 flex flex-col items-center text-center">
-              <div className="relative mb-8">
+            <CardContent className="pt-10 pb-10 flex flex-col items-center text-center">
+              <div className="relative mb-6">
                 <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl animate-pulse"></div>
                 <div className="relative bg-background p-4 rounded-full border shadow-sm">
-                  <Loader2 className="h-12 w-12 text-primary animate-spin" />
+                  <Loader2 className="h-10 w-10 text-primary animate-spin" />
                 </div>
               </div>
               
-              <h2 className="text-2xl font-bold mb-2" data-testid="text-loading-title">Generating Strategic Report for {companyName}</h2>
-              <p className="text-muted-foreground mb-8">Executing 8-Step AI Analysis Framework...</p>
+              <h2 className="text-2xl font-bold mb-2" data-testid="text-loading-title">
+                Generating Strategic Report for {companyName}
+              </h2>
               
-              <div className="w-full max-w-md space-y-6">
-                <Step 
-                  active={status === "researching"} 
-                  completed={["benchmarking", "critiquing", "complete"].includes(status)}
-                  label="Steps 0-3: Discovery & Mapping" 
-                  subLabel="Analyzing business functions, KPIs, and friction points..."
-                />
-                <Step 
-                  active={status === "benchmarking"} 
-                  completed={["critiquing", "complete"].includes(status)}
-                  label="Steps 4-5: AI Use Cases & Benefits" 
-                  subLabel="Generating use cases with driver quantification..."
-                />
-                <Step 
-                  active={status === "critiquing"} 
-                  completed={false}
-                  label="Steps 6-7: Scoring & Roadmap" 
-                  subLabel="Calculating priority scores and implementation plan..."
-                />
+              {currentStep && (
+                <div className="mb-6 p-3 bg-primary/5 rounded-lg border border-primary/20">
+                  <p className="text-primary font-medium">{currentStep.message}</p>
+                  {currentStep.detail && (
+                    <p className="text-sm text-muted-foreground mt-1">{currentStep.detail}</p>
+                  )}
+                </div>
+              )}
+              
+              <div className="w-full max-w-lg space-y-3 text-left">
+                {analysisSteps.map((step) => {
+                  const isCompleted = completedSteps.includes(step.step);
+                  const isActive = currentStep?.step === step.step + 1 || 
+                    (currentStep?.message?.includes(`Step ${step.step}`) ?? false);
+                  
+                  return (
+                    <div 
+                      key={step.step} 
+                      className={`flex items-center gap-3 p-3 rounded-lg transition-all duration-300 ${
+                        isActive ? 'bg-primary/10 border border-primary/30' : 
+                        isCompleted ? 'bg-green-50 border border-green-200' : 
+                        'bg-muted/30 border border-transparent'
+                      }`}
+                    >
+                      <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition-colors ${
+                        isCompleted ? 'bg-green-500 text-white' : 
+                        isActive ? 'bg-primary text-primary-foreground animate-pulse' : 
+                        'bg-muted text-muted-foreground'
+                      }`}>
+                        {isCompleted ? <CheckCircle2 className="h-4 w-4" /> : step.step}
+                      </div>
+                      <div className="flex-1">
+                        <div className={`font-medium ${isActive ? 'text-primary' : isCompleted ? 'text-green-700' : 'text-muted-foreground'}`}>
+                          Step {step.step}: {step.title}
+                        </div>
+                        <div className="text-xs text-muted-foreground">{step.desc}</div>
+                      </div>
+                      {isActive && <Loader2 className="h-4 w-4 text-primary animate-spin" />}
+                    </div>
+                  );
+                })}
               </div>
+              
+              <p className="text-sm text-muted-foreground mt-6">
+                This may take 30-60 seconds for comprehensive analysis...
+              </p>
             </CardContent>
           </Card>
         </div>
