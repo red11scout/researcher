@@ -15,9 +15,14 @@ import {
 import { 
   Loader2, CheckCircle2, Download, 
   RefreshCw, FileSpreadsheet, FileText, FileType, ChevronRight, 
-  ArrowLeft, Brain, Calculator, ArrowRight
+  ArrowLeft, Brain, Calculator
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
+import { saveAs } from 'file-saver';
+import { Document, Packer, Paragraph, TextRun, Table as DocxTable, TableRow as DocxTableRow, TableCell as DocxTableCell, WidthType, BorderStyle, HeadingLevel } from 'docx';
 
 // Refined Mock Data Generation based on specific user requirements
 const generateMockData = (company: string) => {
@@ -193,18 +198,249 @@ export default function Report() {
     setStatus("complete");
   };
 
+  // PDF Generation
+  const generatePDF = () => {
+    const doc = new jsPDF();
+    
+    // Header
+    doc.setFontSize(20);
+    doc.setTextColor(26, 115, 232); // Primary Blue
+    doc.text(`Insight AI Report: ${companyName}`, 14, 22);
+    
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    doc.text(`Generated on ${new Date().toLocaleDateString()}`, 14, 30);
+    
+    let yPos = 40;
+
+    data.steps.forEach((step: any) => {
+      // Add new page if we're running out of space
+      if (yPos > 250) {
+        doc.addPage();
+        yPos = 20;
+      }
+
+      doc.setFontSize(14);
+      doc.setTextColor(0);
+      doc.text(`${step.id}. ${step.title}`, 14, yPos);
+      yPos += 8;
+      
+      doc.setFontSize(10);
+      doc.setTextColor(100);
+      doc.text(step.description, 14, yPos);
+      yPos += 10;
+
+      if (step.type === 'table') {
+        const tableColumn = step.columns;
+        const tableRows = step.data.map((row: any) => Object.values(row));
+        
+        autoTable(doc, {
+          startY: yPos,
+          head: [tableColumn],
+          body: tableRows,
+          theme: 'striped',
+          headStyles: { fillColor: [26, 115, 232] },
+          margin: { top: 10 },
+        });
+        
+        yPos = (doc as any).lastAutoTable.finalY + 15;
+      } else {
+        // Grid View for Overview
+        step.data.forEach((item: any) => {
+            doc.setFontSize(10);
+            doc.setTextColor(0);
+            doc.text(`${item.label}: ${item.value}`, 14, yPos);
+            yPos += 6;
+        });
+        yPos += 10;
+      }
+    });
+
+    doc.save(`${companyName}_Insight_AI_Report.pdf`);
+  };
+
+  // Excel Generation
+  const generateExcel = () => {
+    const wb = XLSX.utils.book_new();
+    
+    data.steps.forEach((step: any) => {
+      let wsData = [];
+      
+      if (step.type === 'grid') {
+         wsData = step.data.map((item: any) => ({ Label: item.label, Value: item.value }));
+      } else {
+         wsData = step.data.map((row: any) => {
+           const newRow: any = {};
+           step.columns.forEach((col: string, index: number) => {
+             newRow[col] = Object.values(row)[index];
+           });
+           return newRow;
+         });
+      }
+
+      const ws = XLSX.utils.json_to_sheet(wsData);
+      XLSX.utils.book_append_sheet(wb, ws, step.title.substring(0, 30)); // Sheet names max 31 chars
+    });
+
+    XLSX.writeFile(wb, `${companyName}_Insight_AI_Report.xlsx`);
+  };
+
+  // Word Generation
+  const generateWord = () => {
+    const children: (Paragraph | DocxTable)[] = [
+      new Paragraph({
+        text: `Insight AI Report: ${companyName}`,
+        heading: HeadingLevel.TITLE,
+      }),
+      new Paragraph({
+        text: `Generated on ${new Date().toLocaleDateString()}`,
+        spacing: { after: 200 },
+      }),
+    ];
+
+    data.steps.forEach((step: any) => {
+      children.push(
+        new Paragraph({
+          text: `${step.id}. ${step.title}`,
+          heading: HeadingLevel.HEADING_1,
+          spacing: { before: 200, after: 100 },
+        })
+      );
+      
+      children.push(
+        new Paragraph({
+          text: step.description,
+          spacing: { after: 200 },
+        })
+      );
+
+      if (step.type === 'table') {
+        const tableRows = [
+          new DocxTableRow({
+            children: step.columns.map((col: string) => 
+              new DocxTableCell({
+                children: [new Paragraph({ text: col, style: "strong" })],
+                width: { size: 100 / step.columns.length, type: WidthType.PERCENTAGE },
+                borders: {
+                  top: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+                  bottom: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+                  left: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+                  right: { style: BorderStyle.SINGLE, size: 1, color: "000000" },
+                },
+              })
+            ),
+          }),
+          ...step.data.map((row: any) => 
+            new DocxTableRow({
+              children: Object.values(row).map((val: any) => 
+                new DocxTableCell({
+                  children: [new Paragraph({ text: String(val) })],
+                  borders: {
+                    top: { style: BorderStyle.SINGLE, size: 1, color: "E0E0E0" },
+                    bottom: { style: BorderStyle.SINGLE, size: 1, color: "E0E0E0" },
+                    left: { style: BorderStyle.SINGLE, size: 1, color: "E0E0E0" },
+                    right: { style: BorderStyle.SINGLE, size: 1, color: "E0E0E0" },
+                  },
+                })
+              ),
+            })
+          )
+        ];
+
+        children.push(new DocxTable({ rows: tableRows, width: { size: 100, type: WidthType.PERCENTAGE } }));
+      } else {
+        step.data.forEach((item: any) => {
+          children.push(new Paragraph({
+            children: [
+              new TextRun({ text: `${item.label}: `, bold: true }),
+              new TextRun({ text: item.value }),
+            ]
+          }));
+        });
+      }
+      
+      children.push(new Paragraph({ text: "" })); // Spacer
+    });
+
+    const doc = new Document({
+      sections: [{
+        properties: {},
+        children: children,
+      }],
+    });
+
+    Packer.toBlob(doc).then((blob) => {
+      saveAs(blob, `${companyName}_Insight_AI_Report.docx`);
+    });
+  };
+
+  // Markdown Generation
+  const generateMarkdown = () => {
+    let mdContent = `# Insight AI Report: ${companyName}\n`;
+    mdContent += `Generated on ${new Date().toLocaleDateString()}\n\n`;
+    
+    data.steps.forEach((step: any) => {
+      mdContent += `## ${step.id}. ${step.title}\n`;
+      mdContent += `${step.description}\n\n`;
+      
+      if (step.type === 'table') {
+        mdContent += `| ${step.columns.join(' | ')} |\n`;
+        mdContent += `| ${step.columns.map(() => '---').join(' | ')} |\n`;
+        step.data.forEach((row: any) => {
+          mdContent += `| ${Object.values(row).join(' | ')} |\n`;
+        });
+        mdContent += `\n`;
+      } else {
+        step.data.forEach((item: any) => {
+          mdContent += `- **${item.label}**: ${item.value}\n`;
+        });
+        mdContent += `\n`;
+      }
+    });
+
+    const blob = new Blob([mdContent], { type: "text/markdown;charset=utf-8" });
+    saveAs(blob, `${companyName}_Insight_AI_Report.md`);
+  };
+
   const handleDownload = (format: string) => {
+    if (!data) return;
+
     toast({
       title: "Download Started",
       description: `Generating ${format} report for ${companyName}...`,
     });
-    setTimeout(() => {
+
+    try {
+      switch (format) {
+        case "PDF":
+          generatePDF();
+          break;
+        case "Excel":
+          generateExcel();
+          break;
+        case "Word":
+          generateWord();
+          break;
+        case "Markdown":
+          generateMarkdown();
+          break;
+        default:
+          break;
+      }
+      
       toast({
         title: "Download Complete",
         description: `Your ${format} report is ready.`,
         variant: "default",
       });
-    }, 1000);
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: "Download Failed",
+        description: "There was an error generating your report.",
+        variant: "destructive",
+      });
+    }
   };
 
   if (status !== "complete") {
