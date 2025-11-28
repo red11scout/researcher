@@ -197,6 +197,10 @@ export default function Report() {
     }
   };
 
+  const addCommas = (num: number): string => {
+    return num.toLocaleString('en-US');
+  };
+
   const formatCurrency = (value: number | string): string => {
     if (typeof value === 'string') {
       if (value.startsWith('$')) return value;
@@ -208,9 +212,9 @@ export default function Report() {
     if (value >= 1000000) {
       return `$${(value / 1000000).toFixed(1)}M`;
     } else if (value >= 1000) {
-      return `$${(value / 1000).toFixed(0)}K`;
+      return `$${addCommas(Math.round(value))}`;
     }
-    return `$${value.toFixed(0)}`;
+    return `$${addCommas(Math.round(value))}`;
   };
 
   const formatNumber = (value: number | string): string => {
@@ -220,12 +224,12 @@ export default function Report() {
       value = num;
     }
     if (typeof value !== 'number' || isNaN(value)) return '0';
-    if (value >= 1000000) {
+    if (value >= 1000000000) {
+      return `${(value / 1000000000).toFixed(1)}B`;
+    } else if (value >= 1000000) {
       return `${(value / 1000000).toFixed(1)}M`;
-    } else if (value >= 1000) {
-      return `${(value / 1000).toFixed(0)}K`;
     }
-    return value.toFixed(0);
+    return addCommas(Math.round(value));
   };
 
   // PDF Generation
