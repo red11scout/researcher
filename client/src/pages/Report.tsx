@@ -174,28 +174,115 @@ export default function Report() {
 
   const [status, setStatus] = useState<"init" | "researching" | "benchmarking" | "critiquing" | "complete">("init");
   const [data, setData] = useState<any>(null);
+  const [reportId, setReportId] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (status === "init") {
-      setStatus("researching");
-      simulateProcess();
+      fetchAnalysis();
     }
   }, []);
 
-  const simulateProcess = async () => {
-    setStatus("researching");
-    setProgress(10);
-    await new Promise(r => setTimeout(r, 800));
-    setProgress(40);
-    setStatus("benchmarking");
-    await new Promise(r => setTimeout(r, 800));
-    setProgress(70);
-    setStatus("critiquing");
-    await new Promise(r => setTimeout(r, 800));
-    setProgress(100);
-    setData(generateMockData(companyName));
-    setStatus("complete");
+  const fetchAnalysis = async () => {
+    try {
+      setStatus("researching");
+      setProgress(10);
+      setError(null);
+
+      const response = await fetch("/api/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ companyName }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to generate analysis");
+      }
+
+      // Simulate progress updates
+      setProgress(40);
+      setStatus("benchmarking");
+      await new Promise(r => setTimeout(r, 500));
+      
+      setProgress(70);
+      setStatus("critiquing");
+      await new Promise(r => setTimeout(r, 500));
+
+      const result = await response.json();
+      
+      setProgress(100);
+      setReportId(result.id);
+      setData(result.data);
+      setStatus("complete");
+
+      if (result.isNew) {
+        toast({
+          title: "Analysis Complete",
+          description: "Your strategic analysis has been generated and saved.",
+        });
+      } else {
+        toast({
+          title: "Report Retrieved",
+          description: "Loaded existing analysis for this company.",
+        });
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+      setStatus("complete");
+      toast({
+        variant: "destructive",
+        title: "Analysis Failed",
+        description: "Unable to generate analysis. Please try again.",
+      });
+    }
+  };
+
+  const regenerateAnalysis = async () => {
+    if (!reportId) return;
+
+    try {
+      setStatus("researching");
+      setProgress(10);
+      setError(null);
+
+      const response = await fetch(`/api/regenerate/${reportId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ companyName }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to regenerate analysis");
+      }
+
+      setProgress(40);
+      setStatus("benchmarking");
+      await new Promise(r => setTimeout(r, 500));
+      
+      setProgress(70);
+      setStatus("critiquing");
+      await new Promise(r => setTimeout(r, 500));
+
+      const result = await response.json();
+      
+      setProgress(100);
+      setData(result.data);
+      setStatus("complete");
+
+      toast({
+        title: "Analysis Refreshed",
+        description: "Your report has been regenerated with latest insights.",
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+      setStatus("complete");
+      toast({
+        variant: "destructive",
+        title: "Refresh Failed",
+        description: "Unable to regenerate analysis. Please try again.",
+      });
+    }
   };
 
   // PDF Generation
@@ -504,7 +591,12 @@ export default function Report() {
              </div>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setStatus("researching")}>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={regenerateAnalysis}
+              disabled={!reportId || status !== "complete"}
+            >
               <RefreshCw className="mr-2 h-4 w-4" />
               Update
             </Button>
@@ -527,51 +619,52 @@ export default function Report() {
 }
 
 function StepCard({ step }: { step: any }) {
+  // Handle both AI-generated data and mock data formats
+  const hasData = step.data && step.data.length > 0;
+  const isProseOnly = !hasData || (typeof step.data === 'string');
+  
   return (
     <Card>
       <CardHeader>
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-3">
             <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm border border-primary/20">
-              {step.id}
+              {step.step}
             </div>
             <CardTitle className="text-xl">{step.title}</CardTitle>
           </div>
-          {step.id === 5 && <Badge variant="secondary" className="gap-1"><Calculator className="h-3 w-3" /> Token Model</Badge>}
-          {step.id === 4 && <Badge variant="secondary" className="gap-1"><Brain className="h-3 w-3" /> AI Primitives</Badge>}
+          {step.step === 6 && <Badge variant="secondary" className="gap-1"><Calculator className="h-3 w-3" /> Token Model</Badge>}
+          {step.step === 5 && <Badge variant="secondary" className="gap-1"><Brain className="h-3 w-3" /> AI Primitives</Badge>}
         </div>
-        <CardDescription>{step.description}</CardDescription>
       </CardHeader>
       <CardContent>
-        {step.type === 'grid' ? (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {step.data.map((item: any, i: number) => (
-              <div key={i} className="bg-muted/30 p-3 rounded-lg border">
-                <div className="text-xs text-muted-foreground mb-1 uppercase tracking-wider font-medium">{item.label}</div>
-                <div className="font-medium text-sm">{item.value}</div>
-              </div>
-            ))}
+        {/* Display content text */}
+        {step.content && (
+          <div className="prose prose-sm max-w-none mb-6 text-muted-foreground">
+            <p>{step.content}</p>
           </div>
-        ) : (
+        )}
+        
+        {/* Display data table if available */}
+        {hasData && !isProseOnly && (
           <div className="rounded-md border overflow-hidden">
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/50">
-                    {step.columns.map((col: string, i: number) => (
-                      <TableHead key={i} className="font-semibold text-primary whitespace-nowrap">{col}</TableHead>
+                    {Object.keys(step.data[0]).map((key: string, i: number) => (
+                      <TableHead key={i} className="font-semibold text-primary whitespace-nowrap">{key}</TableHead>
                     ))}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {step.data.map((row: any, i: number) => (
                     <TableRow key={i} className="hover:bg-muted/20 transition-colors">
-                      <TableCell className="font-medium">{row.col1}</TableCell>
-                      <TableCell>{row.col2}</TableCell>
-                      <TableCell>{row.col3}</TableCell>
-                      <TableCell>{row.col4}</TableCell>
-                      {row.col5 && <TableCell>{row.col5}</TableCell>}
-                      {row.col6 && <TableCell>{row.col6}</TableCell>}
+                      {Object.values(row).map((value: any, j: number) => (
+                        <TableCell key={j} className={j === 0 ? "font-medium" : ""}>
+                          {String(value)}
+                        </TableCell>
+                      ))}
                     </TableRow>
                   ))}
                 </TableBody>

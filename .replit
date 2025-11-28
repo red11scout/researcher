@@ -20,6 +20,10 @@ localPort = 5001
 externalPort = 3001
 
 [[ports]]
+localPort = 41571
+externalPort = 3002
+
+[[ports]]
 localPort = 42497
 externalPort = 3000
 
@@ -49,3 +53,4 @@ waitForPort = 5000
 
 [agent]
 mockupState = "FULLSTACK"
+integrations = ["javascript_anthropic_ai_integrations:1.0.0"]
