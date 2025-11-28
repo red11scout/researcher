@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Search, Sparkles, ArrowRight, Building2, TrendingUp, ShieldCheck } from "lucide-react";
 import { motion } from "framer-motion";
 import heroBg from "@assets/generated_images/clean_white_and_blue_abstract_enterprise_background.png";
+import blueAllyLogo from "@assets/image_1764371133187.png";
 
 export default function Home() {
   const [query, setQuery] = useState("");
@@ -36,6 +37,11 @@ export default function Home() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
+            <img 
+              src={blueAllyLogo} 
+              alt="BlueAlly" 
+              className="h-10 md:h-14 w-auto mb-4 md:mb-6 mx-auto"
+            />
             <div className="inline-flex items-center rounded-full border px-2 md:px-2.5 py-0.5 text-[10px] md:text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-primary/10 text-primary hover:bg-primary/20 mb-4 md:mb-6">
               <Sparkles className="mr-1 h-3 w-3" />
               Powered by BlueAllyAI
