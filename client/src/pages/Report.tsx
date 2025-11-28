@@ -30,7 +30,28 @@ import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import { Document, Packer, Paragraph, TextRun, Table as DocxTable, TableRow as DocxTableRow, TableCell as DocxTableCell, WidthType, BorderStyle, HeadingLevel } from 'docx';
-import blueAllyLogo from '@assets/image_1764369352062.png';
+import blueAllyLogoUrl from '@assets/image_1764369352062.png';
+
+const loadImageAsBase64 = (url: string): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, 0, 0);
+        resolve(canvas.toDataURL('image/png'));
+      } else {
+        reject(new Error('Could not get canvas context'));
+      }
+    };
+    img.onerror = () => reject(new Error('Failed to load image'));
+    img.src = url;
+  });
+};
 
 interface ProgressUpdate {
   step: number;
@@ -357,7 +378,8 @@ export default function Report() {
     
     // Add BlueAlly logo (white version on dark background)
     try {
-      doc.addImage(blueAllyLogo, 'PNG', pageWidth / 2 - 35, 35, 70, 20);
+      const logoBase64 = await loadImageAsBase64(blueAllyLogoUrl);
+      doc.addImage(logoBase64, 'PNG', pageWidth / 2 - 35, 35, 70, 20);
     } catch (e) {
       // Fallback to text if logo fails
       doc.setFontSize(32);
