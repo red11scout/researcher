@@ -552,10 +552,15 @@ export default function Report() {
       }
       
       if (step.data && step.data.length > 0) {
-        // Filter out formula columns for cleaner display
-        const columns = Object.keys(step.data[0]).filter(k => !k.includes('Formula'));
+        // For Benefits Quantification step (step 5), include formula columns in a separate section
+        const isBenefitsStep = step.step === 5;
+        const allColumns = Object.keys(step.data[0]);
+        const formulaColumns = allColumns.filter(k => k.includes('Formula'));
+        const displayColumns = allColumns.filter(k => !k.includes('Formula'));
+        
+        // Main data table (without formulas for readability)
         const rows = step.data.map((row: any) => 
-          columns.map(col => {
+          displayColumns.map(col => {
             const val = row[col];
             if (typeof val === 'number' && col.toLowerCase().includes('$')) {
               return formatCurrency(val);
@@ -571,7 +576,7 @@ export default function Report() {
         
         autoTable(doc, {
           startY: yPos,
-          head: [columns],
+          head: [displayColumns],
           body: rows,
           theme: 'striped',
           headStyles: { 
@@ -607,6 +612,71 @@ export default function Report() {
           }
         });
         yPos = (doc as any).lastAutoTable.finalY + 15;
+        
+        // Add calculation formulas section for Benefits Quantification step
+        if (isBenefitsStep && formulaColumns.length > 0) {
+          yPos = ensureSpace(40, yPos);
+          
+          // Formulas section heading
+          doc.setFillColor(...BRAND.lightBlueBg);
+          doc.roundedRect(margin, yPos, contentWidth, 8, 1, 1, 'F');
+          yPos += 6;
+          doc.setFontSize(10);
+          doc.setTextColor(...BRAND.primaryBlue);
+          doc.text('Calculation Formulas', margin + 3, yPos);
+          yPos += 8;
+          
+          // Create formulas table with Use Case ID, Use Case Name, and all formula columns
+          const formulaTableColumns = ['ID', 'Use Case', ...formulaColumns];
+          const formulaRows = step.data.map((row: any) => 
+            [row['ID'] || '', row['Use Case'] || '', ...formulaColumns.map(col => row[col] || 'N/A')]
+          );
+          
+          autoTable(doc, {
+            startY: yPos,
+            head: [formulaTableColumns],
+            body: formulaRows,
+            theme: 'striped',
+            headStyles: { 
+              fillColor: BRAND.primaryBlue,
+              textColor: BRAND.white,
+              fontStyle: 'bold',
+              fontSize: 6,
+              cellPadding: 2
+            },
+            bodyStyles: { fontSize: 6, cellPadding: 2 },
+            alternateRowStyles: { fillColor: [248, 250, 255] },
+            styles: { overflow: 'linebreak', cellWidth: 'wrap' },
+            columnStyles: { 
+              0: { cellWidth: 12 }, 
+              1: { cellWidth: 35 },
+              2: { cellWidth: 38 },
+              3: { cellWidth: 38 },
+              4: { cellWidth: 38 },
+              5: { cellWidth: 38 }
+            },
+            margin: { left: margin, right: margin },
+            rowPageBreak: 'avoid',
+            didDrawPage: (hookData) => {
+              currentPage = doc.getNumberOfPages();
+              if (hookData.pageNumber > 1) {
+                doc.setFillColor(...BRAND.primaryBlue);
+                doc.rect(0, 0, pageWidth, 12, 'F');
+                doc.setFontSize(8);
+                doc.setTextColor(...BRAND.white);
+                doc.text('BlueAlly | AI Strategic Assessment', margin, 8);
+                doc.text(companyName, pageWidth - margin, 8, { align: 'right' });
+                
+                doc.setFillColor(...BRAND.lightBlue);
+                doc.rect(0, pageHeight - 8, pageWidth, 8, 'F');
+                doc.setFontSize(7);
+                doc.setTextColor(...BRAND.white);
+                doc.text(`Page ${currentPage}`, pageWidth / 2, pageHeight - 3, { align: 'center' });
+              }
+            }
+          });
+          yPos = (doc as any).lastAutoTable.finalY + 15;
+        }
       }
     }
     
