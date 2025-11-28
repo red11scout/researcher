@@ -179,21 +179,77 @@ export default function Report() {
     doc.setTextColor(100);
     doc.text(`Generated on ${new Date().toLocaleDateString()}`, 14, 30);
     
-    // Executive Dashboard
+    let yPos = 45;
+    
+    // Executive Dashboard - Complete
     if (data.executiveDashboard) {
       const dash = data.executiveDashboard;
       doc.setFontSize(14);
-      doc.setTextColor(0);
-      doc.text("Executive Dashboard", 14, 45);
+      doc.setTextColor(26, 115, 232);
+      doc.text("Executive Dashboard", 14, yPos);
+      yPos += 10;
       
-      doc.setFontSize(10);
-      doc.text(`Total Annual Value: ${formatCurrency(dash.totalAnnualValue)}`, 14, 55);
-      doc.text(`Revenue Benefit: ${formatCurrency(dash.totalRevenueBenefit)}`, 14, 62);
-      doc.text(`Cost Benefit: ${formatCurrency(dash.totalCostBenefit)}`, 100, 55);
-      doc.text(`Cash Flow Benefit: ${formatCurrency(dash.totalCashFlowBenefit)}`, 100, 62);
+      // Key Metrics Table
+      autoTable(doc, {
+        startY: yPos,
+        head: [["Metric", "Value"]],
+        body: [
+          ["Total Annual Value", formatCurrency(dash.totalAnnualValue)],
+          ["Revenue Benefit", formatCurrency(dash.totalRevenueBenefit)],
+          ["Cost Benefit", formatCurrency(dash.totalCostBenefit)],
+          ["Cash Flow Benefit", formatCurrency(dash.totalCashFlowBenefit)],
+          ["Risk Benefit", formatCurrency(dash.totalRiskBenefit)],
+          ["Monthly Tokens", formatNumber(dash.totalMonthlyTokens)],
+          ["Value per 1M Tokens", formatCurrency(dash.valuePerMillionTokens)],
+        ],
+        theme: 'grid',
+        headStyles: { fillColor: [26, 115, 232] },
+        styles: { fontSize: 9 },
+        columnStyles: { 0: { fontStyle: 'bold' } },
+      });
+      yPos = (doc as any).lastAutoTable.finalY + 10;
+      
+      // Top 5 Use Cases Table
+      if (dash.topUseCases && dash.topUseCases.length > 0) {
+        doc.setFontSize(12);
+        doc.setTextColor(0);
+        doc.text("Top 5 Use Cases by Priority", 14, yPos);
+        yPos += 5;
+        
+        autoTable(doc, {
+          startY: yPos,
+          head: [["Rank", "Use Case", "Priority Score", "Monthly Tokens", "Annual Value"]],
+          body: dash.topUseCases.map((uc: any) => [
+            `#${uc.rank}`,
+            uc.useCase,
+            uc.priorityScore?.toFixed(0) || "N/A",
+            formatNumber(uc.monthlyTokens),
+            formatCurrency(uc.annualValue),
+          ]),
+          theme: 'striped',
+          headStyles: { fillColor: [26, 115, 232] },
+          styles: { fontSize: 8 },
+        });
+        yPos = (doc as any).lastAutoTable.finalY + 15;
+      }
     }
     
-    let yPos = 80;
+    // Summary
+    if (data.summary) {
+      if (yPos > 240) {
+        doc.addPage();
+        yPos = 20;
+      }
+      doc.setFontSize(12);
+      doc.setTextColor(0);
+      doc.text("Executive Summary", 14, yPos);
+      yPos += 6;
+      doc.setFontSize(10);
+      doc.setTextColor(80);
+      const summaryLines = doc.splitTextToSize(data.summary, 180);
+      doc.text(summaryLines, 14, yPos);
+      yPos += summaryLines.length * 5 + 10;
+    }
 
     data.steps.forEach((step: any) => {
       if (yPos > 250) {
@@ -285,6 +341,111 @@ export default function Report() {
         spacing: { after: 200 },
       }),
     ];
+
+    // Executive Dashboard
+    if (data.executiveDashboard) {
+      const dash = data.executiveDashboard;
+      children.push(
+        new Paragraph({
+          text: "Executive Dashboard",
+          heading: HeadingLevel.HEADING_1,
+        })
+      );
+
+      // Metrics Table
+      const metricsTable = new DocxTable({
+        rows: [
+          new DocxTableRow({
+            children: [
+              new DocxTableCell({ children: [new Paragraph({ text: "Metric", style: "Strong" })] }),
+              new DocxTableCell({ children: [new Paragraph({ text: "Value", style: "Strong" })] }),
+            ],
+          }),
+          new DocxTableRow({
+            children: [
+              new DocxTableCell({ children: [new Paragraph({ text: "Total Annual Value" })] }),
+              new DocxTableCell({ children: [new Paragraph({ text: formatCurrency(dash.totalAnnualValue) })] }),
+            ],
+          }),
+          new DocxTableRow({
+            children: [
+              new DocxTableCell({ children: [new Paragraph({ text: "Revenue Benefit" })] }),
+              new DocxTableCell({ children: [new Paragraph({ text: formatCurrency(dash.totalRevenueBenefit) })] }),
+            ],
+          }),
+          new DocxTableRow({
+            children: [
+              new DocxTableCell({ children: [new Paragraph({ text: "Cost Benefit" })] }),
+              new DocxTableCell({ children: [new Paragraph({ text: formatCurrency(dash.totalCostBenefit) })] }),
+            ],
+          }),
+          new DocxTableRow({
+            children: [
+              new DocxTableCell({ children: [new Paragraph({ text: "Cash Flow Benefit" })] }),
+              new DocxTableCell({ children: [new Paragraph({ text: formatCurrency(dash.totalCashFlowBenefit) })] }),
+            ],
+          }),
+          new DocxTableRow({
+            children: [
+              new DocxTableCell({ children: [new Paragraph({ text: "Risk Benefit" })] }),
+              new DocxTableCell({ children: [new Paragraph({ text: formatCurrency(dash.totalRiskBenefit) })] }),
+            ],
+          }),
+          new DocxTableRow({
+            children: [
+              new DocxTableCell({ children: [new Paragraph({ text: "Monthly Tokens" })] }),
+              new DocxTableCell({ children: [new Paragraph({ text: formatNumber(dash.totalMonthlyTokens) })] }),
+            ],
+          }),
+          new DocxTableRow({
+            children: [
+              new DocxTableCell({ children: [new Paragraph({ text: "Value per 1M Tokens" })] }),
+              new DocxTableCell({ children: [new Paragraph({ text: formatCurrency(dash.valuePerMillionTokens) })] }),
+            ],
+          }),
+        ],
+        width: { size: 100, type: WidthType.PERCENTAGE },
+      });
+      children.push(metricsTable);
+
+      // Top 5 Use Cases
+      if (dash.topUseCases && dash.topUseCases.length > 0) {
+        children.push(
+          new Paragraph({
+            text: "Top 5 Use Cases by Priority",
+            heading: HeadingLevel.HEADING_2,
+            spacing: { before: 200 },
+          })
+        );
+
+        const useCaseTable = new DocxTable({
+          rows: [
+            new DocxTableRow({
+              children: [
+                new DocxTableCell({ children: [new Paragraph({ text: "Rank", style: "Strong" })] }),
+                new DocxTableCell({ children: [new Paragraph({ text: "Use Case", style: "Strong" })] }),
+                new DocxTableCell({ children: [new Paragraph({ text: "Priority Score", style: "Strong" })] }),
+                new DocxTableCell({ children: [new Paragraph({ text: "Monthly Tokens", style: "Strong" })] }),
+                new DocxTableCell({ children: [new Paragraph({ text: "Annual Value", style: "Strong" })] }),
+              ],
+            }),
+            ...dash.topUseCases.map((uc: any) =>
+              new DocxTableRow({
+                children: [
+                  new DocxTableCell({ children: [new Paragraph({ text: `#${uc.rank}` })] }),
+                  new DocxTableCell({ children: [new Paragraph({ text: uc.useCase })] }),
+                  new DocxTableCell({ children: [new Paragraph({ text: String(uc.priorityScore?.toFixed(0) || "N/A") })] }),
+                  new DocxTableCell({ children: [new Paragraph({ text: formatNumber(uc.monthlyTokens) })] }),
+                  new DocxTableCell({ children: [new Paragraph({ text: formatCurrency(uc.annualValue) })] }),
+                ],
+              })
+            ),
+          ],
+          width: { size: 100, type: WidthType.PERCENTAGE },
+        });
+        children.push(useCaseTable);
+      }
+    }
 
     // Executive Summary
     if (data.summary) {
