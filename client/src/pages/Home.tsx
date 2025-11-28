@@ -38,7 +38,7 @@ export default function Home() {
           >
             <div className="inline-flex items-center rounded-full border px-2 md:px-2.5 py-0.5 text-[10px] md:text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-primary/10 text-primary hover:bg-primary/20 mb-4 md:mb-6">
               <Sparkles className="mr-1 h-3 w-3" />
-              Powered by Claude AI 3.5 Sonnet
+              Powered by BlueAllyAI
             </div>
             <h1 className="text-2xl sm:text-3xl md:text-5xl lg:text-6xl font-display font-bold tracking-tight text-foreground mb-4 md:mb-6 leading-tight">
               Deep corporate intelligence, <br className="hidden sm:block" />

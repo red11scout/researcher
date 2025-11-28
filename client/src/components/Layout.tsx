@@ -88,7 +88,7 @@ export default function Layout({ children }: LayoutProps) {
       <footer className="border-t py-4 md:py-0">
         <div className="container flex flex-col items-center justify-between gap-3 md:h-16 md:flex-row px-3 md:px-6">
           <p className="text-center text-xs md:text-sm leading-relaxed text-muted-foreground md:text-left">
-            Powered by Claude AI. © 2025 BlueAlly Insight.
+            Powered by BlueAllyAI. © 2025 BlueAlly Insight.
           </p>
           <div className="flex items-center gap-2 text-xs md:text-sm text-muted-foreground">
             <span className="flex items-center gap-1.5">
