@@ -983,30 +983,30 @@ export default function Report() {
   if (status === "loading") {
     return (
       <Layout>
-        <div className="container max-w-3xl mx-auto px-4 py-12">
+        <div className="container max-w-3xl mx-auto px-3 md:px-4 py-6 md:py-12">
           <Card className="border-none shadow-lg">
-            <CardContent className="pt-10 pb-10 flex flex-col items-center text-center">
-              <div className="relative mb-6">
+            <CardContent className="pt-6 md:pt-10 pb-6 md:pb-10 flex flex-col items-center text-center px-3 md:px-6">
+              <div className="relative mb-4 md:mb-6">
                 <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl animate-pulse"></div>
-                <div className="relative bg-background p-4 rounded-full border shadow-sm">
-                  <Loader2 className="h-10 w-10 text-primary animate-spin" />
+                <div className="relative bg-background p-3 md:p-4 rounded-full border shadow-sm">
+                  <Loader2 className="h-8 w-8 md:h-10 md:w-10 text-primary animate-spin" />
                 </div>
               </div>
               
-              <h2 className="text-2xl font-bold mb-2" data-testid="text-loading-title">
-                Generating Strategic Report for {companyName}
+              <h2 className="text-lg md:text-2xl font-bold mb-2" data-testid="text-loading-title">
+                Generating Report for {companyName}
               </h2>
               
               {currentStep && (
-                <div className="mb-6 p-3 bg-primary/5 rounded-lg border border-primary/20">
-                  <p className="text-primary font-medium">{currentStep.message}</p>
+                <div className="mb-4 md:mb-6 p-2 md:p-3 bg-primary/5 rounded-lg border border-primary/20 w-full">
+                  <p className="text-primary font-medium text-sm md:text-base">{currentStep.message}</p>
                   {currentStep.detail && (
-                    <p className="text-sm text-muted-foreground mt-1">{currentStep.detail}</p>
+                    <p className="text-xs md:text-sm text-muted-foreground mt-1">{currentStep.detail}</p>
                   )}
                 </div>
               )}
               
-              <div className="w-full max-w-lg space-y-3 text-left">
+              <div className="w-full max-w-lg space-y-2 md:space-y-3 text-left">
                 {analysisSteps.map((step) => {
                   const isCompleted = completedSteps.includes(step.step);
                   const isActive = currentStep?.step === step.step + 1 || 
@@ -1015,33 +1015,33 @@ export default function Report() {
                   return (
                     <div 
                       key={step.step} 
-                      className={`flex items-center gap-3 p-3 rounded-lg transition-all duration-300 ${
+                      className={`flex items-center gap-2 md:gap-3 p-2 md:p-3 rounded-lg transition-all duration-300 ${
                         isActive ? 'bg-primary/10 border border-primary/30' : 
                         isCompleted ? 'bg-green-50 border border-green-200' : 
                         'bg-muted/30 border border-transparent'
                       }`}
                     >
-                      <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition-colors ${
+                      <div className={`flex h-6 w-6 md:h-8 md:w-8 items-center justify-center rounded-full text-xs md:text-sm font-medium transition-colors flex-shrink-0 ${
                         isCompleted ? 'bg-green-500 text-white' : 
                         isActive ? 'bg-primary text-primary-foreground animate-pulse' : 
                         'bg-muted text-muted-foreground'
                       }`}>
-                        {isCompleted ? <CheckCircle2 className="h-4 w-4" /> : step.step}
+                        {isCompleted ? <CheckCircle2 className="h-3 w-3 md:h-4 md:w-4" /> : step.step}
                       </div>
-                      <div className="flex-1">
-                        <div className={`font-medium ${isActive ? 'text-primary' : isCompleted ? 'text-green-700' : 'text-muted-foreground'}`}>
-                          Step {step.step}: {step.title}
+                      <div className="flex-1 min-w-0">
+                        <div className={`font-medium text-xs md:text-sm ${isActive ? 'text-primary' : isCompleted ? 'text-green-700' : 'text-muted-foreground'}`}>
+                          <span className="hidden sm:inline">Step {step.step}: </span>{step.title}
                         </div>
-                        <div className="text-xs text-muted-foreground">{step.desc}</div>
+                        <div className="text-[10px] md:text-xs text-muted-foreground truncate">{step.desc}</div>
                       </div>
-                      {isActive && <Loader2 className="h-4 w-4 text-primary animate-spin" />}
+                      {isActive && <Loader2 className="h-3 w-3 md:h-4 md:w-4 text-primary animate-spin flex-shrink-0" />}
                     </div>
                   );
                 })}
               </div>
               
-              <p className="text-sm text-muted-foreground mt-6">
-                This may take 30-60 seconds for comprehensive analysis...
+              <p className="text-xs md:text-sm text-muted-foreground mt-4 md:mt-6">
+                This may take 30-60 seconds...
               </p>
             </CardContent>
           </Card>
@@ -1053,14 +1053,14 @@ export default function Report() {
   if (error || !data) {
     return (
       <Layout>
-        <div className="container max-w-3xl mx-auto px-4 py-20">
+        <div className="container max-w-3xl mx-auto px-3 md:px-4 py-12 md:py-20">
           <Card className="border-none shadow-lg">
-            <CardContent className="pt-12 pb-12 flex flex-col items-center text-center">
-              <div className="mb-6 p-4 rounded-full bg-red-100">
-                <ShieldCheck className="h-12 w-12 text-red-500" />
+            <CardContent className="pt-8 md:pt-12 pb-8 md:pb-12 flex flex-col items-center text-center px-4">
+              <div className="mb-4 md:mb-6 p-3 md:p-4 rounded-full bg-red-100">
+                <ShieldCheck className="h-8 w-8 md:h-12 md:w-12 text-red-500" />
               </div>
-              <h2 className="text-2xl font-bold mb-2">Analysis Failed</h2>
-              <p className="text-muted-foreground mb-6">{error || "Unable to generate analysis"}</p>
+              <h2 className="text-xl md:text-2xl font-bold mb-2">Analysis Failed</h2>
+              <p className="text-sm md:text-base text-muted-foreground mb-4 md:mb-6">{error || "Unable to generate analysis"}</p>
               <Button onClick={() => { setStatus("init"); setError(null); }} data-testid="button-retry">
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Try Again
@@ -1076,92 +1076,95 @@ export default function Report() {
     <Layout>
       <div className="flex flex-col min-h-[calc(100vh-4rem)]">
         {/* Toolbar */}
-        <div className="border-b bg-background sticky top-16 z-40 px-6 py-3 flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-             <Button variant="ghost" size="icon" onClick={() => setLocation("/")} data-testid="button-back">
-               <ArrowLeft className="h-4 w-4" />
-             </Button>
-             <div>
-               <h1 className="text-xl font-bold flex items-center gap-2" data-testid="text-company-name">
-                 {companyName}
-                 <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 font-normal">AI Analyzed</Badge>
-               </h1>
-               <p className="text-xs text-muted-foreground">Full 8-Step Strategic Analysis with 4 Business Drivers</p>
-             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={regenerateAnalysis}
-              disabled={!reportId || status !== "complete"}
-              data-testid="button-refresh"
-            >
-              <RefreshCw className="mr-2 h-4 w-4" />
-              Update
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button size="sm" data-testid="button-export">
-                  <Download className="mr-2 h-4 w-4" />
-                  Export Report
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => handleDownload("PDF")} data-testid="menu-pdf">
-                  <FileText className="mr-2 h-4 w-4" /> Download PDF
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleDownload("Excel")} data-testid="menu-excel">
-                  <FileSpreadsheet className="mr-2 h-4 w-4" /> Download Excel
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleDownload("Word")} data-testid="menu-word">
-                  <FileType className="mr-2 h-4 w-4" /> Download Word
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleDownload("Markdown")} data-testid="menu-md">
-                  <FileText className="mr-2 h-4 w-4" /> Download Markdown
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+        <div className="border-b bg-background sticky top-14 md:top-16 z-40 px-3 md:px-6 py-2 md:py-3 flex flex-col gap-3 md:gap-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 md:gap-4 min-w-0">
+               <Button variant="ghost" size="icon" onClick={() => setLocation("/")} data-testid="button-back" className="h-8 w-8 md:h-9 md:w-9 flex-shrink-0">
+                 <ArrowLeft className="h-4 w-4" />
+               </Button>
+               <div className="min-w-0">
+                 <h1 className="text-base md:text-xl font-bold flex items-center gap-2 flex-wrap" data-testid="text-company-name">
+                   <span className="truncate">{companyName}</span>
+                   <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 font-normal text-[10px] md:text-xs flex-shrink-0">AI Analyzed</Badge>
+                 </h1>
+                 <p className="text-[10px] md:text-xs text-muted-foreground hidden sm:block">Full 8-Step Strategic Analysis with 4 Business Drivers</p>
+               </div>
+            </div>
+            <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={regenerateAnalysis}
+                disabled={!reportId || status !== "complete"}
+                data-testid="button-refresh"
+                className="h-8 md:h-9 px-2 md:px-3 text-xs md:text-sm"
+              >
+                <RefreshCw className="h-3 w-3 md:h-4 md:w-4 md:mr-2" />
+                <span className="hidden md:inline">Update</span>
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button size="sm" data-testid="button-export" className="h-8 md:h-9 px-2 md:px-3 text-xs md:text-sm">
+                    <Download className="h-3 w-3 md:h-4 md:w-4 md:mr-2" />
+                    <span className="hidden sm:inline">Export</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => handleDownload("PDF")} data-testid="menu-pdf">
+                    <FileText className="mr-2 h-4 w-4" /> Download PDF
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleDownload("Excel")} data-testid="menu-excel">
+                    <FileSpreadsheet className="mr-2 h-4 w-4" /> Download Excel
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleDownload("Word")} data-testid="menu-word">
+                    <FileType className="mr-2 h-4 w-4" /> Download Word
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleDownload("Markdown")} data-testid="menu-md">
+                    <FileText className="mr-2 h-4 w-4" /> Download Markdown
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </div>
 
-        <div className="flex-1 bg-muted/30 p-6">
+        <div className="flex-1 bg-muted/30 p-3 md:p-6">
           <div className="container mx-auto max-w-6xl">
             {/* Executive Dashboard */}
             {data.executiveDashboard && (
-              <Card className="mb-8 border-primary/20 bg-gradient-to-br from-primary/5 to-transparent" data-testid="card-executive-dashboard">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-2xl">
-                    <Target className="h-6 w-6 text-primary" />
+              <Card className="mb-4 md:mb-8 border-primary/20 bg-gradient-to-br from-primary/5 to-transparent" data-testid="card-executive-dashboard">
+                <CardHeader className="pb-2 md:pb-6">
+                  <CardTitle className="flex items-center gap-2 text-lg md:text-2xl">
+                    <Target className="h-5 w-5 md:h-6 md:w-6 text-primary" />
                     Executive Dashboard
                   </CardTitle>
-                  <CardDescription>AI Portfolio KPIs - Total value across all 4 business drivers</CardDescription>
+                  <CardDescription className="text-xs md:text-sm">AI Portfolio KPIs - Total value across all 4 business drivers</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                  <div className="grid grid-cols-2 gap-2 md:gap-4 mb-4 md:mb-6">
                     <DashboardMetric 
-                      icon={<TrendingUp className="h-5 w-5" />}
+                      icon={<TrendingUp className="h-4 w-4 md:h-5 md:w-5" />}
                       label="Revenue Benefit"
                       value={formatCurrency(data.executiveDashboard.totalRevenueBenefit)}
                       color="text-green-600"
                       bgColor="bg-green-50"
                     />
                     <DashboardMetric 
-                      icon={<TrendingDown className="h-5 w-5" />}
+                      icon={<TrendingDown className="h-4 w-4 md:h-5 md:w-5" />}
                       label="Cost Benefit"
                       value={formatCurrency(data.executiveDashboard.totalCostBenefit)}
                       color="text-blue-600"
                       bgColor="bg-blue-50"
                     />
                     <DashboardMetric 
-                      icon={<DollarSign className="h-5 w-5" />}
+                      icon={<DollarSign className="h-4 w-4 md:h-5 md:w-5" />}
                       label="Cash Flow Benefit"
                       value={formatCurrency(data.executiveDashboard.totalCashFlowBenefit)}
                       color="text-purple-600"
                       bgColor="bg-purple-50"
                     />
                     <DashboardMetric 
-                      icon={<ShieldCheck className="h-5 w-5" />}
+                      icon={<ShieldCheck className="h-4 w-4 md:h-5 md:w-5" />}
                       label="Risk Benefit"
                       value={formatCurrency(data.executiveDashboard.totalRiskBenefit)}
                       color="text-orange-600"
@@ -1169,22 +1172,22 @@ export default function Report() {
                     />
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <div className="p-4 rounded-lg border bg-card">
-                      <div className="text-sm text-muted-foreground mb-1">Total Annual Value</div>
-                      <div className="text-2xl font-bold text-primary" data-testid="text-total-value">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 md:gap-4 mb-4 md:mb-6">
+                    <div className="p-3 md:p-4 rounded-lg border bg-card">
+                      <div className="text-xs md:text-sm text-muted-foreground mb-1">Total Annual Value</div>
+                      <div className="text-lg md:text-2xl font-bold text-primary" data-testid="text-total-value">
                         {formatCurrency(data.executiveDashboard.totalAnnualValue)}
                       </div>
                     </div>
-                    <div className="p-4 rounded-lg border bg-card">
-                      <div className="text-sm text-muted-foreground mb-1">Monthly Tokens</div>
-                      <div className="text-2xl font-bold">
+                    <div className="p-3 md:p-4 rounded-lg border bg-card">
+                      <div className="text-xs md:text-sm text-muted-foreground mb-1">Monthly Tokens</div>
+                      <div className="text-lg md:text-2xl font-bold">
                         {formatNumber(data.executiveDashboard.totalMonthlyTokens)}
                       </div>
                     </div>
-                    <div className="p-4 rounded-lg border bg-card">
-                      <div className="text-sm text-muted-foreground mb-1">Value per 1M Tokens</div>
-                      <div className="text-2xl font-bold">
+                    <div className="p-3 md:p-4 rounded-lg border bg-card">
+                      <div className="text-xs md:text-sm text-muted-foreground mb-1">Value per 1M Tokens</div>
+                      <div className="text-lg md:text-2xl font-bold">
                         {formatCurrency(data.executiveDashboard.valuePerMillionTokens)}
                       </div>
                     </div>
@@ -1192,45 +1195,47 @@ export default function Report() {
 
                   {data.executiveDashboard.topUseCases && data.executiveDashboard.topUseCases.length > 0 && (
                     <div>
-                      <h4 className="font-semibold mb-3 flex items-center gap-2">
-                        <Zap className="h-4 w-4 text-primary" />
+                      <h4 className="font-semibold mb-2 md:mb-3 flex items-center gap-2 text-sm md:text-base">
+                        <Zap className="h-3.5 w-3.5 md:h-4 md:w-4 text-primary" />
                         Top 5 Use Cases by Priority
                       </h4>
                       <div className="rounded-md border overflow-hidden">
-                        <Table>
-                          <TableHeader>
-                            <TableRow className="bg-muted/50">
-                              <TableHead className="font-semibold text-primary">Rank</TableHead>
-                              <TableHead className="font-semibold text-primary">Use Case</TableHead>
-                              <TableHead className="font-semibold text-primary">Priority Score</TableHead>
-                              <TableHead className="font-semibold text-primary">Monthly Tokens</TableHead>
-                              <TableHead className="font-semibold text-primary">Annual Value</TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
-                            {data.executiveDashboard.topUseCases.map((uc: any, i: number) => (
-                              <TableRow key={i} className="hover:bg-muted/20">
-                                <TableCell>
-                                  <Badge variant={uc.rank <= 3 ? "default" : "secondary"}>#{uc.rank}</Badge>
-                                </TableCell>
-                                <TableCell className="font-medium">{uc.useCase}</TableCell>
-                                <TableCell>
-                                  <div className="flex items-center gap-2">
-                                    <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
-                                      <div 
-                                        className="h-full bg-primary rounded-full" 
-                                        style={{ width: `${uc.priorityScore}%` }}
-                                      />
-                                    </div>
-                                    <span className="text-sm font-medium">{uc.priorityScore?.toFixed(0)}</span>
-                                  </div>
-                                </TableCell>
-                                <TableCell>{formatNumber(uc.monthlyTokens)}</TableCell>
-                                <TableCell className="font-medium text-green-600">{formatCurrency(uc.annualValue)}</TableCell>
+                        <div className="overflow-x-auto">
+                          <Table>
+                            <TableHeader>
+                              <TableRow className="bg-muted/50">
+                                <TableHead className="font-semibold text-primary text-xs md:text-sm whitespace-nowrap">#</TableHead>
+                                <TableHead className="font-semibold text-primary text-xs md:text-sm whitespace-nowrap">Use Case</TableHead>
+                                <TableHead className="font-semibold text-primary text-xs md:text-sm whitespace-nowrap hidden sm:table-cell">Score</TableHead>
+                                <TableHead className="font-semibold text-primary text-xs md:text-sm whitespace-nowrap hidden md:table-cell">Tokens</TableHead>
+                                <TableHead className="font-semibold text-primary text-xs md:text-sm whitespace-nowrap">Value</TableHead>
                               </TableRow>
-                            ))}
-                          </TableBody>
-                        </Table>
+                            </TableHeader>
+                            <TableBody>
+                              {data.executiveDashboard.topUseCases.map((uc: any, i: number) => (
+                                <TableRow key={i} className="hover:bg-muted/20">
+                                  <TableCell className="py-2">
+                                    <Badge variant={uc.rank <= 3 ? "default" : "secondary"} className="text-[10px] md:text-xs">#{uc.rank}</Badge>
+                                  </TableCell>
+                                  <TableCell className="font-medium text-xs md:text-sm py-2">{uc.useCase}</TableCell>
+                                  <TableCell className="hidden sm:table-cell py-2">
+                                    <div className="flex items-center gap-1.5 md:gap-2">
+                                      <div className="w-10 md:w-16 h-1.5 md:h-2 bg-muted rounded-full overflow-hidden">
+                                        <div 
+                                          className="h-full bg-primary rounded-full" 
+                                          style={{ width: `${uc.priorityScore}%` }}
+                                        />
+                                      </div>
+                                      <span className="text-xs md:text-sm font-medium">{uc.priorityScore?.toFixed(0)}</span>
+                                    </div>
+                                  </TableCell>
+                                  <TableCell className="hidden md:table-cell text-xs md:text-sm py-2">{formatNumber(uc.monthlyTokens)}</TableCell>
+                                  <TableCell className="font-medium text-green-600 text-xs md:text-sm py-2">{formatCurrency(uc.annualValue)}</TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -1240,56 +1245,56 @@ export default function Report() {
 
             {/* Summary */}
             {data.summary && (
-              <Card className="mb-8" data-testid="card-summary">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Brain className="h-5 w-5 text-primary" />
+              <Card className="mb-4 md:mb-8" data-testid="card-summary">
+                <CardHeader className="pb-2 md:pb-6">
+                  <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+                    <Brain className="h-4 w-4 md:h-5 md:w-5 text-primary" />
                     Executive Summary
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-muted-foreground leading-relaxed">{data.summary}</p>
+                  <p className="text-muted-foreground leading-relaxed text-xs md:text-sm">{data.summary}</p>
                 </CardContent>
               </Card>
             )}
 
             {/* Analysis Steps */}
-            <div className="flex flex-col space-y-8">
+            <div className="flex flex-col space-y-4 md:space-y-8">
               {data.steps?.map((step: any, index: number) => (
                 <StepCard key={index} step={step} />
               ))}
             </div>
 
             {/* Save Confirmation & Actions */}
-            <Card className="mt-8 border-green-200 bg-gradient-to-br from-green-50 to-transparent" data-testid="card-save-confirmation">
-              <CardContent className="pt-6">
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                  <div className="flex items-center gap-4">
-                    <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center">
-                      <CheckCircle2 className="h-6 w-6 text-green-600" />
+            <Card className="mt-4 md:mt-8 border-green-200 bg-gradient-to-br from-green-50 to-transparent" data-testid="card-save-confirmation">
+              <CardContent className="pt-4 md:pt-6 pb-4">
+                <div className="flex flex-col gap-3 md:gap-4">
+                  <div className="flex items-center gap-3 md:gap-4">
+                    <div className="h-10 w-10 md:h-12 md:w-12 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+                      <CheckCircle2 className="h-5 w-5 md:h-6 md:w-6 text-green-600" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-lg text-green-800">Report Saved Successfully</h3>
-                      <p className="text-sm text-green-700">
-                        This analysis is automatically saved and can be accessed from your Saved Reports anytime.
+                      <h3 className="font-semibold text-sm md:text-lg text-green-800">Report Saved Successfully</h3>
+                      <p className="text-xs md:text-sm text-green-700">
+                        This analysis is saved and can be accessed from Saved Reports anytime.
                       </p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 w-full md:w-auto">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-2 border-t border-green-200">
                     <Button 
                       variant="outline" 
                       onClick={regenerateAnalysis}
                       disabled={!reportId}
-                      className="flex-1 md:flex-none gap-2 border-green-300 text-green-700 hover:bg-green-100"
+                      className="flex-1 gap-2 border-green-300 text-green-700 hover:bg-green-100 h-9 md:h-10 text-xs md:text-sm"
                       data-testid="button-update-analysis"
                     >
-                      <RefreshCw className="h-4 w-4" />
+                      <RefreshCw className="h-3.5 w-3.5 md:h-4 md:w-4" />
                       Update Analysis
                     </Button>
-                    <Link href="/saved">
-                      <Button variant="default" className="flex-1 md:flex-none gap-2 bg-green-600 hover:bg-green-700" data-testid="button-view-saved">
-                        <FileText className="h-4 w-4" />
-                        View All Saved Reports
+                    <Link href="/saved" className="flex-1">
+                      <Button variant="default" className="w-full gap-2 bg-green-600 hover:bg-green-700 h-9 md:h-10 text-xs md:text-sm" data-testid="button-view-saved">
+                        <FileText className="h-3.5 w-3.5 md:h-4 md:w-4" />
+                        View Saved Reports
                       </Button>
                     </Link>
                   </div>
@@ -1311,12 +1316,12 @@ function DashboardMetric({ icon, label, value, color, bgColor }: {
   bgColor: string;
 }) {
   return (
-    <div className={`p-4 rounded-lg border ${bgColor}`}>
-      <div className="flex items-center gap-2 mb-2">
+    <div className={`p-2 md:p-4 rounded-lg border ${bgColor}`}>
+      <div className="flex items-center gap-1.5 md:gap-2 mb-1 md:mb-2">
         <div className={color}>{icon}</div>
-        <span className="text-sm text-muted-foreground">{label}</span>
+        <span className="text-[10px] md:text-sm text-muted-foreground">{label}</span>
       </div>
-      <div className={`text-xl font-bold ${color}`}>{value}</div>
+      <div className={`text-sm md:text-xl font-bold ${color}`}>{value}</div>
     </div>
   );
 }
@@ -1347,10 +1352,10 @@ function StepCard({ step }: { step: any }) {
   
   const getStepBadge = (stepNum: number) => {
     switch(stepNum) {
-      case 4: return <Badge variant="secondary" className="gap-1"><Brain className="h-3 w-3" /> AI Primitives</Badge>;
-      case 5: return <Badge variant="secondary" className="gap-1"><DollarSign className="h-3 w-3" /> Benefits</Badge>;
-      case 6: return <Badge variant="secondary" className="gap-1"><Calculator className="h-3 w-3" /> Token Model</Badge>;
-      case 7: return <Badge variant="secondary" className="gap-1"><Target className="h-3 w-3" /> Priority</Badge>;
+      case 4: return <Badge variant="secondary" className="gap-1 text-[10px] md:text-xs"><Brain className="h-2.5 w-2.5 md:h-3 md:w-3" /> <span className="hidden sm:inline">AI Primitives</span><span className="sm:hidden">AI</span></Badge>;
+      case 5: return <Badge variant="secondary" className="gap-1 text-[10px] md:text-xs"><DollarSign className="h-2.5 w-2.5 md:h-3 md:w-3" /> Benefits</Badge>;
+      case 6: return <Badge variant="secondary" className="gap-1 text-[10px] md:text-xs"><Calculator className="h-2.5 w-2.5 md:h-3 md:w-3" /> <span className="hidden sm:inline">Token Model</span><span className="sm:hidden">Tokens</span></Badge>;
+      case 7: return <Badge variant="secondary" className="gap-1 text-[10px] md:text-xs"><Target className="h-2.5 w-2.5 md:h-3 md:w-3" /> Priority</Badge>;
       default: return null;
     }
   };
@@ -1359,22 +1364,24 @@ function StepCard({ step }: { step: any }) {
 
   return (
     <Card data-testid={`card-step-${step.step}`}>
-      <CardHeader>
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm border border-primary/20">
+      <CardHeader className="pb-2 md:pb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+          <div className="flex items-center gap-2 md:gap-3">
+            <div className="h-6 w-6 md:h-8 md:w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs md:text-sm border border-primary/20 flex-shrink-0">
               {step.step}
             </div>
-            <CardTitle className="text-xl">{step.title}</CardTitle>
+            <CardTitle className="text-base md:text-xl leading-tight">{step.title}</CardTitle>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
             {isBenefitsStep && hasData && (
-              <div className="flex gap-1">
-                <Button variant="ghost" size="sm" onClick={expandAll} className="text-xs">
-                  Expand All
+              <div className="flex gap-0.5 md:gap-1">
+                <Button variant="ghost" size="sm" onClick={expandAll} className="text-[10px] md:text-xs h-7 md:h-8 px-1.5 md:px-2">
+                  <span className="hidden sm:inline">Expand All</span>
+                  <span className="sm:hidden">+</span>
                 </Button>
-                <Button variant="ghost" size="sm" onClick={collapseAll} className="text-xs">
-                  Collapse All
+                <Button variant="ghost" size="sm" onClick={collapseAll} className="text-[10px] md:text-xs h-7 md:h-8 px-1.5 md:px-2">
+                  <span className="hidden sm:inline">Collapse All</span>
+                  <span className="sm:hidden">-</span>
                 </Button>
               </div>
             )}
@@ -1382,10 +1389,10 @@ function StepCard({ step }: { step: any }) {
           </div>
         </div>
       </CardHeader>
-      <CardContent>
+      <CardContent className="pt-0 md:pt-0">
         {step.content && (
-          <div className="prose prose-sm max-w-none mb-6 text-muted-foreground">
-            <p>{step.content}</p>
+          <div className="prose prose-sm max-w-none mb-4 md:mb-6 text-muted-foreground">
+            <p className="text-xs md:text-sm">{step.content}</p>
           </div>
         )}
         
@@ -1434,62 +1441,62 @@ function StepCard({ step }: { step: any }) {
                         </TableRow>
                         {isExpanded && (
                           <TableRow key={`${i}-expanded`} className="bg-primary/5 border-l-4 border-l-primary">
-                            <TableCell colSpan={colCount} className="py-4">
-                              <div className="flex flex-col gap-4 px-4">
-                                <div className="text-sm font-medium text-primary">Benefit Calculation Breakdown by Driver:</div>
+                            <TableCell colSpan={colCount} className="py-2 md:py-4">
+                              <div className="flex flex-col gap-2 md:gap-4 px-1 md:px-4">
+                                <div className="text-xs md:text-sm font-medium text-primary">Benefit Calculation Breakdown by Driver:</div>
                                 
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="grid grid-cols-2 gap-2 md:gap-4">
                                   {/* Revenue Driver */}
-                                  <div className="p-3 bg-green-50 rounded-lg border border-green-200">
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <TrendingUp className="h-5 w-5 text-green-600" />
-                                      <span className="font-semibold text-green-700">Grow Revenue</span>
+                                  <div className="p-2 md:p-3 bg-green-50 rounded-lg border border-green-200">
+                                    <div className="flex items-center gap-1 md:gap-2 mb-1 md:mb-2">
+                                      <TrendingUp className="h-3 w-3 md:h-5 md:w-5 text-green-600" />
+                                      <span className="font-semibold text-green-700 text-[10px] md:text-sm">Grow Revenue</span>
                                     </div>
-                                    <div className="text-lg font-bold text-green-800 mb-1">{row['Revenue Benefit ($)'] || '$0'}</div>
+                                    <div className="text-xs md:text-lg font-bold text-green-800 mb-1">{row['Revenue Benefit ($)'] || '$0'}</div>
                                     {row['Revenue Formula'] && (
-                                      <div className="text-sm text-green-700 font-mono bg-green-100/50 p-2 rounded">
+                                      <div className="text-[9px] md:text-sm text-green-700 font-mono bg-green-100/50 p-1 md:p-2 rounded break-all">
                                         {row['Revenue Formula']}
                                       </div>
                                     )}
                                   </div>
                                   
                                   {/* Cost Driver */}
-                                  <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <TrendingDown className="h-5 w-5 text-blue-600" />
-                                      <span className="font-semibold text-blue-700">Reduce Cost</span>
+                                  <div className="p-2 md:p-3 bg-blue-50 rounded-lg border border-blue-200">
+                                    <div className="flex items-center gap-1 md:gap-2 mb-1 md:mb-2">
+                                      <TrendingDown className="h-3 w-3 md:h-5 md:w-5 text-blue-600" />
+                                      <span className="font-semibold text-blue-700 text-[10px] md:text-sm">Reduce Cost</span>
                                     </div>
-                                    <div className="text-lg font-bold text-blue-800 mb-1">{row['Cost Benefit ($)'] || '$0'}</div>
+                                    <div className="text-xs md:text-lg font-bold text-blue-800 mb-1">{row['Cost Benefit ($)'] || '$0'}</div>
                                     {row['Cost Formula'] && (
-                                      <div className="text-sm text-blue-700 font-mono bg-blue-100/50 p-2 rounded">
+                                      <div className="text-[9px] md:text-sm text-blue-700 font-mono bg-blue-100/50 p-1 md:p-2 rounded break-all">
                                         {row['Cost Formula']}
                                       </div>
                                     )}
                                   </div>
                                   
                                   {/* Cash Flow Driver */}
-                                  <div className="p-3 bg-purple-50 rounded-lg border border-purple-200">
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <DollarSign className="h-5 w-5 text-purple-600" />
-                                      <span className="font-semibold text-purple-700">Increase Cash Flow</span>
+                                  <div className="p-2 md:p-3 bg-purple-50 rounded-lg border border-purple-200">
+                                    <div className="flex items-center gap-1 md:gap-2 mb-1 md:mb-2">
+                                      <DollarSign className="h-3 w-3 md:h-5 md:w-5 text-purple-600" />
+                                      <span className="font-semibold text-purple-700 text-[10px] md:text-sm">Cash Flow</span>
                                     </div>
-                                    <div className="text-lg font-bold text-purple-800 mb-1">{row['Cash Flow Benefit ($)'] || '$0'}</div>
+                                    <div className="text-xs md:text-lg font-bold text-purple-800 mb-1">{row['Cash Flow Benefit ($)'] || '$0'}</div>
                                     {row['Cash Flow Formula'] && (
-                                      <div className="text-sm text-purple-700 font-mono bg-purple-100/50 p-2 rounded">
+                                      <div className="text-[9px] md:text-sm text-purple-700 font-mono bg-purple-100/50 p-1 md:p-2 rounded break-all">
                                         {row['Cash Flow Formula']}
                                       </div>
                                     )}
                                   </div>
                                   
                                   {/* Risk Driver */}
-                                  <div className="p-3 bg-orange-50 rounded-lg border border-orange-200">
-                                    <div className="flex items-center gap-2 mb-2">
-                                      <ShieldCheck className="h-5 w-5 text-orange-600" />
-                                      <span className="font-semibold text-orange-700">Decrease Risk</span>
+                                  <div className="p-2 md:p-3 bg-orange-50 rounded-lg border border-orange-200">
+                                    <div className="flex items-center gap-1 md:gap-2 mb-1 md:mb-2">
+                                      <ShieldCheck className="h-3 w-3 md:h-5 md:w-5 text-orange-600" />
+                                      <span className="font-semibold text-orange-700 text-[10px] md:text-sm">Reduce Risk</span>
                                     </div>
-                                    <div className="text-lg font-bold text-orange-800 mb-1">{row['Risk Benefit ($)'] || '$0'}</div>
+                                    <div className="text-xs md:text-lg font-bold text-orange-800 mb-1">{row['Risk Benefit ($)'] || '$0'}</div>
                                     {row['Risk Formula'] && (
-                                      <div className="text-sm text-orange-700 font-mono bg-orange-100/50 p-2 rounded">
+                                      <div className="text-[9px] md:text-sm text-orange-700 font-mono bg-orange-100/50 p-1 md:p-2 rounded break-all">
                                         {row['Risk Formula']}
                                       </div>
                                     )}
@@ -1497,9 +1504,9 @@ function StepCard({ step }: { step: any }) {
                                 </div>
                                 
                                 {/* Total Summary */}
-                                <div className="flex items-center justify-center gap-3 p-3 bg-primary/10 rounded-lg border-2 border-primary">
-                                  <Target className="h-6 w-6 text-primary" />
-                                  <span className="text-lg font-bold text-primary">Total Annual Value: {row['Total Annual Value ($)'] || '$0'}</span>
+                                <div className="flex items-center justify-center gap-2 md:gap-3 p-2 md:p-3 bg-primary/10 rounded-lg border-2 border-primary">
+                                  <Target className="h-4 w-4 md:h-6 md:w-6 text-primary flex-shrink-0" />
+                                  <span className="text-xs md:text-lg font-bold text-primary">Total: {row['Total Annual Value ($)'] || '$0'}</span>
                                 </div>
                               </div>
                             </TableCell>
