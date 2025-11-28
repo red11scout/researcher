@@ -125,8 +125,12 @@ Table columns: ID, Use Case Name, Function, Sub-Function, AI Primitives, Descrip
 (Generate exactly 10 AI use cases mapped to primitives)
 
 STEP 5: Benefits Quantification by Driver
-Table columns: ID, Use Case, Revenue Benefit ($), Cost Benefit ($), Cash Flow Benefit ($), Risk Benefit ($), Total Annual Value ($), Probability of Success (0-1)
+Table columns: ID, Use Case, Revenue Benefit ($), Cost Benefit ($), Cash Flow Benefit ($), Risk Benefit ($), Benefit Formula, Total Annual Value ($), Probability of Success (0-1)
 (Quantify each use case's impact on all 4 drivers)
+IMPORTANT: The "Benefit Formula" column MUST show the actual calculation with real numbers in this exact format:
+"$28.5M + $12.4M + $4.2M + $0.9M = $46.0M"
+This shows: Revenue + Cost + Cash Flow + Risk = Total
+Use M for millions, K for thousands. The formula must use the ACTUAL values from that row.
 
 STEP 6: Effort & Token Modeling
 Table columns: ID, Use Case, Data Readiness (1-5), Integration Complexity (1-5), Change Mgmt (1-5), Effort Score (1-5), Time-to-Value (months), Input Tokens/Run, Output Tokens/Run, Runs/Month, Monthly Tokens, Annual Token Cost ($)

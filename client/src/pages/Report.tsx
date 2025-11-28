@@ -22,7 +22,7 @@ import {
   Loader2, CheckCircle2, Download, 
   RefreshCw, FileSpreadsheet, FileText, FileType, 
   ArrowLeft, Brain, Calculator, TrendingUp, TrendingDown, 
-  DollarSign, ShieldCheck, Zap, Target
+  DollarSign, ShieldCheck, Zap, Target, ChevronDown, ChevronRight
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import jsPDF from 'jspdf';
@@ -975,7 +975,28 @@ function DashboardMetric({ icon, label, value, color, bgColor }: {
 }
 
 function StepCard({ step }: { step: any }) {
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const hasData = step.data && Array.isArray(step.data) && step.data.length > 0;
+  
+  const toggleRow = (index: number) => {
+    const newExpanded = new Set(expandedRows);
+    if (newExpanded.has(index)) {
+      newExpanded.delete(index);
+    } else {
+      newExpanded.add(index);
+    }
+    setExpandedRows(newExpanded);
+  };
+
+  const expandAll = () => {
+    if (hasData) {
+      setExpandedRows(new Set(step.data.map((_: any, i: number) => i)));
+    }
+  };
+
+  const collapseAll = () => {
+    setExpandedRows(new Set());
+  };
   
   const getStepBadge = (stepNum: number) => {
     switch(stepNum) {
@@ -987,6 +1008,8 @@ function StepCard({ step }: { step: any }) {
     }
   };
 
+  const isBenefitsStep = step.step === 5;
+
   return (
     <Card data-testid={`card-step-${step.step}`}>
       <CardHeader>
@@ -997,7 +1020,19 @@ function StepCard({ step }: { step: any }) {
             </div>
             <CardTitle className="text-xl">{step.title}</CardTitle>
           </div>
-          {getStepBadge(step.step)}
+          <div className="flex items-center gap-2">
+            {isBenefitsStep && hasData && (
+              <div className="flex gap-1">
+                <Button variant="ghost" size="sm" onClick={expandAll} className="text-xs">
+                  Expand All
+                </Button>
+                <Button variant="ghost" size="sm" onClick={collapseAll} className="text-xs">
+                  Collapse All
+                </Button>
+              </div>
+            )}
+            {getStepBadge(step.step)}
+          </div>
         </div>
       </CardHeader>
       <CardContent>
@@ -1007,7 +1042,94 @@ function StepCard({ step }: { step: any }) {
           </div>
         )}
         
-        {hasData && (
+        {hasData && isBenefitsStep ? (
+          <div className="rounded-md border overflow-hidden">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead className="w-8"></TableHead>
+                    {Object.keys(step.data[0]).filter((k: string) => k !== 'Benefit Formula').map((key: string, i: number) => (
+                      <TableHead key={i} className="font-semibold text-primary whitespace-nowrap">{key}</TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {step.data.map((row: any, i: number) => {
+                    const isExpanded = expandedRows.has(i);
+                    const formula = row['Benefit Formula'] || '';
+                    const colCount = Object.keys(row).filter(k => k !== 'Benefit Formula').length + 1;
+                    
+                    return (
+                      <>
+                        <TableRow 
+                          key={i} 
+                          className="hover:bg-muted/20 transition-colors cursor-pointer"
+                          onClick={() => toggleRow(i)}
+                        >
+                          <TableCell className="w-8 p-2">
+                            <div className="flex items-center justify-center">
+                              {isExpanded ? (
+                                <ChevronDown className="h-4 w-4 text-primary" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                              )}
+                            </div>
+                          </TableCell>
+                          {Object.entries(row).filter(([key]) => key !== 'Benefit Formula').map(([key, value]: [string, any], j: number) => (
+                            <TableCell key={j} className={j === 0 ? "font-medium" : ""}>
+                              {renderCellValue(key, value)}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                        {isExpanded && (
+                          <TableRow key={`${i}-expanded`} className="bg-primary/5 border-l-4 border-l-primary">
+                            <TableCell colSpan={colCount} className="py-4">
+                              <div className="flex flex-col gap-2 px-4">
+                                <div className="text-sm font-medium text-primary">Benefit Calculation Formula:</div>
+                                <div className="flex items-center gap-3 flex-wrap">
+                                  <div className="flex items-center gap-2 p-2 bg-green-50 rounded border border-green-200">
+                                    <TrendingUp className="h-4 w-4 text-green-600" />
+                                    <span className="text-sm"><span className="text-muted-foreground">Revenue:</span> <span className="font-semibold text-green-700">{row['Revenue Benefit ($)'] || '$0'}</span></span>
+                                  </div>
+                                  <span className="text-lg font-bold text-muted-foreground">+</span>
+                                  <div className="flex items-center gap-2 p-2 bg-blue-50 rounded border border-blue-200">
+                                    <TrendingDown className="h-4 w-4 text-blue-600" />
+                                    <span className="text-sm"><span className="text-muted-foreground">Cost:</span> <span className="font-semibold text-blue-700">{row['Cost Benefit ($)'] || '$0'}</span></span>
+                                  </div>
+                                  <span className="text-lg font-bold text-muted-foreground">+</span>
+                                  <div className="flex items-center gap-2 p-2 bg-purple-50 rounded border border-purple-200">
+                                    <DollarSign className="h-4 w-4 text-purple-600" />
+                                    <span className="text-sm"><span className="text-muted-foreground">Cash Flow:</span> <span className="font-semibold text-purple-700">{row['Cash Flow Benefit ($)'] || '$0'}</span></span>
+                                  </div>
+                                  <span className="text-lg font-bold text-muted-foreground">+</span>
+                                  <div className="flex items-center gap-2 p-2 bg-orange-50 rounded border border-orange-200">
+                                    <ShieldCheck className="h-4 w-4 text-orange-600" />
+                                    <span className="text-sm"><span className="text-muted-foreground">Risk:</span> <span className="font-semibold text-orange-700">{row['Risk Benefit ($)'] || '$0'}</span></span>
+                                  </div>
+                                  <span className="text-lg font-bold text-muted-foreground">=</span>
+                                  <div className="flex items-center gap-2 p-3 bg-primary/10 rounded border-2 border-primary">
+                                    <Target className="h-5 w-5 text-primary" />
+                                    <span className="text-base font-bold text-primary">{row['Total Annual Value ($)'] || '$0'}</span>
+                                  </div>
+                                </div>
+                                {formula && (
+                                  <div className="mt-2 text-sm text-muted-foreground font-mono bg-muted/50 p-2 rounded">
+                                    {formula}
+                                  </div>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        ) : hasData ? (
           <div className="rounded-md border overflow-hidden">
             <div className="overflow-x-auto">
               <Table>
@@ -1032,7 +1154,7 @@ function StepCard({ step }: { step: any }) {
               </Table>
             </div>
           </div>
-        )}
+        ) : null}
       </CardContent>
     </Card>
   );
