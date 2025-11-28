@@ -4,9 +4,6 @@ import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Table, 
   TableBody, 
@@ -16,33 +13,13 @@ import {
   TableRow 
 } from "@/components/ui/table";
 import { 
-  Loader2, CheckCircle2, AlertTriangle, FileText, Download, 
-  RefreshCw, FileSpreadsheet, FileType, ChevronRight, 
-  TrendingUp, Users, Globe, DollarSign, ExternalLink,
-  MoreHorizontal, ArrowLeft, ShieldCheck, Target, 
-  Briefcase, Zap, Layers, PieChart, ListChecks,
-  ArrowRight
+  Loader2, CheckCircle2, Download, 
+  RefreshCw, FileSpreadsheet, FileText, FileType, ChevronRight, 
+  ArrowLeft, Brain, Calculator, ArrowRight
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  RadarChart,
-  PolarGrid,
-  PolarAngleAxis,
-  PolarRadiusAxis,
-  Radar
-} from "recharts";
 
-// Mock Data Generation based on User Requirements for Steps 0-7
+// Refined Mock Data Generation based on specific user requirements
 const generateMockData = (company: string) => {
   return {
     overview: {
@@ -57,6 +34,7 @@ const generateMockData = (company: string) => {
         id: 0,
         title: "Company Overview",
         description: "High-level snapshot of the organization's current standing.",
+        type: "grid",
         data: [
           { label: "Company Name", value: company },
           { label: "Ticker Symbol", value: "TECH" },
@@ -65,41 +43,41 @@ const generateMockData = (company: string) => {
           { label: "Employees", value: "12,500+" },
           { label: "Founded", value: "2005" },
           { label: "CEO", value: "Jane Doe" },
-          { label: "Key Competitors", value: "Competitor A, Competitor B, Competitor C" }
+          { label: "Key Competitors", value: "Competitor A, Competitor B" }
         ]
       },
       {
         id: 1,
-        title: "Strategic Anchors",
-        description: "Mapping initiatives to the four key business drivers.",
-        columns: ["Business Driver", "Strategic Initiative", "Priority", "Target Metric"],
+        title: "Business Functions & KPIs",
+        description: "Performance metrics with industry benchmarks and improvement targets.",
+        type: "table",
+        columns: ["Metric Name", "Baseline", "Target", "Industry Benchmark", "Direction", "Desired Improvement"],
         data: [
-          { col1: "Grow Revenue", col2: "Enterprise AI Expansion", col3: "Critical", col4: "+15% YoY Growth" },
-          { col1: "Decrease Cost", col2: "Supply Chain Automation", col3: "High", col4: "-8% OpEx Reduction" },
-          { col1: "Increase Cash Flow", col2: "SaaS Subscription Shift", col3: "Medium", col4: "+20% ARR" },
-          { col1: "Reduce Risk", col2: "Data Sovereignty Compliance", col3: "High", col4: "100% GDPR Compliance" }
+          { col1: "Revenue Growth", col2: "12%", col3: "18%", col4: "15% (Top Quartile)", col5: "Increase", col6: "+6% YoY" },
+          { col1: "OpEx Ratio", col2: "45%", col3: "38%", col4: "40% (Median)", col5: "Decrease", col6: "-7% Efficiency" },
+          { col1: "Employee Retention", col2: "82%", col3: "90%", col4: "88% (Tech Avg)", col5: "Increase", col6: "+8% Retention" },
+          { col1: "Customer Churn", col2: "8%", col3: "5%", col4: "6% (SaaS Avg)", col5: "Decrease", col6: "-3% Churn" },
+          { col1: "Cash Conversion", col2: "60 days", col3: "45 days", col4: "50 days (Best in Class)", col5: "Decrease", col6: "-15 Days" }
         ]
       },
       {
         id: 2,
-        title: "Inventory Business Functions",
-        description: "Cataloging key operational functions for analysis.",
-        columns: ["Function ID", "Department", "Primary Responsibility", "Headcount Est."],
+        title: "Workflows & Data Sources",
+        description: "Mapping key operational processes to their data origins.",
+        type: "table",
+        columns: ["Workflow Name", "Process Steps", "Primary Data Sources", "Owner"],
         data: [
-          { col1: "BF-01", col2: "Human Resources", col3: "Talent Acquisition & Retention", col4: "150" },
-          { col1: "BF-02", col2: "Information Technology", col3: "Infrastructure & Security", col4: "400" },
-          { col1: "BF-03", col2: "Marketing", col3: "Brand Awareness & Lead Gen", col4: "250" },
-          { col1: "BF-04", col2: "Operations", col3: "Logistics & Supply Chain", col4: "300" },
-          { col1: "BF-05", col2: "Sales", col3: "Revenue Generation", col4: "500" },
-          { col1: "BF-06", col2: "Procurement", col3: "Vendor Management", col4: "80" },
-          { col1: "BF-07", col2: "Finance", col3: "Accounting & FP&A", col4: "120" },
-          { col1: "BF-08", col2: "Legal", col3: "Compliance & IP Protection", col4: "45" }
+          { col1: "Lead to Cash", col2: "Lead Gen -> Qualify -> Close -> Bill -> Collect", col3: "Salesforce, Netsuite, Stripe", col4: "CRO" },
+          { col1: "Hire to Retire", col2: "Recruit -> Onboard -> Payroll -> Offboard", col3: "Workday, Greenhouse, ADP", col4: "CHRO" },
+          { col1: "Procure to Pay", col2: "Requisition -> PO -> Receive -> Pay", col3: "Coupa, SAP, Bank Portal", col4: "CFO" },
+          { col1: "Issue to Resolution", col2: "Ticket -> Triage -> Fix -> Verify", col3: "Jira, Zendesk, Github", col4: "CTO" }
         ]
       },
       {
         id: 3,
         title: "Friction Point Identification",
         description: "Locating bottlenecks within business functions.",
+        type: "table",
         columns: ["Function", "Friction Point", "Severity", "Operational Impact"],
         data: [
           { col1: "HR", col2: "High Engineering Turnover", col3: "High", col4: "Delayed Product Roadmap" },
@@ -111,50 +89,72 @@ const generateMockData = (company: string) => {
       },
       {
         id: 4,
-        title: "Root Cause Analysis",
-        description: "Diagnosing the underlying reasons for identified friction.",
-        columns: ["Friction Point", "Root Cause (Primary)", "Root Cause (Secondary)", "Confidence"],
+        title: "AI Use Case Generation",
+        description: "10 prioritized AI opportunities using standard primitives.",
+        type: "table",
+        columns: ["Use Case Name", "AI Primitive", "Description", "Target Workflow"],
         data: [
-          { col1: "High Engineering Turnover", col2: "Below Market Compensation", col3: "Lack of Career Growth Path", col4: "95%" },
-          { col1: "Legacy Billing System", col2: "Technical Debt", col3: "Deprioritized Maintenance", col4: "85%" },
-          { col1: "Long Sales Cycle", col2: "Complex Approval Process", col3: "Lack of Sales Enablement", col4: "90%" },
-          { col1: "Siloed Inventory Data", col2: "Incompatible ERP Modules", col3: "Manual Entry Processes", col4: "98%" }
+          { col1: "Contract Analysis", col2: "Extraction", col3: "Extract key terms from PDF contracts.", col4: "Lead to Cash" },
+          { col1: "Customer Support Auto-Response", col2: "Generation", col3: "Draft responses to L1 tickets.", col4: "Issue to Resolution" },
+          { col1: "Resume Screening", col2: "Classification", col3: "Rank candidates by job fit.", col4: "Hire to Retire" },
+          { col1: "Code Refactoring", col2: "Rewriting", col3: "Convert legacy code to modern syntax.", col4: "Issue to Resolution" },
+          { col1: "Meeting Summarization", col2: "Summarization", col3: "Transcribe and summarize sales calls.", col4: "Lead to Cash" },
+          { col1: "Inventory Prediction", col2: "Forecasting", col3: "Predict stock needs by region.", col4: "Procure to Pay" },
+          { col1: "Marketing Copy Gen", col2: "Generation", col3: "Create ad variations at scale.", col4: "Lead to Cash" },
+          { col1: "Invoice Processing", col2: "Extraction", col3: "Extract data from vendor invoices.", col4: "Procure to Pay" },
+          { col1: "Employee Onboarding Q&A", col2: "Q&A", col3: "Chatbot for policy questions.", col4: "Hire to Retire" },
+          { col1: "Competitor Intel", col2: "Summarization", col3: "Digest news on competitors.", col4: "Lead to Cash" }
         ]
       },
       {
         id: 5,
-        title: "Proposed Solutions",
-        description: "AI-generated strategies to mitigate friction points.",
-        columns: ["Friction Point", "Proposed Solution", "Implementation Type", "Difficulty"],
+        title: "Token & Cost Modeling",
+        description: "Calculated token assumptions for each use case.",
+        type: "table",
+        columns: ["Use Case", "Input Tokens/Run", "Output Tokens/Run", "Runs/Year", "Est. Annual Cost"],
         data: [
-          { col1: "High Engineering Turnover", col2: "Equity Refresh Program", col3: "Policy Change", col4: "Low" },
-          { col1: "Legacy Billing System", col2: "Migrate to Stripe Billing", col3: "Technology Upgrade", col4: "High" },
-          { col1: "Long Sales Cycle", col2: "Implement CPQ Software", col3: "Tool Implementation", col4: "Medium" },
-          { col1: "Siloed Inventory Data", col2: "Unified Data Warehouse", col3: "Infrastructure Project", col4: "High" }
+          { col1: "Contract Analysis", col2: "15,000", col3: "500", col4: "2,000", col5: "$310" },
+          { col1: "Customer Support Auto-Response", col2: "1,000", col3: "300", col4: "50,000", col5: "$650" },
+          { col1: "Resume Screening", col2: "2,000", col3: "100", col4: "10,000", col5: "$210" },
+          { col1: "Code Refactoring", col2: "4,000", col3: "4,000", col4: "5,000", col5: "$400" },
+          { col1: "Meeting Summarization", col2: "8,000", col3: "500", col4: "3,000", col5: "$255" },
+          { col1: "Inventory Prediction", col2: "500", col3: "50", col4: "12,000", col5: "$66" },
+          { col1: "Marketing Copy Gen", col2: "500", col3: "200", col4: "20,000", col5: "$140" },
+          { col1: "Invoice Processing", col2: "1,000", col3: "100", col4: "15,000", col5: "$165" },
+          { col1: "Employee Onboarding Q&A", col2: "500", col3: "200", col4: "5,000", col5: "$35" },
+          { col1: "Competitor Intel", col2: "10,000", col3: "1,000", col4: "1,000", col5: "$110" }
         ]
       },
       {
         id: 6,
-        title: "Impact Analysis",
-        description: "Quantifying the potential value of solutions.",
-        columns: ["Solution", "Revenue Impact", "Cost Savings", "Risk Reduction"],
+        title: "ROI & Prioritization",
+        description: "Ranking use cases by calculated financial impact.",
+        type: "table",
+        columns: ["Use Case", "Annual Benefit", "Annual Cost", "ROI Multiple", "Priority"],
         data: [
-          { col1: "Equity Refresh Program", col2: "Neutral", col3: "$2M (Recruiting Costs)", col4: "High (IP Retention)" },
-          { col1: "Migrate to Stripe Billing", col2: "+$5M (Churn Reduction)", col3: "$500k (Maintenance)", col4: "Medium" },
-          { col1: "Implement CPQ Software", col2: "+$12M (Faster Close)", col3: "Neutral", col4: "Low" },
-          { col1: "Unified Data Warehouse", col2: "+$8M (Optimization)", col3: "$1.5M (Efficiency)", col4: "High" }
+          { col1: "Invoice Processing", col2: "$150,000", col3: "$165", col4: "909x", col5: "Critical" },
+          { col1: "Customer Support Auto-Response", col2: "$250,000", col3: "$650", col4: "384x", col5: "Critical" },
+          { col1: "Contract Analysis", col2: "$80,000", col3: "$310", col4: "258x", col5: "High" },
+          { col1: "Meeting Summarization", col2: "$60,000", col3: "$255", col4: "235x", col5: "High" },
+          { col1: "Inventory Prediction", col2: "$120,000", col3: "$66", col4: "1,818x", col5: "Critical" },
+          { col1: "Resume Screening", col2: "$40,000", col3: "$210", col4: "190x", col5: "Medium" },
+          { col1: "Marketing Copy Gen", col2: "$25,000", col3: "$140", col4: "178x", col5: "Medium" },
+          { col1: "Code Refactoring", col2: "$50,000", col3: "$400", col4: "125x", col5: "Medium" },
+          { col1: "Employee Onboarding Q&A", col2: "$10,000", col3: "$35", col4: "285x", col5: "Low" },
+          { col1: "Competitor Intel", col2: "$15,000", col3: "$110", col4: "136x", col5: "Low" }
         ]
       },
       {
         id: 7,
         title: "Implementation Roadmap",
-        description: "Timeline and ownership for execution.",
+        description: "Timeline for deploying high-priority AI solutions.",
+        type: "table",
         columns: ["Phase", "Initiative", "Owner", "Timeline"],
         data: [
-          { col1: "Q3 2025", col2: "Equity Refresh Rollout", col3: "CHRO", col4: "3 Months" },
-          { col1: "Q4 2025", col2: "Data Warehouse MVP", col3: "CTO", col4: "4 Months" },
-          { col1: "Q1 2026", col2: "CPQ Implementation", col3: "CRO", col4: "6 Months" },
-          { col1: "Q2 2026", col2: "Billing Migration", col3: "CIO", col4: "9 Months" }
+          { col1: "Q3 2025", col2: "Invoice Processing Pilot", col3: "CFO", col4: "3 Months" },
+          { col1: "Q4 2025", col2: "Support Auto-Response MVP", col3: "CTO", col4: "4 Months" },
+          { col1: "Q1 2026", col2: "Inventory Prediction Rollout", col3: "COO", col4: "6 Months" },
+          { col1: "Q2 2026", col2: "Contract Analysis Scale-up", col3: "Legal", col4: "9 Months" }
         ]
       }
     ]
@@ -181,13 +181,13 @@ export default function Report() {
   const simulateProcess = async () => {
     setStatus("researching");
     setProgress(10);
-    await new Promise(r => setTimeout(r, 1000));
+    await new Promise(r => setTimeout(r, 800));
     setProgress(40);
     setStatus("benchmarking");
-    await new Promise(r => setTimeout(r, 1000));
+    await new Promise(r => setTimeout(r, 800));
     setProgress(70);
     setStatus("critiquing");
-    await new Promise(r => setTimeout(r, 1000));
+    await new Promise(r => setTimeout(r, 800));
     setProgress(100);
     setData(generateMockData(companyName));
     setStatus("complete");
@@ -221,26 +221,26 @@ export default function Report() {
               </div>
               
               <h2 className="text-2xl font-bold mb-2">Generating Strategic Report for {companyName}</h2>
-              <p className="text-muted-foreground mb-8">Executing Steps 0-7 Analysis Framework...</p>
+              <p className="text-muted-foreground mb-8">Executing 8-Step AI Analysis Framework...</p>
               
               <div className="w-full max-w-md space-y-6">
                 <Step 
                   active={status === "researching"} 
                   completed={["benchmarking", "critiquing", "complete"].includes(status)}
-                  label="Steps 0-2: Intelligence Gathering" 
-                  subLabel="Analyzing company, anchors, and business functions..."
+                  label="Steps 0-3: Intelligence & Data" 
+                  subLabel="Scanning KPIs, workflows, and friction points..."
                 />
                 <Step 
                   active={status === "benchmarking"} 
                   completed={["critiquing", "complete"].includes(status)}
-                  label="Steps 3-5: Diagnosis & Strategy" 
-                  subLabel="Identifying friction, root causes, and solutions..."
+                  label="Steps 4-5: AI Modeling" 
+                  subLabel="Generating use cases and token cost models..."
                 />
                 <Step 
                   active={status === "critiquing"} 
                   completed={false}
-                  label="Steps 6-7: Value & Roadmap" 
-                  subLabel="Quantifying impact and planning implementation..."
+                  label="Steps 6-7: ROI & Roadmap" 
+                  subLabel="Prioritizing high-impact initiatives..."
                 />
               </div>
             </CardContent>
@@ -294,16 +294,20 @@ function StepCard({ step }: { step: any }) {
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center gap-3 mb-2">
-          <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm border border-primary/20">
-            {step.id}
+        <div className="flex items-center justify-between mb-2">
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm border border-primary/20">
+              {step.id}
+            </div>
+            <CardTitle className="text-xl">{step.title}</CardTitle>
           </div>
-          <CardTitle className="text-xl">Step {step.id}: {step.title}</CardTitle>
+          {step.id === 5 && <Badge variant="secondary" className="gap-1"><Calculator className="h-3 w-3" /> Token Model</Badge>}
+          {step.id === 4 && <Badge variant="secondary" className="gap-1"><Brain className="h-3 w-3" /> AI Primitives</Badge>}
         </div>
         <CardDescription>{step.description}</CardDescription>
       </CardHeader>
       <CardContent>
-        {step.id === 0 ? (
+        {step.type === 'grid' ? (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             {step.data.map((item: any, i: number) => (
               <div key={i} className="bg-muted/30 p-3 rounded-lg border">
@@ -313,26 +317,30 @@ function StepCard({ step }: { step: any }) {
             ))}
           </div>
         ) : (
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50">
-                  {step.columns.map((col: string, i: number) => (
-                    <TableHead key={i} className="font-semibold text-primary">{col}</TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {step.data.map((row: any, i: number) => (
-                  <TableRow key={i}>
-                    <TableCell className="font-medium">{row.col1}</TableCell>
-                    <TableCell>{row.col2}</TableCell>
-                    <TableCell>{row.col3}</TableCell>
-                    <TableCell>{row.col4}</TableCell>
+          <div className="rounded-md border overflow-hidden">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    {step.columns.map((col: string, i: number) => (
+                      <TableHead key={i} className="font-semibold text-primary whitespace-nowrap">{col}</TableHead>
+                    ))}
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {step.data.map((row: any, i: number) => (
+                    <TableRow key={i} className="hover:bg-muted/20 transition-colors">
+                      <TableCell className="font-medium">{row.col1}</TableCell>
+                      <TableCell>{row.col2}</TableCell>
+                      <TableCell>{row.col3}</TableCell>
+                      <TableCell>{row.col4}</TableCell>
+                      {row.col5 && <TableCell>{row.col5}</TableCell>}
+                      {row.col6 && <TableCell>{row.col6}</TableCell>}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </div>
         )}
       </CardContent>
