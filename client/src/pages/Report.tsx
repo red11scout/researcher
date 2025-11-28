@@ -197,7 +197,14 @@ export default function Report() {
     }
   };
 
-  const formatCurrency = (value: number) => {
+  const formatCurrency = (value: number | string): string => {
+    if (typeof value === 'string') {
+      if (value.startsWith('$')) return value;
+      const num = parseFloat(value.replace(/[,$]/g, ''));
+      if (isNaN(num)) return value;
+      value = num;
+    }
+    if (typeof value !== 'number' || isNaN(value)) return '$0';
     if (value >= 1000000) {
       return `$${(value / 1000000).toFixed(1)}M`;
     } else if (value >= 1000) {
@@ -206,7 +213,13 @@ export default function Report() {
     return `$${value.toFixed(0)}`;
   };
 
-  const formatNumber = (value: number) => {
+  const formatNumber = (value: number | string): string => {
+    if (typeof value === 'string') {
+      const num = parseFloat(value.replace(/[,]/g, ''));
+      if (isNaN(num)) return value;
+      value = num;
+    }
+    if (typeof value !== 'number' || isNaN(value)) return '0';
     if (value >= 1000000) {
       return `${(value / 1000000).toFixed(1)}M`;
     } else if (value >= 1000) {
