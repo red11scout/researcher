@@ -630,6 +630,10 @@ export default function WhatIfAnalysis() {
           </div>
           
           <div className="flex items-center gap-2 flex-wrap">
+            <Button variant="outline" size="sm" onClick={() => setLocation(`/assumptions/${params?.reportId}`)} data-testid="button-assumptions">
+              <Settings className="mr-2 h-4 w-4" />
+              Assumptions
+            </Button>
             <Button variant="outline" size="sm" onClick={recalculateBenefits} data-testid="button-recalculate">
               <RefreshCw className="mr-2 h-4 w-4" />
               Recalculate Benefits

@@ -9,6 +9,7 @@ import Report from "@/pages/Report";
 import SavedReports from "@/pages/SavedReports";
 import Benchmarks from "@/pages/Benchmarks";
 import WhatIfAnalysis from "@/pages/WhatIfAnalysis";
+import AssumptionPanel from "@/pages/AssumptionPanel";
 
 function Router() {
   return (
@@ -18,6 +19,7 @@ function Router() {
       <Route path="/saved" component={SavedReports} />
       <Route path="/benchmarks" component={Benchmarks} />
       <Route path="/whatif/:reportId" component={WhatIfAnalysis} />
+      <Route path="/assumptions/:reportId" component={AssumptionPanel} />
       <Route component={NotFound} />
     </Switch>
   );
