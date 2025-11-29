@@ -659,6 +659,47 @@ export async function registerRoutes(
         }
       }
       
+      // Also recalculate executive dashboard totals
+      if (analysisData?.executiveDashboard && analysisData?.steps) {
+        const step5 = analysisData.steps.find((s: any) => s.step === 5);
+        const step7 = analysisData.steps.find((s: any) => s.step === 7);
+        
+        if (step5?.data && Array.isArray(step5.data)) {
+          let totalRevenueBenefit = 0;
+          let totalCostBenefit = 0;
+          let totalRiskBenefit = 0;
+          let totalCashFlowBenefit = 0;
+          let totalAnnualValue = 0;
+          
+          step5.data.forEach((row: any) => {
+            totalRevenueBenefit += parseFloat(String(row['Revenue Benefit ($)']).replace(/[$,]/g, '')) || 0;
+            totalCostBenefit += parseFloat(String(row['Cost Benefit ($)']).replace(/[$,]/g, '')) || 0;
+            totalRiskBenefit += parseFloat(String(row['Risk Benefit ($)']).replace(/[$,]/g, '')) || 0;
+            totalCashFlowBenefit += parseFloat(String(row['Cash Flow Benefit ($)']).replace(/[$,]/g, '')) || 0;
+            totalAnnualValue += parseFloat(String(row['Total Annual Value ($)']).replace(/[$,]/g, '')) || 0;
+          });
+          
+          analysisData.executiveDashboard.totalRevenueBenefit = totalRevenueBenefit;
+          analysisData.executiveDashboard.totalCostBenefit = totalCostBenefit;
+          analysisData.executiveDashboard.totalRiskBenefit = totalRiskBenefit;
+          analysisData.executiveDashboard.totalCashFlowBenefit = totalCashFlowBenefit;
+          analysisData.executiveDashboard.totalAnnualValue = totalAnnualValue;
+        }
+        
+        // Update top use cases based on recalculated priority scores
+        if (step7?.data && Array.isArray(step7.data)) {
+          const topUseCases = step7.data.slice(0, 5).map((row: any, index: number) => ({
+            rank: index + 1,
+            useCase: row['Use Case'],
+            annualValue: row['Total Annual Value ($)'] || row['annualValue'],
+            priorityScore: row['Priority Score'],
+            monthlyTokens: row['Monthly Tokens'] || 0,
+          }));
+          
+          analysisData.executiveDashboard.topUseCases = topUseCases;
+        }
+      }
+      
       // Update the report with recalculated data
       const updatedReport = await storage.updateReport(reportId, {
         analysisData,
@@ -672,7 +713,7 @@ export async function registerRoutes(
         success: true,
         message: "Report recalculated with updated assumptions",
         assumptions,
-        reportId: updatedReport.id,
+        report: updatedReport,
       });
     } catch (error) {
       console.error("Error recalculating report:", error);

@@ -305,7 +305,9 @@ export default function AssumptionPanel() {
       return res.json();
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/reports"] });
       queryClient.invalidateQueries({ queryKey: ["/api/reports", reportId] });
+      queryClient.invalidateQueries({ queryKey: [`/api/reports/${reportId}`] });
       toast({ 
         title: "Report recalculated", 
         description: "All calculations updated with current assumptions" 
