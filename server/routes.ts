@@ -15,7 +15,19 @@ export async function registerRoutes(
   
   // Version check
   app.get("/api/version", (req, res) => {
-    res.json({ version: "2.0.3", buildTime: "2025-11-29T22:30:00Z" });
+    res.json({ version: "2.0.5", buildTime: "2025-11-29T23:00:00Z" });
+  });
+
+  // Debug endpoint to see env config
+  app.get("/api/debug-env", (req, res) => {
+    res.json({
+      NODE_ENV: process.env.NODE_ENV,
+      hasAnthropicKey: !!process.env.ANTHROPIC_API_KEY,
+      hasIntegrationKey: !!process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
+      integrationBaseUrl: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
+      anthropicBaseUrl: process.env.ANTHROPIC_BASE_URL,
+      anthropicApiBase: process.env.ANTHROPIC_API_BASE,
+    });
   });
 
   // Direct analyze test - same as /api/analyze but simpler logging

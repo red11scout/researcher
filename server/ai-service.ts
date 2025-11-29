@@ -26,11 +26,23 @@ function getConfig() {
 // Create Anthropic client dynamically (ensures env vars are read at call time)
 function createAnthropicClient() {
   const config = getConfig();
-  return new Anthropic({
+  
+  // In production, explicitly use Anthropic's official API to avoid Replit proxy issues
+  // The SDK auto-reads ANTHROPIC_BASE_URL env var, so we must override it explicitly
+  const clientConfig: any = {
     apiKey: config.apiKey,
-    ...(config.baseURL && { baseURL: config.baseURL }),
     timeout: 180000, // 3 minute timeout for large analyses
-  });
+  };
+  
+  if (config.isProduction) {
+    // Force official Anthropic API in production
+    clientConfig.baseURL = "https://api.anthropic.com";
+  } else if (config.baseURL) {
+    // Use configured URL in development (Replit AI integration)
+    clientConfig.baseURL = config.baseURL;
+  }
+  
+  return new Anthropic(clientConfig);
 }
 
 // Log configuration status at startup (without revealing secrets)
