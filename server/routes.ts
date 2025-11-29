@@ -309,5 +309,265 @@ export async function registerRoutes(
     }
   });
 
+  // ===== ASSUMPTION TABLE ENDPOINTS =====
+
+  // Get all assumption sets for a report
+  app.get("/api/assumptions/sets/:reportId", async (req, res) => {
+    try {
+      const { reportId } = req.params;
+      const sets = await storage.getAssumptionSetsByReport(reportId);
+      return res.json(sets);
+    } catch (error) {
+      console.error("Error fetching assumption sets:", error);
+      return res.status(500).json({ error: "Failed to fetch assumption sets" });
+    }
+  });
+
+  // Get active assumption set for a report
+  app.get("/api/assumptions/sets/:reportId/active", async (req, res) => {
+    try {
+      const { reportId } = req.params;
+      const activeSet = await storage.getActiveAssumptionSet(reportId);
+      
+      if (!activeSet) {
+        return res.json(null);
+      }
+      
+      // Also get the fields for this set
+      const fields = await storage.getAssumptionFieldsBySet(activeSet.id);
+      return res.json({ ...activeSet, fields });
+    } catch (error) {
+      console.error("Error fetching active assumption set:", error);
+      return res.status(500).json({ error: "Failed to fetch active assumption set" });
+    }
+  });
+
+  // Create a new assumption set with default values
+  app.post("/api/assumptions/sets", async (req, res) => {
+    try {
+      const { reportId, name, description, companyName } = req.body;
+
+      if (!reportId || !name) {
+        return res.status(400).json({ error: "Report ID and name are required" });
+      }
+
+      // Check if this is the first set for this report
+      const existingSets = await storage.getAssumptionSetsByReport(reportId);
+      const isFirst = existingSets.length === 0;
+
+      // Create the set
+      const newSet = await storage.createAssumptionSet({
+        reportId,
+        name,
+        description: description || null,
+        isActive: isFirst, // First set is automatically active
+        isDefault: isFirst, // First set is the default
+      });
+
+      // Initialize with default assumptions
+      const fields = await storage.initializeDefaultAssumptions(newSet.id, companyName);
+
+      return res.json({ ...newSet, fields });
+    } catch (error) {
+      console.error("Error creating assumption set:", error);
+      return res.status(500).json({ error: "Failed to create assumption set" });
+    }
+  });
+
+  // Update an assumption set
+  app.put("/api/assumptions/sets/:setId", async (req, res) => {
+    try {
+      const { setId } = req.params;
+      const { name, description } = req.body;
+
+      const updated = await storage.updateAssumptionSet(setId, { name, description });
+      
+      if (!updated) {
+        return res.status(404).json({ error: "Assumption set not found" });
+      }
+
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error updating assumption set:", error);
+      return res.status(500).json({ error: "Failed to update assumption set" });
+    }
+  });
+
+  // Set active assumption set
+  app.post("/api/assumptions/sets/:setId/activate", async (req, res) => {
+    try {
+      const { setId } = req.params;
+      const { reportId } = req.body;
+
+      if (!reportId) {
+        return res.status(400).json({ error: "Report ID is required" });
+      }
+
+      await storage.setActiveAssumptionSet(reportId, setId);
+      
+      // Return the newly active set with its fields
+      const sets = await storage.getAssumptionSetsByReport(reportId);
+      const activeSet = sets.find(s => s.id === setId);
+      
+      if (activeSet) {
+        const fields = await storage.getAssumptionFieldsBySet(setId);
+        return res.json({ ...activeSet, fields });
+      }
+
+      return res.json({ success: true });
+    } catch (error) {
+      console.error("Error activating assumption set:", error);
+      return res.status(500).json({ error: "Failed to activate assumption set" });
+    }
+  });
+
+  // Duplicate an assumption set
+  app.post("/api/assumptions/sets/:setId/duplicate", async (req, res) => {
+    try {
+      const { setId } = req.params;
+      const { newName } = req.body;
+
+      if (!newName) {
+        return res.status(400).json({ error: "New name is required" });
+      }
+
+      const duplicatedSet = await storage.duplicateAssumptionSet(setId, newName);
+      const fields = await storage.getAssumptionFieldsBySet(duplicatedSet.id);
+
+      return res.json({ ...duplicatedSet, fields });
+    } catch (error) {
+      console.error("Error duplicating assumption set:", error);
+      return res.status(500).json({ error: "Failed to duplicate assumption set" });
+    }
+  });
+
+  // Delete an assumption set
+  app.delete("/api/assumptions/sets/:setId", async (req, res) => {
+    try {
+      const { setId } = req.params;
+      await storage.deleteAssumptionSet(setId);
+      return res.json({ success: true, message: "Assumption set deleted" });
+    } catch (error) {
+      console.error("Error deleting assumption set:", error);
+      return res.status(500).json({ error: "Failed to delete assumption set" });
+    }
+  });
+
+  // Get all fields for an assumption set
+  app.get("/api/assumptions/fields/:setId", async (req, res) => {
+    try {
+      const { setId } = req.params;
+      const fields = await storage.getAssumptionFieldsBySet(setId);
+      return res.json(fields);
+    } catch (error) {
+      console.error("Error fetching assumption fields:", error);
+      return res.status(500).json({ error: "Failed to fetch assumption fields" });
+    }
+  });
+
+  // Get fields by category
+  app.get("/api/assumptions/fields/:setId/:category", async (req, res) => {
+    try {
+      const { setId, category } = req.params;
+      const fields = await storage.getAssumptionFieldsByCategory(setId, category);
+      return res.json(fields);
+    } catch (error) {
+      console.error("Error fetching assumption fields by category:", error);
+      return res.status(500).json({ error: "Failed to fetch fields" });
+    }
+  });
+
+  // Create a custom assumption field
+  app.post("/api/assumptions/fields", async (req, res) => {
+    try {
+      const { setId, category, fieldName, displayName, value, valueType, unit, source, description } = req.body;
+
+      if (!setId || !category || !fieldName || !displayName) {
+        return res.status(400).json({ error: "Required fields missing" });
+      }
+
+      const field = await storage.createAssumptionField({
+        setId,
+        category,
+        fieldName,
+        displayName,
+        value: value || "",
+        valueType: valueType || "text",
+        unit: unit || null,
+        source: source || "Client Provided",
+        description: description || null,
+        isCustom: true,
+        sortOrder: 999, // Custom fields at the end
+      });
+
+      return res.json(field);
+    } catch (error) {
+      console.error("Error creating assumption field:", error);
+      return res.status(500).json({ error: "Failed to create assumption field" });
+    }
+  });
+
+  // Update an assumption field
+  app.put("/api/assumptions/fields/:fieldId", async (req, res) => {
+    try {
+      const { fieldId } = req.params;
+      const { value, source, displayName, description, unit } = req.body;
+
+      const updated = await storage.updateAssumptionField(fieldId, { 
+        value, 
+        source,
+        displayName,
+        description,
+        unit 
+      });
+      
+      if (!updated) {
+        return res.status(404).json({ error: "Assumption field not found" });
+      }
+
+      return res.json(updated);
+    } catch (error) {
+      console.error("Error updating assumption field:", error);
+      return res.status(500).json({ error: "Failed to update assumption field" });
+    }
+  });
+
+  // Delete a custom assumption field
+  app.delete("/api/assumptions/fields/:fieldId", async (req, res) => {
+    try {
+      const { fieldId } = req.params;
+      await storage.deleteAssumptionField(fieldId);
+      return res.json({ success: true, message: "Assumption field deleted" });
+    } catch (error) {
+      console.error("Error deleting assumption field:", error);
+      return res.status(500).json({ error: "Failed to delete assumption field" });
+    }
+  });
+
+  // Batch update multiple assumption fields
+  app.put("/api/assumptions/fields/batch", async (req, res) => {
+    try {
+      const { updates } = req.body;
+
+      if (!Array.isArray(updates)) {
+        return res.status(400).json({ error: "Updates must be an array" });
+      }
+
+      const results = [];
+      for (const update of updates) {
+        const { fieldId, ...data } = update;
+        const updated = await storage.updateAssumptionField(fieldId, data);
+        if (updated) {
+          results.push(updated);
+        }
+      }
+
+      return res.json(results);
+    } catch (error) {
+      console.error("Error batch updating fields:", error);
+      return res.status(500).json({ error: "Failed to batch update fields" });
+    }
+  });
+
   return httpServer;
 }
