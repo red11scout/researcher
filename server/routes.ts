@@ -15,18 +15,23 @@ export async function registerRoutes(
   
   // Health check endpoint to verify AI service configuration
   app.get("/api/health", (req, res) => {
+    const isProduction = process.env.NODE_ENV === 'production';
+    const isLocalhostUrl = process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL?.includes("localhost");
+    const hasUserKey = !!process.env.ANTHROPIC_API_KEY;
+    const needsUserKey = isProduction && isLocalhostUrl;
+    
+    const configCheck = checkProductionConfig();
+    
     const config = {
-      status: "ok",
+      status: configCheck.ok ? "ok" : "misconfigured",
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV || "development",
       aiConfigured: {
-        hasApiKey: !!process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
-        hasBaseUrl: !!process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
-        baseUrlType: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL?.includes("localhost") 
-          ? "local-proxy" 
-          : process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL 
-            ? "remote" 
-            : "default",
+        hasUserApiKey: hasUserKey,
+        hasIntegrationApiKey: !!process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
+        needsUserKey,
+        configOk: configCheck.ok,
+        message: configCheck.message,
       },
       databaseConnected: !!process.env.DATABASE_URL,
     };
