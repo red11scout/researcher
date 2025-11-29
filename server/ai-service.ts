@@ -1,5 +1,9 @@
-import Anthropic from "@anthropic-ai/sdk";
 import pRetry, { AbortError } from "p-retry";
+import { fetch as undiciFetch } from "undici";
+
+// Use undici fetch directly to bypass Replit's proxy issues
+// The native fetch in Node.js honors HTTPS_PROXY which breaks in production
+const safeFetch = undiciFetch;
 
 // Helper to get current configuration (evaluated at call time, not module load)
 function getConfig() {
@@ -10,7 +14,10 @@ function getConfig() {
   const integrationApiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
   const needsUserKey = isProduction && isLocalhostUrl;
   const apiKey = userApiKey || integrationApiKey;
-  const baseURL = needsUserKey ? undefined : configuredBaseURL;
+  
+  // In production, always use official Anthropic API
+  // In development, use Replit's AI integration proxy
+  const baseURL = isProduction ? "https://api.anthropic.com" : (configuredBaseURL || "https://api.anthropic.com");
   
   return {
     isProduction,
@@ -23,33 +30,45 @@ function getConfig() {
   };
 }
 
-// Create Anthropic client dynamically (ensures env vars are read at call time)
-function createAnthropicClient() {
+// Direct API call using undici fetch (bypasses proxy issues)
+async function callAnthropicAPI(systemPrompt: string, userPrompt: string, maxTokens: number = 16000): Promise<string> {
   const config = getConfig();
   
-  // In production, explicitly use Anthropic's official API to avoid Replit proxy issues
-  // The SDK auto-reads ANTHROPIC_BASE_URL env var, so we must override it explicitly
-  const clientConfig: any = {
-    apiKey: config.apiKey,
-    timeout: 180000, // 3 minute timeout for large analyses
-  };
-  
-  if (config.isProduction) {
-    // Force official Anthropic API in production
-    clientConfig.baseURL = "https://api.anthropic.com";
-  } else if (config.baseURL) {
-    // Use configured URL in development (Replit AI integration)
-    clientConfig.baseURL = config.baseURL;
+  if (!config.apiKey) {
+    throw new Error("Anthropic API key is not configured");
   }
   
-  console.log("Creating Anthropic client with config:", {
-    isProduction: config.isProduction,
-    baseURL: clientConfig.baseURL,
-    hasApiKey: !!clientConfig.apiKey,
-    envBaseUrl: process.env.ANTHROPIC_BASE_URL,
+  const response = await safeFetch(`${config.baseURL}/v1/messages`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": config.apiKey,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-5",
+      max_tokens: maxTokens,
+      temperature: 0.7,
+      system: systemPrompt,
+      messages: [{ role: "user", content: userPrompt }],
+    }),
   });
   
-  return new Anthropic(clientConfig);
+  if (!response.ok) {
+    const errorText = await response.text();
+    const error: any = new Error(`Anthropic API error: ${response.status}`);
+    error.status = response.status;
+    error.body = errorText;
+    throw error;
+  }
+  
+  const data = await response.json() as any;
+  
+  if (!data.content || !data.content[0] || data.content[0].type !== "text") {
+    throw new Error("Invalid response format from Anthropic API");
+  }
+  
+  return data.content[0].text;
 }
 
 // Log configuration status at startup (without revealing secrets)
@@ -59,7 +78,7 @@ console.log("AI Service Configuration:", {
   hasIntegrationApiKey: !!startupConfig.integrationApiKey,
   isLocalhostUrl: startupConfig.isLocalhostUrl,
   needsUserKey: startupConfig.needsUserKey,
-  usingBaseUrl: !!startupConfig.baseURL,
+  baseURL: startupConfig.baseURL,
   isProduction: startupConfig.isProduction,
   nodeEnv: process.env.NODE_ENV,
 });
@@ -336,26 +355,12 @@ Return ONLY valid JSON with this exact structure:
 
   console.log(`Starting analysis for: ${companyName}`);
 
-  // Create client dynamically to ensure env vars are read at call time
-  const anthropic = createAnthropicClient();
-
   try {
     // Use pRetry for automatic retries on transient failures
-    const message = await pRetry(
+    const responseText = await pRetry(
       async () => {
         try {
-          return await anthropic.messages.create({
-            model: "claude-sonnet-4-5",
-            max_tokens: 16000,
-            temperature: 0.7,
-            system: systemPrompt,
-            messages: [
-              {
-                role: "user",
-                content: userPrompt,
-              },
-            ],
-          });
+          return await callAnthropicAPI(systemPrompt, userPrompt, 16000);
         } catch (error: any) {
           console.error(`API call attempt failed:`, error?.message || error);
           
@@ -381,8 +386,6 @@ Return ONLY valid JSON with this exact structure:
     );
 
     console.log(`Received response for: ${companyName}`);
-
-    const responseText = message.content[0].type === "text" ? message.content[0].text : "";
     
     if (!responseText) {
       throw new Error("Empty response received from AI service");
@@ -460,24 +463,10 @@ RULES:
 
 Return ONLY valid JSON for the new record object.`;
 
-  // Create client dynamically
-  const anthropic = createAnthropicClient();
+  const userPrompt = `Generate a new record suggestion for Step ${step}. Return only valid JSON.`;
 
   try {
-    const message = await anthropic.messages.create({
-      model: "claude-sonnet-4-5",
-      max_tokens: 2000,
-      temperature: 0.7,
-      system: systemPrompt,
-      messages: [
-        {
-          role: "user",
-          content: `Generate a new record suggestion for Step ${step}. Return only valid JSON.`,
-        },
-      ],
-    });
-
-    const responseText = message.content[0].type === "text" ? message.content[0].text : "";
+    const responseText = await callAnthropicAPI(systemPrompt, userPrompt, 2000);
     
     let jsonText = responseText.trim();
     if (jsonText.startsWith("```json")) {

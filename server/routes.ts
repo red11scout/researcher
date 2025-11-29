@@ -15,7 +15,7 @@ export async function registerRoutes(
   
   // Version check
   app.get("/api/version", (req, res) => {
-    res.json({ version: "2.1.0", buildTime: "2025-11-29T23:25:00Z" });
+    res.json({ version: "2.2.0", buildTime: "2025-11-29T23:40:00Z" });
   });
 
   // Test direct fetch to Anthropic (bypass SDK)
