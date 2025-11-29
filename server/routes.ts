@@ -15,49 +15,68 @@ export async function registerRoutes(
   
   // Version check
   app.get("/api/version", (req, res) => {
-    res.json({ version: "2.0.2", buildTime: "2025-11-29T22:20:00Z" });
+    res.json({ version: "2.0.3", buildTime: "2025-11-29T22:30:00Z" });
   });
 
-  // Simple POST test to debug analyze issues
-  app.post("/api/test-post", async (req, res) => {
-    const testResult: any = {
-      timestamp: new Date().toISOString(),
-      receivedBody: req.body,
-      stages: [],
-    };
+  // Direct analyze test - same as /api/analyze but simpler logging
+  app.post("/api/analyze-direct", async (req, res) => {
+    console.log("=== ANALYZE-DIRECT START ===");
+    console.log("Body:", JSON.stringify(req.body));
     
     try {
-      testResult.stages.push("1. Received request");
-      
       const { companyName } = req.body;
-      testResult.stages.push(`2. Company name: ${companyName}`);
       
-      // Check config
+      if (!companyName) {
+        console.log("No company name");
+        return res.status(400).json({ error: "Company name required" });
+      }
+      
+      console.log("Checking config...");
       const configCheck = checkProductionConfig();
-      testResult.stages.push(`3. Config check: ${JSON.stringify(configCheck)}`);
+      console.log("Config:", JSON.stringify(configCheck));
       
-      // Check database
-      testResult.stages.push("4. Checking database...");
-      const existingReport = await storage.getReportByCompany(companyName || "TestCorp");
-      testResult.stages.push(`5. Existing report: ${existingReport ? "found" : "not found"}`);
+      if (!configCheck.ok) {
+        return res.status(503).json({ error: configCheck.message });
+      }
       
-      // Generate analysis
-      testResult.stages.push("6. Generating analysis...");
-      const analysis = await generateCompanyAnalysis(companyName || "TestCorp");
-      testResult.stages.push("7. Analysis complete");
+      console.log("Checking existing report...");
+      const existingReport = await storage.getReportByCompany(companyName);
       
-      testResult.success = true;
-      testResult.summary = analysis.summary?.substring(0, 100);
+      if (existingReport) {
+        console.log("Found existing report");
+        return res.json({
+          id: existingReport.id,
+          companyName: existingReport.companyName,
+          data: existingReport.analysisData,
+          isNew: false,
+        });
+      }
+      
+      console.log("Generating new analysis...");
+      const analysis = await generateCompanyAnalysis(companyName);
+      console.log("Analysis complete, saving...");
+      
+      const report = await storage.createReport({
+        companyName,
+        analysisData: analysis,
+      });
+      console.log("Report saved:", report.id);
+      
+      return res.json({
+        id: report.id,
+        companyName: report.companyName,
+        data: report.analysisData,
+        isNew: true,
+      });
     } catch (error: any) {
-      testResult.success = false;
-      testResult.error = {
-        message: error?.message,
-        name: error?.name,
-        stack: error?.stack?.split('\n').slice(0, 3),
-      };
+      console.error("=== ANALYZE-DIRECT ERROR ===");
+      console.error("Error:", error?.message);
+      console.error("Stack:", error?.stack);
+      return res.status(500).json({ 
+        error: error?.message || "Analysis failed",
+        stack: error?.stack?.split('\n').slice(0, 3)
+      });
     }
-    
-    res.json(testResult);
   });
 
   // Health check endpoint to verify AI service configuration
