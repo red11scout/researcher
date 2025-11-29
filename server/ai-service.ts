@@ -1,18 +1,26 @@
 import Anthropic from "@anthropic-ai/sdk";
 import pRetry, { AbortError } from "p-retry";
 
+// Determine if we're in production
+const isProduction = process.env.NODE_ENV === 'production';
+
+// Get the base URL - in production, if the localhost URL doesn't work, we may need to skip it
+const baseURL = process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL;
+
 // Initialize Anthropic client with timeout
 const anthropic = new Anthropic({
   apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
-  baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
+  baseURL: baseURL,
   timeout: 180000, // 3 minute timeout for large analyses
 });
 
 // Log configuration status at startup (without revealing secrets)
 console.log("AI Service Configuration:", {
   hasApiKey: !!process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
-  hasBaseUrl: !!process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
-  baseUrl: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL || "default",
+  hasBaseUrl: !!baseURL,
+  baseUrl: baseURL || "default (api.anthropic.com)",
+  isProduction,
+  nodeEnv: process.env.NODE_ENV,
 });
 
 // Helper function to check if error is rate limit or transient

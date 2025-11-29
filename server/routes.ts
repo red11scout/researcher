@@ -13,6 +13,26 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   
+  // Health check endpoint to verify AI service configuration
+  app.get("/api/health", (req, res) => {
+    const config = {
+      status: "ok",
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || "development",
+      aiConfigured: {
+        hasApiKey: !!process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
+        hasBaseUrl: !!process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
+        baseUrlType: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL?.includes("localhost") 
+          ? "local-proxy" 
+          : process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL 
+            ? "remote" 
+            : "default",
+      },
+      databaseConnected: !!process.env.DATABASE_URL,
+    };
+    res.json(config);
+  });
+
   // SSE endpoint for progress updates
   app.get("/api/progress/:sessionId", (req, res) => {
     const { sessionId } = req.params;
