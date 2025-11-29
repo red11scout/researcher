@@ -300,9 +300,12 @@ Return ONLY valid JSON with this exact structure:
 
   const userPrompt = `Analyze "${companyName}" and generate a comprehensive AI opportunity assessment following the exact 8-step framework. Remember: apply 5% conservative reduction to revenue estimates, anchor all initiatives to the 4 business drivers, and map use cases to the 6 AI primitives. Return only valid JSON.`;
 
-  // Verify API key is configured
-  if (!process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY) {
-    throw new Error("Anthropic API key is not configured. Please add the AI_INTEGRATIONS_ANTHROPIC_API_KEY secret.");
+  // Verify API key is configured appropriately for the environment
+  if (needsUserKey && !userApiKey) {
+    throw new Error("Production requires an ANTHROPIC_API_KEY secret. Please add your API key in Secrets.");
+  }
+  if (!apiKey) {
+    throw new Error("Anthropic API key is not configured. Please add the ANTHROPIC_API_KEY secret.");
   }
 
   console.log(`Starting analysis for: ${companyName}`);
