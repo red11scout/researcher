@@ -30,7 +30,13 @@ import {
   Database,
   Calculator,
   TrendingUp,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Lock,
+  Unlock,
+  ExternalLink,
+  Clock,
+  Link2,
+  Zap
 } from "lucide-react";
 
 interface AssumptionField {
@@ -43,7 +49,13 @@ interface AssumptionField {
   valueType: string;
   unit: string | null;
   source: string;
+  sourceUrl: string | null;
   description: string | null;
+  usedInSteps: string[] | null;
+  autoRefresh: boolean;
+  refreshFrequency: string | null;
+  lastRefreshedAt: string | null;
+  isLocked: boolean;
   isCustom: boolean;
   sortOrder: number;
   createdAt: string;
@@ -63,35 +75,59 @@ interface AssumptionSet {
 }
 
 const CATEGORY_INFO: Record<string, { label: string; icon: any; description: string; color: string }> = {
-  company_profile: { 
-    label: "Company Profile", 
+  company_financials: { 
+    label: "Company Financials", 
     icon: Building2, 
-    description: "Basic company information and financials",
+    description: "Revenue, margins, and financial metrics from 10-K/10-Q filings",
     color: "bg-blue-500"
   },
   labor_statistics: { 
     label: "Labor Statistics", 
     icon: Users, 
-    description: "Workforce and cost metrics",
+    description: "Workforce costs and headcount metrics from BLS data",
     color: "bg-green-500"
+  },
+  industry_benchmarks: { 
+    label: "Industry Benchmarks", 
+    icon: TrendingUp, 
+    description: "Sector multiples, WACC, and competitive metrics",
+    color: "bg-purple-500"
+  },
+  macroeconomic: { 
+    label: "Macroeconomic Indicators", 
+    icon: BarChart3, 
+    description: "Inflation, GDP, interest rates, and market volatility",
+    color: "bg-cyan-500"
+  },
+  ai_modeling: { 
+    label: "AI Model Costs", 
+    icon: Brain, 
+    description: "Token pricing, caching, and model parameters",
+    color: "bg-orange-500"
+  },
+  operational_metrics: { 
+    label: "Operational Metrics", 
+    icon: Calculator, 
+    description: "Process volumes, cycle times, and automation rates",
+    color: "bg-indigo-500"
+  },
+  risk_factors: { 
+    label: "Risk & Prioritization", 
+    icon: ShieldAlert, 
+    description: "Confidence factors, adoption rates, and scoring weights",
+    color: "bg-red-500"
+  },
+  company_profile: { 
+    label: "Company Profile", 
+    icon: Building2, 
+    description: "Basic company information (legacy)",
+    color: "bg-slate-500"
   },
   kpi_baselines: { 
     label: "KPI Baselines", 
     icon: BarChart3, 
-    description: "Key performance indicators and benchmarks",
-    color: "bg-purple-500"
-  },
-  ai_modeling: { 
-    label: "AI Modeling", 
-    icon: Brain, 
-    description: "Token costs and model parameters",
-    color: "bg-orange-500"
-  },
-  risk_factors: { 
-    label: "Risk Factors", 
-    icon: ShieldAlert, 
-    description: "Confidence and prioritization weights",
-    color: "bg-red-500"
+    description: "Performance indicators (legacy)",
+    color: "bg-slate-500"
   },
 };
 
@@ -124,7 +160,7 @@ export default function AssumptionPanel() {
   const [showNewScenario, setShowNewScenario] = useState(false);
   const [showAddField, setShowAddField] = useState(false);
   const [newFieldData, setNewFieldData] = useState({
-    category: "company_profile",
+    category: "company_financials",
     fieldName: "",
     displayName: "",
     value: "",
@@ -756,8 +792,23 @@ export default function AssumptionPanel() {
           </Dialog>
         </div>
 
-        <Accordion type="multiple" defaultValue={Object.keys(CATEGORY_INFO)} className="space-y-3">
-          {Object.entries(CATEGORY_INFO).map(([category, info]) => {
+<Accordion type="multiple" defaultValue={["company_financials", "labor_statistics", "industry_benchmarks", "macroeconomic", "ai_modeling", "operational_metrics", "risk_factors"]} className="space-y-3">
+          {Object.entries(CATEGORY_INFO)
+            .filter(([category]) => {
+              const primaryCats = ["company_financials", "labor_statistics", "industry_benchmarks", "macroeconomic", "ai_modeling", "operational_metrics", "risk_factors"];
+              const fields = getFieldsByCategory(category);
+              return primaryCats.includes(category) || fields.length > 0;
+            })
+            .sort(([a], [b]) => {
+              const primaryCats = ["company_financials", "labor_statistics", "industry_benchmarks", "macroeconomic", "ai_modeling", "operational_metrics", "risk_factors"];
+              const aIdx = primaryCats.indexOf(a);
+              const bIdx = primaryCats.indexOf(b);
+              if (aIdx === -1 && bIdx === -1) return 0;
+              if (aIdx === -1) return 1;
+              if (bIdx === -1) return -1;
+              return aIdx - bIdx;
+            })
+            .map(([category, info]) => {
             const fields = getFieldsByCategory(category);
             const Icon = info.icon;
             
@@ -793,34 +844,72 @@ export default function AssumptionPanel() {
                       return (
                         <div
                           key={field.id}
-                          className={`flex items-center gap-4 p-3 rounded-lg border transition-all ${
+                          className={`p-3 rounded-lg border transition-all ${
                             hasChange
                               ? "bg-amber-50 border-amber-200"
+                              : field.isLocked
+                              ? "bg-slate-100 border-slate-200"
                               : "bg-slate-50 border-slate-100"
                           }`}
                           data-testid={`field-row-${field.fieldName}`}
                         >
-                          {/* Field name & description */}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium text-slate-900">
-                                {field.displayName}
-                              </span>
-                              {field.isCustom && (
-                                <Badge variant="outline" className="text-xs">Custom</Badge>
-                              )}
-                              {field.description && (
-                                <Tooltip>
-                                  <TooltipTrigger>
-                                    <Info className="h-3.5 w-3.5 text-slate-400" />
-                                  </TooltipTrigger>
-                                  <TooltipContent className="max-w-xs">
-                                    {field.description}
-                                  </TooltipContent>
-                                </Tooltip>
+                          <div className="flex items-center gap-4">
+                            {/* Field name & description */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-medium text-slate-900">
+                                  {field.displayName}
+                                </span>
+                                {field.isLocked && (
+                                  <Tooltip>
+                                    <TooltipTrigger>
+                                      <Lock className="h-3.5 w-3.5 text-amber-600" />
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      Locked - auto-refresh disabled
+                                    </TooltipContent>
+                                  </Tooltip>
+                                )}
+                                {field.autoRefresh && !field.isLocked && (
+                                  <Tooltip>
+                                    <TooltipTrigger>
+                                      <Zap className="h-3.5 w-3.5 text-green-600" />
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      Auto-refresh: {field.refreshFrequency || "enabled"}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                )}
+                                {field.isCustom && (
+                                  <Badge variant="outline" className="text-xs">Custom</Badge>
+                                )}
+                                {field.description && (
+                                  <Tooltip>
+                                    <TooltipTrigger>
+                                      <Info className="h-3.5 w-3.5 text-slate-400" />
+                                    </TooltipTrigger>
+                                    <TooltipContent className="max-w-xs">
+                                      <p>{field.description}</p>
+                                      {field.sourceUrl && (
+                                        <p className="mt-1 text-xs text-muted-foreground flex items-center gap-1">
+                                          <ExternalLink className="h-3 w-3" />
+                                          Source: {field.sourceUrl}
+                                        </p>
+                                      )}
+                                    </TooltipContent>
+                                  </Tooltip>
+                                )}
+                              </div>
+                              {/* Used in steps indicator */}
+                              {field.usedInSteps && field.usedInSteps.length > 0 && (
+                                <div className="flex items-center gap-1 mt-1">
+                                  <Link2 className="h-3 w-3 text-slate-400" />
+                                  <span className="text-xs text-slate-500">
+                                    Used in: {field.usedInSteps.map(s => s === "summary" ? "Summary" : `Step ${s}`).join(", ")}
+                                  </span>
+                                </div>
                               )}
                             </div>
-                          </div>
 
                           {/* Value editing */}
                           {isEditing ? (
@@ -899,6 +988,7 @@ export default function AssumptionPanel() {
                               )}
                             </div>
                           )}
+                          </div>
                         </div>
                       );
                     })}

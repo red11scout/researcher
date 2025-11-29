@@ -215,7 +215,7 @@ export class DatabaseStorage implements IStorage {
       })
       .returning();
 
-    // Copy all fields
+    // Copy all fields including new metadata
     const fields = await this.getAssumptionFieldsBySet(setId);
     for (const field of fields) {
       await db.insert(assumptionFields).values({
@@ -227,7 +227,13 @@ export class DatabaseStorage implements IStorage {
         valueType: field.valueType,
         unit: field.unit,
         source: field.source,
+        sourceUrl: field.sourceUrl,
         description: field.description,
+        usedInSteps: field.usedInSteps,
+        autoRefresh: field.autoRefresh,
+        refreshFrequency: field.refreshFrequency,
+        lastRefreshedAt: field.lastRefreshedAt,
+        isLocked: field.isLocked,
         isCustom: field.isCustom,
         sortOrder: field.sortOrder,
       });
@@ -302,8 +308,13 @@ export class DatabaseStorage implements IStorage {
             value,
             valueType: template.valueType,
             unit: template.unit || null,
-            source: "System Default",
+            source: template.autoRefresh ? "API - External" : "System Default",
+            sourceUrl: template.sourceUrl || null,
             description: template.description,
+            usedInSteps: template.usedInSteps || null,
+            autoRefresh: template.autoRefresh || false,
+            refreshFrequency: template.refreshFrequency || null,
+            isLocked: false,
             isCustom: false,
             sortOrder: sortOrder++,
           })

@@ -480,7 +480,11 @@ export async function registerRoutes(
   // Create a custom assumption field
   app.post("/api/assumptions/fields", async (req, res) => {
     try {
-      const { setId, category, fieldName, displayName, value, valueType, unit, source, description } = req.body;
+      const { 
+        setId, category, fieldName, displayName, value, valueType, unit, 
+        source, sourceUrl, description, usedInSteps, autoRefresh, 
+        refreshFrequency, isLocked 
+      } = req.body;
 
       if (!setId || !category || !fieldName || !displayName) {
         return res.status(400).json({ error: "Required fields missing" });
@@ -495,7 +499,12 @@ export async function registerRoutes(
         valueType: valueType || "text",
         unit: unit || null,
         source: source || "Client Provided",
+        sourceUrl: sourceUrl || null,
         description: description || null,
+        usedInSteps: usedInSteps || null,
+        autoRefresh: autoRefresh ?? false,
+        refreshFrequency: refreshFrequency || null,
+        isLocked: isLocked ?? false,
         isCustom: true,
         sortOrder: 999, // Custom fields at the end
       });
@@ -511,15 +520,24 @@ export async function registerRoutes(
   app.put("/api/assumptions/fields/:fieldId", async (req, res) => {
     try {
       const { fieldId } = req.params;
-      const { value, source, displayName, description, unit } = req.body;
+      const { 
+        value, source, sourceUrl, displayName, description, unit,
+        usedInSteps, autoRefresh, refreshFrequency, isLocked 
+      } = req.body;
 
-      const updated = await storage.updateAssumptionField(fieldId, { 
-        value, 
-        source,
-        displayName,
-        description,
-        unit 
-      });
+      const updateData: Record<string, any> = {};
+      if (value !== undefined) updateData.value = value;
+      if (source !== undefined) updateData.source = source;
+      if (sourceUrl !== undefined) updateData.sourceUrl = sourceUrl;
+      if (displayName !== undefined) updateData.displayName = displayName;
+      if (description !== undefined) updateData.description = description;
+      if (unit !== undefined) updateData.unit = unit;
+      if (usedInSteps !== undefined) updateData.usedInSteps = usedInSteps;
+      if (autoRefresh !== undefined) updateData.autoRefresh = autoRefresh;
+      if (refreshFrequency !== undefined) updateData.refreshFrequency = refreshFrequency;
+      if (isLocked !== undefined) updateData.isLocked = isLocked;
+
+      const updated = await storage.updateAssumptionField(fieldId, updateData);
       
       if (!updated) {
         return res.status(404).json({ error: "Assumption field not found" });
