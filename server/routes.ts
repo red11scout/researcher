@@ -38,6 +38,58 @@ export async function registerRoutes(
     res.json(config);
   });
 
+  // Test endpoint to debug AI API connectivity
+  app.get("/api/test-ai", async (req, res) => {
+    const Anthropic = (await import("@anthropic-ai/sdk")).default;
+    
+    const isProduction = process.env.NODE_ENV === 'production';
+    const isLocalhostUrl = process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL?.includes("localhost");
+    const userApiKey = process.env.ANTHROPIC_API_KEY;
+    const integrationApiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
+    const needsUserKey = isProduction && isLocalhostUrl;
+    const apiKey = userApiKey || integrationApiKey;
+    const baseURL = needsUserKey ? undefined : process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL;
+    
+    const testResult: any = {
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || "development",
+      config: {
+        hasUserApiKey: !!userApiKey,
+        hasIntegrationApiKey: !!integrationApiKey,
+        needsUserKey,
+        usingBaseUrl: !!baseURL,
+        keyUsed: userApiKey ? "user" : (integrationApiKey ? "integration" : "none"),
+      },
+    };
+    
+    try {
+      const anthropic = new Anthropic({
+        apiKey: apiKey,
+        ...(baseURL && { baseURL }),
+        timeout: 30000,
+      });
+      
+      const message = await anthropic.messages.create({
+        model: "claude-sonnet-4-5",
+        max_tokens: 50,
+        messages: [{ role: "user", content: "Say hello in one word." }],
+      });
+      
+      testResult.success = true;
+      testResult.response = message.content[0].type === "text" ? message.content[0].text : "Non-text response";
+    } catch (error: any) {
+      testResult.success = false;
+      testResult.error = {
+        message: error.message,
+        status: error.status,
+        code: error.code,
+        type: error.constructor?.name,
+      };
+    }
+    
+    res.json(testResult);
+  });
+
   // SSE endpoint for progress updates
   app.get("/api/progress/:sessionId", (req, res) => {
     const { sessionId } = req.params;
