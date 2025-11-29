@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useLocation, Link } from "wouter";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -18,11 +19,36 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { 
   Loader2, CheckCircle2, Download, 
   RefreshCw, FileSpreadsheet, FileText, FileType, 
-  ArrowLeft, Brain, Calculator, TrendingUp, TrendingDown, 
-  DollarSign, ShieldCheck, Zap, Target, ChevronDown, ChevronRight
+  ArrowLeft, ArrowRight, Brain, Calculator, TrendingUp, TrendingDown, 
+  DollarSign, ShieldCheck, Zap, Target, ChevronDown, ChevronRight,
+  Settings2, HelpCircle, Info, Sliders, BarChart3, Building2,
+  Users, ClipboardList, Lightbulb, Scale, MapPin, Save, Layers
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import jsPDF from 'jspdf';
@@ -120,8 +146,37 @@ interface ProgressUpdate {
   detail?: string;
 }
 
+// Navigation sections for sidebar (matching actual AI-generated report structure)
+const navigationSections = [
+  { id: "dashboard", label: "Executive Dashboard", icon: Target },
+  { id: "summary", label: "Executive Summary", icon: Brain },
+  { id: "step-0", label: "Company Overview", icon: Building2 },
+  { id: "step-1", label: "Strategic Anchoring", icon: Target },
+  { id: "step-2", label: "Business Functions", icon: ClipboardList },
+  { id: "step-3", label: "Friction Points", icon: Zap },
+  { id: "step-4", label: "AI Use Cases", icon: Lightbulb },
+  { id: "step-5", label: "Benefits Quantification", icon: DollarSign },
+  { id: "step-6", label: "Effort & Token Model", icon: Calculator },
+  { id: "step-7", label: "Priority Roadmap", icon: MapPin },
+];
+
+// Tooltip definitions for key metrics
+const metricTooltips: Record<string, string> = {
+  "totalAnnualValue": "Total projected annual value across all AI use cases, combining revenue, cost, cash flow, and risk benefits.",
+  "revenueBenefit": "Projected annual revenue increase from AI-driven improvements in sales, pricing, and customer retention.",
+  "costBenefit": "Projected annual cost savings from AI-driven process automation and efficiency improvements.",
+  "cashFlowBenefit": "Projected annual cash flow improvements from accelerated collections and reduced inventory carrying costs.",
+  "riskBenefit": "Projected annual risk reduction value from improved compliance, fraud detection, and quality control.",
+  "priorityScore": "Composite score (0-100) based on value potential, time-to-value, and implementation effort.",
+  "probabilityOfSuccess": "Estimated likelihood of achieving projected benefits, based on data readiness and implementation complexity.",
+  "tokenCost": "Estimated annual cost for AI model token usage based on projected runs and average tokens per run.",
+  "monthlyTokens": "Estimated total monthly token consumption across all AI use cases, based on projected runs and average tokens per run.",
+  "valuePerToken": "Average value generated per million tokens consumed, calculated by dividing total annual value by annual token consumption.",
+};
+
 export default function Report() {
   const [location, setLocation] = useLocation();
+  const queryClient = useQueryClient();
   const params = new URLSearchParams(window.location.search);
   const companyName = params.get("company") || "Unknown Company";
   const { toast } = useToast();
@@ -132,6 +187,15 @@ export default function Report() {
   const [error, setError] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState<ProgressUpdate | null>(null);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+  
+  // Assumption drawer state
+  const [assumptionDrawerOpen, setAssumptionDrawerOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState("dashboard");
+  const [assumptionEdits, setAssumptionEdits] = useState<Record<string, string>>({});
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  
+  // Section refs for navigation
+  const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
 
   useEffect(() => {
     if (status === "init") {
@@ -277,6 +341,114 @@ export default function Report() {
         title: "Refresh Failed",
         description: "Unable to regenerate analysis. Please try again.",
       });
+    }
+  };
+
+  // Fetch active assumption set for this report
+  const { data: activeAssumptions, refetch: refetchAssumptions } = useQuery({
+    queryKey: ["/api/assumptions/sets/active", reportId],
+    queryFn: async () => {
+      if (!reportId) return null;
+      const res = await fetch(`/api/assumptions/sets/${reportId}/active`);
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!reportId && status === "complete",
+  });
+
+  // Recalculate mutation
+  const recalculateMutation = useMutation({
+    mutationFn: async () => {
+      if (!reportId) throw new Error("No report ID");
+      const res = await fetch(`/api/assumptions/recalculate/${reportId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) throw new Error("Failed to recalculate");
+      return res.json();
+    },
+    onSuccess: (result) => {
+      if (result.report) {
+        setData(result.report.analysisData);
+      }
+      setHasUnsavedChanges(false);
+      setAssumptionEdits({});
+      refetchAssumptions();
+      toast({
+        title: "Report Recalculated",
+        description: "All calculations updated with your assumption changes.",
+      });
+    },
+    onError: () => {
+      toast({
+        variant: "destructive",
+        title: "Recalculation Failed",
+        description: "Unable to apply assumption changes.",
+      });
+    },
+  });
+
+  // Scroll to section
+  const scrollToSection = (sectionId: string) => {
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "start" });
+      setActiveSection(sectionId);
+    }
+  };
+
+  // Update active section based on scroll
+  useEffect(() => {
+    const handleScroll = () => {
+      const sections = navigationSections.map(s => document.getElementById(s.id));
+      const scrollPosition = window.scrollY + 200;
+      
+      for (let i = sections.length - 1; i >= 0; i--) {
+        const section = sections[i];
+        if (section && section.offsetTop <= scrollPosition) {
+          setActiveSection(navigationSections[i].id);
+          break;
+        }
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Handle assumption field edit
+  const handleAssumptionEdit = (fieldName: string, value: string) => {
+    setAssumptionEdits(prev => ({ ...prev, [fieldName]: value }));
+    setHasUnsavedChanges(true);
+  };
+
+  // Apply assumption changes
+  const applyAssumptionChanges = async () => {
+    if (!activeAssumptions?.fields || Object.keys(assumptionEdits).length === 0) {
+      return;
+    }
+
+    try {
+      const updates = Object.entries(assumptionEdits).map(([fieldName, value]) => {
+        const field = activeAssumptions.fields.find((f: any) => f.fieldName === fieldName);
+        return {
+          fieldId: field?.id,
+          value,
+          source: field?.source || "User Modified",
+        };
+      }).filter(u => u.fieldId);
+
+      if (updates.length > 0) {
+        await fetch("/api/assumptions/fields/batch", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ updates }),
+        });
+      }
+
+      await recalculateMutation.mutateAsync();
+    } catch (error) {
+      console.error("Error applying assumptions:", error);
     }
   };
 
@@ -1742,6 +1914,219 @@ export default function Report() {
                </div>
             </div>
             <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
+              {/* Assumptions Drawer Button */}
+              <Sheet open={assumptionDrawerOpen} onOpenChange={setAssumptionDrawerOpen}>
+                <SheetTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    data-testid="button-assumptions"
+                    className="h-8 md:h-9 px-2 md:px-3 text-xs md:text-sm relative"
+                  >
+                    <Sliders className="h-3 w-3 md:h-4 md:w-4 md:mr-2" />
+                    <span className="hidden md:inline">Assumptions</span>
+                    {hasUnsavedChanges && (
+                      <span className="absolute -top-1 -right-1 h-2 w-2 bg-amber-500 rounded-full" />
+                    )}
+                  </Button>
+                </SheetTrigger>
+                <SheetContent className="w-[400px] sm:w-[540px] overflow-y-auto">
+                  <SheetHeader>
+                    <SheetTitle className="flex items-center gap-2">
+                      <Sliders className="h-5 w-5" />
+                      Assumption Control Panel
+                    </SheetTitle>
+                    <SheetDescription>
+                      Edit key assumptions to see how they affect the analysis. Changes will recalculate all dependent values.
+                    </SheetDescription>
+                  </SheetHeader>
+                  
+                  <div className="mt-6">
+                    {activeAssumptions?.fields ? (
+                      <div className="space-y-4">
+                        <Accordion type="multiple" defaultValue={["company_profile", "financial_assumptions", "modeling_parameters"]}>
+                          {/* Company Profile */}
+                          <AccordionItem value="company_profile">
+                            <AccordionTrigger className="text-sm font-medium">
+                              <div className="flex items-center gap-2">
+                                <Building2 className="h-4 w-4 text-blue-600" />
+                                Company Profile
+                              </div>
+                            </AccordionTrigger>
+                            <AccordionContent>
+                              <div className="space-y-3 pt-2">
+                                {activeAssumptions.fields
+                                  .filter((f: any) => f.category === "company_profile")
+                                  .map((field: any) => (
+                                    <div key={field.id} className="space-y-1">
+                                      <div className="flex items-center gap-2">
+                                        <Label className="text-xs text-muted-foreground">{field.displayName}</Label>
+                                        <TooltipProvider>
+                                          <Tooltip>
+                                            <TooltipTrigger>
+                                              <HelpCircle className="h-3 w-3 text-muted-foreground" />
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                              <p className="max-w-xs text-xs">{field.description || `Source: ${field.source}`}</p>
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        </TooltipProvider>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <Input
+                                          value={assumptionEdits[field.fieldName] ?? field.value}
+                                          onChange={(e) => handleAssumptionEdit(field.fieldName, e.target.value)}
+                                          className="h-8 text-sm"
+                                        />
+                                        {field.unit && <span className="text-xs text-muted-foreground">{field.unit}</span>}
+                                      </div>
+                                    </div>
+                                  ))}
+                              </div>
+                            </AccordionContent>
+                          </AccordionItem>
+
+                          {/* Financial Assumptions */}
+                          <AccordionItem value="financial_assumptions">
+                            <AccordionTrigger className="text-sm font-medium">
+                              <div className="flex items-center gap-2">
+                                <DollarSign className="h-4 w-4 text-green-600" />
+                                Financial Assumptions
+                              </div>
+                            </AccordionTrigger>
+                            <AccordionContent>
+                              <div className="space-y-3 pt-2">
+                                {activeAssumptions.fields
+                                  .filter((f: any) => f.category === "financial_assumptions")
+                                  .map((field: any) => (
+                                    <div key={field.id} className="space-y-1">
+                                      <div className="flex items-center gap-2">
+                                        <Label className="text-xs text-muted-foreground">{field.displayName}</Label>
+                                        <TooltipProvider>
+                                          <Tooltip>
+                                            <TooltipTrigger>
+                                              <HelpCircle className="h-3 w-3 text-muted-foreground" />
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                              <p className="max-w-xs text-xs">{field.description || `Source: ${field.source}`}</p>
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        </TooltipProvider>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <Input
+                                          value={assumptionEdits[field.fieldName] ?? field.value}
+                                          onChange={(e) => handleAssumptionEdit(field.fieldName, e.target.value)}
+                                          className="h-8 text-sm"
+                                        />
+                                        {field.unit && <span className="text-xs text-muted-foreground">{field.unit}</span>}
+                                      </div>
+                                    </div>
+                                  ))}
+                              </div>
+                            </AccordionContent>
+                          </AccordionItem>
+
+                          {/* Modeling Parameters */}
+                          <AccordionItem value="modeling_parameters">
+                            <AccordionTrigger className="text-sm font-medium">
+                              <div className="flex items-center gap-2">
+                                <Calculator className="h-4 w-4 text-purple-600" />
+                                Modeling Parameters
+                              </div>
+                            </AccordionTrigger>
+                            <AccordionContent>
+                              <div className="space-y-3 pt-2">
+                                {activeAssumptions.fields
+                                  .filter((f: any) => f.category === "modeling_parameters")
+                                  .map((field: any) => (
+                                    <div key={field.id} className="space-y-1">
+                                      <div className="flex items-center gap-2">
+                                        <Label className="text-xs text-muted-foreground">{field.displayName}</Label>
+                                        <TooltipProvider>
+                                          <Tooltip>
+                                            <TooltipTrigger>
+                                              <HelpCircle className="h-3 w-3 text-muted-foreground" />
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                              <p className="max-w-xs text-xs">{field.description || `Source: ${field.source}`}</p>
+                                            </TooltipContent>
+                                          </Tooltip>
+                                        </TooltipProvider>
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <Input
+                                          value={assumptionEdits[field.fieldName] ?? field.value}
+                                          onChange={(e) => handleAssumptionEdit(field.fieldName, e.target.value)}
+                                          className="h-8 text-sm"
+                                        />
+                                        {field.unit && <span className="text-xs text-muted-foreground">{field.unit}</span>}
+                                      </div>
+                                    </div>
+                                  ))}
+                              </div>
+                            </AccordionContent>
+                          </AccordionItem>
+                        </Accordion>
+
+                        {/* Apply Changes Button */}
+                        {hasUnsavedChanges && (
+                          <div className="pt-4 border-t">
+                            <Button 
+                              onClick={applyAssumptionChanges}
+                              disabled={recalculateMutation.isPending}
+                              className="w-full"
+                            >
+                              {recalculateMutation.isPending ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  Recalculating...
+                                </>
+                              ) : (
+                                <>
+                                  <Save className="h-4 w-4 mr-2" />
+                                  Apply & Recalculate
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        )}
+
+                        {/* Advanced Options Link */}
+                        <div className="pt-4 border-t">
+                          <Button 
+                            variant="outline" 
+                            className="w-full"
+                            onClick={() => {
+                              setAssumptionDrawerOpen(false);
+                              setLocation(`/assumptions/${reportId}`);
+                            }}
+                          >
+                            <Settings2 className="h-4 w-4 mr-2" />
+                            Advanced Assumption Panel
+                          </Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <Sliders className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                        <p className="text-sm">No assumptions configured yet.</p>
+                        <Button 
+                          variant="outline" 
+                          className="mt-4"
+                          onClick={() => {
+                            setAssumptionDrawerOpen(false);
+                            setLocation(`/assumptions/${reportId}`);
+                          }}
+                        >
+                          Configure Assumptions
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </SheetContent>
+              </Sheet>
+
               <Button 
                 variant="outline" 
                 size="sm" 
@@ -1782,18 +2167,87 @@ export default function Report() {
           </div>
         </div>
 
-        <div className="flex-1 bg-muted/30 p-3 md:p-6">
-          <div className="container mx-auto max-w-6xl">
-            {/* Executive Dashboard */}
-            {data.executiveDashboard && (
-              <Card className="mb-4 md:mb-8 border-primary/20 bg-gradient-to-br from-primary/5 to-transparent" data-testid="card-executive-dashboard">
-                <CardHeader className="pb-2 md:pb-6">
-                  <CardTitle className="flex items-center gap-2 text-lg md:text-2xl">
-                    <Target className="h-5 w-5 md:h-6 md:w-6 text-primary" />
-                    Executive Dashboard
-                  </CardTitle>
-                  <CardDescription className="text-xs md:text-sm">AI Portfolio KPIs - Total value across all 4 business drivers</CardDescription>
-                </CardHeader>
+        <div className="flex-1 bg-muted/30">
+          <div className="flex">
+            {/* Persistent Sidebar Navigation - Desktop Only */}
+            <aside className="hidden lg:block w-64 flex-shrink-0 sticky top-32 h-[calc(100vh-8rem)] overflow-y-auto border-r bg-background p-4">
+              <div className="mb-4">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Navigation</h3>
+                <nav className="space-y-1">
+                  {navigationSections.map((section) => {
+                    const Icon = section.icon;
+                    const isActive = activeSection === section.id;
+                    return (
+                      <button
+                        key={section.id}
+                        onClick={() => scrollToSection(section.id)}
+                        className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors ${
+                          isActive 
+                            ? 'bg-primary/10 text-primary font-medium' 
+                            : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                        }`}
+                        data-testid={`nav-${section.id}`}
+                      >
+                        <Icon className="h-4 w-4" />
+                        <span className="truncate">{section.label}</span>
+                      </button>
+                    );
+                  })}
+                </nav>
+              </div>
+
+              {/* Quick Actions */}
+              <div className="pt-4 border-t">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">Quick Actions</h3>
+                <div className="space-y-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full justify-start"
+                    onClick={() => setAssumptionDrawerOpen(true)}
+                  >
+                    <Sliders className="h-4 w-4 mr-2" />
+                    Edit Assumptions
+                  </Button>
+                  {reportId && (
+                    <Link href={`/whatif/${reportId}`}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full justify-start"
+                      >
+                        <BarChart3 className="h-4 w-4 mr-2" />
+                        What-If Analysis
+                      </Button>
+                    </Link>
+                  )}
+                </div>
+              </div>
+            </aside>
+
+            {/* Main Content */}
+            <div className="flex-1 p-3 md:p-6">
+              <div className="container mx-auto max-w-5xl">
+                {/* Executive Dashboard */}
+                {data.executiveDashboard && (
+                  <Card id="dashboard" className="mb-4 md:mb-8 border-primary/20 bg-gradient-to-br from-primary/5 to-transparent scroll-mt-32" data-testid="card-executive-dashboard">
+                    <CardHeader className="pb-2 md:pb-6">
+                      <CardTitle className="flex items-center gap-2 text-lg md:text-2xl">
+                        <Target className="h-5 w-5 md:h-6 md:w-6 text-primary" />
+                        Executive Dashboard
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <Info className="h-4 w-4 text-muted-foreground" />
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p className="text-xs">{metricTooltips.totalAnnualValue}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </CardTitle>
+                      <CardDescription className="text-xs md:text-sm">AI Portfolio KPIs - Total value across all 4 business drivers</CardDescription>
+                    </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 gap-2 md:gap-4 mb-4 md:mb-6">
                     <DashboardMetric 
@@ -1802,6 +2256,7 @@ export default function Report() {
                       value={formatCurrency(data.executiveDashboard.totalRevenueBenefit)}
                       color="text-green-600"
                       bgColor="bg-green-50"
+                      tooltip={metricTooltips.revenueBenefit}
                     />
                     <DashboardMetric 
                       icon={<TrendingDown className="h-4 w-4 md:h-5 md:w-5" />}
@@ -1809,6 +2264,7 @@ export default function Report() {
                       value={formatCurrency(data.executiveDashboard.totalCostBenefit)}
                       color="text-blue-600"
                       bgColor="bg-blue-50"
+                      tooltip={metricTooltips.costBenefit}
                     />
                     <DashboardMetric 
                       icon={<DollarSign className="h-4 w-4 md:h-5 md:w-5" />}
@@ -1816,6 +2272,7 @@ export default function Report() {
                       value={formatCurrency(data.executiveDashboard.totalCashFlowBenefit)}
                       color="text-purple-600"
                       bgColor="bg-purple-50"
+                      tooltip={metricTooltips.cashFlowBenefit}
                     />
                     <DashboardMetric 
                       icon={<ShieldCheck className="h-4 w-4 md:h-5 md:w-5" />}
@@ -1823,24 +2280,61 @@ export default function Report() {
                       value={formatCurrency(data.executiveDashboard.totalRiskBenefit)}
                       color="text-orange-600"
                       bgColor="bg-orange-50"
+                      tooltip={metricTooltips.riskBenefit}
                     />
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 md:gap-4 mb-4 md:mb-6">
                     <div className="p-3 md:p-4 rounded-lg border bg-card">
-                      <div className="text-xs md:text-sm text-muted-foreground mb-1">Total Annual Value</div>
+                      <div className="flex items-center gap-1.5 text-xs md:text-sm text-muted-foreground mb-1">
+                        Total Annual Value
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <Info className="h-3 w-3 text-muted-foreground hover:text-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p className="text-xs">{metricTooltips.totalAnnualValue}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
                       <div className="text-lg md:text-2xl font-bold text-primary" data-testid="text-total-value">
                         {formatCurrency(data.executiveDashboard.totalAnnualValue)}
                       </div>
                     </div>
                     <div className="p-3 md:p-4 rounded-lg border bg-card">
-                      <div className="text-xs md:text-sm text-muted-foreground mb-1">Monthly Tokens</div>
+                      <div className="flex items-center gap-1.5 text-xs md:text-sm text-muted-foreground mb-1">
+                        Monthly Tokens
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <Info className="h-3 w-3 text-muted-foreground hover:text-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p className="text-xs">{metricTooltips.monthlyTokens}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
                       <div className="text-lg md:text-2xl font-bold">
                         {formatNumber(data.executiveDashboard.totalMonthlyTokens)}
                       </div>
                     </div>
                     <div className="p-3 md:p-4 rounded-lg border bg-card">
-                      <div className="text-xs md:text-sm text-muted-foreground mb-1">Value per 1M Tokens</div>
+                      <div className="flex items-center gap-1.5 text-xs md:text-sm text-muted-foreground mb-1">
+                        Value per 1M Tokens
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <Info className="h-3 w-3 text-muted-foreground hover:text-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p className="text-xs">{metricTooltips.valuePerToken}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      </div>
                       <div className="text-lg md:text-2xl font-bold">
                         {formatCurrency(data.executiveDashboard.valuePerMillionTokens)}
                       </div>
@@ -1852,6 +2346,16 @@ export default function Report() {
                       <h4 className="font-semibold mb-2 md:mb-3 flex items-center gap-2 text-sm md:text-base">
                         <Zap className="h-3.5 w-3.5 md:h-4 md:w-4 text-primary" />
                         Top 5 Use Cases by Priority
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger>
+                              <Info className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground cursor-help" />
+                            </TooltipTrigger>
+                            <TooltipContent className="max-w-xs">
+                              <p className="text-xs">{metricTooltips.priorityScore}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       </h4>
                       <div className="rounded-md border overflow-hidden">
                         <div className="overflow-x-auto">
@@ -1860,7 +2364,21 @@ export default function Report() {
                               <TableRow className="bg-muted/50">
                                 <TableHead className="font-semibold text-primary text-xs md:text-sm whitespace-nowrap">#</TableHead>
                                 <TableHead className="font-semibold text-primary text-xs md:text-sm whitespace-nowrap">Use Case</TableHead>
-                                <TableHead className="font-semibold text-primary text-xs md:text-sm whitespace-nowrap hidden sm:table-cell">Score</TableHead>
+                                <TableHead className="font-semibold text-primary text-xs md:text-sm whitespace-nowrap hidden sm:table-cell">
+                                  <span className="flex items-center gap-1">
+                                    Score
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger>
+                                          <Info className="h-3 w-3 text-muted-foreground hover:text-foreground cursor-help" />
+                                        </TooltipTrigger>
+                                        <TooltipContent className="max-w-xs">
+                                          <p className="text-xs">{metricTooltips.priorityScore}</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  </span>
+                                </TableHead>
                                 <TableHead className="font-semibold text-primary text-xs md:text-sm whitespace-nowrap hidden md:table-cell">Tokens</TableHead>
                                 <TableHead className="font-semibold text-primary text-xs md:text-sm whitespace-nowrap">Value</TableHead>
                               </TableRow>
@@ -1899,7 +2417,7 @@ export default function Report() {
 
             {/* Summary */}
             {data.summary && (
-              <Card className="mb-4 md:mb-8" data-testid="card-summary">
+              <Card id="summary" className="mb-4 md:mb-8 scroll-mt-32" data-testid="card-summary">
                 <CardHeader className="pb-2 md:pb-6">
                   <CardTitle className="flex items-center gap-2 text-base md:text-lg">
                     <Brain className="h-4 w-4 md:h-5 md:w-5 text-primary" />
@@ -1915,7 +2433,9 @@ export default function Report() {
             {/* Analysis Steps */}
             <div className="flex flex-col space-y-4 md:space-y-8">
               {data.steps?.map((step: any, index: number) => (
-                <StepCard key={index} step={step} />
+                <div key={index} id={`step-${step.step}`} className="scroll-mt-32">
+                  <StepCard step={step} />
+                </div>
               ))}
             </div>
 
@@ -1955,6 +2475,8 @@ export default function Report() {
                 </div>
               </CardContent>
             </Card>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1962,27 +2484,76 @@ export default function Report() {
   );
 }
 
-function DashboardMetric({ icon, label, value, color, bgColor }: { 
+function DashboardMetric({ icon, label, value, color, bgColor, tooltip }: { 
   icon: React.ReactNode; 
   label: string; 
   value: string; 
   color: string; 
   bgColor: string;
+  tooltip?: string;
 }) {
   return (
     <div className={`p-2 md:p-4 rounded-lg border ${bgColor}`}>
       <div className="flex items-center gap-1.5 md:gap-2 mb-1 md:mb-2">
         <div className={color}>{icon}</div>
         <span className="text-[10px] md:text-sm text-muted-foreground">{label}</span>
+        {tooltip && (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger>
+                <Info className="h-3 w-3 text-muted-foreground hover:text-foreground transition-colors cursor-help" />
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">
+                <p className="text-xs">{tooltip}</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
       </div>
       <div className={`text-sm md:text-xl font-bold ${color}`}>{value}</div>
     </div>
   );
 }
 
+const stepTooltips: Record<number, { title: string; description: string }> = {
+  0: { 
+    title: "Company Overview", 
+    description: "General company information including industry, size, revenue estimates, and key business characteristics that inform the AI opportunity analysis." 
+  },
+  1: { 
+    title: "Strategic Anchoring & Business Drivers", 
+    description: "Strategic themes anchored to the four primary business drivers: Revenue Growth, Cost Reduction, Cash Flow Improvement, and Risk Mitigation." 
+  },
+  2: { 
+    title: "Business Functions & KPIs", 
+    description: "Analysis of key business functions with associated KPIs, baseline values, industry benchmarks, and improvement targets." 
+  },
+  3: { 
+    title: "Friction Points", 
+    description: "Identification of high-impact friction points across business functions where AI automation could deliver significant value, quantified by estimated annual cost." 
+  },
+  4: { 
+    title: "AI Use Cases", 
+    description: "Specific AI use cases mapped to the 6 standard primitives: Content Creation, Data Analysis, Research & Information Retrieval, Conversational Interfaces, and Workflow Automation." 
+  },
+  5: { 
+    title: "Benefit Quantification", 
+    description: "Conservative financial estimates across 4 business drivers with probability-weighted total annual value for each use case." 
+  },
+  6: { 
+    title: "Effort & Token Modeling", 
+    description: "Implementation effort assessment and token economics including runs/month, tokens per run, data readiness, integration complexity, and annual token costs." 
+  },
+  7: { 
+    title: "Priority Scoring & Roadmap", 
+    description: "Priority scoring (0-100) based on value potential, time-to-value, and implementation effort. Use cases are tiered as Critical, High, or Standard with recommended implementation phases." 
+  },
+};
+
 function StepCard({ step }: { step: any }) {
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const hasData = step.data && Array.isArray(step.data) && step.data.length > 0;
+  const stepInfo = stepTooltips[step.step];
   
   const formatCurrency = (value: number): string => {
     if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
@@ -2035,7 +2606,21 @@ function StepCard({ step }: { step: any }) {
             <div className="h-6 w-6 md:h-8 md:w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs md:text-sm border border-primary/20 flex-shrink-0">
               {step.step}
             </div>
-            <CardTitle className="text-base md:text-xl leading-tight">{step.title}</CardTitle>
+            <CardTitle className="text-base md:text-xl leading-tight flex items-center gap-2">
+              {step.title}
+              {stepInfo && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <Info className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent className="max-w-sm">
+                      <p className="text-xs font-normal">{stepInfo.description}</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </CardTitle>
           </div>
           <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
             {isBenefitsStep && hasData && (

@@ -1,0 +1,256 @@
+You are updating an existing “AI Use Cases” web app.
+The current UI (see screenshot) has a Use Case card with fields like:
+	•	Score (numeric, calculated)
+	•	Name
+	•	Category
+	•	GenAI Flow
+	•	Description
+	•	Cost Savings ($)
+	•	Revenue Impact ($)
+	•	Risk Reduction ($)
+	•	Time to Value (mo)
+	•	Effort
+	•	Total Annual Impact (numeric, calculated)
+
+Goal
+
+Create a Formula Management System that makes every calculated field (e.g., Score, Total Annual Impact) dynamic and explorable:
+	1.	Users can see exactly how each calculated value is derived (inputs + formula).
+	2.	Users can modify formulas by:
+	•	Changing input values (they already can for base inputs like Cost Savings).
+	•	Changing the equation itself (which fields are used and how).
+	3.	Every formula change is versioned:
+	•	The old and new formulas are both saved.
+	•	Users can see all versions and choose which formula is active.
+	4.	All formula changes are persisted per tenant / workspace so they are available in future sessions.
+
+Assume the app is built with React + TypeScript and has a backend (Node/Express or similar) with a database.
+
+⸻
+
+1. Data Model & Backend
+
+1.1. Introduce a Formula Entity
+
+Add a new persistent entity/table for formulas, e.g. FormulaConfig:
+	•	id (string/UUID)
+	•	useCaseId (string) – which use case this formula belongs to (nullable for global defaults)
+	•	fieldKey (string) – which calculated field this formula is for, e.g. "totalAnnualImpact", "score"
+	•	label (string) – human-friendly name like “Default Portfolio Formula”, “Hargrove Custom – v2”
+	•	expression (string) – the actual formula expression, e.g. "costSavings + revenueImpact + riskReduction"
+	•	inputFields (string[]) – list of referenced fields, e.g. ["costSavings","revenueImpact","riskReduction"]
+	•	constants (array of { key: string, label: string, value: number, description?: string }) – optional user-defined constants used in the formula
+	•	isActive (boolean) – whether this is the currently active formula for that fieldKey and useCaseId
+	•	version (number) – monotonically increasing per (fieldKey, useCaseId) combo
+	•	createdBy (string | userId)
+	•	createdAt (DateTime)
+	•	updatedAt (DateTime)
+	•	notes (string, optional) – explanation of why this formula exists
+
+Rules:
+	•	There can be multiple versions of a formula per (fieldKey, useCaseId).
+	•	For each (fieldKey, useCaseId) there must be exactly one isActive = true.
+	•	The system should support a global default formula (e.g. useCaseId = null) that applies when no use-case-specific override exists.
+
+1.2. Formula Evaluation Service
+
+Create a reusable backend service, e.g. evaluateFormula({ expression, context }), that:
+	•	Accepts:
+	•	expression: string – using a safe, user-friendly expression syntax (+, -, *, /, (), basic math functions, etc.).
+	•	context: Record<string, number> – a map from field keys (e.g. costSavings) and constants to numeric values.
+	•	Validates:
+	•	All referenced variables in the expression exist in context.
+	•	No unsafe functions, no arbitrary code execution.
+	•	Returns:
+	•	value: number
+	•	steps: Array<{ label: string; value: number }> – optional breakdown for the UI (e.g. “Cost Savings = 850000”, “Risk Reduction = 120000”, “Total = 970000”).
+
+Provide backend endpoints:
+	1.	GET /api/formulas?useCaseId=...&fieldKey=...
+	•	Returns all formula versions for that field in that use case + the resolved active formula (including fallback to global default).
+	2.	POST /api/formulas
+	•	Payload includes useCaseId, fieldKey, label, expression, constants, notes.
+	•	Validates formula using current field values where possible.
+	•	Creates a new version, sets it as isActive = true, and unsets isActive on prior active version.
+	3.	PATCH /api/formulas/:id/activate
+	•	Sets this formula as isActive = true for its (fieldKey, useCaseId) and sets all others to false.
+	4.	POST /api/formulas/preview
+	•	Given a draft expression, constants, and a context of current values, returns value + steps to show preview without saving.
+	5.	(Optional) POST /api/formulas/:id/duplicate
+	•	Duplicates an existing formula into a new version with incremented version.
+
+⸻
+
+2. Frontend: Formula Explorer UI
+
+2.1. Attach Formula Controls to Calculated Fields
+
+For each calculated field in the Use Case card (e.g. Score, Total Annual Impact):
+	•	Next to the numeric value, add a small “formula” affordance:
+	•	An f(x) icon or a View / Edit Formula button.
+	•	Tooltip: “View and customize how this is calculated.”
+
+Clicking this opens a Formula Drawer / Modal (side panel is ideal) called “Formula Explorer” for that field.
+
+2.2. Formula Explorer Layout
+
+The Formula Explorer should have three main sections:
+	1.	Header
+	•	Title: Formula for [Field Display Name]
+	•	Example: “Formula for Total Annual Impact”.
+	•	Subtitle: Show which use case you’re working on: “Intelligent Document Processing – Hargrove EPC”.
+	2.	Current Active Formula (Read View)
+	•	Show the currently active formula in a human-readable way:
+	•	Example: Total Annual Impact = Cost Savings + Revenue Impact + Risk Reduction
+	•	Underneath, show:
+	•	Inputs table with current values:
+	•	Columns: Field, Key, Current Value, Description.
+	•	Example rows: Cost Savings ($) | costSavings | 850000, Risk Reduction ($) | riskReduction | 120000.
+	•	Step-by-step breakdown using the steps from the backend:
+	•	“Cost Savings = $850,000”
+	•	“Risk Reduction = $120,000”
+	•	“Total Annual Impact = $970,000”
+	•	Show metadata: Formula Name, Version, Created By, Created At, Notes.
+Include two buttons:
+	•	“Create New Version” – opens the editor with this formula preloaded.
+	•	“Reset to Default Formula” – reverts to the system default (confirm first).
+	3.	Formula Versions List
+	•	A collapsible section listing all versions for this field:
+	•	Columns: Active (radio/check), Label, Version, Created, Created By.
+	•	Users can:
+	•	Click on a row to inspect that version’s details.
+	•	Use a radio button or “Set Active” button to activate a version (calls PATCH /api/formulas/:id/activate).
+	•	Clearly highlight which version is currently Active, and which are older Historical versions.
+
+⸻
+
+3. Formula Editor (Interactive, Editable)
+
+When user clicks “Create New Version” or “Edit Draft”, show an editor area in the Formula Explorer:
+
+3.1. Available Inputs Sidebar
+
+On the left, show a list of all available numeric fields for the use case:
+	•	Grouped as:
+	•	Base Inputs (user-entered):
+	•	Cost Savings ($) – costSavings
+	•	Revenue Impact ($) – revenueImpact
+	•	Risk Reduction ($) – riskReduction
+	•	Time to Value (mo) – timeToValueMonths
+	•	Any other numeric KPIs.
+	•	Constants (formula-specific):
+	•	Let users add new constants:
+	•	Name/key: discountRate, riskWeight, etc.
+	•	Label: “Discount Rate”
+	•	Default value: 0.1
+	•	Description: “Used to convert annual savings into NPV, etc.”
+
+Each item in the sidebar should be clickable to insert its token into the expression editor.
+
+3.2. Expression Editor
+
+In the main center panel:
+	•	Provide a text-based expression editor with basic syntax highlighting and inline validation.
+	•	Expression examples:
+	•	costSavings + revenueImpact + riskReduction
+	•	costSavings * (1 - discountRate)
+	•	Requirements:
+	•	Users can type directly OR insert fields/constants via click.
+	•	When they reference an unknown token, show a red underline + error.
+
+Below the editor:
+	•	A live preview section:
+	•	“Preview with current values”
+	•	Show the computed result and a mini breakdown:
+	•	Example:
+	•	costSavings = 850000
+	•	riskReduction = 120000
+	•	Result = 970000
+	•	This preview calls POST /api/formulas/preview on change with a debounce.
+
+Also include:
+	•	Input: Formula Name / Label (string).
+	•	Textarea: Notes / Rationale.
+
+3.3. Save Flow
+
+Buttons:
+	•	“Save New Version & Activate”
+	•	Validates expression via backend.
+	•	On success:
+	•	Creates a new FormulaConfig record (POST /api/formulas).
+	•	Refreshes versions list.
+	•	Updates the active formula and recalculates the field value on the card.
+	•	“Save as Draft (Don’t Activate Yet)” (optional)
+	•	Creates new version with isActive = false.
+	•	“Cancel” – discards unsaved changes.
+
+If validation fails, display clear error messages under the editor (missing variables, divide-by-zero risk, syntax errors, etc.).
+
+⸻
+
+4. Integrating with Calculations on the Card
+
+4.1. Resolving Active Formula
+
+For each calculated field (e.g. Total Annual Impact, Score):
+	•	On load of a use case card:
+	•	Fetch all formulas for that field via GET /api/formulas?....
+	•	Choose the isActive = true formula (or global default if none).
+	•	Maintain the active formula in local state, e.g. activeFormulas.totalAnnualImpact.
+
+4.2. Recalculating Values
+
+When:
+	•	The user changes any input field (Cost Savings, Risk Reduction, etc.), or
+	•	The user changes the active formula for a field, or
+	•	The user saves a new active formula,
+
+then:
+	1.	Build a context object with current numeric values:
+	•	{ costSavings, revenueImpact, riskReduction, timeToValueMonths, ...constants }
+	2.	Call the formula evaluation (could be local or via backend).
+	3.	Update the displayed value for that field.
+	4.	Cascade if other fields depend on it (e.g. score might depend on totalAnnualImpact plus other factors).
+
+Provide visual feedback when recalculation occurs (e.g. a subtle “updated” shimmer or fade-in).
+
+⸻
+
+5. Visibility of Old vs New Formulas
+
+5.1. Explicit Version Tracking
+	•	Every time a user saves a new formula, increment the version number for that (fieldKey, useCaseId).
+	•	In the versions list, show:
+	•	v1, v2, v3, etc., with timestamps.
+	•	Allow basic filters:
+	•	“Show: [All | Active only | Historical only]”.
+
+5.2. Choosing a Formula for Future Use
+	•	In the versions list, the user chooses which formula to use via a radio button / “Set Active” button.
+	•	When they select a different version:
+	•	Backend sets its isActive = true and unsets the others.
+	•	Frontend refetches the active formula, recalculates the field, and re-renders.
+
+⸻
+
+6. UX / Safety / Edge Cases
+	•	Handle division-by-zero and invalid results:
+	•	Show a clear error: “This formula results in an invalid calculation (division by zero). Please adjust.”
+	•	If a formula references a field that later gets removed/renamed:
+	•	Flag this formula as “broken”, highlight in red, and disallow activation until fixed.
+	•	Provide tooltips on calculated fields:
+	•	On hover: “Click to see formula and edit calculation.”
+	•	Make sure undo/reset is easy:
+	•	A Reset to System Default option for each field’s formula, with confirmation.
+
+⸻
+
+7. Testing
+
+Create tests for:
+	•	Formula parsing and evaluation (correct results, validation errors).
+	•	Versioning logic (only one active version per field/useCase).
+	•	UI behavior:
+	•	Opening Formula Explorer, showing inputs, preview updates on changes.
+	•	Switching active versions updates the main card values.

@@ -1,0 +1,28 @@
+Principles for a user‑friendly Assumption Table
+
+A report‑level assumption table should:
+	1.	Be holistic: capture all key drivers that feed the value, cost, risk and token‑cost models (company financials, operations, industry benchmarks, macroeconomics, AI technology and modeling assumptions).
+	2.	Be dynamic: fields should support two modes – auto‑populate from reliable sources (via APIs or periodic scraping of authoritative data sets) and manual override where users can input or edit values. Each field should record its source and last‑updated date for transparency.
+	3.	Be modular: group assumptions into categories (e.g., Company Financials, Macroeconomic Indicators, Industry Benchmarks, AI Model Costs, Operational Metrics). A modular design lets the application embed category‑specific fields into relevant report sections (e.g., HR cost assumptions feed into Step 3 friction costs and Step 6 token‑cost calculations).
+	4.	Be traceable and editable: allow users to add new fields or delete unused ones. Each row should include the field name, description, value, units, source, update status and an “auto‑refresh” flag (whether the field can be automatically updated).
+
+Automating updates from reliable sources
+
+To keep assumptions current while minimizing user burden, the application should integrate with authoritative data sources:
+	1.	Company financial data: Use the SEC EDGAR API to retrieve the latest 10‑K/10‑Q filings and extract key figures (revenue, gross margin, operating margin, headcount). For private companies, integrate with data providers like Crunchbase, PrivCo or S&P Global. Provide manual overrides when data are unavailable.
+	2.	Labour costs: Pull employer compensation data from the Bureau of Labor Statistics (BLS). In June 2025 employer compensation for private‑sector workers averaged $45.65 per hour, with wages of $32.07 and benefits of $13.58 ; this indicates benefits make up about 29.8 % of labour costs. Cross‑reference with SBA guidance that total employment costs typically equal 1.25–1.4 × base salary . Allow users to adjust based on their specific industry or region.
+	3.	Industry multiples & WACC: Scrape updated revenue multiples and WACC from trusted finance sites (PublicSaaSCompanies, Kroll, Damodaran’s data library) or incorporate them into the Benchmarks API.
+	4.	Macroeconomic data: Use the BLS Public Data API or the Federal Reserve’s FRED API to automatically populate inflation, unemployment and GDP growth. For example, the CPI all‑items index rose 3 % over the year to September 2025  and the unemployment rate was 4.4 % with 7.6 million unemployed .
+	5.	Market volatility and sentiment: Pull the latest VIX value from the CBOE or data providers and map it to descriptive tiers (low, normal, high, very high) as described above .
+	6.	AI model pricing: Scrape pricing pages from model providers (e.g., Anthropic, OpenAI) to keep token‑cost assumptions current. Claude 3.5 Sonnet currently costs $3 per million input tokens and $15 per million output tokens .
+	7.	Other indicators: Integrate with external sources for interest rates (Federal Reserve), tax rates, and sector‑performance indices.
+
+Each field in the assumption table should indicate whether it is connected to an automatic data source. When a source is available, the “auto‑refresh” flag can trigger periodic updates (e.g., monthly for macro data, quarterly for financials). The application should log the last update date and allow users to lock a value to prevent automatic overwriting.
+
+Integration into the report
+
+To maximize usability and maintain transparency, the assumption table should be integrated throughout the report:
+	•	Placement: Include a dedicated “Assumptions” section near the beginning (after the executive summary) that summarizes all key inputs. Provide links or tooltips from tables and charts back to the relevant assumption fields. A floating sidebar could allow users to view and edit assumptions without leaving their current section.
+	•	Dynamic linkages: Each calculation in Steps 1–7 should reference fields from the assumption table rather than hard‑coded numbers. For example, Step 3’s friction cost calculation would use the fully burdened cost per hour and hours wasted per employee, while Step 5’s revenue benefit would depend on annual revenue, conversion uplift and LTV. When a user edits an assumption, the downstream tables and charts should automatically recalculate.
+	•	Scenario modeling: Allow users to create multiple assumption sets (e.g., conservative, base, aggressive). Switching between sets can update the entire report, enabling sensitivity analysis.
+	•	Audit trail: Display the source, date and any manual adjustments for each field. This fosters trust and helps users remember why a particular value was chosen.
