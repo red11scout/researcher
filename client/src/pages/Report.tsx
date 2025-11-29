@@ -53,6 +53,67 @@ const loadImageAsBase64 = (url: string): Promise<string> => {
   });
 };
 
+// Parse formatted values like "$2.5M", "$800K", "1.4B tokens" into base numbers
+const parseFormattedValue = (value: any): number => {
+  if (typeof value === 'number') return value;
+  if (typeof value !== 'string') return 0;
+  
+  // Remove currency symbol and commas first
+  let cleanVal = value.replace(/[$,]/g, '').trim();
+  
+  // Extract number with optional K/M/B suffix using regex
+  const match = cleanVal.match(/^([\d.]+)\s*([KkMmBb])?/);
+  if (!match) return 0;
+  
+  const num = parseFloat(match[1]);
+  if (isNaN(num)) return 0;
+  
+  // Handle suffixes (K, M, B)
+  const suffix = (match[2] || '').toUpperCase();
+  let multiplier = 1;
+  if (suffix === 'K') multiplier = 1000;
+  else if (suffix === 'M') multiplier = 1000000;
+  else if (suffix === 'B') multiplier = 1000000000;
+  
+  return num * multiplier;
+};
+
+// Formatting helpers (used by both Report and StepCard)
+const addCommas = (num: number): string => {
+  return num.toLocaleString('en-US');
+};
+
+const formatCurrency = (value: number | string): string => {
+  if (typeof value === 'string') {
+    if (value.startsWith('$')) return value;
+    const num = parseFloat(value.replace(/[,$]/g, ''));
+    if (isNaN(num)) return value;
+    value = num;
+  }
+  if (typeof value !== 'number' || isNaN(value)) return '$0';
+  if (value >= 1000000) {
+    return `$${(value / 1000000).toFixed(1)}M`;
+  } else if (value >= 1000) {
+    return `$${addCommas(Math.round(value))}`;
+  }
+  return `$${addCommas(Math.round(value))}`;
+};
+
+const formatNumber = (value: number | string): string => {
+  if (typeof value === 'string') {
+    const num = parseFloat(value.replace(/[,]/g, ''));
+    if (isNaN(num)) return value;
+    value = num;
+  }
+  if (typeof value !== 'number' || isNaN(value)) return '0';
+  if (value >= 1000000000) {
+    return `${(value / 1000000000).toFixed(1)}B`;
+  } else if (value >= 1000000) {
+    return `${(value / 1000000).toFixed(1)}M`;
+  }
+  return addCommas(Math.round(value));
+};
+
 interface ProgressUpdate {
   step: number;
   message: string;
@@ -217,66 +278,6 @@ export default function Report() {
         description: "Unable to regenerate analysis. Please try again.",
       });
     }
-  };
-
-  const addCommas = (num: number): string => {
-    return num.toLocaleString('en-US');
-  };
-
-  const formatCurrency = (value: number | string): string => {
-    if (typeof value === 'string') {
-      if (value.startsWith('$')) return value;
-      const num = parseFloat(value.replace(/[,$]/g, ''));
-      if (isNaN(num)) return value;
-      value = num;
-    }
-    if (typeof value !== 'number' || isNaN(value)) return '$0';
-    if (value >= 1000000) {
-      return `$${(value / 1000000).toFixed(1)}M`;
-    } else if (value >= 1000) {
-      return `$${addCommas(Math.round(value))}`;
-    }
-    return `$${addCommas(Math.round(value))}`;
-  };
-
-  const formatNumber = (value: number | string): string => {
-    if (typeof value === 'string') {
-      const num = parseFloat(value.replace(/[,]/g, ''));
-      if (isNaN(num)) return value;
-      value = num;
-    }
-    if (typeof value !== 'number' || isNaN(value)) return '0';
-    if (value >= 1000000000) {
-      return `${(value / 1000000000).toFixed(1)}B`;
-    } else if (value >= 1000000) {
-      return `${(value / 1000000).toFixed(1)}M`;
-    }
-    return addCommas(Math.round(value));
-  };
-
-  // Parse formatted values like "$2.5M", "$800K", "1.4B tokens" into base numbers
-  const parseFormattedValue = (value: any): number => {
-    if (typeof value === 'number') return value;
-    if (typeof value !== 'string') return 0;
-    
-    // Remove currency symbol and commas first
-    let cleanVal = value.replace(/[$,]/g, '').trim();
-    
-    // Extract number with optional K/M/B suffix using regex
-    const match = cleanVal.match(/^([\d.]+)\s*([KkMmBb])?/);
-    if (!match) return 0;
-    
-    const num = parseFloat(match[1]);
-    if (isNaN(num)) return 0;
-    
-    // Handle suffixes (K, M, B)
-    const suffix = (match[2] || '').toUpperCase();
-    let multiplier = 1;
-    if (suffix === 'K') multiplier = 1000;
-    else if (suffix === 'M') multiplier = 1000000;
-    else if (suffix === 'B') multiplier = 1000000000;
-    
-    return num * multiplier;
   };
 
   // BlueAlly Brand Colors - Board Presentation Standard
