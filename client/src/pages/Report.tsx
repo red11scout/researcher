@@ -276,13 +276,17 @@ export default function Report() {
           description: "Loaded existing analysis for this company.",
         });
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
+    } catch (err: any) {
+      console.error("Analysis error details:", err);
+      const errorMessage = err instanceof Error 
+        ? err.message 
+        : (typeof err === 'string' ? err : JSON.stringify(err) || "Unknown error");
+      setError(errorMessage);
       setStatus("complete");
       toast({
         variant: "destructive",
         title: "Analysis Failed",
-        description: err instanceof Error ? err.message : "Unable to generate analysis. Please try again.",
+        description: errorMessage,
       });
     }
   };
@@ -334,13 +338,17 @@ export default function Report() {
         title: "Analysis Refreshed",
         description: "Your report has been regenerated with latest insights.",
       });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Unknown error");
+    } catch (err: any) {
+      console.error("Regenerate error details:", err);
+      const errorMessage = err instanceof Error 
+        ? err.message 
+        : (typeof err === 'string' ? err : JSON.stringify(err) || "Unknown error");
+      setError(errorMessage);
       setStatus("complete");
       toast({
         variant: "destructive",
         title: "Refresh Failed",
-        description: "Unable to regenerate analysis. Please try again.",
+        description: errorMessage,
       });
     }
   };
