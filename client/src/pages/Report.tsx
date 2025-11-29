@@ -254,6 +254,31 @@ export default function Report() {
     return addCommas(Math.round(value));
   };
 
+  // Parse formatted values like "$2.5M", "$800K", "1.4B tokens" into base numbers
+  const parseFormattedValue = (value: any): number => {
+    if (typeof value === 'number') return value;
+    if (typeof value !== 'string') return 0;
+    
+    // Remove currency symbol and commas first
+    let cleanVal = value.replace(/[$,]/g, '').trim();
+    
+    // Extract number with optional K/M/B suffix using regex
+    const match = cleanVal.match(/^([\d.]+)\s*([KkMmBb])?/);
+    if (!match) return 0;
+    
+    const num = parseFloat(match[1]);
+    if (isNaN(num)) return 0;
+    
+    // Handle suffixes (K, M, B)
+    const suffix = (match[2] || '').toUpperCase();
+    let multiplier = 1;
+    if (suffix === 'K') multiplier = 1000;
+    else if (suffix === 'M') multiplier = 1000000;
+    else if (suffix === 'B') multiplier = 1000000000;
+    
+    return num * multiplier;
+  };
+
   // BlueAlly Brand Colors - Board Presentation Standard
   const BRAND = {
     primaryBlue: [0, 18, 120] as [number, number, number],     // #001278
@@ -532,15 +557,22 @@ export default function Report() {
         // Fixed column widths that sum exactly to contentWidth (~170mm)
         const useCaseColWidths = { rank: 10, useCase: 95, value: 32, tokens: 33 };
         
+        // Calculate totals for use cases
+        const totalValue = dash.topUseCases.reduce((sum: number, uc: any) => sum + (uc.annualValue || 0), 0);
+        const totalTokens = dash.topUseCases.reduce((sum: number, uc: any) => sum + (uc.monthlyTokens || 0), 0);
+        
         autoTable(doc, {
           startY: yPos,
           head: [['#', 'Use Case', 'Annual Value', 'Tokens/Mo']],
-          body: dash.topUseCases.map((uc: any) => [
-            uc.rank,
-            String(uc.useCase).substring(0, 70),
-            formatCurrency(uc.annualValue),
-            formatNumber(uc.monthlyTokens),
-          ]),
+          body: [
+            ...dash.topUseCases.map((uc: any) => [
+              uc.rank,
+              String(uc.useCase).substring(0, 70),
+              formatCurrency(uc.annualValue),
+              formatNumber(uc.monthlyTokens),
+            ]),
+            ['', 'TOTAL', formatCurrency(totalValue), formatNumber(totalTokens)]
+          ],
           theme: 'plain',
           headStyles: { 
             fillColor: BRAND.primaryBlue,
@@ -663,11 +695,25 @@ export default function Report() {
         );
         const truncatedHeaders = limitedColumns.map((h: string) => String(h).substring(0, 20));
         
+        // Calculate totals for numeric columns using parseFormattedValue
+        const totalRow = limitedColumns.map((col: string, idx: number) => {
+          if (idx === 0) return 'TOTAL';
+          if (col.toLowerCase().includes('$') || col.toLowerCase().includes('benefit') || col.toLowerCase().includes('value') || col.toLowerCase().includes('cost') || col.toLowerCase().includes('revenue')) {
+            const total = step.data.reduce((sum: number, row: any) => sum + parseFormattedValue(row[col]), 0);
+            return formatCurrency(total);
+          }
+          if (col.toLowerCase().includes('token') || col.toLowerCase().includes('runs')) {
+            const total = step.data.reduce((sum: number, row: any) => sum + parseFormattedValue(row[col]), 0);
+            return formatNumber(total);
+          }
+          return '';
+        });
+        
         // Board-level table - strictly fits page width
         autoTable(doc, {
           startY: yPos,
           head: [truncatedHeaders],
-          body: truncatedRows,
+          body: [...truncatedRows, totalRow],
           theme: 'plain',
           headStyles: { 
             fillColor: BRAND.primaryBlue,
@@ -947,7 +993,11 @@ export default function Report() {
           uc.priorityScore, 
           formatNumber(uc.monthlyTokens), 
           formatCurrency(uc.annualValue)
-        ]) || [])
+        ]) || []),
+        ["", "TOTAL", "", 
+          formatNumber(dash.topUseCases?.reduce((sum: number, uc: any) => sum + (uc.monthlyTokens || 0), 0) || 0),
+          formatCurrency(dash.topUseCases?.reduce((sum: number, uc: any) => sum + (uc.annualValue || 0), 0) || 0)
+        ]
       ];
       const dashSheet = XLSX.utils.aoa_to_sheet(dashData);
       dashSheet['!cols'] = [
@@ -973,8 +1023,25 @@ export default function Report() {
         const ws = XLSX.utils.aoa_to_sheet(headerRows);
         XLSX.utils.sheet_add_json(ws, step.data, { origin: 'A4' });
         
-        // Set column widths
+        // Calculate and add totals row using parseFormattedValue
         const cols = Object.keys(step.data[0]);
+        const totalRow: any = {};
+        cols.forEach((col: string, idx: number) => {
+          if (idx === 0) {
+            totalRow[col] = 'TOTAL';
+          } else if (col.toLowerCase().includes('$') || col.toLowerCase().includes('benefit') || col.toLowerCase().includes('value') || col.toLowerCase().includes('cost') || col.toLowerCase().includes('revenue')) {
+            const total = step.data.reduce((sum: number, row: any) => sum + parseFormattedValue(row[col]), 0);
+            totalRow[col] = formatCurrency(total);
+          } else if (col.toLowerCase().includes('token') || col.toLowerCase().includes('runs')) {
+            const total = step.data.reduce((sum: number, row: any) => sum + parseFormattedValue(row[col]), 0);
+            totalRow[col] = formatNumber(total);
+          } else {
+            totalRow[col] = '';
+          }
+        });
+        XLSX.utils.sheet_add_json(ws, [totalRow], { origin: `A${4 + step.data.length}`, skipHeader: true });
+        
+        // Set column widths
         ws['!cols'] = cols.map(col => ({
           wch: Math.min(40, Math.max(15, col.length + 5))
         }));
@@ -1151,6 +1218,15 @@ export default function Report() {
                 ],
               })
             ),
+            new DocxTableRow({
+              children: [
+                new DocxTableCell({ children: [new Paragraph({ text: "", alignment: AlignmentType.CENTER })], shading: { fill: "e8f5e9" } }),
+                new DocxTableCell({ children: [new Paragraph({ text: "TOTAL", alignment: AlignmentType.CENTER })], shading: { fill: "e8f5e9" } }),
+                new DocxTableCell({ children: [new Paragraph({ text: "", alignment: AlignmentType.CENTER })], shading: { fill: "e8f5e9" } }),
+                new DocxTableCell({ children: [new Paragraph({ text: formatNumber(dash.topUseCases.reduce((s: number, u: any) => s + (u.monthlyTokens || 0), 0)), alignment: AlignmentType.CENTER })], shading: { fill: "e8f5e9" } }),
+                new DocxTableCell({ children: [new Paragraph({ text: formatCurrency(dash.topUseCases.reduce((s: number, u: any) => s + (u.annualValue || 0), 0)), alignment: AlignmentType.CENTER })], shading: { fill: "e8f5e9" } }),
+              ],
+            }),
           ],
           width: { size: 100, type: WidthType.PERCENTAGE },
         });
@@ -1200,6 +1276,19 @@ export default function Report() {
         const allColumns = Object.keys(step.data[0]);
         const columns = allColumns.filter(k => !k.includes('Formula')).slice(0, 6);
         
+        // Calculate totals for numeric columns using parseFormattedValue
+        const calculateTotal = (col: string) => {
+          if (col.toLowerCase().includes('$') || col.toLowerCase().includes('benefit') || col.toLowerCase().includes('value') || col.toLowerCase().includes('cost') || col.toLowerCase().includes('revenue')) {
+            const total = step.data.reduce((sum: number, row: any) => sum + parseFormattedValue(row[col]), 0);
+            return formatCurrency(total);
+          }
+          if (col.toLowerCase().includes('token') || col.toLowerCase().includes('runs')) {
+            const total = step.data.reduce((sum: number, row: any) => sum + parseFormattedValue(row[col]), 0);
+            return formatNumber(total);
+          }
+          return '';
+        };
+        
         const tableRows = [
           new DocxTableRow({
             children: columns.map(col => 
@@ -1218,6 +1307,14 @@ export default function Report() {
               ),
             })
           ),
+          new DocxTableRow({
+            children: columns.map((col, idx) => 
+              new DocxTableCell({
+                children: [new Paragraph({ text: idx === 0 ? 'TOTAL' : calculateTotal(col), alignment: AlignmentType.CENTER })],
+                shading: { fill: "e8f5e9" },
+              })
+            ),
+          }),
         ];
 
         children.push(
@@ -1262,12 +1359,16 @@ export default function Report() {
       
       // Top Use Cases
       if (dash.topUseCases && dash.topUseCases.length > 0) {
+        const totalTokens = dash.topUseCases.reduce((s: number, u: any) => s + (u.monthlyTokens || 0), 0);
+        const totalValue = dash.topUseCases.reduce((s: number, u: any) => s + (u.annualValue || 0), 0);
+        
         mdContent += `### TOP PRIORITY USE CASES\n\n`;
         mdContent += `| Rank | Use Case | Priority | Tokens/Month | Annual Value |\n`;
         mdContent += `|:----:|:--------:|:--------:|:------------:|:------------:|\n`;
         dash.topUseCases.forEach((uc: any) => {
           mdContent += `| ${uc.rank} | ${uc.useCase} | ${uc.priorityScore?.toFixed(0) || 'N/A'} | ${formatNumber(uc.monthlyTokens)} | ${formatCurrency(uc.annualValue)} |\n`;
         });
+        mdContent += `| | **TOTAL** | | **${formatNumber(totalTokens)}** | **${formatCurrency(totalValue)}** |\n`;
         mdContent += `\n`;
       }
     }
@@ -1297,6 +1398,21 @@ export default function Report() {
           const values = columns.map(col => String(row[col] || '').substring(0, 40));
           mdContent += `| ${values.join(' | ')} |\n`;
         });
+        
+        // Add totals row using parseFormattedValue
+        const totalValues = columns.map((col: string, idx: number) => {
+          if (idx === 0) return '**TOTAL**';
+          if (col.toLowerCase().includes('$') || col.toLowerCase().includes('benefit') || col.toLowerCase().includes('value') || col.toLowerCase().includes('cost') || col.toLowerCase().includes('revenue')) {
+            const total = step.data.reduce((sum: number, row: any) => sum + parseFormattedValue(row[col]), 0);
+            return `**${formatCurrency(total)}**`;
+          }
+          if (col.toLowerCase().includes('token') || col.toLowerCase().includes('runs')) {
+            const total = step.data.reduce((sum: number, row: any) => sum + parseFormattedValue(row[col]), 0);
+            return `**${formatNumber(total)}**`;
+          }
+          return '';
+        });
+        mdContent += `| ${totalValues.join(' | ')} |\n`;
         mdContent += `\n`;
       }
     });
@@ -1604,6 +1720,17 @@ export default function Report() {
                                   <TableCell className="font-medium text-green-600 text-xs md:text-sm py-2">{formatCurrency(uc.annualValue)}</TableCell>
                                 </TableRow>
                               ))}
+                              <TableRow className="bg-primary/10 border-t-2 border-primary font-bold">
+                                <TableCell className="py-2"></TableCell>
+                                <TableCell className="font-bold text-xs md:text-sm py-2">TOTAL</TableCell>
+                                <TableCell className="hidden sm:table-cell py-2"></TableCell>
+                                <TableCell className="hidden md:table-cell text-xs md:text-sm py-2 font-bold">
+                                  {formatNumber(data.executiveDashboard.topUseCases.reduce((sum: number, uc: any) => sum + (uc.monthlyTokens || 0), 0))}
+                                </TableCell>
+                                <TableCell className="font-bold text-green-700 text-xs md:text-sm py-2">
+                                  {formatCurrency(data.executiveDashboard.topUseCases.reduce((sum: number, uc: any) => sum + (uc.annualValue || 0), 0))}
+                                </TableCell>
+                              </TableRow>
                             </TableBody>
                           </Table>
                         </div>
@@ -1700,6 +1827,17 @@ function DashboardMetric({ icon, label, value, color, bgColor }: {
 function StepCard({ step }: { step: any }) {
   const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
   const hasData = step.data && Array.isArray(step.data) && step.data.length > 0;
+  
+  const formatCurrency = (value: number): string => {
+    if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
+    if (value >= 1000) return `$${value.toLocaleString()}`;
+    return `$${value.toFixed(0)}`;
+  };
+  
+  const formatNumber = (value: number): string => {
+    if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+    return value.toLocaleString();
+  };
   
   const toggleRow = (index: number) => {
     const newExpanded = new Set(expandedRows);
@@ -1886,6 +2024,23 @@ function StepCard({ step }: { step: any }) {
                       </>
                     );
                   })}
+                  <TableRow className="bg-primary/10 border-t-2 border-primary font-bold">
+                    <TableCell className="py-2"></TableCell>
+                    {Object.keys(step.data[0]).filter((k: string) => 
+                      !k.includes('Formula') && k !== 'Benefit Formula'
+                    ).map((key: string, idx: number) => {
+                      if (idx === 0) return <TableCell key={idx} className="font-bold py-2">TOTAL</TableCell>;
+                      if (key.toLowerCase().includes('$') || key.toLowerCase().includes('benefit') || key.toLowerCase().includes('value')) {
+                        const total = step.data.reduce((sum: number, row: any) => sum + parseFormattedValue(row[key]), 0);
+                        return <TableCell key={idx} className="font-bold text-green-700 py-2">{formatCurrency(total)}</TableCell>;
+                      }
+                      if (key.toLowerCase().includes('token')) {
+                        const total = step.data.reduce((sum: number, row: any) => sum + parseFormattedValue(row[key]), 0);
+                        return <TableCell key={idx} className="font-bold py-2">{formatNumber(total)}</TableCell>;
+                      }
+                      return <TableCell key={idx} className="py-2"></TableCell>;
+                    })}
+                  </TableRow>
                 </TableBody>
               </Table>
             </div>
@@ -1911,6 +2066,20 @@ function StepCard({ step }: { step: any }) {
                       ))}
                     </TableRow>
                   ))}
+                  <TableRow className="bg-primary/10 border-t-2 border-primary font-bold">
+                    {Object.keys(step.data[0]).map((key: string, idx: number) => {
+                      if (idx === 0) return <TableCell key={idx} className="font-bold py-2">TOTAL</TableCell>;
+                      if (key.toLowerCase().includes('$') || key.toLowerCase().includes('benefit') || key.toLowerCase().includes('value') || key.toLowerCase().includes('cost') || key.toLowerCase().includes('revenue')) {
+                        const total = step.data.reduce((sum: number, row: any) => sum + parseFormattedValue(row[key]), 0);
+                        return <TableCell key={idx} className="font-bold text-green-700 py-2">{formatCurrency(total)}</TableCell>;
+                      }
+                      if (key.toLowerCase().includes('token') || key.toLowerCase().includes('runs')) {
+                        const total = step.data.reduce((sum: number, row: any) => sum + parseFormattedValue(row[key]), 0);
+                        return <TableCell key={idx} className="font-bold py-2">{formatNumber(total)}</TableCell>;
+                      }
+                      return <TableCell key={idx} className="py-2"></TableCell>;
+                    })}
+                  </TableRow>
                 </TableBody>
               </Table>
             </div>
