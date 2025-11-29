@@ -15,18 +15,22 @@ export async function registerRoutes(
   
   // Version check
   app.get("/api/version", (req, res) => {
-    res.json({ version: "2.0.5", buildTime: "2025-11-29T23:00:00Z" });
+    res.json({ version: "2.0.6", buildTime: "2025-11-29T23:05:00Z" });
   });
 
   // Debug endpoint to see env config
   app.get("/api/debug-env", (req, res) => {
+    // List all ANTHROPIC related env vars
+    const anthropicVars: Record<string, string> = {};
+    for (const [key, value] of Object.entries(process.env)) {
+      if (key.includes('ANTHROPIC') || key.includes('AI_INTEGRATIONS')) {
+        anthropicVars[key] = value ? `${value.substring(0, 20)}...` : 'undefined';
+      }
+    }
+    
     res.json({
       NODE_ENV: process.env.NODE_ENV,
-      hasAnthropicKey: !!process.env.ANTHROPIC_API_KEY,
-      hasIntegrationKey: !!process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
-      integrationBaseUrl: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
-      anthropicBaseUrl: process.env.ANTHROPIC_BASE_URL,
-      anthropicApiBase: process.env.ANTHROPIC_API_BASE,
+      anthropicRelatedVars: anthropicVars,
     });
   });
 

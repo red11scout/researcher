@@ -42,6 +42,13 @@ function createAnthropicClient() {
     clientConfig.baseURL = config.baseURL;
   }
   
+  console.log("Creating Anthropic client with config:", {
+    isProduction: config.isProduction,
+    baseURL: clientConfig.baseURL,
+    hasApiKey: !!clientConfig.apiKey,
+    envBaseUrl: process.env.ANTHROPIC_BASE_URL,
+  });
+  
   return new Anthropic(clientConfig);
 }
 
