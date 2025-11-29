@@ -48,7 +48,10 @@ import {
   Lightbulb,
   RefreshCw,
   Settings,
-  Zap
+  Zap,
+  DollarSign,
+  ChevronRight,
+  HelpCircle
 } from "lucide-react";
 
 interface StepData {
@@ -64,8 +67,8 @@ interface AnalysisData {
   executiveDashboard: any;
 }
 
-const EDITABLE_STEPS = [2, 3, 4, 6, 7];
-const STEP_FIELD_DEFINITIONS: Record<number, { key: string; label: string; type: string; options?: string[] }[]> = {
+const EDITABLE_STEPS = [2, 3, 4, 5, 6, 7];
+const STEP_FIELD_DEFINITIONS: Record<number, { key: string; label: string; type: string; options?: string[]; group?: string }[]> = {
   2: [
     { key: "Function", label: "Function", type: "select", options: ["Sales", "Marketing", "Product/Engineering", "Operations", "Procurement", "Manufacturing", "Finance", "Accounting", "HR/People", "IT", "Risk/Security", "Legal/Compliance", "Data/Analytics", "Customer Success"] },
     { key: "Sub-Function", label: "Sub-Function", type: "text" },
@@ -94,6 +97,20 @@ const STEP_FIELD_DEFINITIONS: Record<number, { key: string; label: string; type:
     { key: "AI Primitives", label: "AI Primitives", type: "text" },
     { key: "Target Friction", label: "Target Friction", type: "textarea" },
   ],
+  5: [
+    { key: "ID", label: "ID", type: "text", group: "basic" },
+    { key: "Use Case", label: "Use Case", type: "text", group: "basic" },
+    { key: "Revenue Benefit", label: "Revenue Benefit", type: "text", group: "revenue" },
+    { key: "Revenue Formula", label: "Revenue Formula", type: "textarea", group: "revenue" },
+    { key: "Cost Benefit", label: "Cost Benefit", type: "text", group: "cost" },
+    { key: "Cost Formula", label: "Cost Formula", type: "textarea", group: "cost" },
+    { key: "Cash Flow Benefit", label: "Cash Flow Benefit", type: "text", group: "cashflow" },
+    { key: "Cash Flow Formula", label: "Cash Flow Formula", type: "textarea", group: "cashflow" },
+    { key: "Risk Benefit", label: "Risk Benefit", type: "text", group: "risk" },
+    { key: "Risk Formula", label: "Risk Formula", type: "textarea", group: "risk" },
+    { key: "Total Annual Value", label: "Total Annual Value", type: "text", group: "totals" },
+    { key: "Probability of Success", label: "Probability of Success (%)", type: "number", group: "totals" },
+  ],
   6: [
     { key: "ID", label: "ID", type: "text" },
     { key: "Use Case", label: "Use Case", type: "text" },
@@ -120,6 +137,25 @@ const STEP_FIELD_DEFINITIONS: Record<number, { key: string; label: string; type:
   ],
 };
 
+const parseFormattedValue = (value: string | number | undefined): number => {
+  if (value === undefined || value === null || value === '') return 0;
+  if (typeof value === 'number') return value;
+  const match = String(value).match(/^[\$]?([\d.]+)\s*([KkMmBb])?/);
+  if (!match) return 0;
+  const num = parseFloat(match[1]);
+  const suffix = match[2]?.toUpperCase();
+  if (suffix === 'K') return num * 1000;
+  if (suffix === 'M') return num * 1000000;
+  if (suffix === 'B') return num * 1000000000;
+  return num;
+};
+
+const formatCurrency = (value: number): string => {
+  if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
+  if (value >= 1000) return `$${Math.round(value / 1000)}K`;
+  return `$${Math.round(value)}`;
+};
+
 export default function WhatIfAnalysis() {
   const [, setLocation] = useLocation();
   const [, params] = useRoute("/whatif/:reportId");
@@ -138,6 +174,7 @@ export default function WhatIfAnalysis() {
   const [editingIndex, setEditingIndex] = useState<number>(-1);
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [aiSuggesting, setAiSuggesting] = useState(false);
+  const [guidanceStep, setGuidanceStep] = useState(0);
 
   const reportId = params?.reportId;
 
@@ -204,6 +241,7 @@ export default function WhatIfAnalysis() {
     setEditingRecord(null);
     setEditingIndex(-1);
     setFormData({});
+    setGuidanceStep(activeStep === 5 ? 1 : 0);
     setEditDialogOpen(true);
   };
 
@@ -211,6 +249,7 @@ export default function WhatIfAnalysis() {
     setEditingRecord(record);
     setEditingIndex(index);
     setFormData({ ...record });
+    setGuidanceStep(0);
     setEditDialogOpen(true);
   };
 
@@ -224,22 +263,107 @@ export default function WhatIfAnalysis() {
     });
   };
 
+  const calculateTotalAnnualValue = (record: Record<string, string>): string => {
+    const revenue = parseFormattedValue(record["Revenue Benefit"]);
+    const cost = parseFormattedValue(record["Cost Benefit"]);
+    const cashFlow = parseFormattedValue(record["Cash Flow Benefit"]);
+    const risk = parseFormattedValue(record["Risk Benefit"]);
+    const total = revenue + cost + cashFlow + risk;
+    return formatCurrency(total);
+  };
+
+  const updateStep7FromStep5 = (step5Data: any[]) => {
+    if (!analysisData) return;
+
+    const step7Index = analysisData.steps.findIndex(s => s.step === 7);
+    const step6Index = analysisData.steps.findIndex(s => s.step === 6);
+    if (step7Index < 0) return;
+
+    const step6Data = step6Index >= 0 ? analysisData.steps[step6Index].data || [] : [];
+    const maxTotalValue = Math.max(...step5Data.map(r => parseFormattedValue(r["Total Annual Value"])), 1);
+
+    const updatedStep7 = step5Data.map((record: any, index: number) => {
+      const existing = analysisData.steps[step7Index]?.data?.[index] || {};
+      const step6Record = step6Data[index] || {};
+      
+      const totalValue = parseFormattedValue(record["Total Annual Value"]);
+      const probability = parseFloat(record["Probability of Success"]) || 80;
+      const valueScore = Math.round((totalValue / maxTotalValue) * 100 * (probability / 100));
+      
+      const ttv = parseFloat(step6Record["Time-to-Value (months)"]) || 6;
+      const ttvScore = Math.max(0, 100 - (ttv * 10));
+      
+      const effortScore = parseFloat(step6Record["Effort Score"]) || 50;
+      const priorityScore = Math.round((valueScore * 0.4) + (ttvScore * 0.3) + ((100 - effortScore) * 0.3));
+      
+      let priorityTier = "Low";
+      if (priorityScore >= 80) priorityTier = "Critical";
+      else if (priorityScore >= 60) priorityTier = "High";
+      else if (priorityScore >= 40) priorityTier = "Medium";
+
+      let recommendedPhase = "Q4";
+      if (priorityScore >= 80) recommendedPhase = "Q1";
+      else if (priorityScore >= 60) recommendedPhase = "Q2";
+      else if (priorityScore >= 40) recommendedPhase = "Q3";
+
+      return {
+        ...existing,
+        ID: record.ID || `UC-${String(index + 1).padStart(2, '0')}`,
+        "Use Case": record["Use Case"] || "",
+        "Value Score": valueScore,
+        "TTV Score": ttvScore,
+        "Effort Score": effortScore,
+        "Priority Score": priorityScore,
+        "Priority Tier": priorityTier,
+        "Recommended Phase": recommendedPhase,
+      };
+    });
+
+    setAnalysisData(prev => {
+      if (!prev) return prev;
+      const updated = { ...prev };
+      updated.steps[step7Index] = { 
+        ...updated.steps[step7Index], 
+        data: updatedStep7 
+      };
+      return updated;
+    });
+  };
+
   const handleSaveRecord = () => {
     const currentData = getCurrentStepData();
+    let updatedFormData = { ...formData };
     
+    if (activeStep === 5) {
+      updatedFormData["Total Annual Value"] = calculateTotalAnnualValue(formData);
+      if (!updatedFormData["Probability of Success"]) {
+        updatedFormData["Probability of Success"] = "80";
+      }
+    }
+    
+    let newData: any[];
     if (editingIndex >= 0) {
-      const newData = [...currentData];
-      newData[editingIndex] = formData;
-      updateStepData(newData);
-      toast({
-        title: "Record Updated",
-        description: "Changes have been saved.",
-      });
+      newData = [...currentData];
+      newData[editingIndex] = updatedFormData;
     } else {
-      updateStepData([...currentData, formData]);
+      newData = [...currentData, updatedFormData];
+    }
+    
+    updateStepData(newData);
+    
+    if (activeStep === 5) {
+      setTimeout(() => {
+        updateStep7FromStep5(newData);
+        standardizeKPIs();
+        toast({
+          title: editingIndex >= 0 ? "Record Updated" : "Record Added",
+          description: "Benefits saved and Step 7 priority scores recalculated.",
+        });
+      }, 100);
+    } else {
       toast({
-        title: "Record Added",
-        description: "New record has been added to the analysis.",
+        title: editingIndex >= 0 ? "Record Updated" : "Record Added",
+        description: "Changes have been saved.",
       });
     }
     
@@ -247,6 +371,7 @@ export default function WhatIfAnalysis() {
     setEditingRecord(null);
     setEditingIndex(-1);
     setFormData({});
+    setGuidanceStep(0);
   };
 
   const handleAISuggest = async () => {
@@ -427,6 +552,7 @@ export default function WhatIfAnalysis() {
       case 2: return <Target className="h-4 w-4" />;
       case 3: return <AlertTriangle className="h-4 w-4" />;
       case 4: return <Lightbulb className="h-4 w-4" />;
+      case 5: return <DollarSign className="h-4 w-4" />;
       case 6: return <Calculator className="h-4 w-4" />;
       case 7: return <TrendingUp className="h-4 w-4" />;
       default: return <Settings className="h-4 w-4" />;
@@ -438,6 +564,7 @@ export default function WhatIfAnalysis() {
       case 2: return "KPI Baselines";
       case 3: return "Friction Points";
       case 4: return "AI Use Cases";
+      case 5: return "Benefits Quantification";
       case 6: return "Token Modeling";
       case 7: return "Priority Scoring";
       default: return `Step ${step}`;
@@ -581,6 +708,7 @@ export default function WhatIfAnalysis() {
                         {step === 2 && "Define KPI baselines, benchmarks, and targets for each business function."}
                         {step === 3 && "Identify friction points and their estimated annual cost impact."}
                         {step === 4 && "Define AI use cases with primitives and target frictions."}
+                        {step === 5 && "Quantify benefits across the 4 business drivers: Revenue, Cost, Cash Flow, and Risk."}
                         {step === 6 && "Model token usage, effort scores, and time-to-value."}
                         {step === 7 && "Set priority scores and recommended implementation phases."}
                       </CardDescription>
@@ -685,9 +813,42 @@ export default function WhatIfAnalysis() {
               <DialogDescription>
                 {editingIndex >= 0 
                   ? "Modify the values below and save your changes."
-                  : "Fill in the fields below to create a new record. Use AI to get suggestions."}
+                  : activeStep === 5 && guidanceStep > 0
+                    ? `Step ${guidanceStep} of 5: Follow the guided workflow to add a new benefit record.`
+                    : "Fill in the fields below to create a new record. Use AI to get suggestions."}
               </DialogDescription>
             </DialogHeader>
+
+            {/* Step 5 Guidance Progress */}
+            {activeStep === 5 && editingIndex < 0 && guidanceStep > 0 && (
+              <div className="flex items-center gap-2 py-2 px-4 bg-muted rounded-lg mb-4">
+                {[1, 2, 3, 4, 5].map((step) => (
+                  <div key={step} className="flex items-center">
+                    <div 
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
+                        step < guidanceStep 
+                          ? 'bg-green-500 text-white' 
+                          : step === guidanceStep 
+                            ? 'bg-primary text-primary-foreground' 
+                            : 'bg-muted-foreground/20 text-muted-foreground'
+                      }`}
+                    >
+                      {step < guidanceStep ? <CheckCircle2 className="h-4 w-4" /> : step}
+                    </div>
+                    {step < 5 && (
+                      <ChevronRight className={`h-4 w-4 mx-1 ${step < guidanceStep ? 'text-green-500' : 'text-muted-foreground/40'}`} />
+                    )}
+                  </div>
+                ))}
+                <span className="ml-2 text-xs text-muted-foreground">
+                  {guidanceStep === 1 && "Basic Info"}
+                  {guidanceStep === 2 && "Revenue"}
+                  {guidanceStep === 3 && "Cost"}
+                  {guidanceStep === 4 && "Cash Flow & Risk"}
+                  {guidanceStep === 5 && "Review & Save"}
+                </span>
+              </div>
+            )}
 
             <div className="space-y-4 py-4">
               {editingIndex < 0 && (
@@ -703,63 +864,302 @@ export default function WhatIfAnalysis() {
                   ) : (
                     <Sparkles className="mr-2 h-4 w-4" />
                   )}
-                  {aiSuggesting ? "Generating suggestion..." : "Get AI Suggestion"}
+                  {aiSuggesting ? "Generating suggestion..." : "Get AI Suggestion (Pre-fill All Fields)"}
                 </Button>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {fieldDefs.map(field => (
-                  <div key={field.key} className={field.type === "textarea" ? "md:col-span-2" : ""}>
-                    <Label htmlFor={field.key} className="text-sm font-medium">
-                      {field.label}
-                    </Label>
-                    {field.type === "select" ? (
-                      <Select
-                        value={formData[field.key] || ""}
-                        onValueChange={(value) => setFormData(prev => ({ ...prev, [field.key]: value }))}
-                      >
-                        <SelectTrigger id={field.key} className="mt-1.5" data-testid={`select-${field.key}`}>
-                          <SelectValue placeholder={`Select ${field.label}`} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {field.options?.map(opt => (
-                            <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+              {/* Step 5 Guided Wizard */}
+              {activeStep === 5 && editingIndex < 0 && guidanceStep > 0 ? (
+                <div className="space-y-4">
+                  {/* Step 1: Basic Info */}
+                  {guidanceStep === 1 && (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <HelpCircle className="h-5 w-5 text-blue-500" />
+                        <span className="font-medium">Enter basic information about this use case</span>
+                      </div>
+                      {fieldDefs.filter(f => f.group === "basic").map(field => (
+                        <div key={field.key}>
+                          <Label htmlFor={field.key} className="text-sm font-medium">{field.label}</Label>
+                          <Input
+                            id={field.key}
+                            value={formData[field.key] || ""}
+                            onChange={(e) => setFormData(prev => ({ ...prev, [field.key]: e.target.value }))}
+                            className="mt-1.5"
+                            placeholder={field.key === "ID" ? "e.g., UC-11" : "e.g., AI-Powered Lead Scoring"}
+                            data-testid={`input-${field.key}`}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Step 2: Revenue Benefits */}
+                  {guidanceStep === 2 && (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <TrendingUp className="h-5 w-5 text-green-500" />
+                        <span className="font-medium text-green-700">Revenue Growth Benefits</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">How does this use case help grow revenue? Enter the estimated annual benefit and explain the calculation.</p>
+                      {fieldDefs.filter(f => f.group === "revenue").map(field => (
+                        <div key={field.key}>
+                          <Label htmlFor={field.key} className="text-sm font-medium">{field.label}</Label>
+                          {field.type === "textarea" ? (
+                            <Textarea
+                              id={field.key}
+                              value={formData[field.key] || ""}
+                              onChange={(e) => setFormData(prev => ({ ...prev, [field.key]: e.target.value }))}
+                              className="mt-1.5"
+                              rows={2}
+                              placeholder="e.g., 10% increase in conversion rate × $50M pipeline = $5M"
+                              data-testid={`textarea-${field.key}`}
+                            />
+                          ) : (
+                            <Input
+                              id={field.key}
+                              value={formData[field.key] || ""}
+                              onChange={(e) => setFormData(prev => ({ ...prev, [field.key]: e.target.value }))}
+                              className="mt-1.5"
+                              placeholder="e.g., $2.5M or $500K"
+                              data-testid={`input-${field.key}`}
+                            />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Step 3: Cost Benefits */}
+                  {guidanceStep === 3 && (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <DollarSign className="h-5 w-5 text-blue-500" />
+                        <span className="font-medium text-blue-700">Cost Reduction Benefits</span>
+                      </div>
+                      <p className="text-sm text-muted-foreground">How does this use case reduce costs? Enter the estimated annual savings and explain the calculation.</p>
+                      {fieldDefs.filter(f => f.group === "cost").map(field => (
+                        <div key={field.key}>
+                          <Label htmlFor={field.key} className="text-sm font-medium">{field.label}</Label>
+                          {field.type === "textarea" ? (
+                            <Textarea
+                              id={field.key}
+                              value={formData[field.key] || ""}
+                              onChange={(e) => setFormData(prev => ({ ...prev, [field.key]: e.target.value }))}
+                              className="mt-1.5"
+                              rows={2}
+                              placeholder="e.g., 20 hours/week saved × $75/hr × 52 weeks = $78K"
+                              data-testid={`textarea-${field.key}`}
+                            />
+                          ) : (
+                            <Input
+                              id={field.key}
+                              value={formData[field.key] || ""}
+                              onChange={(e) => setFormData(prev => ({ ...prev, [field.key]: e.target.value }))}
+                              className="mt-1.5"
+                              placeholder="e.g., $800K or $1.2M"
+                              data-testid={`input-${field.key}`}
+                            />
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Step 4: Cash Flow & Risk */}
+                  {guidanceStep === 4 && (
+                    <div className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-2 mb-3">
+                            <Calculator className="h-5 w-5 text-purple-500" />
+                            <span className="font-medium text-purple-700">Cash Flow Benefits</span>
+                          </div>
+                          {fieldDefs.filter(f => f.group === "cashflow").map(field => (
+                            <div key={field.key}>
+                              <Label htmlFor={field.key} className="text-sm font-medium">{field.label}</Label>
+                              {field.type === "textarea" ? (
+                                <Textarea
+                                  id={field.key}
+                                  value={formData[field.key] || ""}
+                                  onChange={(e) => setFormData(prev => ({ ...prev, [field.key]: e.target.value }))}
+                                  className="mt-1.5"
+                                  rows={2}
+                                  placeholder="e.g., 5 days faster collections × $10M monthly = $200K"
+                                  data-testid={`textarea-${field.key}`}
+                                />
+                              ) : (
+                                <Input
+                                  id={field.key}
+                                  value={formData[field.key] || ""}
+                                  onChange={(e) => setFormData(prev => ({ ...prev, [field.key]: e.target.value }))}
+                                  className="mt-1.5"
+                                  placeholder="e.g., $300K"
+                                  data-testid={`input-${field.key}`}
+                                />
+                              )}
+                            </div>
                           ))}
-                        </SelectContent>
-                      </Select>
-                    ) : field.type === "textarea" ? (
-                      <Textarea
-                        id={field.key}
-                        value={formData[field.key] || ""}
-                        onChange={(e) => setFormData(prev => ({ ...prev, [field.key]: e.target.value }))}
-                        className="mt-1.5"
-                        rows={3}
-                        data-testid={`textarea-${field.key}`}
-                      />
+                        </div>
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-2 mb-3">
+                            <AlertTriangle className="h-5 w-5 text-orange-500" />
+                            <span className="font-medium text-orange-700">Risk Reduction Benefits</span>
+                          </div>
+                          {fieldDefs.filter(f => f.group === "risk").map(field => (
+                            <div key={field.key}>
+                              <Label htmlFor={field.key} className="text-sm font-medium">{field.label}</Label>
+                              {field.type === "textarea" ? (
+                                <Textarea
+                                  id={field.key}
+                                  value={formData[field.key] || ""}
+                                  onChange={(e) => setFormData(prev => ({ ...prev, [field.key]: e.target.value }))}
+                                  className="mt-1.5"
+                                  rows={2}
+                                  placeholder="e.g., 50% reduction in compliance incidents × $500K avg penalty"
+                                  data-testid={`textarea-${field.key}`}
+                                />
+                              ) : (
+                                <Input
+                                  id={field.key}
+                                  value={formData[field.key] || ""}
+                                  onChange={(e) => setFormData(prev => ({ ...prev, [field.key]: e.target.value }))}
+                                  className="mt-1.5"
+                                  placeholder="e.g., $250K"
+                                  data-testid={`input-${field.key}`}
+                                />
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Step 5: Review */}
+                  {guidanceStep === 5 && (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <CheckCircle2 className="h-5 w-5 text-green-500" />
+                        <span className="font-medium">Review & Finalize</span>
+                      </div>
+                      <div className="bg-muted p-4 rounded-lg space-y-2">
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                          <div><span className="text-muted-foreground">ID:</span> {formData["ID"] || "Not set"}</div>
+                          <div><span className="text-muted-foreground">Use Case:</span> {formData["Use Case"] || "Not set"}</div>
+                          <div className="text-green-600"><span className="text-muted-foreground">Revenue:</span> {formData["Revenue Benefit"] || "$0"}</div>
+                          <div className="text-blue-600"><span className="text-muted-foreground">Cost:</span> {formData["Cost Benefit"] || "$0"}</div>
+                          <div className="text-purple-600"><span className="text-muted-foreground">Cash Flow:</span> {formData["Cash Flow Benefit"] || "$0"}</div>
+                          <div className="text-orange-600"><span className="text-muted-foreground">Risk:</span> {formData["Risk Benefit"] || "$0"}</div>
+                        </div>
+                        <div className="border-t pt-2 mt-2">
+                          <span className="font-semibold">Estimated Total Annual Value: </span>
+                          <span className="text-lg font-bold text-primary">{calculateTotalAnnualValue(formData)}</span>
+                        </div>
+                      </div>
+                      <div>
+                        <Label htmlFor="Probability of Success" className="text-sm font-medium">Probability of Success (%)</Label>
+                        <Input
+                          id="Probability of Success"
+                          type="number"
+                          min={1}
+                          max={100}
+                          value={formData["Probability of Success"] || "80"}
+                          onChange={(e) => setFormData(prev => ({ ...prev, "Probability of Success": e.target.value }))}
+                          className="mt-1.5 w-32"
+                          data-testid="input-probability"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">This affects the priority scoring in Step 7.</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Navigation Buttons */}
+                  <div className="flex justify-between pt-4 border-t">
+                    <Button 
+                      variant="outline" 
+                      onClick={() => {
+                        if (guidanceStep > 1) {
+                          setGuidanceStep(guidanceStep - 1);
+                        } else {
+                          setEditDialogOpen(false);
+                        }
+                      }}
+                    >
+                      {guidanceStep === 1 ? "Cancel" : "Back"}
+                    </Button>
+                    {guidanceStep < 5 ? (
+                      <Button onClick={() => setGuidanceStep(guidanceStep + 1)}>
+                        Next
+                        <ChevronRight className="ml-2 h-4 w-4" />
+                      </Button>
                     ) : (
-                      <Input
-                        id={field.key}
-                        type={field.type === "number" ? "number" : "text"}
-                        value={formData[field.key] || ""}
-                        onChange={(e) => setFormData(prev => ({ ...prev, [field.key]: e.target.value }))}
-                        className="mt-1.5"
-                        data-testid={`input-${field.key}`}
-                      />
+                      <Button onClick={handleSaveRecord} data-testid="button-save-record">
+                        <Save className="mr-2 h-4 w-4" />
+                        Save & Update Priorities
+                      </Button>
                     )}
                   </div>
-                ))}
-              </div>
+                </div>
+              ) : (
+                /* Standard form for other steps or editing */
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {fieldDefs.map(field => (
+                    <div key={field.key} className={field.type === "textarea" ? "md:col-span-2" : ""}>
+                      <Label htmlFor={field.key} className="text-sm font-medium">
+                        {field.label}
+                      </Label>
+                      {field.type === "select" ? (
+                        <Select
+                          value={formData[field.key] || ""}
+                          onValueChange={(value) => setFormData(prev => ({ ...prev, [field.key]: value }))}
+                        >
+                          <SelectTrigger id={field.key} className="mt-1.5" data-testid={`select-${field.key}`}>
+                            <SelectValue placeholder={`Select ${field.label}`} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {field.options?.map(opt => (
+                              <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : field.type === "textarea" ? (
+                        <Textarea
+                          id={field.key}
+                          value={formData[field.key] || ""}
+                          onChange={(e) => setFormData(prev => ({ ...prev, [field.key]: e.target.value }))}
+                          className="mt-1.5"
+                          rows={3}
+                          data-testid={`textarea-${field.key}`}
+                        />
+                      ) : (
+                        <Input
+                          id={field.key}
+                          type={field.type === "number" ? "number" : "text"}
+                          value={formData[field.key] || ""}
+                          onChange={(e) => setFormData(prev => ({ ...prev, [field.key]: e.target.value }))}
+                          className="mt-1.5"
+                          data-testid={`input-${field.key}`}
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleSaveRecord} data-testid="button-save-record">
-                <Save className="mr-2 h-4 w-4" />
-                {editingIndex >= 0 ? "Save Changes" : "Add Record"}
-              </Button>
-            </DialogFooter>
+            {/* Footer only for non-wizard mode */}
+            {!(activeStep === 5 && editingIndex < 0 && guidanceStep > 0) && (
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleSaveRecord} data-testid="button-save-record">
+                  <Save className="mr-2 h-4 w-4" />
+                  {editingIndex >= 0 ? "Save Changes" : "Add Record"}
+                </Button>
+              </DialogFooter>
+            )}
           </DialogContent>
         </Dialog>
       </div>
