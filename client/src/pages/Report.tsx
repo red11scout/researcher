@@ -57,7 +57,6 @@ import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import { Document, Packer, Paragraph, TextRun, Table as DocxTable, TableRow as DocxTableRow, TableCell as DocxTableCell, WidthType, BorderStyle, HeadingLevel, AlignmentType } from 'docx';
 import blueAllyLogoUrl from '@assets/image_1764369352062.png';
-import IronPriorityMatrix from '@/components/IronPriorityMatrix';
 
 const loadImageAsBase64 = (url: string): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -2827,39 +2826,30 @@ function StepCard({ step }: { step: any }) {
             </div>
           </div>
         ) : hasData ? (
-          <>
-            {/* Iron Priority Matrix for Step 7 */}
-            {step.step === 7 && (
-              <div className="mb-6">
-                <IronPriorityMatrix useCases={step.data} />
-              </div>
-            )}
-            
-            <div className="rounded-md border overflow-hidden">
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-muted/50">
-                      {Object.keys(step.data[0]).map((key: string, i: number) => (
-                        <TableHead key={i} className="font-semibold text-primary whitespace-nowrap">{key}</TableHead>
+          <div className="rounded-md border overflow-hidden">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    {Object.keys(step.data[0]).map((key: string, i: number) => (
+                      <TableHead key={i} className="font-semibold text-primary whitespace-nowrap">{key}</TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {step.data.map((row: any, i: number) => (
+                    <TableRow key={i} className="hover:bg-muted/20 transition-colors">
+                      {Object.entries(row).map(([key, value]: [string, any], j: number) => (
+                        <TableCell key={j} className={j === 0 ? "font-medium" : ""}>
+                          {renderCellValue(key, value)}
+                        </TableCell>
                       ))}
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {step.data.map((row: any, i: number) => (
-                      <TableRow key={i} className="hover:bg-muted/20 transition-colors">
-                        {Object.entries(row).map(([key, value]: [string, any], j: number) => (
-                          <TableCell key={j} className={j === 0 ? "font-medium" : ""}>
-                            {renderCellValue(key, value)}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
+                  ))}
+                </TableBody>
+              </Table>
             </div>
-          </>
+          </div>
         ) : null}
       </CardContent>
     </Card>
