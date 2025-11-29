@@ -29,7 +29,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
-import { Document, Packer, Paragraph, TextRun, Table as DocxTable, TableRow as DocxTableRow, TableCell as DocxTableCell, WidthType, BorderStyle, HeadingLevel } from 'docx';
+import { Document, Packer, Paragraph, TextRun, Table as DocxTable, TableRow as DocxTableRow, TableCell as DocxTableCell, WidthType, BorderStyle, HeadingLevel, AlignmentType } from 'docx';
 import blueAllyLogoUrl from '@assets/image_1764369352062.png';
 
 const loadImageAsBase64 = (url: string): Promise<string> => {
@@ -254,7 +254,7 @@ export default function Report() {
     return addCommas(Math.round(value));
   };
 
-  // BlueAlly Brand Colors
+  // BlueAlly Brand Colors - Board Presentation Standard
   const BRAND = {
     primaryBlue: [0, 18, 120] as [number, number, number],     // #001278
     lightBlue: [2, 162, 250] as [number, number, number],       // #02a2fd
@@ -263,100 +263,85 @@ export default function Report() {
     white: [255, 255, 255] as [number, number, number],
     lightBlueBg: [205, 229, 241] as [number, number, number],   // #cde5f1
     gray: [80, 80, 80] as [number, number, number],
-    lightGray: [245, 247, 250] as [number, number, number],
+    lightGray: [248, 250, 252] as [number, number, number],
   };
 
-  // PDF Generation with Executive Polish
+  // PDF Generation - Board-Level Presentation Standard
   const generatePDF = async () => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
-    const margin = 25; // Wider margins for executive look
+    const margin = 20;
     const contentWidth = pageWidth - (margin * 2);
+    const centerX = pageWidth / 2;
     let currentPage = 1;
     const tocEntries: { title: string; page: number }[] = [];
     
-    // Set default font to Helvetica (closest to Segoe in jsPDF)
+    // Set professional font
     doc.setFont('helvetica');
 
-    // Helper: Add page with refined header/footer
+    // Helper: Add page with header/footer - Board Standard
     const addPageWithBranding = (isFirst = false) => {
       if (!isFirst) {
         doc.addPage();
         currentPage++;
       }
       
-      // Elegant thin header line
+      // Clean header bar
       doc.setFillColor(...BRAND.primaryBlue);
-      doc.rect(0, 0, pageWidth, 10, 'F');
+      doc.rect(0, 0, pageWidth, 14, 'F');
       
-      // Header text - refined sizing
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(9);
-      doc.setTextColor(...BRAND.white);
-      doc.text('BlueAlly', margin, 7);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(180, 190, 220);
-      doc.text('|  AI Strategic Assessment', margin + 18, 7);
-      doc.setTextColor(...BRAND.white);
-      doc.text(companyName, pageWidth - margin, 7, { align: 'right' });
-      
-      // Elegant footer with thin line
-      doc.setFillColor(...BRAND.primaryBlue);
-      doc.rect(0, pageHeight - 12, pageWidth, 12, 'F');
-      doc.setFontSize(8);
-      doc.setTextColor(180, 190, 220);
-      doc.text('Confidential', margin, pageHeight - 5);
-      doc.setTextColor(...BRAND.white);
+      // Centered header text
       doc.setFont('helvetica', 'bold');
-      doc.text(`${currentPage}`, pageWidth / 2, pageHeight - 5, { align: 'center' });
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(180, 190, 220);
-      doc.text(new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }), pageWidth - margin, pageHeight - 5, { align: 'right' });
+      doc.setFontSize(10);
+      doc.setTextColor(...BRAND.white);
+      doc.text('BlueAlly  |  AI Strategic Assessment', centerX, 9, { align: 'center' });
       
-      return 22; // Return starting Y position after header
+      // Clean footer
+      doc.setFillColor(...BRAND.primaryBlue);
+      doc.rect(0, pageHeight - 14, pageWidth, 14, 'F');
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(...BRAND.white);
+      doc.text(`Page ${currentPage}`, centerX, pageHeight - 5, { align: 'center' });
+      
+      return 24;
     };
 
-    // Helper: Check if we need a new page
+    // Helper: Check page space
     const ensureSpace = (neededHeight: number, currentY: number): number => {
-      if (currentY + neededHeight > pageHeight - 28) {
+      if (currentY + neededHeight > pageHeight - 30) {
         return addPageWithBranding();
       }
       return currentY;
     };
 
-    // Helper: Draw section heading with executive styling
+    // Helper: Centered section heading - Board Standard
     const drawSectionHeading = (title: string, yPos: number, addToToc = true): number => {
-      yPos = ensureSpace(25, yPos);
+      yPos = ensureSpace(30, yPos);
       
       if (addToToc) {
         tocEntries.push({ title, page: currentPage });
       }
       
-      // Clean accent bar
-      doc.setFillColor(...BRAND.lightBlue);
-      doc.rect(margin, yPos, 3, 14, 'F');
-      
-      // Heading text with proper sizing
+      // Centered heading with accent
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(16);
+      doc.setFontSize(18);
       doc.setTextColor(...BRAND.primaryBlue);
-      doc.text(title, margin + 8, yPos + 10);
+      doc.text(title, centerX, yPos + 12, { align: 'center' });
       
-      // Subtle underline
-      doc.setDrawColor(220, 225, 235);
-      doc.setLineWidth(0.3);
-      doc.line(margin, yPos + 18, pageWidth - margin, yPos + 18);
+      // Centered underline accent
+      const titleWidth = doc.getTextWidth(title);
+      doc.setFillColor(...BRAND.lightBlue);
+      doc.rect(centerX - titleWidth/2, yPos + 16, titleWidth, 2, 'F');
       
-      return yPos + 25;
+      return yPos + 28;
     };
 
-    // Helper: Draw benefit bar chart with polish
+    // Helper: Draw benefit chart - centered, no overlap
     const drawBenefitChart = (yPos: number, dash: any): number => {
-      yPos = ensureSpace(85, yPos);
+      yPos = ensureSpace(100, yPos);
       
-      const chartWidth = contentWidth - 20;
-      const barHeight = 16;
       const total = dash.totalAnnualValue || 1;
       const benefits = [
         { label: 'Revenue Growth', value: dash.totalRevenueBenefit, color: BRAND.green },
@@ -365,110 +350,112 @@ export default function Report() {
         { label: 'Risk Mitigation', value: dash.totalRiskBenefit, color: [255, 153, 51] as [number, number, number] },
       ];
       
+      // Centered title
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(12);
+      doc.setFontSize(14);
       doc.setTextColor(...BRAND.darkNavy);
-      doc.text('Value Distribution by Business Driver', margin, yPos);
-      yPos += 12;
+      doc.text('Value Distribution by Business Driver', centerX, yPos, { align: 'center' });
+      yPos += 15;
+      
+      // Draw bars centered
+      const barMaxWidth = 80;
+      const labelWidth = 50;
+      const valueWidth = 40;
+      const rowHeight = 20;
       
       benefits.forEach((benefit, i) => {
         const percentage = (benefit.value / total) * 100;
-        const barWidth = Math.max(8, (benefit.value / total) * chartWidth * 0.65);
+        const barWidth = Math.max(10, (percentage / 100) * barMaxWidth);
+        const rowY = yPos + (i * rowHeight);
         
-        // Label on the left
+        // Left-aligned label
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(10);
+        doc.setFontSize(12);
         doc.setTextColor(...BRAND.gray);
-        doc.text(benefit.label, margin, yPos + (i * 18) + 10);
+        doc.text(benefit.label, margin + 10, rowY + 12);
         
-        // Bar with rounded corners
+        // Centered bar
         doc.setFillColor(...benefit.color);
-        doc.roundedRect(margin + 55, yPos + (i * 18) + 3, barWidth, barHeight - 4, 2, 2, 'F');
+        doc.roundedRect(margin + labelWidth + 10, rowY + 4, barWidth, 14, 3, 3, 'F');
         
-        // Value and percentage
+        // Right-aligned value
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(10);
+        doc.setFontSize(12);
         doc.setTextColor(...BRAND.darkNavy);
-        doc.text(`${formatCurrency(benefit.value)}`, margin + 60 + barWidth, yPos + (i * 18) + 10);
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8);
-        doc.setTextColor(...BRAND.gray);
-        doc.text(`(${percentage.toFixed(0)}%)`, margin + 60 + barWidth + doc.getTextWidth(formatCurrency(benefit.value)) + 3, yPos + (i * 18) + 10);
+        doc.text(`${formatCurrency(benefit.value)} (${percentage.toFixed(0)}%)`, pageWidth - margin - 10, rowY + 12, { align: 'right' });
       });
       
-      return yPos + 80;
+      return yPos + (benefits.length * rowHeight) + 10;
     };
 
-    // ===== COVER PAGE - Executive Design =====
-    // Dark navy background
+    // ===== COVER PAGE - Board Presentation Standard =====
     doc.setFillColor(...BRAND.darkNavy);
     doc.rect(0, 0, pageWidth, pageHeight, 'F');
     
-    // Subtle decorative accent line at top
+    // Top accent line
     doc.setFillColor(...BRAND.lightBlue);
-    doc.rect(0, 0, pageWidth, 3, 'F');
+    doc.rect(0, 0, pageWidth, 4, 'F');
     
-    // Add BlueAlly logo
+    // Centered logo
     try {
       const logoBase64 = await loadImageAsBase64(blueAllyLogoUrl);
-      doc.addImage(logoBase64, 'PNG', pageWidth / 2 - 40, 45, 80, 24);
+      doc.addImage(logoBase64, 'PNG', centerX - 45, 50, 90, 27);
     } catch (e) {
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(36);
+      doc.setFontSize(40);
       doc.setTextColor(...BRAND.white);
-      doc.text('BlueAlly', pageWidth / 2, 60, { align: 'center' });
+      doc.text('BlueAlly', centerX, 70, { align: 'center' });
     }
     
-    // Elegant divider
+    // Centered divider
     doc.setFillColor(...BRAND.lightBlue);
-    doc.rect(pageWidth / 2 - 40, 78, 80, 1.5, 'F');
+    doc.rect(centerX - 50, 85, 100, 2, 'F');
     
-    // Title with elegant spacing
+    // Centered title - larger font
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(32);
+    doc.setFontSize(36);
     doc.setTextColor(...BRAND.white);
-    doc.text('AI Strategic Assessment', pageWidth / 2, 110, { align: 'center' });
+    doc.text('AI Strategic Assessment', centerX, 115, { align: 'center' });
     
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(16);
+    doc.setTextColor(...BRAND.lightBlue);
+    doc.text('Board Presentation', centerX, 135, { align: 'center' });
+    
+    // Centered company name box
+    doc.setFillColor(...BRAND.primaryBlue);
+    doc.roundedRect(centerX - 80, 155, 160, 40, 5, 5, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(22);
+    doc.setTextColor(...BRAND.white);
+    doc.text(companyName, centerX, 180, { align: 'center' });
+    
+    // Centered date
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(14);
-    doc.setTextColor(...BRAND.lightBlue);
-    doc.text('Executive Report', pageWidth / 2, 125, { align: 'center' });
-    
-    // Company name in refined box
-    doc.setFillColor(...BRAND.primaryBlue);
-    doc.roundedRect(pageWidth / 2 - 70, 145, 140, 35, 4, 4, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(20);
-    doc.setTextColor(...BRAND.white);
-    doc.text(companyName, pageWidth / 2, 168, { align: 'center' });
-    
-    // Date with elegant formatting
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(12);
     doc.setTextColor(180, 190, 220);
-    doc.text(`${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`, pageWidth / 2, 200, { align: 'center' });
+    doc.text(new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }), centerX, 215, { align: 'center' });
     
-    // Total value highlight with executive styling
+    // Centered value highlight
     if (data.executiveDashboard) {
-      // Value box
       doc.setFillColor(...BRAND.green);
-      doc.roundedRect(pageWidth / 2 - 75, 220, 150, 50, 4, 4, 'F');
+      doc.roundedRect(centerX - 85, 235, 170, 55, 5, 5, 'F');
       
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(11);
+      doc.setFontSize(13);
       doc.setTextColor(...BRAND.darkNavy);
-      doc.text('Total Annual AI Value Opportunity', pageWidth / 2, 238, { align: 'center' });
+      doc.text('Total Annual AI Value Opportunity', centerX, 255, { align: 'center' });
       
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(26);
-      doc.text(formatCurrency(data.executiveDashboard.totalAnnualValue), pageWidth / 2, 258, { align: 'center' });
+      doc.setFontSize(28);
+      doc.text(formatCurrency(data.executiveDashboard.totalAnnualValue), centerX, 278, { align: 'center' });
     }
     
-    // Footer on cover with refined styling
+    // Centered footer
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    doc.setTextColor(120, 130, 160);
-    doc.text('BlueAlly Insight  |  Enterprise AI Advisory', pageWidth / 2, pageHeight - 25, { align: 'center' });
+    doc.setFontSize(12);
+    doc.setTextColor(130, 140, 170);
+    doc.text('BlueAlly Insight  |  Enterprise AI Advisory', centerX, pageHeight - 30, { align: 'center' });
     
     // Bottom accent
     doc.setFillColor(...BRAND.lightBlue);
@@ -480,73 +467,73 @@ export default function Report() {
     doc.addPage();
     let yPos = addPageWithBranding(true);
     
+    // Centered TOC heading
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(22);
+    doc.setFontSize(24);
     doc.setTextColor(...BRAND.primaryBlue);
-    doc.text('Table of Contents', margin, yPos + 12);
+    doc.text('Table of Contents', centerX, yPos + 15, { align: 'center' });
     
-    // Elegant underline
-    doc.setDrawColor(...BRAND.lightBlue);
-    doc.setLineWidth(1);
-    doc.line(margin, yPos + 18, margin + 60, yPos + 18);
+    // Centered underline
+    doc.setFillColor(...BRAND.lightBlue);
+    doc.rect(centerX - 50, yPos + 20, 100, 2, 'F');
     
-    // Save TOC position to update later
-    const tocYStart = yPos + 32;
+    const tocYStart = yPos + 40;
     
     // ===== EXECUTIVE SUMMARY PAGE =====
     yPos = addPageWithBranding();
     yPos = drawSectionHeading('Executive Summary', yPos);
     
-    // Key metrics grid with executive styling
+    // Centered metrics boxes
     if (data.executiveDashboard) {
       const dash = data.executiveDashboard;
+      const boxWidth = 75;
+      const boxHeight = 40;
+      const gap = 15;
+      const startX = centerX - boxWidth - gap/2;
       
-      // Metrics boxes - refined sizing
-      const boxWidth = (contentWidth - 15) / 2;
-      const boxHeight = 32;
-      
-      // Total Value box
+      // Total Value box - centered
       doc.setFillColor(...BRAND.primaryBlue);
-      doc.roundedRect(margin, yPos, boxWidth, boxHeight, 3, 3, 'F');
+      doc.roundedRect(startX, yPos, boxWidth, boxHeight, 4, 4, 'F');
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(10);
-      doc.setTextColor(180, 190, 220);
-      doc.text('Total Annual Value', margin + 8, yPos + 12);
+      doc.setFontSize(11);
+      doc.setTextColor(200, 210, 230);
+      doc.text('Total Annual Value', startX + boxWidth/2, yPos + 14, { align: 'center' });
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(18);
       doc.setTextColor(...BRAND.white);
-      doc.text(formatCurrency(dash.totalAnnualValue), margin + 8, yPos + 25);
+      doc.text(formatCurrency(dash.totalAnnualValue), startX + boxWidth/2, yPos + 30, { align: 'center' });
       
-      // Value per Token box
+      // Value per Token box - centered
       doc.setFillColor(...BRAND.lightBlue);
-      doc.roundedRect(margin + boxWidth + 15, yPos, boxWidth, boxHeight, 3, 3, 'F');
+      doc.roundedRect(startX + boxWidth + gap, yPos, boxWidth, boxHeight, 4, 4, 'F');
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(10);
+      doc.setFontSize(11);
       doc.setTextColor(...BRAND.darkNavy);
-      doc.text('Value per 1M Tokens', margin + boxWidth + 23, yPos + 12);
+      doc.text('Value / 1M Tokens', startX + boxWidth + gap + boxWidth/2, yPos + 14, { align: 'center' });
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(18);
-      doc.text(formatCurrency(dash.valuePerMillionTokens), margin + boxWidth + 23, yPos + 25);
+      doc.text(formatCurrency(dash.valuePerMillionTokens), startX + boxWidth + gap + boxWidth/2, yPos + 30, { align: 'center' });
       
-      yPos += boxHeight + 15;
+      yPos += boxHeight + 20;
       
-      // Draw benefit breakdown chart
+      // Benefit chart
       yPos = drawBenefitChart(yPos, dash);
       
-      // Top Use Cases Table with executive styling
+      // Top Use Cases Table - Board Standard with proper text wrap
       if (dash.topUseCases && dash.topUseCases.length > 0) {
-        yPos = ensureSpace(90, yPos);
+        yPos = ensureSpace(100, yPos);
+        
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(13);
+        doc.setFontSize(14);
         doc.setTextColor(...BRAND.primaryBlue);
-        doc.text('Top Priority AI Use Cases', margin, yPos);
-        yPos += 8;
+        doc.text('Top Priority AI Use Cases', centerX, yPos, { align: 'center' });
+        yPos += 10;
         
         autoTable(doc, {
           startY: yPos,
-          head: [['Priority', 'Use Case', 'Annual Value', 'Monthly Tokens']],
+          head: [['#', 'Use Case', 'Annual Value', 'Tokens/Month']],
           body: dash.topUseCases.map((uc: any) => [
-            `#${uc.rank}`,
+            uc.rank,
             uc.useCase,
             formatCurrency(uc.annualValue),
             formatNumber(uc.monthlyTokens),
@@ -556,87 +543,93 @@ export default function Report() {
             fillColor: BRAND.primaryBlue,
             textColor: BRAND.white,
             fontStyle: 'bold',
-            fontSize: 10,
-            cellPadding: 5
+            fontSize: 12,
+            cellPadding: 6,
+            halign: 'center',
+            minCellHeight: 14
           },
           bodyStyles: { 
-            fontSize: 9, 
-            cellPadding: 5,
-            textColor: BRAND.darkNavy
+            fontSize: 12, 
+            cellPadding: 6,
+            textColor: BRAND.darkNavy,
+            halign: 'center',
+            minCellHeight: 12
           },
           alternateRowStyles: { fillColor: [248, 250, 255] },
           styles: { 
-            lineColor: [230, 235, 245],
-            lineWidth: 0.3
+            overflow: 'linebreak',
+            cellWidth: 'wrap',
+            lineColor: [220, 225, 235],
+            lineWidth: 0.5
           },
           columnStyles: {
-            0: { cellWidth: 22, halign: 'center' },
-            1: { cellWidth: 'auto' },
-            2: { cellWidth: 35, halign: 'right' },
-            3: { cellWidth: 35, halign: 'right' }
+            0: { cellWidth: 15, halign: 'center' },
+            1: { cellWidth: 75, halign: 'left' },
+            2: { cellWidth: 35, halign: 'center' },
+            3: { cellWidth: 35, halign: 'center' }
           },
+          tableWidth: 'auto',
           margin: { left: margin, right: margin },
           rowPageBreak: 'avoid',
           didDrawPage: () => { currentPage = doc.getNumberOfPages(); }
         });
-        yPos = (doc as any).lastAutoTable.finalY + 18;
+        yPos = (doc as any).lastAutoTable.finalY + 20;
       }
     }
     
-    // Summary narrative with refined styling
+    // Summary narrative - centered, wrapped text
     if (data.summary) {
-      yPos = ensureSpace(50, yPos);
+      yPos = ensureSpace(60, yPos);
       
-      // Subtle header bar
       doc.setFillColor(...BRAND.lightBlueBg);
-      doc.roundedRect(margin, yPos, contentWidth, 6, 2, 2, 'F');
-      yPos += 14;
+      doc.roundedRect(margin, yPos, contentWidth, 8, 3, 3, 'F');
+      yPos += 18;
       
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(11);
+      doc.setFontSize(12);
       doc.setTextColor(...BRAND.darkNavy);
-      const summaryLines = doc.splitTextToSize(data.summary, contentWidth);
+      const summaryLines = doc.splitTextToSize(data.summary, contentWidth - 10);
       
       for (const line of summaryLines) {
-        yPos = ensureSpace(7, yPos);
-        doc.text(line, margin, yPos);
-        yPos += 6;
+        yPos = ensureSpace(8, yPos);
+        doc.text(line, centerX, yPos, { align: 'center', maxWidth: contentWidth - 10 });
+        yPos += 7;
       }
-      yPos += 12;
+      yPos += 15;
     }
     
-    // ===== ANALYSIS STEPS =====
+    // ===== ANALYSIS STEPS - Board Presentation Standard =====
     for (const step of data.steps) {
-      // Always start major sections on new page if not much space
-      if (yPos > pageHeight - 90) {
-        yPos = addPageWithBranding();
-      }
-      
+      // Start each major step on a new page
+      yPos = addPageWithBranding();
       yPos = drawSectionHeading(`Step ${step.step}: ${step.title}`, yPos);
       
+      // Centered content description with larger font
       if (step.content) {
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(10);
+        doc.setFontSize(12);
         doc.setTextColor(...BRAND.gray);
-        const contentLines = doc.splitTextToSize(step.content, contentWidth);
+        const contentLines = doc.splitTextToSize(step.content, contentWidth - 20);
         for (const line of contentLines) {
-          yPos = ensureSpace(6, yPos);
-          doc.text(line, margin, yPos);
-          yPos += 5;
+          yPos = ensureSpace(8, yPos);
+          doc.text(line, centerX, yPos, { align: 'center', maxWidth: contentWidth - 20 });
+          yPos += 7;
         }
-        yPos += 8;
+        yPos += 12;
       }
       
       if (step.data && step.data.length > 0) {
-        // For Benefits Quantification step (step 5), include formula columns in a separate section
         const isBenefitsStep = step.step === 5;
         const allColumns = Object.keys(step.data[0]);
         const formulaColumns = allColumns.filter(k => k.includes('Formula'));
         const displayColumns = allColumns.filter(k => !k.includes('Formula'));
         
-        // Main data table (without formulas for readability)
+        // Limit columns for board readability - max 6 columns
+        const maxCols = 6;
+        const limitedColumns = displayColumns.slice(0, maxCols);
+        
         const rows = step.data.map((row: any) => 
-          displayColumns.map(col => {
+          limitedColumns.map(col => {
             const val = row[col];
             if (typeof val === 'number' && col.toLowerCase().includes('$')) {
               return formatCurrency(val);
@@ -644,83 +637,80 @@ export default function Report() {
             if (typeof val === 'number' && val > 1000) {
               return formatNumber(val);
             }
-            return val;
+            return String(val || '').substring(0, 60);
           })
         );
         
-        yPos = ensureSpace(35, yPos);
+        yPos = ensureSpace(40, yPos);
         
-        // Executive table styling
+        // Board-level table styling - 12pt minimum for readability
         autoTable(doc, {
           startY: yPos,
-          head: [displayColumns],
+          head: [limitedColumns],
           body: rows,
           theme: 'plain',
           headStyles: { 
             fillColor: BRAND.primaryBlue,
             textColor: BRAND.white,
             fontStyle: 'bold',
-            fontSize: 8,
-            cellPadding: 4
+            fontSize: 12,
+            cellPadding: 6,
+            halign: 'center',
+            minCellHeight: 14
           },
           bodyStyles: { 
-            fontSize: 8, 
-            cellPadding: 4,
-            textColor: BRAND.darkNavy
+            fontSize: 12, 
+            cellPadding: 6,
+            textColor: BRAND.darkNavy,
+            halign: 'center',
+            minCellHeight: 12
           },
           alternateRowStyles: { fillColor: [248, 250, 255] },
           styles: { 
             overflow: 'linebreak', 
             cellWidth: 'wrap',
-            lineColor: [230, 235, 245],
-            lineWidth: 0.2
+            lineColor: [220, 225, 235],
+            lineWidth: 0.5
           },
-          columnStyles: { 0: { cellWidth: 22 } },
+          tableWidth: 'auto',
           margin: { left: margin, right: margin },
           rowPageBreak: 'avoid',
-          didDrawPage: (hookData) => {
+          didDrawPage: () => {
             currentPage = doc.getNumberOfPages();
-            // Re-add header/footer on new pages from table overflow
-            if (hookData.pageNumber > 1) {
-              doc.setFillColor(...BRAND.primaryBlue);
-              doc.rect(0, 0, pageWidth, 10, 'F');
-              doc.setFont('helvetica', 'normal');
-              doc.setFontSize(9);
-              doc.setTextColor(...BRAND.white);
-              doc.text('BlueAlly', margin, 7);
-              doc.setTextColor(180, 190, 220);
-              doc.text('|  AI Strategic Assessment', margin + 18, 7);
-              doc.setTextColor(...BRAND.white);
-              doc.text(companyName, pageWidth - margin, 7, { align: 'right' });
-              
-              doc.setFillColor(...BRAND.primaryBlue);
-              doc.rect(0, pageHeight - 12, pageWidth, 12, 'F');
-              doc.setFontSize(8);
-              doc.setTextColor(180, 190, 220);
-              doc.text('Confidential', margin, pageHeight - 5);
-              doc.setTextColor(...BRAND.white);
-              doc.setFont('helvetica', 'bold');
-              doc.text(`${currentPage}`, pageWidth / 2, pageHeight - 5, { align: 'center' });
-            }
+            // Re-add header/footer on new pages
+            doc.setFillColor(...BRAND.primaryBlue);
+            doc.rect(0, 0, pageWidth, 14, 'F');
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(10);
+            doc.setTextColor(...BRAND.white);
+            doc.text('BlueAlly  |  AI Strategic Assessment', centerX, 9, { align: 'center' });
+            
+            doc.setFillColor(...BRAND.primaryBlue);
+            doc.rect(0, pageHeight - 14, pageWidth, 14, 'F');
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(10);
+            doc.setTextColor(...BRAND.white);
+            doc.text(`Page ${currentPage}`, centerX, pageHeight - 5, { align: 'center' });
           }
         });
-        yPos = (doc as any).lastAutoTable.finalY + 18;
+        yPos = (doc as any).lastAutoTable.finalY + 20;
         
-        // Add calculation formulas section for Benefits Quantification step
+        // Benefit Calculation Formulas - Board Standard
         if (isBenefitsStep && formulaColumns.length > 0) {
-          yPos = ensureSpace(45, yPos);
+          yPos = addPageWithBranding();
           
-          // Formulas section heading with executive styling
-          doc.setFillColor(...BRAND.lightBlueBg);
-          doc.roundedRect(margin, yPos, contentWidth, 10, 2, 2, 'F');
-          yPos += 7;
+          // Centered heading
           doc.setFont('helvetica', 'bold');
-          doc.setFontSize(12);
+          doc.setFontSize(16);
           doc.setTextColor(...BRAND.primaryBlue);
-          doc.text('Benefit Calculation Formulas', margin + 5, yPos);
-          yPos += 10;
+          doc.text('Benefit Calculation Formulas', centerX, yPos + 10, { align: 'center' });
           
-          // Create formulas table with Use Case ID, Use Case Name, and all formula columns
+          doc.setFillColor(...BRAND.lightBlue);
+          const headingWidth = doc.getTextWidth('Benefit Calculation Formulas');
+          doc.rect(centerX - headingWidth/2, yPos + 14, headingWidth, 2, 'F');
+          yPos += 30;
+          
+          // Formulas table - 12pt for board readability
           const formulaTableColumns = ['ID', 'Use Case', ...formulaColumns];
           const formulaRows = step.data.map((row: any) => 
             [row['ID'] || '', row['Use Case'] || '', ...formulaColumns.map(col => row[col] || 'N/A')]
@@ -735,263 +725,366 @@ export default function Report() {
               fillColor: BRAND.primaryBlue,
               textColor: BRAND.white,
               fontStyle: 'bold',
-              fontSize: 7,
-              cellPadding: 3
+              fontSize: 12,
+              cellPadding: 5,
+              halign: 'center',
+              minCellHeight: 12
             },
             bodyStyles: { 
-              fontSize: 7, 
-              cellPadding: 3,
-              textColor: BRAND.darkNavy
+              fontSize: 12, 
+              cellPadding: 5,
+              textColor: BRAND.darkNavy,
+              minCellHeight: 10
             },
             alternateRowStyles: { fillColor: [248, 250, 255] },
             styles: { 
               overflow: 'linebreak', 
               cellWidth: 'wrap',
-              lineColor: [230, 235, 245],
-              lineWidth: 0.2
+              lineColor: [220, 225, 235],
+              lineWidth: 0.5
             },
             columnStyles: { 
-              0: { cellWidth: 14 }, 
-              1: { cellWidth: 32 }
+              0: { cellWidth: 14, halign: 'center' }, 
+              1: { cellWidth: 35 }
             },
+            tableWidth: 'auto',
             margin: { left: margin, right: margin },
             rowPageBreak: 'avoid',
-            didDrawPage: (hookData) => {
+            didDrawPage: () => {
               currentPage = doc.getNumberOfPages();
-              if (hookData.pageNumber > 1) {
-                doc.setFillColor(...BRAND.primaryBlue);
-                doc.rect(0, 0, pageWidth, 10, 'F');
-                doc.setFont('helvetica', 'normal');
-                doc.setFontSize(9);
-                doc.setTextColor(...BRAND.white);
-                doc.text('BlueAlly', margin, 7);
-                doc.setTextColor(180, 190, 220);
-                doc.text('|  AI Strategic Assessment', margin + 18, 7);
-                doc.setTextColor(...BRAND.white);
-                doc.text(companyName, pageWidth - margin, 7, { align: 'right' });
-                
-                doc.setFillColor(...BRAND.primaryBlue);
-                doc.rect(0, pageHeight - 12, pageWidth, 12, 'F');
-                doc.setFontSize(8);
-                doc.setTextColor(180, 190, 220);
-                doc.text('Confidential', margin, pageHeight - 5);
-                doc.setTextColor(...BRAND.white);
-                doc.setFont('helvetica', 'bold');
-                doc.text(`${currentPage}`, pageWidth / 2, pageHeight - 5, { align: 'center' });
-              }
+              doc.setFillColor(...BRAND.primaryBlue);
+              doc.rect(0, 0, pageWidth, 14, 'F');
+              doc.setFont('helvetica', 'bold');
+              doc.setFontSize(10);
+              doc.setTextColor(...BRAND.white);
+              doc.text('BlueAlly  |  AI Strategic Assessment', centerX, 9, { align: 'center' });
+              
+              doc.setFillColor(...BRAND.primaryBlue);
+              doc.rect(0, pageHeight - 14, pageWidth, 14, 'F');
+              doc.setFont('helvetica', 'normal');
+              doc.setFontSize(10);
+              doc.setTextColor(...BRAND.white);
+              doc.text(`Page ${currentPage}`, centerX, pageHeight - 5, { align: 'center' });
             }
           });
-          yPos = (doc as any).lastAutoTable.finalY + 18;
+          yPos = (doc as any).lastAutoTable.finalY + 20;
         }
       }
     }
     
-    // ===== RECOMMENDATION: BLUEALLY AI WORKSHOP =====
+    // ===== RECOMMENDATION: BLUEALLY AI WORKSHOP - Board Standard =====
     yPos = addPageWithBranding();
     tocEntries.push({ title: 'Recommended Next Steps', page: currentPage });
     
-    // Full section background with executive styling
+    // Centered section background
     doc.setFillColor(...BRAND.darkNavy);
-    doc.roundedRect(margin, yPos, contentWidth, 135, 4, 4, 'F');
+    doc.roundedRect(margin, yPos, contentWidth, 150, 6, 6, 'F');
     
-    // Section title
+    // Centered section title
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(20);
+    doc.setFontSize(22);
     doc.setTextColor(...BRAND.white);
-    doc.text('Recommended Next Steps', margin + 15, yPos + 20);
+    doc.text('Recommended Next Steps', centerX, yPos + 25, { align: 'center' });
     
-    // Elegant accent line
+    // Centered accent line
     doc.setFillColor(...BRAND.lightBlue);
-    doc.rect(margin + 15, yPos + 26, 60, 2, 'F');
+    doc.rect(centerX - 50, yPos + 32, 100, 2, 'F');
     
-    // Workshop title
+    // Centered workshop title
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(16);
+    doc.setFontSize(18);
     doc.setTextColor(...BRAND.green);
-    doc.text('BlueAlly 3-Day AI Use Case Workshop', margin + 15, yPos + 45);
+    doc.text('BlueAlly 3-Day AI Use Case Workshop', centerX, yPos + 55, { align: 'center' });
     
-    // Description with proper line height
+    // Centered description
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
+    doc.setFontSize(12);
     doc.setTextColor(200, 210, 230);
     const workshopDesc = 'Transform this strategic assessment into actionable AI initiatives with our expert-facilitated workshop designed to overcome common AI implementation pitfalls.';
-    const descLines = doc.splitTextToSize(workshopDesc, contentWidth - 30);
-    doc.text(descLines, margin + 15, yPos + 58);
-    
-    // Benefits list with proper spacing
-    const benefits = [
-      'ROI-Focused: Link every AI use case to specific KPIs across four business drivers',
-      'Rapid Prototyping: Target 90-day pilot cycles vs. year-long experiments',
-      'Executive Alignment: Cross-functional workshops with business and IT leaders',
-      'Expert Partnership: BlueAlly handles heavy technical lifting (2.6x higher success rate)',
-      'Governance Built-In: Embed security and compliance from day one'
-    ];
-    
-    let benefitY = yPos + 78;
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    benefits.forEach((benefit, i) => {
-      doc.setFillColor(...BRAND.green);
-      doc.circle(margin + 20, benefitY + (i * 11) - 1.5, 2, 'F');
-      doc.setTextColor(...BRAND.white);
-      doc.text(benefit, margin + 28, benefitY + (i * 11));
+    const descLines = doc.splitTextToSize(workshopDesc, contentWidth - 40);
+    descLines.forEach((line: string, i: number) => {
+      doc.text(line, centerX, yPos + 72 + (i * 8), { align: 'center' });
     });
     
-    // CTA with executive styling
-    yPos += 148;
-    doc.setFillColor(...BRAND.green);
-    doc.roundedRect(margin, yPos, contentWidth, 30, 4, 4, 'F');
-    doc.setFont('helvetica', 'bold');
-    doc.setFontSize(13);
-    doc.setTextColor(...BRAND.darkNavy);
-    doc.text('Contact BlueAlly to Schedule Your AI Workshop', pageWidth / 2, yPos + 12, { align: 'center' });
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10);
-    doc.text('www.blueally.com  |  Accelerating AI Value Realization', pageWidth / 2, yPos + 23, { align: 'center' });
+    // Centered benefits list
+    const benefits = [
+      'ROI-Focused: Link every AI use case to specific KPIs',
+      'Rapid Prototyping: Target 90-day pilot cycles',
+      'Executive Alignment: Cross-functional workshops',
+      'Expert Partnership: 2.6x higher success rate',
+      'Governance Built-In: Security and compliance from day one'
+    ];
     
-    // ===== UPDATE TABLE OF CONTENTS =====
+    let benefitY = yPos + 98;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(11);
+    benefits.forEach((benefit, i) => {
+      doc.setTextColor(...BRAND.white);
+      doc.text(`• ${benefit}`, centerX, benefitY + (i * 10), { align: 'center' });
+    });
+    
+    // Centered CTA
+    yPos += 165;
+    doc.setFillColor(...BRAND.green);
+    doc.roundedRect(centerX - 80, yPos, 160, 35, 5, 5, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.setTextColor(...BRAND.darkNavy);
+    doc.text('Schedule Your AI Workshop', centerX, yPos + 15, { align: 'center' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(11);
+    doc.text('www.blueally.com', centerX, yPos + 28, { align: 'center' });
+    
+    // ===== UPDATE TABLE OF CONTENTS - Centered =====
     doc.setPage(tocPageNum);
     let tocY = tocYStart;
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(11);
+    doc.setFontSize(12);
     
     tocEntries.forEach((entry, i) => {
+      // Centered TOC entries
       doc.setTextColor(...BRAND.darkNavy);
-      doc.text(entry.title, margin, tocY);
+      const entryText = `${entry.title}`;
+      doc.text(entryText, margin + 10, tocY);
       
-      // Elegant dotted line
-      const titleWidth = doc.getTextWidth(entry.title);
-      const pageNumWidth = doc.getTextWidth(`${entry.page}`);
-      const dotsWidth = contentWidth - titleWidth - pageNumWidth - 8;
-      const dotCount = Math.floor(dotsWidth / 2.5);
-      const dots = '.'.repeat(dotCount);
-      
-      doc.setTextColor(180, 190, 210);
-      doc.text(dots, margin + titleWidth + 4, tocY);
-      
+      // Page number right-aligned
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(...BRAND.primaryBlue);
-      doc.text(`${entry.page}`, pageWidth - margin, tocY, { align: 'right' });
+      doc.text(`${entry.page}`, pageWidth - margin - 10, tocY, { align: 'right' });
+      
+      // Dotted line
+      const titleWidth = doc.getTextWidth(entryText);
+      doc.setTextColor(180, 190, 210);
       doc.setFont('helvetica', 'normal');
-      tocY += 10;
+      const dotsWidth = contentWidth - titleWidth - 40;
+      const dotCount = Math.floor(dotsWidth / 3);
+      const dots = '.'.repeat(dotCount);
+      doc.text(dots, margin + 15 + titleWidth, tocY);
+      
+      tocY += 12;
     });
     
     // Save with BlueAlly branding in filename
     doc.save(`BlueAlly_AI_Assessment_${companyName.replace(/\s+/g, '_')}.pdf`);
   };
 
-  // Excel Generation
+  // Excel Generation - Board Presentation Standard
   const generateExcel = () => {
     const wb = XLSX.utils.book_new();
     
-    // Executive Dashboard Sheet
+    // Cover Sheet - Board Standard
+    const coverData = [
+      [""],
+      [""],
+      ["BLUEALLY AI STRATEGIC ASSESSMENT"],
+      [""],
+      ["Board Presentation"],
+      [""],
+      [companyName],
+      [""],
+      [new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })],
+      [""],
+      [""],
+      ["Prepared by BlueAlly Insight"],
+      ["Enterprise AI Advisory"],
+    ];
+    const coverSheet = XLSX.utils.aoa_to_sheet(coverData);
+    coverSheet['!cols'] = [{ wch: 60 }];
+    XLSX.utils.book_append_sheet(wb, coverSheet, "Cover");
+    
+    // Executive Dashboard Sheet - Board Standard
     if (data.executiveDashboard) {
       const dash = data.executiveDashboard;
       const dashData = [
-        ["AI Portfolio - Executive Dashboard"],
         [""],
-        ["Key Totals"],
-        ["Total Annual Revenue Benefit", dash.totalRevenueBenefit],
-        ["Total Annual Cost Benefit", dash.totalCostBenefit],
-        ["Total Annual Cash Flow Benefit", dash.totalCashFlowBenefit],
-        ["Total Annual Risk Benefit", dash.totalRiskBenefit],
-        ["Total Annual Value (All Drivers)", dash.totalAnnualValue],
+        ["EXECUTIVE DASHBOARD"],
         [""],
-        ["Total Monthly Tokens", dash.totalMonthlyTokens],
-        ["Value per 1M Tokens", dash.valuePerMillionTokens],
+        ["KEY METRICS"],
         [""],
-        ["Top 5 Use Cases by Priority"],
+        ["Metric", "Value"],
+        ["Total Annual Value", formatCurrency(dash.totalAnnualValue)],
+        ["Revenue Benefit", formatCurrency(dash.totalRevenueBenefit)],
+        ["Cost Benefit", formatCurrency(dash.totalCostBenefit)],
+        ["Cash Flow Benefit", formatCurrency(dash.totalCashFlowBenefit)],
+        ["Risk Benefit", formatCurrency(dash.totalRiskBenefit)],
+        [""],
+        ["Monthly Tokens", formatNumber(dash.totalMonthlyTokens)],
+        ["Value per 1M Tokens", formatCurrency(dash.valuePerMillionTokens)],
+        [""],
+        [""],
+        ["TOP PRIORITY USE CASES"],
+        [""],
         ["Rank", "Use Case", "Priority Score", "Monthly Tokens", "Annual Value"],
-        ...(dash.topUseCases?.map((uc: any) => [uc.rank, uc.useCase, uc.priorityScore, uc.monthlyTokens, uc.annualValue]) || [])
+        ...(dash.topUseCases?.map((uc: any) => [
+          uc.rank, 
+          uc.useCase, 
+          uc.priorityScore, 
+          formatNumber(uc.monthlyTokens), 
+          formatCurrency(uc.annualValue)
+        ]) || [])
       ];
       const dashSheet = XLSX.utils.aoa_to_sheet(dashData);
+      dashSheet['!cols'] = [
+        { wch: 25 },
+        { wch: 50 },
+        { wch: 18 },
+        { wch: 18 },
+        { wch: 18 }
+      ];
       XLSX.utils.book_append_sheet(wb, dashSheet, "Executive Dashboard");
     }
 
-    // Step sheets
+    // Step sheets with proper column widths
     data.steps.forEach((step: any) => {
       if (step.data && step.data.length > 0) {
-        const ws = XLSX.utils.json_to_sheet(step.data);
+        // Add header rows
+        const headerRows = [
+          [`STEP ${step.step}: ${step.title.toUpperCase()}`],
+          [step.content || ''],
+          ['']
+        ];
+        
+        const ws = XLSX.utils.aoa_to_sheet(headerRows);
+        XLSX.utils.sheet_add_json(ws, step.data, { origin: 'A4' });
+        
+        // Set column widths
+        const cols = Object.keys(step.data[0]);
+        ws['!cols'] = cols.map(col => ({
+          wch: Math.min(40, Math.max(15, col.length + 5))
+        }));
+        
         const sheetName = `Step ${step.step}`.substring(0, 31);
         XLSX.utils.book_append_sheet(wb, ws, sheetName);
       }
     });
 
-    XLSX.writeFile(wb, `${companyName}_BlueAlly_Insight_Report.xlsx`);
+    XLSX.writeFile(wb, `BlueAlly_AI_Assessment_${companyName.replace(/\s+/g, '_')}.xlsx`);
   };
 
-  // Word Generation
+  // Word Generation - Board Presentation Standard
   const generateWord = () => {
-    const children: (Paragraph | DocxTable)[] = [
+    const children: (Paragraph | DocxTable)[] = [];
+    
+    // Cover Page - Centered, Board Standard
+    children.push(
+      new Paragraph({ text: "", spacing: { after: 600 } }),
       new Paragraph({
-        text: `BlueAlly Insight Report: ${companyName}`,
+        text: "BLUEALLY",
         heading: HeadingLevel.TITLE,
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 100 },
       }),
       new Paragraph({
-        text: `Generated on ${new Date().toLocaleDateString()}`,
+        text: "AI Strategic Assessment",
+        heading: HeadingLevel.HEADING_1,
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 100 },
+      }),
+      new Paragraph({
+        text: "Board Presentation",
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 300 },
+      }),
+      new Paragraph({
+        text: companyName,
+        heading: HeadingLevel.HEADING_1,
+        alignment: AlignmentType.CENTER,
         spacing: { after: 200 },
       }),
-    ];
+      new Paragraph({
+        text: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 400 },
+      })
+    );
+    
+    // Total Value highlight if available
+    if (data.executiveDashboard) {
+      children.push(
+        new Paragraph({
+          text: `Total Annual AI Value Opportunity: ${formatCurrency(data.executiveDashboard.totalAnnualValue)}`,
+          heading: HeadingLevel.HEADING_2,
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 400 },
+        })
+      );
+    }
+    
+    children.push(
+      new Paragraph({
+        text: "Prepared by BlueAlly Insight | Enterprise AI Advisory",
+        alignment: AlignmentType.CENTER,
+        spacing: { after: 400 },
+      })
+    );
 
-    // Executive Dashboard
+    // Executive Dashboard - Centered headers
     if (data.executiveDashboard) {
       const dash = data.executiveDashboard;
       children.push(
         new Paragraph({
-          text: "Executive Dashboard",
+          text: "EXECUTIVE DASHBOARD",
           heading: HeadingLevel.HEADING_1,
+          alignment: AlignmentType.CENTER,
+          spacing: { before: 400, after: 200 },
         })
       );
 
-      // Metrics Table
+      // Metrics Table with centered content
       const metricsTable = new DocxTable({
         rows: [
           new DocxTableRow({
             children: [
-              new DocxTableCell({ children: [new Paragraph({ text: "Metric", style: "Strong" })] }),
-              new DocxTableCell({ children: [new Paragraph({ text: "Value", style: "Strong" })] }),
+              new DocxTableCell({ 
+                children: [new Paragraph({ text: "Metric", alignment: AlignmentType.CENTER })],
+                shading: { fill: "001278" },
+              }),
+              new DocxTableCell({ 
+                children: [new Paragraph({ text: "Value", alignment: AlignmentType.CENTER })],
+                shading: { fill: "001278" },
+              }),
             ],
           }),
           new DocxTableRow({
             children: [
-              new DocxTableCell({ children: [new Paragraph({ text: "Total Annual Value" })] }),
-              new DocxTableCell({ children: [new Paragraph({ text: formatCurrency(dash.totalAnnualValue) })] }),
+              new DocxTableCell({ children: [new Paragraph({ text: "Total Annual Value", alignment: AlignmentType.CENTER })] }),
+              new DocxTableCell({ children: [new Paragraph({ text: formatCurrency(dash.totalAnnualValue), alignment: AlignmentType.CENTER })] }),
             ],
           }),
           new DocxTableRow({
             children: [
-              new DocxTableCell({ children: [new Paragraph({ text: "Revenue Benefit" })] }),
-              new DocxTableCell({ children: [new Paragraph({ text: formatCurrency(dash.totalRevenueBenefit) })] }),
+              new DocxTableCell({ children: [new Paragraph({ text: "Revenue Benefit", alignment: AlignmentType.CENTER })] }),
+              new DocxTableCell({ children: [new Paragraph({ text: formatCurrency(dash.totalRevenueBenefit), alignment: AlignmentType.CENTER })] }),
             ],
           }),
           new DocxTableRow({
             children: [
-              new DocxTableCell({ children: [new Paragraph({ text: "Cost Benefit" })] }),
-              new DocxTableCell({ children: [new Paragraph({ text: formatCurrency(dash.totalCostBenefit) })] }),
+              new DocxTableCell({ children: [new Paragraph({ text: "Cost Benefit", alignment: AlignmentType.CENTER })] }),
+              new DocxTableCell({ children: [new Paragraph({ text: formatCurrency(dash.totalCostBenefit), alignment: AlignmentType.CENTER })] }),
             ],
           }),
           new DocxTableRow({
             children: [
-              new DocxTableCell({ children: [new Paragraph({ text: "Cash Flow Benefit" })] }),
-              new DocxTableCell({ children: [new Paragraph({ text: formatCurrency(dash.totalCashFlowBenefit) })] }),
+              new DocxTableCell({ children: [new Paragraph({ text: "Cash Flow Benefit", alignment: AlignmentType.CENTER })] }),
+              new DocxTableCell({ children: [new Paragraph({ text: formatCurrency(dash.totalCashFlowBenefit), alignment: AlignmentType.CENTER })] }),
             ],
           }),
           new DocxTableRow({
             children: [
-              new DocxTableCell({ children: [new Paragraph({ text: "Risk Benefit" })] }),
-              new DocxTableCell({ children: [new Paragraph({ text: formatCurrency(dash.totalRiskBenefit) })] }),
+              new DocxTableCell({ children: [new Paragraph({ text: "Risk Benefit", alignment: AlignmentType.CENTER })] }),
+              new DocxTableCell({ children: [new Paragraph({ text: formatCurrency(dash.totalRiskBenefit), alignment: AlignmentType.CENTER })] }),
             ],
           }),
           new DocxTableRow({
             children: [
-              new DocxTableCell({ children: [new Paragraph({ text: "Monthly Tokens" })] }),
-              new DocxTableCell({ children: [new Paragraph({ text: formatNumber(dash.totalMonthlyTokens) })] }),
+              new DocxTableCell({ children: [new Paragraph({ text: "Monthly Tokens", alignment: AlignmentType.CENTER })] }),
+              new DocxTableCell({ children: [new Paragraph({ text: formatNumber(dash.totalMonthlyTokens), alignment: AlignmentType.CENTER })] }),
             ],
           }),
           new DocxTableRow({
             children: [
-              new DocxTableCell({ children: [new Paragraph({ text: "Value per 1M Tokens" })] }),
-              new DocxTableCell({ children: [new Paragraph({ text: formatCurrency(dash.valuePerMillionTokens) })] }),
+              new DocxTableCell({ children: [new Paragraph({ text: "Value per 1M Tokens", alignment: AlignmentType.CENTER })] }),
+              new DocxTableCell({ children: [new Paragraph({ text: formatCurrency(dash.valuePerMillionTokens), alignment: AlignmentType.CENTER })] }),
             ],
           }),
         ],
@@ -999,13 +1092,14 @@ export default function Report() {
       });
       children.push(metricsTable);
 
-      // Top 5 Use Cases
+      // Top Use Cases - Centered
       if (dash.topUseCases && dash.topUseCases.length > 0) {
         children.push(
           new Paragraph({
-            text: "Top 5 Use Cases by Priority",
+            text: "TOP PRIORITY USE CASES",
             heading: HeadingLevel.HEADING_2,
-            spacing: { before: 200 },
+            alignment: AlignmentType.CENTER,
+            spacing: { before: 300, after: 200 },
           })
         );
 
@@ -1013,21 +1107,21 @@ export default function Report() {
           rows: [
             new DocxTableRow({
               children: [
-                new DocxTableCell({ children: [new Paragraph({ text: "Rank", style: "Strong" })] }),
-                new DocxTableCell({ children: [new Paragraph({ text: "Use Case", style: "Strong" })] }),
-                new DocxTableCell({ children: [new Paragraph({ text: "Priority Score", style: "Strong" })] }),
-                new DocxTableCell({ children: [new Paragraph({ text: "Monthly Tokens", style: "Strong" })] }),
-                new DocxTableCell({ children: [new Paragraph({ text: "Annual Value", style: "Strong" })] }),
+                new DocxTableCell({ children: [new Paragraph({ text: "#", alignment: AlignmentType.CENTER })], shading: { fill: "001278" } }),
+                new DocxTableCell({ children: [new Paragraph({ text: "Use Case", alignment: AlignmentType.CENTER })], shading: { fill: "001278" } }),
+                new DocxTableCell({ children: [new Paragraph({ text: "Priority", alignment: AlignmentType.CENTER })], shading: { fill: "001278" } }),
+                new DocxTableCell({ children: [new Paragraph({ text: "Tokens/Month", alignment: AlignmentType.CENTER })], shading: { fill: "001278" } }),
+                new DocxTableCell({ children: [new Paragraph({ text: "Annual Value", alignment: AlignmentType.CENTER })], shading: { fill: "001278" } }),
               ],
             }),
             ...dash.topUseCases.map((uc: any) =>
               new DocxTableRow({
                 children: [
-                  new DocxTableCell({ children: [new Paragraph({ text: `#${uc.rank}` })] }),
-                  new DocxTableCell({ children: [new Paragraph({ text: uc.useCase })] }),
-                  new DocxTableCell({ children: [new Paragraph({ text: String(uc.priorityScore?.toFixed(0) || "N/A") })] }),
-                  new DocxTableCell({ children: [new Paragraph({ text: formatNumber(uc.monthlyTokens) })] }),
-                  new DocxTableCell({ children: [new Paragraph({ text: formatCurrency(uc.annualValue) })] }),
+                  new DocxTableCell({ children: [new Paragraph({ text: `${uc.rank}`, alignment: AlignmentType.CENTER })] }),
+                  new DocxTableCell({ children: [new Paragraph({ text: uc.useCase, alignment: AlignmentType.CENTER })] }),
+                  new DocxTableCell({ children: [new Paragraph({ text: String(uc.priorityScore?.toFixed(0) || "N/A"), alignment: AlignmentType.CENTER })] }),
+                  new DocxTableCell({ children: [new Paragraph({ text: formatNumber(uc.monthlyTokens), alignment: AlignmentType.CENTER })] }),
+                  new DocxTableCell({ children: [new Paragraph({ text: formatCurrency(uc.annualValue), alignment: AlignmentType.CENTER })] }),
                 ],
               })
             ),
@@ -1038,26 +1132,31 @@ export default function Report() {
       }
     }
 
-    // Executive Summary
+    // Executive Summary - Centered
     if (data.summary) {
       children.push(
         new Paragraph({
-          text: "Executive Summary",
+          text: "EXECUTIVE SUMMARY",
           heading: HeadingLevel.HEADING_1,
+          alignment: AlignmentType.CENTER,
+          spacing: { before: 400, after: 200 },
         }),
         new Paragraph({
           text: data.summary,
-          spacing: { after: 200 },
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 300 },
         })
       );
     }
 
+    // Analysis Steps - Centered headers
     data.steps.forEach((step: any) => {
       children.push(
         new Paragraph({
-          text: `Step ${step.step}: ${step.title}`,
+          text: `STEP ${step.step}: ${step.title.toUpperCase()}`,
           heading: HeadingLevel.HEADING_1,
-          spacing: { before: 200 },
+          alignment: AlignmentType.CENTER,
+          spacing: { before: 400, after: 200 },
         })
       );
 
@@ -1065,27 +1164,30 @@ export default function Report() {
         children.push(
           new Paragraph({
             text: step.content,
-            spacing: { after: 100 },
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 200 },
           })
         );
       }
 
       if (step.data && step.data.length > 0) {
-        const columns = Object.keys(step.data[0]);
+        const allColumns = Object.keys(step.data[0]);
+        const columns = allColumns.filter(k => !k.includes('Formula')).slice(0, 6);
+        
         const tableRows = [
           new DocxTableRow({
             children: columns.map(col => 
               new DocxTableCell({
-                children: [new Paragraph({ text: col, style: "Strong" })],
-                width: { size: 100 / columns.length, type: WidthType.PERCENTAGE },
+                children: [new Paragraph({ text: col, alignment: AlignmentType.CENTER })],
+                shading: { fill: "001278" },
               })
             ),
           }),
           ...step.data.map((row: any) => 
             new DocxTableRow({
-              children: Object.values(row).map((value: any) => 
+              children: columns.map(col => 
                 new DocxTableCell({
-                  children: [new Paragraph({ text: String(value) })],
+                  children: [new Paragraph({ text: String(row[col] || '').substring(0, 50), alignment: AlignmentType.CENTER })],
                 })
               ),
             })
@@ -1106,53 +1208,80 @@ export default function Report() {
     });
 
     Packer.toBlob(doc).then(blob => {
-      saveAs(blob, `${companyName}_BlueAlly_Insight_Report.docx`);
+      saveAs(blob, `BlueAlly_AI_Assessment_${companyName.replace(/\s+/g, '_')}.docx`);
     });
   };
 
-  // Markdown Generation
+  // Markdown Generation - Board Presentation Standard
   const generateMarkdown = () => {
-    let mdContent = `# BlueAlly Insight Report: ${companyName}\n`;
-    mdContent += `*Generated on ${new Date().toLocaleDateString()}*\n\n`;
+    let mdContent = `# BLUEALLY AI STRATEGIC ASSESSMENT\n\n`;
+    mdContent += `## Board Presentation\n\n`;
+    mdContent += `### ${companyName}\n\n`;
+    mdContent += `*${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}*\n\n`;
+    mdContent += `---\n\n`;
 
-    if (data.summary) {
-      mdContent += `## Executive Summary\n${data.summary}\n\n`;
-    }
-
-    // Executive Dashboard
+    // Executive Dashboard - Key highlight first
     if (data.executiveDashboard) {
       const dash = data.executiveDashboard;
-      mdContent += `## Executive Dashboard\n\n`;
-      mdContent += `| Metric | Value |\n|--------|-------|\n`;
-      mdContent += `| Total Annual Value | ${formatCurrency(dash.totalAnnualValue)} |\n`;
+      mdContent += `## EXECUTIVE DASHBOARD\n\n`;
+      mdContent += `### Total Annual AI Value Opportunity: ${formatCurrency(dash.totalAnnualValue)}\n\n`;
+      mdContent += `| Metric | Value |\n`;
+      mdContent += `|:------:|:------:|\n`;
       mdContent += `| Revenue Benefit | ${formatCurrency(dash.totalRevenueBenefit)} |\n`;
       mdContent += `| Cost Benefit | ${formatCurrency(dash.totalCostBenefit)} |\n`;
       mdContent += `| Cash Flow Benefit | ${formatCurrency(dash.totalCashFlowBenefit)} |\n`;
       mdContent += `| Risk Benefit | ${formatCurrency(dash.totalRiskBenefit)} |\n`;
       mdContent += `| Monthly Tokens | ${formatNumber(dash.totalMonthlyTokens)} |\n`;
       mdContent += `| Value per 1M Tokens | ${formatCurrency(dash.valuePerMillionTokens)} |\n\n`;
+      
+      // Top Use Cases
+      if (dash.topUseCases && dash.topUseCases.length > 0) {
+        mdContent += `### TOP PRIORITY USE CASES\n\n`;
+        mdContent += `| Rank | Use Case | Priority | Tokens/Month | Annual Value |\n`;
+        mdContent += `|:----:|:--------:|:--------:|:------------:|:------------:|\n`;
+        dash.topUseCases.forEach((uc: any) => {
+          mdContent += `| ${uc.rank} | ${uc.useCase} | ${uc.priorityScore?.toFixed(0) || 'N/A'} | ${formatNumber(uc.monthlyTokens)} | ${formatCurrency(uc.annualValue)} |\n`;
+        });
+        mdContent += `\n`;
+      }
     }
 
+    // Executive Summary
+    if (data.summary) {
+      mdContent += `---\n\n`;
+      mdContent += `## EXECUTIVE SUMMARY\n\n`;
+      mdContent += `${data.summary}\n\n`;
+    }
+
+    // Analysis Steps
     data.steps.forEach((step: any) => {
-      mdContent += `## Step ${step.step}: ${step.title}\n\n`;
+      mdContent += `---\n\n`;
+      mdContent += `## STEP ${step.step}: ${step.title.toUpperCase()}\n\n`;
       
       if (step.content) {
         mdContent += `${step.content}\n\n`;
       }
 
       if (step.data && step.data.length > 0) {
-        const columns = Object.keys(step.data[0]);
+        const allColumns = Object.keys(step.data[0]);
+        const columns = allColumns.filter(k => !k.includes('Formula')).slice(0, 6);
         mdContent += `| ${columns.join(' | ')} |\n`;
-        mdContent += `| ${columns.map(() => '---').join(' | ')} |\n`;
+        mdContent += `| ${columns.map(() => ':---:').join(' | ')} |\n`;
         step.data.forEach((row: any) => {
-          mdContent += `| ${Object.values(row).map(v => String(v)).join(' | ')} |\n`;
+          const values = columns.map(col => String(row[col] || '').substring(0, 40));
+          mdContent += `| ${values.join(' | ')} |\n`;
         });
         mdContent += `\n`;
       }
     });
 
+    // Add footer
+    mdContent += `---\n\n`;
+    mdContent += `*Prepared by BlueAlly Insight | Enterprise AI Advisory*\n\n`;
+    mdContent += `*www.blueally.com*\n`;
+    
     const blob = new Blob([mdContent], { type: "text/markdown;charset=utf-8" });
-    saveAs(blob, `${companyName}_BlueAlly_Insight_Report.md`);
+    saveAs(blob, `BlueAlly_AI_Assessment_${companyName.replace(/\s+/g, '_')}.md`);
   };
 
   const handleDownload = async (format: string) => {
