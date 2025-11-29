@@ -454,6 +454,30 @@ export async function registerRoutes(
     }
   });
 
+  // Get category metadata (parent categories, subcategories, labels)
+  app.get("/api/assumptions/categories", async (_req, res) => {
+    try {
+      const { 
+        PARENT_CATEGORIES, 
+        PARENT_CATEGORY_META, 
+        ASSUMPTION_CATEGORIES, 
+        CATEGORY_TO_PARENT,
+        CATEGORY_LABELS 
+      } = await import("@shared/schema");
+      
+      return res.json({
+        parentCategories: PARENT_CATEGORIES,
+        parentCategoryMeta: PARENT_CATEGORY_META,
+        subcategories: ASSUMPTION_CATEGORIES,
+        categoryToParent: CATEGORY_TO_PARENT,
+        categoryLabels: CATEGORY_LABELS,
+      });
+    } catch (error) {
+      console.error("Error fetching category metadata:", error);
+      return res.status(500).json({ error: "Failed to fetch category metadata" });
+    }
+  });
+
   // Get all fields for an assumption set
   app.get("/api/assumptions/fields/:setId", async (req, res) => {
     try {
