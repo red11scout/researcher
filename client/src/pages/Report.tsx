@@ -1427,6 +1427,280 @@ export default function Report() {
     saveAs(blob, `BlueAlly_AI_Assessment_${companyName.replace(/\s+/g, '_')}.md`);
   };
 
+  // HTML Generation - Professional Web Report
+  const generateHTML = () => {
+    let html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BlueAlly AI Strategic Assessment - ${companyName}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8fafc; color: #1e293b; line-height: 1.6; }
+    .container { max-width: 1000px; margin: 0 auto; padding: 40px 20px; }
+    .header { background: linear-gradient(135deg, #001278 0%, #02a2fd 100%); color: white; padding: 40px; text-align: center; border-radius: 12px; margin-bottom: 30px; }
+    .header h1 { font-size: 28px; margin-bottom: 10px; }
+    .header .date { opacity: 0.9; font-size: 14px; }
+    .card { background: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 24px; overflow: hidden; }
+    .card-header { background: #f1f5f9; padding: 16px 24px; border-bottom: 1px solid #e2e8f0; }
+    .card-header h2 { font-size: 18px; color: #001278; display: flex; align-items: center; gap: 12px; }
+    .step-badge { background: #001278; color: white; width: 32px; height: 32px; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-weight: bold; font-size: 14px; }
+    .card-content { padding: 24px; }
+    .executive-dashboard { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+    .metric-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; text-align: center; }
+    .metric-box.primary { background: linear-gradient(135deg, #001278 0%, #02a2fd 100%); color: white; grid-column: span 2; }
+    .metric-label { font-size: 12px; text-transform: uppercase; opacity: 0.8; margin-bottom: 4px; }
+    .metric-value { font-size: 24px; font-weight: bold; }
+    .metric-box.primary .metric-value { font-size: 32px; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th { background: #001278; color: white; padding: 12px 16px; text-align: left; font-weight: 600; }
+    td { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; }
+    tr:hover { background: #f8fafc; }
+    tr.total-row { background: #e8f5e9; font-weight: bold; }
+    tr.total-row td { border-top: 2px solid #001278; }
+    .benefit-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-top: 16px; }
+    .benefit-card { padding: 16px; border-radius: 8px; }
+    .benefit-card.revenue { background: #ecfdf5; border: 1px solid #a7f3d0; }
+    .benefit-card.cost { background: #eff6ff; border: 1px solid #bfdbfe; }
+    .benefit-card.cashflow { background: #faf5ff; border: 1px solid #e9d5ff; }
+    .benefit-card.risk { background: #fff7ed; border: 1px solid #fed7aa; }
+    .benefit-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .benefit-label { font-weight: 600; font-size: 14px; }
+    .benefit-value { font-size: 20px; font-weight: bold; padding: 4px 12px; border-radius: 6px; }
+    .benefit-card.revenue .benefit-value { background: #a7f3d0; color: #166534; }
+    .benefit-card.cost .benefit-value { background: #bfdbfe; color: #1e40af; }
+    .benefit-card.cashflow .benefit-value { background: #e9d5ff; color: #7c3aed; }
+    .benefit-card.risk .benefit-value { background: #fed7aa; color: #c2410c; }
+    .formula-box { background: white; padding: 12px; border-radius: 6px; font-family: monospace; font-size: 13px; word-break: break-all; }
+    .total-summary { background: linear-gradient(135deg, #001278 0%, #02a2fd 100%); color: white; padding: 20px; border-radius: 8px; margin-top: 16px; }
+    .total-summary .header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+    .total-summary .total-value { font-size: 28px; font-weight: bold; background: white; color: #001278; padding: 8px 16px; border-radius: 8px; }
+    .total-breakdown { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; background: rgba(255,255,255,0.1); padding: 12px; border-radius: 6px; }
+    .breakdown-chip { padding: 4px 10px; border-radius: 4px; font-family: monospace; font-size: 13px; }
+    .breakdown-chip.revenue { background: #a7f3d0; color: #166534; }
+    .breakdown-chip.cost { background: #bfdbfe; color: #1e40af; }
+    .breakdown-chip.cashflow { background: #e9d5ff; color: #7c3aed; }
+    .breakdown-chip.risk { background: #fed7aa; color: #c2410c; }
+    .breakdown-chip.total { background: white; color: #001278; font-weight: bold; }
+    .operator { color: rgba(255,255,255,0.7); }
+    .summary-text { background: #f8fafc; padding: 20px; border-radius: 8px; border-left: 4px solid #001278; }
+    .footer { text-align: center; padding: 40px 20px; color: #64748b; font-size: 14px; }
+    @media (max-width: 768px) {
+      .benefit-grid { grid-template-columns: 1fr; }
+      .executive-dashboard { grid-template-columns: 1fr; }
+      .metric-box.primary { grid-column: span 1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>BLUEALLY AI STRATEGIC ASSESSMENT</h1>
+      <div class="company">${companyName}</div>
+      <div class="date">${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</div>
+    </div>
+`;
+
+    // Executive Dashboard
+    if (data.executiveDashboard) {
+      const dash = data.executiveDashboard;
+      html += `
+    <div class="card">
+      <div class="card-header"><h2>Executive Dashboard</h2></div>
+      <div class="card-content">
+        <div class="executive-dashboard">
+          <div class="metric-box primary">
+            <div class="metric-label">Total Annual AI Value Opportunity</div>
+            <div class="metric-value">${formatCurrency(dash.totalAnnualValue)}</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">Revenue Benefit</div>
+            <div class="metric-value" style="color: #16a34a;">${formatCurrency(dash.totalRevenueBenefit)}</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">Cost Benefit</div>
+            <div class="metric-value" style="color: #2563eb;">${formatCurrency(dash.totalCostBenefit)}</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">Cash Flow Benefit</div>
+            <div class="metric-value" style="color: #7c3aed;">${formatCurrency(dash.totalCashFlowBenefit)}</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">Risk Benefit</div>
+            <div class="metric-value" style="color: #ea580c;">${formatCurrency(dash.totalRiskBenefit)}</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">Monthly Tokens</div>
+            <div class="metric-value">${formatNumber(dash.totalMonthlyTokens)}</div>
+          </div>
+          <div class="metric-box">
+            <div class="metric-label">Value per 1M Tokens</div>
+            <div class="metric-value">${formatCurrency(dash.valuePerMillionTokens)}</div>
+          </div>
+        </div>
+`;
+
+      // Top Use Cases Table
+      if (dash.topUseCases && dash.topUseCases.length > 0) {
+        const totalTokens = dash.topUseCases.reduce((s: number, u: any) => s + (u.monthlyTokens || 0), 0);
+        const totalValue = dash.topUseCases.reduce((s: number, u: any) => s + (u.annualValue || 0), 0);
+        
+        html += `
+        <h3 style="margin: 24px 0 16px; color: #001278;">Top Priority Use Cases</h3>
+        <table>
+          <thead>
+            <tr><th>#</th><th>Use Case</th><th>Priority</th><th>Tokens/Month</th><th>Annual Value</th></tr>
+          </thead>
+          <tbody>
+`;
+        dash.topUseCases.forEach((uc: any) => {
+          html += `            <tr><td>${uc.rank}</td><td>${uc.useCase}</td><td>${uc.priorityScore?.toFixed(0) || 'N/A'}</td><td>${formatNumber(uc.monthlyTokens)}</td><td>${formatCurrency(uc.annualValue)}</td></tr>\n`;
+        });
+        html += `            <tr class="total-row"><td></td><td><strong>TOTAL</strong></td><td></td><td><strong>${formatNumber(totalTokens)}</strong></td><td><strong>${formatCurrency(totalValue)}</strong></td></tr>
+          </tbody>
+        </table>
+`;
+      }
+      html += `      </div>
+    </div>
+`;
+    }
+
+    // Executive Summary
+    if (data.summary) {
+      html += `
+    <div class="card">
+      <div class="card-header"><h2>Executive Summary</h2></div>
+      <div class="card-content">
+        <div class="summary-text">${data.summary}</div>
+      </div>
+    </div>
+`;
+    }
+
+    // Analysis Steps
+    data.steps.forEach((step: any) => {
+      const isBenefitsStep = step.step === 5;
+      
+      html += `
+    <div class="card">
+      <div class="card-header">
+        <h2><span class="step-badge">${step.step}</span> ${step.title}</h2>
+      </div>
+      <div class="card-content">
+`;
+
+      if (step.content) {
+        html += `        <p style="margin-bottom: 16px; color: #64748b;">${step.content}</p>\n`;
+      }
+
+      if (step.data && step.data.length > 0) {
+        const allColumns = Object.keys(step.data[0]);
+        const columns = allColumns.filter(k => !k.includes('Formula')).slice(0, 6);
+        
+        html += `        <table>
+          <thead>
+            <tr>${columns.map(c => `<th>${c}</th>`).join('')}</tr>
+          </thead>
+          <tbody>
+`;
+        step.data.forEach((row: any, idx: number) => {
+          html += `            <tr>${columns.map(c => `<td>${String(row[c] || '').substring(0, 60)}</td>`).join('')}</tr>\n`;
+          
+          // Add benefit breakdown for Step 5
+          if (isBenefitsStep) {
+            html += `            <tr><td colspan="${columns.length}" style="padding: 0; background: #f8fafc;">
+              <div class="benefit-grid" style="padding: 16px;">
+                <div class="benefit-card revenue">
+                  <div class="benefit-header">
+                    <span class="benefit-label">Grow Revenue</span>
+                    <span class="benefit-value">${row['Revenue Benefit ($)'] || '$0'}</span>
+                  </div>
+                  ${row['Revenue Formula'] ? `<div class="formula-box">${row['Revenue Formula']}</div>` : '<em style="color: #64748b; font-size: 12px;">No revenue impact</em>'}
+                </div>
+                <div class="benefit-card cost">
+                  <div class="benefit-header">
+                    <span class="benefit-label">Reduce Cost</span>
+                    <span class="benefit-value">${row['Cost Benefit ($)'] || '$0'}</span>
+                  </div>
+                  ${row['Cost Formula'] ? `<div class="formula-box">${row['Cost Formula']}</div>` : '<em style="color: #64748b; font-size: 12px;">No cost impact</em>'}
+                </div>
+                <div class="benefit-card cashflow">
+                  <div class="benefit-header">
+                    <span class="benefit-label">Cash Flow</span>
+                    <span class="benefit-value">${row['Cash Flow Benefit ($)'] || '$0'}</span>
+                  </div>
+                  ${row['Cash Flow Formula'] ? `<div class="formula-box">${row['Cash Flow Formula']}</div>` : '<em style="color: #64748b; font-size: 12px;">No cash flow impact</em>'}
+                </div>
+                <div class="benefit-card risk">
+                  <div class="benefit-header">
+                    <span class="benefit-label">Reduce Risk</span>
+                    <span class="benefit-value">${row['Risk Benefit ($)'] || '$0'}</span>
+                  </div>
+                  ${row['Risk Formula'] ? `<div class="formula-box">${row['Risk Formula']}</div>` : '<em style="color: #64748b; font-size: 12px;">No risk impact</em>'}
+                </div>
+              </div>
+              <div class="total-summary" style="margin: 0 16px 16px;">
+                <div class="header-row">
+                  <strong>Total Annual Value</strong>
+                  <span class="total-value">${row['Total Annual Value ($)'] || '$0'}</span>
+                </div>
+                <div class="total-breakdown">
+                  <span class="breakdown-chip revenue">${row['Revenue Benefit ($)'] || '$0'}</span>
+                  <span class="operator">+</span>
+                  <span class="breakdown-chip cost">${row['Cost Benefit ($)'] || '$0'}</span>
+                  <span class="operator">+</span>
+                  <span class="breakdown-chip cashflow">${row['Cash Flow Benefit ($)'] || '$0'}</span>
+                  <span class="operator">+</span>
+                  <span class="breakdown-chip risk">${row['Risk Benefit ($)'] || '$0'}</span>
+                  <span class="operator">=</span>
+                  <span class="breakdown-chip total">${row['Total Annual Value ($)'] || '$0'}</span>
+                </div>
+              </div>
+            </td></tr>\n`;
+          }
+        });
+        
+        // Add totals row
+        const totalRow = columns.map((col: string, idx: number) => {
+          if (idx === 0) return '<td><strong>TOTAL</strong></td>';
+          if (col.toLowerCase().includes('$') || col.toLowerCase().includes('benefit') || col.toLowerCase().includes('value') || col.toLowerCase().includes('cost') || col.toLowerCase().includes('revenue')) {
+            const total = step.data.reduce((sum: number, row: any) => sum + parseFormattedValue(row[col]), 0);
+            return `<td><strong style="color: #16a34a;">${formatCurrency(total)}</strong></td>`;
+          }
+          if (col.toLowerCase().includes('token') || col.toLowerCase().includes('runs')) {
+            const total = step.data.reduce((sum: number, row: any) => sum + parseFormattedValue(row[col]), 0);
+            return `<td><strong>${formatNumber(total)}</strong></td>`;
+          }
+          return '<td></td>';
+        }).join('');
+        
+        html += `            <tr class="total-row">${totalRow}</tr>
+          </tbody>
+        </table>
+`;
+      }
+
+      html += `      </div>
+    </div>
+`;
+    });
+
+    // Footer
+    html += `
+    <div class="footer">
+      <p>Prepared by <strong>BlueAlly Insight</strong> | Enterprise AI Advisory</p>
+      <p>www.blueally.com</p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    saveAs(blob, `BlueAlly_AI_Assessment_${companyName.replace(/\s+/g, '_')}.html`);
+  };
+
   const handleDownload = async (format: string) => {
     if (!data) return;
 
@@ -1441,6 +1715,7 @@ export default function Report() {
         case "Excel": generateExcel(); break;
         case "Word": generateWord(); break;
         case "Markdown": generateMarkdown(); break;
+        case "HTML": generateHTML(); break;
       }
       
       toast({
@@ -1609,6 +1884,9 @@ export default function Report() {
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => handleDownload("Markdown")} data-testid="menu-md">
                     <FileText className="mr-2 h-4 w-4" /> Download Markdown
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleDownload("HTML")} data-testid="menu-html">
+                    <FileText className="mr-2 h-4 w-4" /> Download HTML
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
