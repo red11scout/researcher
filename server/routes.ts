@@ -38,6 +38,44 @@ export async function registerRoutes(
     res.json(config);
   });
 
+  // Quick analysis test endpoint
+  app.get("/api/test-analyze", async (req, res) => {
+    const testResult: any = {
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || "development",
+      stages: {},
+    };
+    
+    try {
+      // Stage 1: Check config
+      testResult.stages.config = "checking...";
+      const configCheck = checkProductionConfig();
+      testResult.stages.config = configCheck;
+      
+      if (!configCheck.ok) {
+        testResult.success = false;
+        testResult.error = "Config check failed";
+        return res.json(testResult);
+      }
+      
+      // Stage 2: Try to generate a mini analysis
+      testResult.stages.analysis = "starting...";
+      const analysis = await generateCompanyAnalysis("TestCorp");
+      testResult.stages.analysis = "completed";
+      testResult.success = true;
+      testResult.summary = analysis.summary?.substring(0, 200) || "No summary";
+    } catch (error: any) {
+      testResult.success = false;
+      testResult.stages.analysis = "failed";
+      testResult.error = {
+        message: error.message,
+        stack: error.stack?.split('\n').slice(0, 5),
+      };
+    }
+    
+    res.json(testResult);
+  });
+
   // Test endpoint to debug AI API connectivity
   app.get("/api/test-ai", async (req, res) => {
     const Anthropic = (await import("@anthropic-ai/sdk")).default;
