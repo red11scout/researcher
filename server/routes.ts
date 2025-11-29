@@ -157,13 +157,16 @@ export async function registerRoutes(
   // Generate or retrieve analysis for a company with progress updates
   app.post("/api/analyze", async (req, res) => {
     try {
+      console.log("Analyze endpoint called with body:", JSON.stringify(req.body));
       const { companyName, sessionId } = req.body;
       
       if (!companyName || typeof companyName !== "string") {
+        console.log("Invalid company name:", companyName);
         return res.status(400).json({ error: "Company name is required" });
       }
 
       // Check if production is properly configured before proceeding
+      console.log("Checking production config...");
       const configCheck = checkProductionConfig();
       if (!configCheck.ok) {
         console.error("Production config check failed:", configCheck.message);
@@ -175,6 +178,7 @@ export async function registerRoutes(
           message: configCheck.message
         });
       }
+      console.log("Config check passed");
 
       // Send initial progress
       if (sessionId) {
@@ -182,7 +186,9 @@ export async function registerRoutes(
       }
 
       // Check if we already have a report for this company
+      console.log("Checking for existing report...");
       const existingReport = await storage.getReportByCompany(companyName);
+      console.log("Existing report check complete:", existingReport ? "found" : "not found");
       
       if (existingReport) {
         if (sessionId) {
@@ -237,15 +243,19 @@ export async function registerRoutes(
         isNew: true,
       });
       
-    } catch (error) {
-      console.error("Analysis error:", error);
+    } catch (error: any) {
+      console.error("Analysis error full details:", error);
+      console.error("Error message:", error?.message);
+      console.error("Error stack:", error?.stack);
       const { sessionId } = req.body;
+      const errorMessage = error instanceof Error ? error.message : (typeof error === 'string' ? error : JSON.stringify(error));
       if (sessionId) {
-        sendProgress(sessionId, -1, "Error", error instanceof Error ? error.message : "Analysis failed");
+        sendProgress(sessionId, -1, "Error", errorMessage);
       }
       return res.status(500).json({ 
         error: "Failed to generate analysis",
-        message: error instanceof Error ? error.message : "Unknown error"
+        message: errorMessage,
+        details: error?.stack?.split('\n').slice(0, 5)
       });
     }
   });
