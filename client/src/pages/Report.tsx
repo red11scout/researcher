@@ -1955,68 +1955,125 @@ function StepCard({ step }: { step: any }) {
                               <div className="flex flex-col gap-2 md:gap-4 px-1 md:px-4">
                                 <div className="text-xs md:text-sm font-medium text-primary">Benefit Calculation Breakdown by Driver:</div>
                                 
-                                <div className="grid grid-cols-2 gap-2 md:gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                                   {/* Revenue Driver */}
-                                  <div className="p-2 md:p-3 bg-green-50 rounded-lg border border-green-200">
-                                    <div className="flex items-center gap-1 md:gap-2 mb-1 md:mb-2">
-                                      <TrendingUp className="h-3 w-3 md:h-5 md:w-5 text-green-600" />
-                                      <span className="font-semibold text-green-700 text-[10px] md:text-sm">Grow Revenue</span>
-                                    </div>
-                                    <div className="text-xs md:text-lg font-bold text-green-800 mb-1">{row['Revenue Benefit ($)'] || '$0'}</div>
-                                    {row['Revenue Formula'] && (
-                                      <div className="text-[9px] md:text-sm text-green-700 font-mono bg-green-100/50 p-1 md:p-2 rounded break-all">
-                                        {row['Revenue Formula']}
+                                  <div className="p-3 md:p-4 bg-green-50 rounded-lg border border-green-200">
+                                    <div className="flex items-center justify-between mb-2 md:mb-3">
+                                      <div className="flex items-center gap-2">
+                                        <TrendingUp className="h-4 w-4 md:h-5 md:w-5 text-green-600" />
+                                        <span className="font-semibold text-green-700 text-xs md:text-sm">Grow Revenue</span>
                                       </div>
+                                      <div className="text-sm md:text-xl font-bold text-green-800 bg-green-100 px-2 md:px-3 py-1 rounded-md border border-green-300">
+                                        {row['Revenue Benefit ($)'] || '$0'}
+                                      </div>
+                                    </div>
+                                    {row['Revenue Formula'] ? (
+                                      <div className="bg-white/80 rounded-md p-2 md:p-3 border border-green-200">
+                                        <div className="text-[9px] md:text-xs text-green-600 font-medium mb-1">Calculation:</div>
+                                        <div className="text-[10px] md:text-sm text-green-800 font-mono break-all leading-relaxed">
+                                          {row['Revenue Formula']}
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="text-[10px] md:text-xs text-green-600 italic">No revenue impact for this use case</div>
                                     )}
                                   </div>
                                   
                                   {/* Cost Driver */}
-                                  <div className="p-2 md:p-3 bg-blue-50 rounded-lg border border-blue-200">
-                                    <div className="flex items-center gap-1 md:gap-2 mb-1 md:mb-2">
-                                      <TrendingDown className="h-3 w-3 md:h-5 md:w-5 text-blue-600" />
-                                      <span className="font-semibold text-blue-700 text-[10px] md:text-sm">Reduce Cost</span>
-                                    </div>
-                                    <div className="text-xs md:text-lg font-bold text-blue-800 mb-1">{row['Cost Benefit ($)'] || '$0'}</div>
-                                    {row['Cost Formula'] && (
-                                      <div className="text-[9px] md:text-sm text-blue-700 font-mono bg-blue-100/50 p-1 md:p-2 rounded break-all">
-                                        {row['Cost Formula']}
+                                  <div className="p-3 md:p-4 bg-blue-50 rounded-lg border border-blue-200">
+                                    <div className="flex items-center justify-between mb-2 md:mb-3">
+                                      <div className="flex items-center gap-2">
+                                        <TrendingDown className="h-4 w-4 md:h-5 md:w-5 text-blue-600" />
+                                        <span className="font-semibold text-blue-700 text-xs md:text-sm">Reduce Cost</span>
                                       </div>
+                                      <div className="text-sm md:text-xl font-bold text-blue-800 bg-blue-100 px-2 md:px-3 py-1 rounded-md border border-blue-300">
+                                        {row['Cost Benefit ($)'] || '$0'}
+                                      </div>
+                                    </div>
+                                    {row['Cost Formula'] ? (
+                                      <div className="bg-white/80 rounded-md p-2 md:p-3 border border-blue-200">
+                                        <div className="text-[9px] md:text-xs text-blue-600 font-medium mb-1">Calculation:</div>
+                                        <div className="text-[10px] md:text-sm text-blue-800 font-mono break-all leading-relaxed">
+                                          {row['Cost Formula']}
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="text-[10px] md:text-xs text-blue-600 italic">No cost impact for this use case</div>
                                     )}
                                   </div>
                                   
                                   {/* Cash Flow Driver */}
-                                  <div className="p-2 md:p-3 bg-purple-50 rounded-lg border border-purple-200">
-                                    <div className="flex items-center gap-1 md:gap-2 mb-1 md:mb-2">
-                                      <DollarSign className="h-3 w-3 md:h-5 md:w-5 text-purple-600" />
-                                      <span className="font-semibold text-purple-700 text-[10px] md:text-sm">Cash Flow</span>
-                                    </div>
-                                    <div className="text-xs md:text-lg font-bold text-purple-800 mb-1">{row['Cash Flow Benefit ($)'] || '$0'}</div>
-                                    {row['Cash Flow Formula'] && (
-                                      <div className="text-[9px] md:text-sm text-purple-700 font-mono bg-purple-100/50 p-1 md:p-2 rounded break-all">
-                                        {row['Cash Flow Formula']}
+                                  <div className="p-3 md:p-4 bg-purple-50 rounded-lg border border-purple-200">
+                                    <div className="flex items-center justify-between mb-2 md:mb-3">
+                                      <div className="flex items-center gap-2">
+                                        <DollarSign className="h-4 w-4 md:h-5 md:w-5 text-purple-600" />
+                                        <span className="font-semibold text-purple-700 text-xs md:text-sm">Cash Flow</span>
                                       </div>
+                                      <div className="text-sm md:text-xl font-bold text-purple-800 bg-purple-100 px-2 md:px-3 py-1 rounded-md border border-purple-300">
+                                        {row['Cash Flow Benefit ($)'] || '$0'}
+                                      </div>
+                                    </div>
+                                    {row['Cash Flow Formula'] ? (
+                                      <div className="bg-white/80 rounded-md p-2 md:p-3 border border-purple-200">
+                                        <div className="text-[9px] md:text-xs text-purple-600 font-medium mb-1">Calculation:</div>
+                                        <div className="text-[10px] md:text-sm text-purple-800 font-mono break-all leading-relaxed">
+                                          {row['Cash Flow Formula']}
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="text-[10px] md:text-xs text-purple-600 italic">No cash flow impact for this use case</div>
                                     )}
                                   </div>
                                   
                                   {/* Risk Driver */}
-                                  <div className="p-2 md:p-3 bg-orange-50 rounded-lg border border-orange-200">
-                                    <div className="flex items-center gap-1 md:gap-2 mb-1 md:mb-2">
-                                      <ShieldCheck className="h-3 w-3 md:h-5 md:w-5 text-orange-600" />
-                                      <span className="font-semibold text-orange-700 text-[10px] md:text-sm">Reduce Risk</span>
-                                    </div>
-                                    <div className="text-xs md:text-lg font-bold text-orange-800 mb-1">{row['Risk Benefit ($)'] || '$0'}</div>
-                                    {row['Risk Formula'] && (
-                                      <div className="text-[9px] md:text-sm text-orange-700 font-mono bg-orange-100/50 p-1 md:p-2 rounded break-all">
-                                        {row['Risk Formula']}
+                                  <div className="p-3 md:p-4 bg-orange-50 rounded-lg border border-orange-200">
+                                    <div className="flex items-center justify-between mb-2 md:mb-3">
+                                      <div className="flex items-center gap-2">
+                                        <ShieldCheck className="h-4 w-4 md:h-5 md:w-5 text-orange-600" />
+                                        <span className="font-semibold text-orange-700 text-xs md:text-sm">Reduce Risk</span>
                                       </div>
+                                      <div className="text-sm md:text-xl font-bold text-orange-800 bg-orange-100 px-2 md:px-3 py-1 rounded-md border border-orange-300">
+                                        {row['Risk Benefit ($)'] || '$0'}
+                                      </div>
+                                    </div>
+                                    {row['Risk Formula'] ? (
+                                      <div className="bg-white/80 rounded-md p-2 md:p-3 border border-orange-200">
+                                        <div className="text-[9px] md:text-xs text-orange-600 font-medium mb-1">Calculation:</div>
+                                        <div className="text-[10px] md:text-sm text-orange-800 font-mono break-all leading-relaxed">
+                                          {row['Risk Formula']}
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="text-[10px] md:text-xs text-orange-600 italic">No risk impact for this use case</div>
                                     )}
                                   </div>
                                 </div>
                                 
-                                {/* Total Summary */}
-                                <div className="flex items-center justify-center gap-2 md:gap-3 p-2 md:p-3 bg-primary/10 rounded-lg border-2 border-primary">
-                                  <Target className="h-4 w-4 md:h-6 md:w-6 text-primary flex-shrink-0" />
-                                  <span className="text-xs md:text-lg font-bold text-primary">Total: {row['Total Annual Value ($)'] || '$0'}</span>
+                                {/* Total Summary with Formula Breakdown */}
+                                <div className="p-3 md:p-4 bg-primary/10 rounded-lg border-2 border-primary">
+                                  <div className="flex items-center justify-between mb-2 md:mb-3">
+                                    <div className="flex items-center gap-2">
+                                      <Target className="h-5 w-5 md:h-6 md:w-6 text-primary" />
+                                      <span className="font-bold text-primary text-sm md:text-base">Total Annual Value</span>
+                                    </div>
+                                    <div className="text-lg md:text-2xl font-bold text-primary bg-white px-3 md:px-4 py-1 md:py-2 rounded-md border-2 border-primary">
+                                      {row['Total Annual Value ($)'] || '$0'}
+                                    </div>
+                                  </div>
+                                  <div className="bg-white/80 rounded-md p-2 md:p-3 border border-primary/30">
+                                    <div className="text-[9px] md:text-xs text-primary/70 font-medium mb-1">How it adds up:</div>
+                                    <div className="text-[10px] md:text-sm text-primary font-mono flex flex-wrap items-center gap-1 md:gap-2">
+                                      <span className="bg-green-100 px-1.5 py-0.5 rounded text-green-800">{row['Revenue Benefit ($)'] || '$0'}</span>
+                                      <span className="text-muted-foreground">+</span>
+                                      <span className="bg-blue-100 px-1.5 py-0.5 rounded text-blue-800">{row['Cost Benefit ($)'] || '$0'}</span>
+                                      <span className="text-muted-foreground">+</span>
+                                      <span className="bg-purple-100 px-1.5 py-0.5 rounded text-purple-800">{row['Cash Flow Benefit ($)'] || '$0'}</span>
+                                      <span className="text-muted-foreground">+</span>
+                                      <span className="bg-orange-100 px-1.5 py-0.5 rounded text-orange-800">{row['Risk Benefit ($)'] || '$0'}</span>
+                                      <span className="text-muted-foreground">=</span>
+                                      <span className="bg-primary/20 px-1.5 py-0.5 rounded text-primary font-bold">{row['Total Annual Value ($)'] || '$0'}</span>
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
                             </TableCell>
