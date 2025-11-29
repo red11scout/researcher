@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { generateCompanyAnalysis, generateWhatIfSuggestion } from "./ai-service";
+import { generateCompanyAnalysis, generateWhatIfSuggestion, checkProductionConfig } from "./ai-service";
 import * as formulaService from "./formula-service";
 import { insertReportSchema } from "@shared/schema";
 
@@ -66,6 +66,19 @@ export async function registerRoutes(
       
       if (!companyName || typeof companyName !== "string") {
         return res.status(400).json({ error: "Company name is required" });
+      }
+
+      // Check if production is properly configured before proceeding
+      const configCheck = checkProductionConfig();
+      if (!configCheck.ok) {
+        console.error("Production config check failed:", configCheck.message);
+        if (sessionId) {
+          sendProgress(sessionId, -1, "Configuration Error", configCheck.message);
+        }
+        return res.status(503).json({ 
+          error: "AI service not configured for production",
+          message: configCheck.message
+        });
       }
 
       // Send initial progress

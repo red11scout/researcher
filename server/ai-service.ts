@@ -4,24 +4,52 @@ import pRetry, { AbortError } from "p-retry";
 // Determine if we're in production
 const isProduction = process.env.NODE_ENV === 'production';
 
-// Get the base URL - in production, if the localhost URL doesn't work, we may need to skip it
-const baseURL = process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL;
+// Get the base URL - in production, localhost URLs won't work
+const configuredBaseURL = process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL;
+const isLocalhostUrl = configuredBaseURL?.includes('localhost');
+
+// Check for user-provided API key first, then fall back to integration key
+const userApiKey = process.env.ANTHROPIC_API_KEY;
+const integrationApiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
+
+// In production with localhost URL, we MUST use a user-provided key
+// The integration key is a dummy that only works with the local proxy
+const needsUserKey = isProduction && isLocalhostUrl;
+const apiKey = userApiKey || integrationApiKey;
+
+// Determine which base URL to use
+// - In production with localhost URL: use default Anthropic API (requires real key)
+// - Otherwise: use the configured URL (which includes the local proxy in dev)
+const baseURL = needsUserKey ? undefined : configuredBaseURL;
 
 // Initialize Anthropic client with timeout
 const anthropic = new Anthropic({
-  apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
-  baseURL: baseURL,
+  apiKey: apiKey,
+  ...(baseURL && { baseURL }), // Only set baseURL if it's valid
   timeout: 180000, // 3 minute timeout for large analyses
 });
 
 // Log configuration status at startup (without revealing secrets)
 console.log("AI Service Configuration:", {
-  hasApiKey: !!process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
-  hasBaseUrl: !!baseURL,
-  baseUrl: baseURL || "default (api.anthropic.com)",
+  hasUserApiKey: !!userApiKey,
+  hasIntegrationApiKey: !!integrationApiKey,
+  isLocalhostUrl,
+  needsUserKey,
+  usingBaseUrl: !!baseURL,
   isProduction,
   nodeEnv: process.env.NODE_ENV,
 });
+
+// Export a function to check if production is properly configured
+export function checkProductionConfig(): { ok: boolean; message: string } {
+  if (needsUserKey && !userApiKey) {
+    return {
+      ok: false,
+      message: "Production requires an ANTHROPIC_API_KEY. The built-in AI integration only works in development mode."
+    };
+  }
+  return { ok: true, message: "AI service configured correctly" };
+}
 
 // Helper function to check if error is rate limit or transient
 function isRetryableError(error: any): boolean {
