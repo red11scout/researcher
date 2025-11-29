@@ -1,9 +1,38 @@
 import Anthropic from "@anthropic-ai/sdk";
+import pRetry, { AbortError } from "p-retry";
 
+// Initialize Anthropic client with timeout
 const anthropic = new Anthropic({
   apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
   baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
+  timeout: 180000, // 3 minute timeout for large analyses
 });
+
+// Log configuration status at startup (without revealing secrets)
+console.log("AI Service Configuration:", {
+  hasApiKey: !!process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
+  hasBaseUrl: !!process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
+  baseUrl: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL || "default",
+});
+
+// Helper function to check if error is rate limit or transient
+function isRetryableError(error: any): boolean {
+  const errorMsg = error?.message || String(error);
+  const status = error?.status;
+  return (
+    status === 429 ||
+    status === 500 ||
+    status === 502 ||
+    status === 503 ||
+    status === 504 ||
+    errorMsg.includes("429") ||
+    errorMsg.includes("RATELIMIT") ||
+    errorMsg.toLowerCase().includes("quota") ||
+    errorMsg.toLowerCase().includes("rate limit") ||
+    errorMsg.toLowerCase().includes("timeout") ||
+    errorMsg.toLowerCase().includes("overloaded")
+  );
+}
 
 export interface AnalysisStep {
   step: number;
@@ -235,26 +264,53 @@ Return ONLY valid JSON with this exact structure:
 
   const userPrompt = `Analyze "${companyName}" and generate a comprehensive AI opportunity assessment following the exact 8-step framework. Remember: apply 5% conservative reduction to revenue estimates, anchor all initiatives to the 4 business drivers, and map use cases to the 6 AI primitives. Return only valid JSON.`;
 
-  try {
-    // Verify API key is configured
-    if (!process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY) {
-      throw new Error("Anthropic API key is not configured. Please add the AI_INTEGRATIONS_ANTHROPIC_API_KEY secret.");
-    }
+  // Verify API key is configured
+  if (!process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY) {
+    throw new Error("Anthropic API key is not configured. Please add the AI_INTEGRATIONS_ANTHROPIC_API_KEY secret.");
+  }
 
-    console.log(`Starting analysis for: ${companyName}`);
-    
-    const message = await anthropic.messages.create({
-      model: "claude-sonnet-4-5",
-      max_tokens: 16000,
-      temperature: 0.7,
-      system: systemPrompt,
-      messages: [
-        {
-          role: "user",
-          content: userPrompt,
+  console.log(`Starting analysis for: ${companyName}`);
+
+  try {
+    // Use pRetry for automatic retries on transient failures
+    const message = await pRetry(
+      async () => {
+        try {
+          return await anthropic.messages.create({
+            model: "claude-sonnet-4-5",
+            max_tokens: 16000,
+            temperature: 0.7,
+            system: systemPrompt,
+            messages: [
+              {
+                role: "user",
+                content: userPrompt,
+              },
+            ],
+          });
+        } catch (error: any) {
+          console.error(`API call attempt failed:`, error?.message || error);
+          
+          // Check if it's a retryable error
+          if (isRetryableError(error)) {
+            console.log("Retrying due to transient error...");
+            throw error; // Rethrow to trigger retry
+          }
+          
+          // For non-retryable errors, abort retries
+          throw new AbortError(error);
+        }
+      },
+      {
+        retries: 3,
+        minTimeout: 2000,
+        maxTimeout: 30000,
+        factor: 2,
+        onFailedAttempt: (error) => {
+          console.log(`Attempt ${error.attemptNumber} failed. ${error.retriesLeft} retries left.`);
         },
-      ],
-    });
+      }
+    );
 
     console.log(`Received response for: ${companyName}`);
 
@@ -283,17 +339,20 @@ Return ONLY valid JSON with this exact structure:
   } catch (error: any) {
     console.error("AI Analysis Error:", error);
     
+    // Extract the original error if wrapped by pRetry
+    const originalError = error.originalError || error;
+    
     // Provide more specific error messages
-    if (error.status === 401) {
+    if (originalError.status === 401) {
       throw new Error("Authentication failed. Please check your Anthropic API key configuration.");
-    } else if (error.status === 429) {
+    } else if (originalError.status === 429) {
       throw new Error("Rate limit exceeded. Please wait a moment and try again.");
-    } else if (error.status === 500 || error.status === 503) {
+    } else if (originalError.status === 500 || originalError.status === 503) {
       throw new Error("AI service is temporarily unavailable. Please try again in a few minutes.");
-    } else if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
+    } else if (originalError.code === 'ECONNREFUSED' || originalError.code === 'ENOTFOUND') {
       throw new Error("Cannot connect to AI service. Please check your network connection.");
-    } else if (error.message) {
-      throw new Error(error.message);
+    } else if (originalError.message) {
+      throw new Error(originalError.message);
     }
     
     throw new Error("Failed to generate company analysis. Please try again.");
