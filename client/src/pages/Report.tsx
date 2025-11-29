@@ -245,20 +245,37 @@ export default function Report() {
         eventSource.close();
       };
 
-      const response = await fetch("/api/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ companyName, sessionId }),
-      });
+      let response: Response;
+      try {
+        response = await fetch("/api/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ companyName, sessionId }),
+        });
+      } catch (fetchError: any) {
+        eventSource.close();
+        throw new Error(`Network error: ${fetchError?.message || 'Failed to connect to server'}`);
+      }
 
       eventSource.close();
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to generate analysis");
+        let errorMessage = "Failed to generate analysis";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorData.error || errorMessage;
+        } catch {
+          errorMessage = `Server error (${response.status}): ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
       }
 
-      const result = await response.json();
+      let result;
+      try {
+        result = await response.json();
+      } catch (parseError: any) {
+        throw new Error(`Failed to parse response: ${parseError?.message || 'Invalid JSON'}`);
+      }
       
       setReportId(result.id);
       setData(result.data);
@@ -315,20 +332,37 @@ export default function Report() {
         }
       };
 
-      const response = await fetch(`/api/regenerate/${reportId}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ companyName, sessionId }),
-      });
+      let response: Response;
+      try {
+        response = await fetch(`/api/regenerate/${reportId}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ companyName, sessionId }),
+        });
+      } catch (fetchError: any) {
+        eventSource.close();
+        throw new Error(`Network error: ${fetchError?.message || 'Failed to connect to server'}`);
+      }
 
       eventSource.close();
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to regenerate analysis");
+        let errorMessage = "Failed to regenerate analysis";
+        try {
+          const errorData = await response.json();
+          errorMessage = errorData.message || errorData.error || errorMessage;
+        } catch {
+          errorMessage = `Server error (${response.status}): ${response.statusText}`;
+        }
+        throw new Error(errorMessage);
       }
 
-      const result = await response.json();
+      let result;
+      try {
+        result = await response.json();
+      } catch (parseError: any) {
+        throw new Error(`Failed to parse response: ${parseError?.message || 'Invalid JSON'}`);
+      }
       
       setData(result.data);
       setStatus("complete");
