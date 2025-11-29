@@ -1,10 +1,18 @@
-# Insight AI - Enterprise Research Platform
+# BlueAlly Insight - Enterprise Research Platform
 
 ## Overview
 
-Insight AI is an enterprise research and analysis platform that generates comprehensive AI opportunity assessments for companies. The application uses Claude AI (Anthropic) to analyze companies and produce detailed reports covering revenue opportunities, cost reduction, cash flow improvements, and risk mitigation through AI transformation. Users can generate reports by entering a company name, view saved analyses, and export results in multiple formats (PDF, Excel, Word).
+BlueAlly Insight is an enterprise research and analysis platform that generates comprehensive AI opportunity assessments for companies. The application uses Claude AI (Anthropic) to analyze companies and produce detailed reports covering revenue opportunities, cost reduction, cash flow improvements, and risk mitigation through AI transformation. Users can generate reports by entering a company name, view saved analyses, and export results in multiple formats (PDF, Excel, Word).
 
-The platform features a modern, professional interface with interactive data visualization, real-time analysis progress tracking, and industry benchmarking capabilities.
+The platform features a modern, professional interface with interactive data visualization, real-time analysis progress tracking, industry benchmarking capabilities, and comprehensive What-If Analysis with full scenario modeling.
+
+## Recent Changes (November 2025)
+
+**Phase 2 - Interactive Report Shell (Complete)**:
+- Embedded Assumption Panel drawer with inline editing and live recalculation
+- Persistent sidebar navigation (desktop-only) with section anchors for all 8 report steps
+- Comprehensive tooltip system for Executive Dashboard metrics and all step sections
+- Step-specific guidance with contextual descriptions for each analysis section
 
 ## User Preferences
 
