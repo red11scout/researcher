@@ -478,11 +478,37 @@ export default function AssumptionPanel() {
                 <CardDescription>Select or create assumption scenarios for comparison</CardDescription>
               </div>
               <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setNewScenarioName("Optimistic");
+                    setShowNewScenario(true);
+                  }}
+                  data-testid="preset-optimistic-button"
+                  className="border-green-200 text-green-700 hover:bg-green-50"
+                >
+                  <TrendingUp className="h-4 w-4 mr-1" />
+                  Optimistic
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setNewScenarioName("Conservative");
+                    setShowNewScenario(true);
+                  }}
+                  data-testid="preset-conservative-button"
+                  className="border-orange-200 text-orange-700 hover:bg-orange-50"
+                >
+                  <ShieldAlert className="h-4 w-4 mr-1" />
+                  Conservative
+                </Button>
                 <Dialog open={showNewScenario} onOpenChange={setShowNewScenario}>
                   <DialogTrigger asChild>
                     <Button variant="outline" size="sm" data-testid="new-scenario-button">
                       <Plus className="h-4 w-4 mr-2" />
-                      New Scenario
+                      Custom
                     </Button>
                   </DialogTrigger>
                   <DialogContent>
