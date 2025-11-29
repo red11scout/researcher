@@ -15,22 +15,56 @@ export async function registerRoutes(
   
   // Version check
   app.get("/api/version", (req, res) => {
-    res.json({ version: "2.0.6", buildTime: "2025-11-29T23:05:00Z" });
+    res.json({ version: "2.0.7", buildTime: "2025-11-29T23:15:00Z" });
+  });
+
+  // Test direct fetch to Anthropic (bypass SDK)
+  app.get("/api/test-direct-fetch", async (req, res) => {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      return res.json({ error: "No ANTHROPIC_API_KEY" });
+    }
+    
+    try {
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-5",
+          max_tokens: 100,
+          messages: [{ role: "user", content: "Say hello in 5 words" }],
+        }),
+      });
+      
+      const data = await response.json();
+      res.json({ success: response.ok, status: response.status, data });
+    } catch (error: any) {
+      res.json({ 
+        error: error?.message,
+        cause: error?.cause?.message,
+        code: error?.cause?.code,
+      });
+    }
   });
 
   // Debug endpoint to see env config
   app.get("/api/debug-env", (req, res) => {
-    // List all ANTHROPIC related env vars
-    const anthropicVars: Record<string, string> = {};
+    // List all relevant env vars
+    const relevantVars: Record<string, string> = {};
+    const patterns = ['ANTHROPIC', 'AI_INTEGRATIONS', 'PROXY', 'proxy', 'HTTP', 'HTTPS'];
     for (const [key, value] of Object.entries(process.env)) {
-      if (key.includes('ANTHROPIC') || key.includes('AI_INTEGRATIONS')) {
-        anthropicVars[key] = value ? `${value.substring(0, 20)}...` : 'undefined';
+      if (patterns.some(p => key.includes(p))) {
+        relevantVars[key] = value ? `${value.substring(0, 30)}...` : 'undefined';
       }
     }
     
     res.json({
       NODE_ENV: process.env.NODE_ENV,
-      anthropicRelatedVars: anthropicVars,
+      relevantVars: relevantVars,
     });
   });
 
