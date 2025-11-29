@@ -529,12 +529,15 @@ export default function Report() {
         doc.text('Top Priority AI Use Cases', centerX, yPos, { align: 'center' });
         yPos += 10;
         
+        // Fixed column widths that sum exactly to contentWidth (~170mm)
+        const useCaseColWidths = { rank: 10, useCase: 95, value: 32, tokens: 33 };
+        
         autoTable(doc, {
           startY: yPos,
-          head: [['#', 'Use Case', 'Annual Value', 'Tokens/Month']],
+          head: [['#', 'Use Case', 'Annual Value', 'Tokens/Mo']],
           body: dash.topUseCases.map((uc: any) => [
             uc.rank,
-            uc.useCase,
+            String(uc.useCase).substring(0, 70),
             formatCurrency(uc.annualValue),
             formatNumber(uc.monthlyTokens),
           ]),
@@ -543,34 +546,30 @@ export default function Report() {
             fillColor: BRAND.primaryBlue,
             textColor: BRAND.white,
             fontStyle: 'bold',
-            fontSize: 12,
-            cellPadding: 6,
-            halign: 'center',
-            minCellHeight: 14
+            fontSize: 10,
+            cellPadding: 3,
+            halign: 'center'
           },
           bodyStyles: { 
-            fontSize: 12, 
-            cellPadding: 6,
+            fontSize: 10, 
+            cellPadding: 3,
             textColor: BRAND.darkNavy,
-            halign: 'center',
-            minCellHeight: 12
+            halign: 'center'
           },
           alternateRowStyles: { fillColor: [248, 250, 255] },
           styles: { 
             overflow: 'linebreak',
-            cellWidth: 'wrap',
             lineColor: [220, 225, 235],
             lineWidth: 0.5
           },
           columnStyles: {
-            0: { cellWidth: 15, halign: 'center' },
-            1: { cellWidth: 75, halign: 'left' },
-            2: { cellWidth: 35, halign: 'center' },
-            3: { cellWidth: 35, halign: 'center' }
+            0: { cellWidth: useCaseColWidths.rank, halign: 'center' },
+            1: { cellWidth: useCaseColWidths.useCase, halign: 'left' },
+            2: { cellWidth: useCaseColWidths.value, halign: 'right' },
+            3: { cellWidth: useCaseColWidths.tokens, halign: 'right' }
           },
-          tableWidth: 'auto',
+          tableWidth: contentWidth,
           margin: { left: margin, right: margin },
-          rowPageBreak: 'avoid',
           didDrawPage: () => { currentPage = doc.getNumberOfPages(); }
         });
         yPos = (doc as any).lastAutoTable.finalY + 20;
@@ -643,38 +642,56 @@ export default function Report() {
         
         yPos = ensureSpace(40, yPos);
         
-        // Board-level table styling - 12pt minimum for readability
+        // Strictly calculate column widths to fit within contentWidth (~170mm)
+        const colCount = limitedColumns.length;
+        const fixedColWidth = Math.floor(contentWidth / colCount);
+        const strictColStyles: any = {};
+        
+        limitedColumns.forEach((col: string, idx: number) => {
+          if (idx === 0) {
+            strictColStyles[idx] = { cellWidth: 12, halign: 'center' };
+          } else if (col.toLowerCase().includes('use case') || col.toLowerCase().includes('description')) {
+            strictColStyles[idx] = { cellWidth: Math.min(fixedColWidth * 1.8, 60), halign: 'left' };
+          } else {
+            strictColStyles[idx] = { cellWidth: fixedColWidth - 3, halign: 'center' };
+          }
+        });
+        
+        // Truncate cell values to prevent overflow
+        const truncatedRows = rows.map((row: string[]) => 
+          row.map((cell: string) => String(cell).substring(0, 45))
+        );
+        const truncatedHeaders = limitedColumns.map((h: string) => String(h).substring(0, 20));
+        
+        // Board-level table - strictly fits page width
         autoTable(doc, {
           startY: yPos,
-          head: [limitedColumns],
-          body: rows,
+          head: [truncatedHeaders],
+          body: truncatedRows,
           theme: 'plain',
           headStyles: { 
             fillColor: BRAND.primaryBlue,
             textColor: BRAND.white,
             fontStyle: 'bold',
-            fontSize: 12,
-            cellPadding: 6,
-            halign: 'center',
-            minCellHeight: 14
+            fontSize: 9,
+            cellPadding: 2,
+            halign: 'center'
           },
           bodyStyles: { 
-            fontSize: 12, 
-            cellPadding: 6,
+            fontSize: 9, 
+            cellPadding: 2,
             textColor: BRAND.darkNavy,
-            halign: 'center',
-            minCellHeight: 12
+            halign: 'center'
           },
           alternateRowStyles: { fillColor: [248, 250, 255] },
           styles: { 
             overflow: 'linebreak', 
-            cellWidth: 'wrap',
             lineColor: [220, 225, 235],
             lineWidth: 0.5
           },
-          tableWidth: 'auto',
+          columnStyles: strictColStyles,
+          tableWidth: contentWidth,
           margin: { left: margin, right: margin },
-          rowPageBreak: 'avoid',
           didDrawPage: () => {
             currentPage = doc.getNumberOfPages();
             // Re-add header/footer on new pages
@@ -710,46 +727,55 @@ export default function Report() {
           doc.rect(centerX - headingWidth/2, yPos + 14, headingWidth, 2, 'F');
           yPos += 30;
           
-          // Formulas table - 12pt for board readability
-          const formulaTableColumns = ['ID', 'Use Case', ...formulaColumns];
+          // Formulas table - strict widths to fit page
+          const formulaTableColumns = ['ID', 'Use Case', ...formulaColumns.slice(0, 2)]; // Limit to 4 columns max
           const formulaRows = step.data.map((row: any) => 
-            [row['ID'] || '', row['Use Case'] || '', ...formulaColumns.map(col => row[col] || 'N/A')]
+            [
+              row['ID'] || '', 
+              String(row['Use Case'] || '').substring(0, 35),
+              ...formulaColumns.slice(0, 2).map(col => String(row[col] || 'N/A').substring(0, 40))
+            ]
           );
+          
+          // Fixed widths: ID=10, UseCase=50, Formula cols share remaining
+          const fColCount = formulaTableColumns.length;
+          const fColStyles: any = {
+            0: { cellWidth: 10, halign: 'center' },
+            1: { cellWidth: 50, halign: 'left' }
+          };
+          const fRemainingWidth = contentWidth - 60;
+          const fColWidth = Math.floor(fRemainingWidth / (fColCount - 2));
+          for (let i = 2; i < fColCount; i++) {
+            fColStyles[i] = { cellWidth: fColWidth, halign: 'left' };
+          }
           
           autoTable(doc, {
             startY: yPos,
-            head: [formulaTableColumns],
+            head: [formulaTableColumns.map(h => String(h).substring(0, 18))],
             body: formulaRows,
             theme: 'plain',
             headStyles: { 
               fillColor: BRAND.primaryBlue,
               textColor: BRAND.white,
               fontStyle: 'bold',
-              fontSize: 12,
-              cellPadding: 5,
-              halign: 'center',
-              minCellHeight: 12
+              fontSize: 8,
+              cellPadding: 2,
+              halign: 'center'
             },
             bodyStyles: { 
-              fontSize: 12, 
-              cellPadding: 5,
-              textColor: BRAND.darkNavy,
-              minCellHeight: 10
+              fontSize: 8, 
+              cellPadding: 2,
+              textColor: BRAND.darkNavy
             },
             alternateRowStyles: { fillColor: [248, 250, 255] },
             styles: { 
               overflow: 'linebreak', 
-              cellWidth: 'wrap',
               lineColor: [220, 225, 235],
               lineWidth: 0.5
             },
-            columnStyles: { 
-              0: { cellWidth: 14, halign: 'center' }, 
-              1: { cellWidth: 35 }
-            },
-            tableWidth: 'auto',
+            columnStyles: fColStyles,
+            tableWidth: contentWidth,
             margin: { left: margin, right: margin },
-            rowPageBreak: 'avoid',
             didDrawPage: () => {
               currentPage = doc.getNumberOfPages();
               doc.setFillColor(...BRAND.primaryBlue);
