@@ -262,228 +262,285 @@ export default function Report() {
     green: [54, 191, 120] as [number, number, number],          // #36bf78
     white: [255, 255, 255] as [number, number, number],
     lightBlueBg: [205, 229, 241] as [number, number, number],   // #cde5f1
-    gray: [100, 100, 100] as [number, number, number],
+    gray: [80, 80, 80] as [number, number, number],
+    lightGray: [245, 247, 250] as [number, number, number],
   };
 
-  // PDF Generation with BlueAlly Branding
+  // PDF Generation with Executive Polish
   const generatePDF = async () => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
-    const margin = 20;
+    const margin = 25; // Wider margins for executive look
     const contentWidth = pageWidth - (margin * 2);
     let currentPage = 1;
     const tocEntries: { title: string; page: number }[] = [];
+    
+    // Set default font to Helvetica (closest to Segoe in jsPDF)
+    doc.setFont('helvetica');
 
-    // Helper: Add page with header/footer
+    // Helper: Add page with refined header/footer
     const addPageWithBranding = (isFirst = false) => {
       if (!isFirst) {
         doc.addPage();
         currentPage++;
       }
       
-      // Header bar
+      // Elegant thin header line
       doc.setFillColor(...BRAND.primaryBlue);
-      doc.rect(0, 0, pageWidth, 12, 'F');
+      doc.rect(0, 0, pageWidth, 10, 'F');
       
-      // Header text
+      // Header text - refined sizing
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(...BRAND.white);
+      doc.text('BlueAlly', margin, 7);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(180, 190, 220);
+      doc.text('|  AI Strategic Assessment', margin + 18, 7);
+      doc.setTextColor(...BRAND.white);
+      doc.text(companyName, pageWidth - margin, 7, { align: 'right' });
+      
+      // Elegant footer with thin line
+      doc.setFillColor(...BRAND.primaryBlue);
+      doc.rect(0, pageHeight - 12, pageWidth, 12, 'F');
       doc.setFontSize(8);
+      doc.setTextColor(180, 190, 220);
+      doc.text('Confidential', margin, pageHeight - 5);
       doc.setTextColor(...BRAND.white);
-      doc.text('BlueAlly | AI Strategic Assessment', margin, 8);
-      doc.text(companyName, pageWidth - margin, 8, { align: 'right' });
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${currentPage}`, pageWidth / 2, pageHeight - 5, { align: 'center' });
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(180, 190, 220);
+      doc.text(new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' }), pageWidth - margin, pageHeight - 5, { align: 'right' });
       
-      // Footer
-      doc.setFillColor(...BRAND.lightBlue);
-      doc.rect(0, pageHeight - 8, pageWidth, 8, 'F');
-      doc.setFontSize(7);
-      doc.setTextColor(...BRAND.white);
-      doc.text(`Page ${currentPage}`, pageWidth / 2, pageHeight - 3, { align: 'center' });
-      doc.text('Confidential', margin, pageHeight - 3);
-      doc.text(new Date().toLocaleDateString(), pageWidth - margin, pageHeight - 3, { align: 'right' });
-      
-      return 20; // Return starting Y position after header
+      return 22; // Return starting Y position after header
     };
 
     // Helper: Check if we need a new page
     const ensureSpace = (neededHeight: number, currentY: number): number => {
-      if (currentY + neededHeight > pageHeight - 25) {
+      if (currentY + neededHeight > pageHeight - 28) {
         return addPageWithBranding();
       }
       return currentY;
     };
 
-    // Helper: Draw section heading
+    // Helper: Draw section heading with executive styling
     const drawSectionHeading = (title: string, yPos: number, addToToc = true): number => {
-      yPos = ensureSpace(20, yPos);
+      yPos = ensureSpace(25, yPos);
       
       if (addToToc) {
         tocEntries.push({ title, page: currentPage });
       }
       
-      // Accent bar
+      // Clean accent bar
       doc.setFillColor(...BRAND.lightBlue);
-      doc.rect(margin, yPos, 4, 10, 'F');
+      doc.rect(margin, yPos, 3, 14, 'F');
       
-      // Heading text
-      doc.setFontSize(14);
+      // Heading text with proper sizing
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
       doc.setTextColor(...BRAND.primaryBlue);
-      doc.text(title, margin + 8, yPos + 7);
+      doc.text(title, margin + 8, yPos + 10);
       
-      return yPos + 15;
+      // Subtle underline
+      doc.setDrawColor(220, 225, 235);
+      doc.setLineWidth(0.3);
+      doc.line(margin, yPos + 18, pageWidth - margin, yPos + 18);
+      
+      return yPos + 25;
     };
 
-    // Helper: Draw benefit bar chart
+    // Helper: Draw benefit bar chart with polish
     const drawBenefitChart = (yPos: number, dash: any): number => {
-      yPos = ensureSpace(70, yPos);
+      yPos = ensureSpace(85, yPos);
       
-      const chartWidth = contentWidth;
-      const barHeight = 12;
+      const chartWidth = contentWidth - 20;
+      const barHeight = 16;
       const total = dash.totalAnnualValue || 1;
       const benefits = [
-        { label: 'Revenue', value: dash.totalRevenueBenefit, color: BRAND.green },
+        { label: 'Revenue Growth', value: dash.totalRevenueBenefit, color: BRAND.green },
         { label: 'Cost Reduction', value: dash.totalCostBenefit, color: BRAND.lightBlue },
         { label: 'Cash Flow', value: dash.totalCashFlowBenefit, color: BRAND.primaryBlue },
-        { label: 'Risk Reduction', value: dash.totalRiskBenefit, color: [255, 153, 51] as [number, number, number] },
+        { label: 'Risk Mitigation', value: dash.totalRiskBenefit, color: [255, 153, 51] as [number, number, number] },
       ];
       
-      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
       doc.setTextColor(...BRAND.darkNavy);
-      doc.text('Annual Value by Business Driver', margin, yPos);
-      yPos += 8;
+      doc.text('Value Distribution by Business Driver', margin, yPos);
+      yPos += 12;
       
       benefits.forEach((benefit, i) => {
-        const barWidth = Math.max(5, (benefit.value / total) * chartWidth * 0.7);
+        const percentage = (benefit.value / total) * 100;
+        const barWidth = Math.max(8, (benefit.value / total) * chartWidth * 0.65);
         
-        // Bar
+        // Label on the left
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.setTextColor(...BRAND.gray);
+        doc.text(benefit.label, margin, yPos + (i * 18) + 10);
+        
+        // Bar with rounded corners
         doc.setFillColor(...benefit.color);
-        doc.roundedRect(margin + 50, yPos + (i * 14), barWidth, barHeight - 2, 2, 2, 'F');
+        doc.roundedRect(margin + 55, yPos + (i * 18) + 3, barWidth, barHeight - 4, 2, 2, 'F');
         
-        // Label
+        // Value and percentage
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.setTextColor(...BRAND.darkNavy);
+        doc.text(`${formatCurrency(benefit.value)}`, margin + 60 + barWidth, yPos + (i * 18) + 10);
+        doc.setFont('helvetica', 'normal');
         doc.setFontSize(8);
         doc.setTextColor(...BRAND.gray);
-        doc.text(benefit.label, margin, yPos + (i * 14) + 7);
-        
-        // Value
-        doc.setTextColor(...BRAND.darkNavy);
-        doc.text(formatCurrency(benefit.value), margin + 55 + barWidth, yPos + (i * 14) + 7);
+        doc.text(`(${percentage.toFixed(0)}%)`, margin + 60 + barWidth + doc.getTextWidth(formatCurrency(benefit.value)) + 3, yPos + (i * 18) + 10);
       });
       
-      return yPos + 60;
+      return yPos + 80;
     };
 
-    // ===== COVER PAGE =====
+    // ===== COVER PAGE - Executive Design =====
     // Dark navy background
     doc.setFillColor(...BRAND.darkNavy);
     doc.rect(0, 0, pageWidth, pageHeight, 'F');
     
-    // Add BlueAlly logo (white version on dark background)
+    // Subtle decorative accent line at top
+    doc.setFillColor(...BRAND.lightBlue);
+    doc.rect(0, 0, pageWidth, 3, 'F');
+    
+    // Add BlueAlly logo
     try {
       const logoBase64 = await loadImageAsBase64(blueAllyLogoUrl);
-      doc.addImage(logoBase64, 'PNG', pageWidth / 2 - 35, 35, 70, 20);
+      doc.addImage(logoBase64, 'PNG', pageWidth / 2 - 40, 45, 80, 24);
     } catch (e) {
-      // Fallback to text if logo fails
-      doc.setFontSize(32);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(36);
       doc.setTextColor(...BRAND.white);
-      doc.text('BlueAlly', pageWidth / 2, 50, { align: 'center' });
+      doc.text('BlueAlly', pageWidth / 2, 60, { align: 'center' });
     }
     
-    // Light blue accent line
+    // Elegant divider
     doc.setFillColor(...BRAND.lightBlue);
-    doc.rect(pageWidth / 2 - 30, 60, 60, 2, 'F');
+    doc.rect(pageWidth / 2 - 40, 78, 80, 1.5, 'F');
     
-    // Title
-    doc.setFontSize(28);
+    // Title with elegant spacing
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(32);
     doc.setTextColor(...BRAND.white);
-    doc.text('AI Strategic Assessment', pageWidth / 2, 90, { align: 'center' });
+    doc.text('AI Strategic Assessment', pageWidth / 2, 110, { align: 'center' });
     
-    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(14);
     doc.setTextColor(...BRAND.lightBlue);
-    doc.text('Executive Report', pageWidth / 2, 105, { align: 'center' });
+    doc.text('Executive Report', pageWidth / 2, 125, { align: 'center' });
     
-    // Company name box
+    // Company name in refined box
     doc.setFillColor(...BRAND.primaryBlue);
-    doc.roundedRect(pageWidth / 2 - 60, 130, 120, 30, 3, 3, 'F');
-    doc.setFontSize(18);
+    doc.roundedRect(pageWidth / 2 - 70, 145, 140, 35, 4, 4, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(20);
     doc.setTextColor(...BRAND.white);
-    doc.text(companyName, pageWidth / 2, 150, { align: 'center' });
+    doc.text(companyName, pageWidth / 2, 168, { align: 'center' });
     
-    // Date
-    doc.setFontSize(11);
-    doc.setTextColor(...BRAND.lightBlueBg);
-    doc.text(`Prepared: ${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`, pageWidth / 2, 180, { align: 'center' });
+    // Date with elegant formatting
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(12);
+    doc.setTextColor(180, 190, 220);
+    doc.text(`${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`, pageWidth / 2, 200, { align: 'center' });
     
-    // Total value highlight
+    // Total value highlight with executive styling
     if (data.executiveDashboard) {
+      // Value box
       doc.setFillColor(...BRAND.green);
-      doc.roundedRect(pageWidth / 2 - 70, 200, 140, 40, 3, 3, 'F');
+      doc.roundedRect(pageWidth / 2 - 75, 220, 150, 50, 4, 4, 'F');
+      
+      doc.setFont('helvetica', 'normal');
       doc.setFontSize(11);
       doc.setTextColor(...BRAND.darkNavy);
-      doc.text('Total Annual AI Value Opportunity', pageWidth / 2, 215, { align: 'center' });
-      doc.setFontSize(22);
-      doc.text(formatCurrency(data.executiveDashboard.totalAnnualValue), pageWidth / 2, 232, { align: 'center' });
+      doc.text('Total Annual AI Value Opportunity', pageWidth / 2, 238, { align: 'center' });
+      
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(26);
+      doc.text(formatCurrency(data.executiveDashboard.totalAnnualValue), pageWidth / 2, 258, { align: 'center' });
     }
     
-    // Footer on cover
-    doc.setFontSize(9);
-    doc.setTextColor(...BRAND.lightBlueBg);
-    doc.text('Powered by BlueAlly Insight AI Platform', pageWidth / 2, pageHeight - 20, { align: 'center' });
+    // Footer on cover with refined styling
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(120, 130, 160);
+    doc.text('BlueAlly Insight  |  Enterprise AI Advisory', pageWidth / 2, pageHeight - 25, { align: 'center' });
     
-    // ===== TABLE OF CONTENTS PAGE (placeholder - will update page numbers later) =====
+    // Bottom accent
+    doc.setFillColor(...BRAND.lightBlue);
+    doc.rect(0, pageHeight - 4, pageWidth, 4, 'F');
+    
+    // ===== TABLE OF CONTENTS PAGE =====
     const tocPageNum = 2;
     currentPage = 2;
     doc.addPage();
     let yPos = addPageWithBranding(true);
     
-    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(22);
     doc.setTextColor(...BRAND.primaryBlue);
-    doc.text('Table of Contents', margin, yPos + 10);
+    doc.text('Table of Contents', margin, yPos + 12);
+    
+    // Elegant underline
+    doc.setDrawColor(...BRAND.lightBlue);
+    doc.setLineWidth(1);
+    doc.line(margin, yPos + 18, margin + 60, yPos + 18);
     
     // Save TOC position to update later
-    const tocYStart = yPos + 25;
+    const tocYStart = yPos + 32;
     
     // ===== EXECUTIVE SUMMARY PAGE =====
     yPos = addPageWithBranding();
     yPos = drawSectionHeading('Executive Summary', yPos);
     
-    // Key metrics grid
+    // Key metrics grid with executive styling
     if (data.executiveDashboard) {
       const dash = data.executiveDashboard;
       
-      // Metrics boxes
-      const boxWidth = (contentWidth - 10) / 2;
-      const boxHeight = 25;
+      // Metrics boxes - refined sizing
+      const boxWidth = (contentWidth - 15) / 2;
+      const boxHeight = 32;
       
-      // Total Value
+      // Total Value box
       doc.setFillColor(...BRAND.primaryBlue);
-      doc.roundedRect(margin, yPos, boxWidth, boxHeight, 2, 2, 'F');
-      doc.setFontSize(9);
-      doc.setTextColor(...BRAND.lightBlueBg);
-      doc.text('Total Annual Value', margin + 5, yPos + 10);
-      doc.setFontSize(14);
+      doc.roundedRect(margin, yPos, boxWidth, boxHeight, 3, 3, 'F');
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(180, 190, 220);
+      doc.text('Total Annual Value', margin + 8, yPos + 12);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(18);
       doc.setTextColor(...BRAND.white);
-      doc.text(formatCurrency(dash.totalAnnualValue), margin + 5, yPos + 20);
+      doc.text(formatCurrency(dash.totalAnnualValue), margin + 8, yPos + 25);
       
-      // Value per Token
+      // Value per Token box
       doc.setFillColor(...BRAND.lightBlue);
-      doc.roundedRect(margin + boxWidth + 10, yPos, boxWidth, boxHeight, 2, 2, 'F');
-      doc.setFontSize(9);
+      doc.roundedRect(margin + boxWidth + 15, yPos, boxWidth, boxHeight, 3, 3, 'F');
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
       doc.setTextColor(...BRAND.darkNavy);
-      doc.text('Value per 1M Tokens', margin + boxWidth + 15, yPos + 10);
-      doc.setFontSize(14);
-      doc.text(formatCurrency(dash.valuePerMillionTokens), margin + boxWidth + 15, yPos + 20);
+      doc.text('Value per 1M Tokens', margin + boxWidth + 23, yPos + 12);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(18);
+      doc.text(formatCurrency(dash.valuePerMillionTokens), margin + boxWidth + 23, yPos + 25);
       
-      yPos += boxHeight + 10;
+      yPos += boxHeight + 15;
       
       // Draw benefit breakdown chart
       yPos = drawBenefitChart(yPos, dash);
       
-      // Top Use Cases Table
+      // Top Use Cases Table with executive styling
       if (dash.topUseCases && dash.topUseCases.length > 0) {
-        yPos = ensureSpace(80, yPos);
-        doc.setFontSize(11);
+        yPos = ensureSpace(90, yPos);
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(13);
         doc.setTextColor(...BRAND.primaryBlue);
         doc.text('Top Priority AI Use Cases', margin, yPos);
-        yPos += 5;
+        yPos += 8;
         
         autoTable(doc, {
           startY: yPos,
@@ -494,61 +551,80 @@ export default function Report() {
             formatCurrency(uc.annualValue),
             formatNumber(uc.monthlyTokens),
           ]),
-          theme: 'grid',
+          theme: 'plain',
           headStyles: { 
             fillColor: BRAND.primaryBlue,
             textColor: BRAND.white,
             fontStyle: 'bold',
-            fontSize: 9
+            fontSize: 10,
+            cellPadding: 5
           },
-          bodyStyles: { fontSize: 8 },
-          alternateRowStyles: { fillColor: [245, 250, 255] },
-          styles: { cellPadding: 3 },
+          bodyStyles: { 
+            fontSize: 9, 
+            cellPadding: 5,
+            textColor: BRAND.darkNavy
+          },
+          alternateRowStyles: { fillColor: [248, 250, 255] },
+          styles: { 
+            lineColor: [230, 235, 245],
+            lineWidth: 0.3
+          },
+          columnStyles: {
+            0: { cellWidth: 22, halign: 'center' },
+            1: { cellWidth: 'auto' },
+            2: { cellWidth: 35, halign: 'right' },
+            3: { cellWidth: 35, halign: 'right' }
+          },
+          margin: { left: margin, right: margin },
           rowPageBreak: 'avoid',
           didDrawPage: () => { currentPage = doc.getNumberOfPages(); }
         });
-        yPos = (doc as any).lastAutoTable.finalY + 15;
+        yPos = (doc as any).lastAutoTable.finalY + 18;
       }
     }
     
-    // Summary narrative
+    // Summary narrative with refined styling
     if (data.summary) {
-      yPos = ensureSpace(40, yPos);
-      doc.setFillColor(...BRAND.lightBlueBg);
-      doc.roundedRect(margin, yPos, contentWidth, 5, 1, 1, 'F');
-      yPos += 10;
+      yPos = ensureSpace(50, yPos);
       
-      doc.setFontSize(10);
+      // Subtle header bar
+      doc.setFillColor(...BRAND.lightBlueBg);
+      doc.roundedRect(margin, yPos, contentWidth, 6, 2, 2, 'F');
+      yPos += 14;
+      
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(11);
       doc.setTextColor(...BRAND.darkNavy);
       const summaryLines = doc.splitTextToSize(data.summary, contentWidth);
       
       for (const line of summaryLines) {
-        yPos = ensureSpace(6, yPos);
+        yPos = ensureSpace(7, yPos);
         doc.text(line, margin, yPos);
-        yPos += 5;
+        yPos += 6;
       }
-      yPos += 10;
+      yPos += 12;
     }
     
     // ===== ANALYSIS STEPS =====
     for (const step of data.steps) {
       // Always start major sections on new page if not much space
-      if (yPos > pageHeight - 80) {
+      if (yPos > pageHeight - 90) {
         yPos = addPageWithBranding();
       }
       
       yPos = drawSectionHeading(`Step ${step.step}: ${step.title}`, yPos);
       
       if (step.content) {
-        doc.setFontSize(9);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
         doc.setTextColor(...BRAND.gray);
         const contentLines = doc.splitTextToSize(step.content, contentWidth);
         for (const line of contentLines) {
-          yPos = ensureSpace(5, yPos);
+          yPos = ensureSpace(6, yPos);
           doc.text(line, margin, yPos);
-          yPos += 4;
+          yPos += 5;
         }
-        yPos += 5;
+        yPos += 8;
       }
       
       if (step.data && step.data.length > 0) {
@@ -572,24 +648,34 @@ export default function Report() {
           })
         );
         
-        yPos = ensureSpace(30, yPos);
+        yPos = ensureSpace(35, yPos);
         
+        // Executive table styling
         autoTable(doc, {
           startY: yPos,
           head: [displayColumns],
           body: rows,
-          theme: 'striped',
+          theme: 'plain',
           headStyles: { 
             fillColor: BRAND.primaryBlue,
             textColor: BRAND.white,
             fontStyle: 'bold',
-            fontSize: 7,
-            cellPadding: 2
+            fontSize: 8,
+            cellPadding: 4
           },
-          bodyStyles: { fontSize: 7, cellPadding: 2 },
+          bodyStyles: { 
+            fontSize: 8, 
+            cellPadding: 4,
+            textColor: BRAND.darkNavy
+          },
           alternateRowStyles: { fillColor: [248, 250, 255] },
-          styles: { overflow: 'linebreak', cellWidth: 'wrap' },
-          columnStyles: { 0: { cellWidth: 25 } },
+          styles: { 
+            overflow: 'linebreak', 
+            cellWidth: 'wrap',
+            lineColor: [230, 235, 245],
+            lineWidth: 0.2
+          },
+          columnStyles: { 0: { cellWidth: 22 } },
           margin: { left: margin, right: margin },
           rowPageBreak: 'avoid',
           didDrawPage: (hookData) => {
@@ -597,34 +683,42 @@ export default function Report() {
             // Re-add header/footer on new pages from table overflow
             if (hookData.pageNumber > 1) {
               doc.setFillColor(...BRAND.primaryBlue);
-              doc.rect(0, 0, pageWidth, 12, 'F');
-              doc.setFontSize(8);
+              doc.rect(0, 0, pageWidth, 10, 'F');
+              doc.setFont('helvetica', 'normal');
+              doc.setFontSize(9);
               doc.setTextColor(...BRAND.white);
-              doc.text('BlueAlly | AI Strategic Assessment', margin, 8);
-              doc.text(companyName, pageWidth - margin, 8, { align: 'right' });
+              doc.text('BlueAlly', margin, 7);
+              doc.setTextColor(180, 190, 220);
+              doc.text('|  AI Strategic Assessment', margin + 18, 7);
+              doc.setTextColor(...BRAND.white);
+              doc.text(companyName, pageWidth - margin, 7, { align: 'right' });
               
-              doc.setFillColor(...BRAND.lightBlue);
-              doc.rect(0, pageHeight - 8, pageWidth, 8, 'F');
-              doc.setFontSize(7);
+              doc.setFillColor(...BRAND.primaryBlue);
+              doc.rect(0, pageHeight - 12, pageWidth, 12, 'F');
+              doc.setFontSize(8);
+              doc.setTextColor(180, 190, 220);
+              doc.text('Confidential', margin, pageHeight - 5);
               doc.setTextColor(...BRAND.white);
-              doc.text(`Page ${currentPage}`, pageWidth / 2, pageHeight - 3, { align: 'center' });
+              doc.setFont('helvetica', 'bold');
+              doc.text(`${currentPage}`, pageWidth / 2, pageHeight - 5, { align: 'center' });
             }
           }
         });
-        yPos = (doc as any).lastAutoTable.finalY + 15;
+        yPos = (doc as any).lastAutoTable.finalY + 18;
         
         // Add calculation formulas section for Benefits Quantification step
         if (isBenefitsStep && formulaColumns.length > 0) {
-          yPos = ensureSpace(40, yPos);
+          yPos = ensureSpace(45, yPos);
           
-          // Formulas section heading
+          // Formulas section heading with executive styling
           doc.setFillColor(...BRAND.lightBlueBg);
-          doc.roundedRect(margin, yPos, contentWidth, 8, 1, 1, 'F');
-          yPos += 6;
-          doc.setFontSize(10);
+          doc.roundedRect(margin, yPos, contentWidth, 10, 2, 2, 'F');
+          yPos += 7;
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(12);
           doc.setTextColor(...BRAND.primaryBlue);
-          doc.text('Calculation Formulas', margin + 3, yPos);
-          yPos += 8;
+          doc.text('Benefit Calculation Formulas', margin + 5, yPos);
+          yPos += 10;
           
           // Create formulas table with Use Case ID, Use Case Name, and all formula columns
           const formulaTableColumns = ['ID', 'Use Case', ...formulaColumns];
@@ -636,24 +730,29 @@ export default function Report() {
             startY: yPos,
             head: [formulaTableColumns],
             body: formulaRows,
-            theme: 'striped',
+            theme: 'plain',
             headStyles: { 
               fillColor: BRAND.primaryBlue,
               textColor: BRAND.white,
               fontStyle: 'bold',
-              fontSize: 6,
-              cellPadding: 2
+              fontSize: 7,
+              cellPadding: 3
             },
-            bodyStyles: { fontSize: 6, cellPadding: 2 },
+            bodyStyles: { 
+              fontSize: 7, 
+              cellPadding: 3,
+              textColor: BRAND.darkNavy
+            },
             alternateRowStyles: { fillColor: [248, 250, 255] },
-            styles: { overflow: 'linebreak', cellWidth: 'wrap' },
+            styles: { 
+              overflow: 'linebreak', 
+              cellWidth: 'wrap',
+              lineColor: [230, 235, 245],
+              lineWidth: 0.2
+            },
             columnStyles: { 
-              0: { cellWidth: 12 }, 
-              1: { cellWidth: 35 },
-              2: { cellWidth: 38 },
-              3: { cellWidth: 38 },
-              4: { cellWidth: 38 },
-              5: { cellWidth: 38 }
+              0: { cellWidth: 14 }, 
+              1: { cellWidth: 32 }
             },
             margin: { left: margin, right: margin },
             rowPageBreak: 'avoid',
@@ -661,21 +760,28 @@ export default function Report() {
               currentPage = doc.getNumberOfPages();
               if (hookData.pageNumber > 1) {
                 doc.setFillColor(...BRAND.primaryBlue);
-                doc.rect(0, 0, pageWidth, 12, 'F');
-                doc.setFontSize(8);
+                doc.rect(0, 0, pageWidth, 10, 'F');
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(9);
                 doc.setTextColor(...BRAND.white);
-                doc.text('BlueAlly | AI Strategic Assessment', margin, 8);
-                doc.text(companyName, pageWidth - margin, 8, { align: 'right' });
+                doc.text('BlueAlly', margin, 7);
+                doc.setTextColor(180, 190, 220);
+                doc.text('|  AI Strategic Assessment', margin + 18, 7);
+                doc.setTextColor(...BRAND.white);
+                doc.text(companyName, pageWidth - margin, 7, { align: 'right' });
                 
-                doc.setFillColor(...BRAND.lightBlue);
-                doc.rect(0, pageHeight - 8, pageWidth, 8, 'F');
-                doc.setFontSize(7);
+                doc.setFillColor(...BRAND.primaryBlue);
+                doc.rect(0, pageHeight - 12, pageWidth, 12, 'F');
+                doc.setFontSize(8);
+                doc.setTextColor(180, 190, 220);
+                doc.text('Confidential', margin, pageHeight - 5);
                 doc.setTextColor(...BRAND.white);
-                doc.text(`Page ${currentPage}`, pageWidth / 2, pageHeight - 3, { align: 'center' });
+                doc.setFont('helvetica', 'bold');
+                doc.text(`${currentPage}`, pageWidth / 2, pageHeight - 5, { align: 'center' });
               }
             }
           });
-          yPos = (doc as any).lastAutoTable.finalY + 15;
+          yPos = (doc as any).lastAutoTable.finalY + 18;
         }
       }
     }
@@ -684,32 +790,35 @@ export default function Report() {
     yPos = addPageWithBranding();
     tocEntries.push({ title: 'Recommended Next Steps', page: currentPage });
     
-    // Full section background
+    // Full section background with executive styling
     doc.setFillColor(...BRAND.darkNavy);
-    doc.roundedRect(margin, yPos, contentWidth, 120, 3, 3, 'F');
+    doc.roundedRect(margin, yPos, contentWidth, 135, 4, 4, 'F');
     
     // Section title
-    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(20);
     doc.setTextColor(...BRAND.white);
-    doc.text('Recommended Next Steps', margin + 10, yPos + 15);
+    doc.text('Recommended Next Steps', margin + 15, yPos + 20);
     
-    // Accent line
+    // Elegant accent line
     doc.setFillColor(...BRAND.lightBlue);
-    doc.rect(margin + 10, yPos + 20, 50, 2, 'F');
+    doc.rect(margin + 15, yPos + 26, 60, 2, 'F');
     
     // Workshop title
-    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
     doc.setTextColor(...BRAND.green);
-    doc.text('BlueAlly 3-Day AI Use Case Workshop', margin + 10, yPos + 35);
+    doc.text('BlueAlly 3-Day AI Use Case Workshop', margin + 15, yPos + 45);
     
-    // Description
-    doc.setFontSize(9);
-    doc.setTextColor(...BRAND.lightBlueBg);
+    // Description with proper line height
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(200, 210, 230);
     const workshopDesc = 'Transform this strategic assessment into actionable AI initiatives with our expert-facilitated workshop designed to overcome common AI implementation pitfalls.';
-    const descLines = doc.splitTextToSize(workshopDesc, contentWidth - 20);
-    doc.text(descLines, margin + 10, yPos + 45);
+    const descLines = doc.splitTextToSize(workshopDesc, contentWidth - 30);
+    doc.text(descLines, margin + 15, yPos + 58);
     
-    // Benefits list
+    // Benefits list with proper spacing
     const benefits = [
       'ROI-Focused: Link every AI use case to specific KPIs across four business drivers',
       'Rapid Prototyping: Target 90-day pilot cycles vs. year-long experiments',
@@ -718,38 +827,53 @@ export default function Report() {
       'Governance Built-In: Embed security and compliance from day one'
     ];
     
-    let benefitY = yPos + 60;
-    doc.setFontSize(8);
+    let benefitY = yPos + 78;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
     benefits.forEach((benefit, i) => {
       doc.setFillColor(...BRAND.green);
-      doc.circle(margin + 14, benefitY + (i * 10) - 1, 1.5, 'F');
+      doc.circle(margin + 20, benefitY + (i * 11) - 1.5, 2, 'F');
       doc.setTextColor(...BRAND.white);
-      doc.text(benefit, margin + 20, benefitY + (i * 10));
+      doc.text(benefit, margin + 28, benefitY + (i * 11));
     });
     
-    // CTA
-    yPos += 130;
+    // CTA with executive styling
+    yPos += 148;
     doc.setFillColor(...BRAND.green);
-    doc.roundedRect(margin, yPos, contentWidth, 25, 3, 3, 'F');
-    doc.setFontSize(11);
+    doc.roundedRect(margin, yPos, contentWidth, 30, 4, 4, 'F');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(13);
     doc.setTextColor(...BRAND.darkNavy);
-    doc.text('Contact BlueAlly to schedule your AI Workshop', pageWidth / 2, yPos + 10, { align: 'center' });
-    doc.setFontSize(9);
-    doc.text('www.blueally.com | Accelerating AI Value Realization', pageWidth / 2, yPos + 18, { align: 'center' });
+    doc.text('Contact BlueAlly to Schedule Your AI Workshop', pageWidth / 2, yPos + 12, { align: 'center' });
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.text('www.blueally.com  |  Accelerating AI Value Realization', pageWidth / 2, yPos + 23, { align: 'center' });
     
     // ===== UPDATE TABLE OF CONTENTS =====
     doc.setPage(tocPageNum);
     let tocY = tocYStart;
-    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(11);
     
     tocEntries.forEach((entry, i) => {
       doc.setTextColor(...BRAND.darkNavy);
       doc.text(entry.title, margin, tocY);
-      doc.setTextColor(...BRAND.lightBlue);
-      doc.text(`.....................................`, margin + doc.getTextWidth(entry.title) + 2, tocY);
+      
+      // Elegant dotted line
+      const titleWidth = doc.getTextWidth(entry.title);
+      const pageNumWidth = doc.getTextWidth(`${entry.page}`);
+      const dotsWidth = contentWidth - titleWidth - pageNumWidth - 8;
+      const dotCount = Math.floor(dotsWidth / 2.5);
+      const dots = '.'.repeat(dotCount);
+      
+      doc.setTextColor(180, 190, 210);
+      doc.text(dots, margin + titleWidth + 4, tocY);
+      
+      doc.setFont('helvetica', 'bold');
       doc.setTextColor(...BRAND.primaryBlue);
       doc.text(`${entry.page}`, pageWidth - margin, tocY, { align: 'right' });
-      tocY += 8;
+      doc.setFont('helvetica', 'normal');
+      tocY += 10;
     });
     
     // Save with BlueAlly branding in filename
