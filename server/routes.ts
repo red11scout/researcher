@@ -569,5 +569,116 @@ export async function registerRoutes(
     }
   });
 
+  // Recalculate report based on assumptions
+  app.post("/api/assumptions/recalculate/:reportId", async (req, res) => {
+    try {
+      const { reportId } = req.params;
+      
+      // Get active assumption set
+      const activeSet = await storage.getActiveAssumptionSet(reportId);
+      if (!activeSet) {
+        return res.status(400).json({ error: "No active assumption set found" });
+      }
+      
+      // Get all fields for the active set
+      const fields = await storage.getAssumptionFieldsBySet(activeSet.id);
+      
+      // Get the report
+      const allReports = await storage.getAllReports();
+      const report = allReports.find(r => r.id === reportId);
+      
+      if (!report) {
+        return res.status(404).json({ error: "Report not found" });
+      }
+      
+      // Build assumption map for easy lookup
+      const assumptions: Record<string, { value: string; source: string }> = {};
+      fields.forEach(f => {
+        assumptions[f.fieldName] = { value: f.value, source: f.source };
+      });
+      
+      // Get the analysis data and apply assumptions
+      const analysisData = report.analysisData as any;
+      
+      // Apply recalculations to Step 5 (Benefits) based on assumptions
+      if (analysisData?.steps) {
+        const step5 = analysisData.steps.find((s: any) => s.step === 5);
+        const step7 = analysisData.steps.find((s: any) => s.step === 7);
+        
+        if (step5?.data && Array.isArray(step5.data)) {
+          // Apply confidence adjustment from assumptions
+          const confidenceAdj = parseFloat(assumptions['confidence_adjustment']?.value || '70') / 100;
+          
+          step5.data = step5.data.map((row: any) => {
+            // Recalculate probability based on confidence adjustment
+            const baseProbability = parseFloat(row['Probability of Success']) || 0.7;
+            const adjustedProbability = Math.min(1, baseProbability * confidenceAdj / 0.7);
+            
+            return {
+              ...row,
+              'Probability of Success': adjustedProbability.toFixed(2),
+            };
+          });
+        }
+        
+        // Recalculate Step 7 priority scores based on weights from assumptions
+        if (step7?.data && Array.isArray(step7.data)) {
+          const weightValue = parseFloat(assumptions['weight_value']?.value || '40');
+          const weightTTV = parseFloat(assumptions['weight_ttv']?.value || '30');
+          const weightEffort = parseFloat(assumptions['weight_effort']?.value || '30');
+          
+          step7.data = step7.data.map((row: any) => {
+            const valueScore = parseFloat(row['Value Score']) || 0;
+            const ttvScore = parseFloat(row['TTV Score']) || 0;
+            const effortScore = parseFloat(row['Effort Score']) || 0;
+            
+            // Recalculate priority score with new weights
+            const priorityScore = Math.round(
+              (valueScore * weightValue / 40) +
+              (ttvScore * weightTTV / 30) +
+              (effortScore * weightEffort / 30)
+            );
+            
+            // Determine priority tier based on new score
+            let tier = 'Low';
+            if (priorityScore >= 80) tier = 'Critical';
+            else if (priorityScore >= 70) tier = 'High';
+            else if (priorityScore >= 60) tier = 'Medium';
+            
+            return {
+              ...row,
+              'Priority Score': priorityScore,
+              'Priority Tier': tier,
+            };
+          });
+          
+          // Sort by priority score
+          step7.data.sort((a: any, b: any) => 
+            (parseFloat(b['Priority Score']) || 0) - (parseFloat(a['Priority Score']) || 0)
+          );
+        }
+      }
+      
+      // Update the report with recalculated data
+      const updatedReport = await storage.updateReport(reportId, {
+        analysisData,
+      });
+      
+      if (!updatedReport) {
+        return res.status(500).json({ error: "Failed to update report" });
+      }
+      
+      return res.json({
+        success: true,
+        message: "Report recalculated with updated assumptions",
+        assumptions,
+        reportId: updatedReport.id,
+      });
+    } catch (error) {
+      console.error("Error recalculating report:", error);
+      return res.status(500).json({ error: "Failed to recalculate report" });
+    }
+  });
+
   return httpServer;
 }

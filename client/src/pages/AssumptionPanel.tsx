@@ -294,6 +294,28 @@ export default function AssumptionPanel() {
     },
   });
 
+  // Recalculate report mutation
+  const recalculateMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/assumptions/recalculate/${reportId}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) throw new Error("Failed to recalculate report");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/reports", reportId] });
+      toast({ 
+        title: "Report recalculated", 
+        description: "All calculations updated with current assumptions" 
+      });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
   // Create custom field mutation
   const createFieldMutation = useMutation({
     mutationFn: async (data: typeof newFieldData) => {
@@ -376,15 +398,27 @@ export default function AssumptionPanel() {
     setEditValues({ value: "", source: "" });
   };
 
-  const saveAllChanges = () => {
+  const saveAllChanges = async () => {
     const updates = Object.entries(pendingChanges).map(([fieldId, changes]) => ({
       fieldId,
       value: changes.value,
       source: changes.source,
     }));
     if (updates.length > 0) {
-      batchUpdateMutation.mutate(updates);
+      await batchUpdateMutation.mutateAsync(updates);
     }
+  };
+
+  const saveAndRecalculate = async () => {
+    const updates = Object.entries(pendingChanges).map(([fieldId, changes]) => ({
+      fieldId,
+      value: changes.value,
+      source: changes.source,
+    }));
+    if (updates.length > 0) {
+      await batchUpdateMutation.mutateAsync(updates);
+    }
+    await recalculateMutation.mutateAsync();
   };
 
   const formatValue = (value: string, valueType: string, unit?: string | null) => {
@@ -895,8 +929,8 @@ export default function AssumptionPanel() {
                 </div>
                 <Button
                   className="ml-auto"
-                  onClick={saveAllChanges}
-                  disabled={batchUpdateMutation.isPending}
+                  onClick={saveAndRecalculate}
+                  disabled={batchUpdateMutation.isPending || recalculateMutation.isPending}
                 >
                   <Save className="h-4 w-4 mr-2" />
                   Save & Recalculate
