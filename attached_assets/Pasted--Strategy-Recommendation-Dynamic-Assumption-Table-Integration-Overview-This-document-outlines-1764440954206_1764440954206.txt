@@ -1,0 +1,118 @@
+# Strategy Recommendation: Dynamic Assumption Table Integration
+
+## Overview
+
+This document outlines the strategy for developing and integrating a standardized, dynamic, and holistic Assumption Table into the "smart-report-ai" application. This recommendation is based on an analysis of the existing report structure (e.g., "BlueAlly_AI_Assessment_Primamerica.md") and aims to enhance the application's usability, transparency, and impact.
+
+## Executive Summary
+
+The current report generation process relies on decentralized, static assumptions that are often based on estimates rather than verifiable data. This approach limits flexibility, reduces confidence in the analysis, and prevents users from performing real-time scenario modeling.
+
+We recommend implementing a centralized, interactive "Assumption Table" interface. This will serve as the "Control Panel" for every report, providing a single source of truth for all variables. When a user updates a variable in this table, the application must instantly recalculate all dependent metrics throughout the assessment.
+
+## Analysis of Current Report Limitations
+
+The existing report structure follows a logical flow (Steps 0 through 7). However, critical assumptions are scattered and embedded statically within the analysis:
+
+*   **Decentralization:** Critical assumptions (e.g., Revenue in Step 0, Labor Costs implicit in Step 3, Token Pricing in Step 6) are scattered throughout the report.
+*   **Static Values:** Users cannot easily adjust variables to see the impact on the final "Total Annual AI Value Opportunity."
+*   **Lack of Transparency:** Assumptions often lack verifiable sourcing, leading to "LOW CONFIDENCE" warnings and manual risk adjustments (e.g., the "70% haircut" noted in the provided report).
+*   **Manual Updates:** Adjusting a foundational metric requires manual recalculation of the entire report, hindering dynamic analysis.
+
+## Vision for a Dynamic Assumption Table
+
+The Assumption Table must be designed with the following principles:
+
+1.  **Holistic and Centralized:** A single interface containing all variables used in calculations across the report.
+2.  **Dynamic Recalculation:** The core feature. Changes to any assumption must instantly update all dependent sections and the Executive Dashboard.
+3.  **User-Friendly Editing (CRUD):** Users must be able to **Create** new assumption fields relevant to their specific context, **Update** existing values, and **Delete** custom fields.
+4.  **Transparency and Sourcing:** Each field must clearly indicate its `Source` (e.g., "Client Provided," "Industry Benchmark," "API - PitchBook," "Analyst Estimate") and the `Last Updated` timestamp. Users must be able to override automated sources.
+5.  **Scenario Modeling:** Allow users to save different sets of assumptions (e.g., "Optimistic Case," "Conservative Case") to compare outcomes dynamically.
+
+## Recommended Categories and Fields
+
+The Assumption Table should be organized into the following categories:
+
+### 1. Company Profile & Financials
+
+These fields establish the scale of the opportunity and populate Step 0.
+
+| Field Name | Description/Example | Recommended Automation/Reliable Sources |
+| :--- | :--- | :--- |
+| Company Name | Primamerica | User Input, CRM Integration |
+| Industry / Sub-Industry | Financial Services / Insurance Distribution | APIs (PitchBook, ZoomInfo, GICS codes) |
+| Annual Revenue | $285M | Financial Statements, APIs (S&P Capital IQ, Dun & Bradstreet) |
+| Gross Margin (%) | (e.g., 45%) | Financial Statements, Industry Benchmarks (IBISWorld) |
+| Operating Expenses (OpEx) | $42M | Financial Statements, ERP Integration |
+
+### 2. Labor and Operational Statistics
+
+These fields are critical for calculating cost savings and productivity improvements (Steps 3 and 5).
+
+| Field Name | Description/Example | Recommended Automation/Reliable Sources |
+| :--- | :--- | :--- |
+| Total Employees | (e.g., 1,500) | HRIS Integration, LinkedIn Insights, PitchBook |
+| Number of Sales Reps | (Specific role counts as needed, e.g., 500) | HRIS, CRM Integration |
+| Fully Burdened Cost per Hour | Avg. hourly cost including salary, benefits, overhead. ($75/hr) | HR/Payroll Data, Bureau of Labor Statistics (BLS) data |
+| Average Work Hours per Week | (e.g., 40 hours) | HRIS/Payroll Data, BLS |
+
+### 3. KPI Baselines (Current State)
+
+These define the "As-Is" state used in Steps 1 and 2. This section should be flexible to accommodate different industries.
+
+| Field Name | Description/Example | Recommended Automation/Reliable Sources |
+| :--- | :--- | :--- |
+| Average Rep Productivity (Annual) | $95K | CRM Analytics, Finance Reports |
+| Lead-to-Client Conversion Rate | 12% | CRM (Salesforce, HubSpot) |
+| Customer Acquisition Cost (CAC) | $850 | Finance/Marketing Analytics |
+| Annual Retention Rate | 78% | CRM/Subscription Management Tools |
+| Average Customer LTV | $12K | Finance/CRM Analytics |
+| Audit Failure Rate | 18% | Compliance Software/Internal Audits |
+| Time Spent on Manual Task (e.g., Proposals) | 12 hours/week/rep | User Input, Time Tracking Software |
+
+### 4. AI Modeling & Technology Parameters
+
+These fields drive the calculations in Step 6 (Effort & Token Modeling).
+
+| Field Name | Description/Example | Recommended Automation/Reliable Sources |
+| :--- | :--- | :--- |
+| Primary LLM Model | (e.g., Claude, GPT-4o, Gemini) | User Selection |
+| Input Token Cost (per 1M) | $3.00 | API (Vendor Pricing Pages: OpenAI, Anthropic; Aggregators: Helicone) |
+| Output Token Cost (per 1M) | $15.00 | API (Vendor Pricing Pages/Aggregators) |
+| Caching Effectiveness (%) | (e.g., 40% - Estimate of query reuse) | User Input/System Metrics |
+
+### 5. Risk and Strategic Factors
+
+These fields allow for sensitivity analysis (Step 5) and prioritization (Step 7).
+
+| Field Name | Description/Example | Recommended Automation/Reliable Sources |
+| :--- | :--- | :--- |
+| Confidence Adjustment Factor (%) | Probability applied to total value (risk adjustment). (e.g., 70%) | User Input/Risk Assessment Models |
+| Projected User Adoption Rate (%) | (e.g., 65%) | User Input/Industry Benchmarks (Gartner) |
+| Prioritization Weight: Value | 40% | User Input (Strategic Decision) |
+| Prioritization Weight: Time-to-Value (TTV) | 30% | User Input (Strategic Decision) |
+| Prioritization Weight: Effort/Cost | 30% | User Input (Strategic Decision) |
+
+## Automation and Data Sourcing Strategy
+
+To ensure reliability and reduce manual effort, the application should prioritize data sourcing using the following strategies:
+
+1.  **Financial Data APIs:** Integrate with services like PitchBook, S&P Capital IQ, or Dun & Bradstreet to automatically populate Company Profile, Revenue, and Employee Count.
+2.  **Labor Market Data:** Use the Bureau of Labor Statistics (BLS) or payroll data insights (like Gusto or ADP) to provide reliable defaults for Fully Burdened Costs based on role and geography.
+3.  **LLM Pricing APIs:** Automate the update of token costs by querying LLM provider APIs or aggregators (e.g., Helicone), as pricing changes frequently.
+4.  **Industry Benchmarks:** When company-specific data is unavailable, use sources like Gartner, Forrester, or IBISWorld to provide default KPI benchmarks, ensuring the source is clearly cited.
+5.  **Internal System Integration (Future State):** For maximum accuracy, the application could eventually integrate with the client's CRM (Salesforce), HRIS (Workday), and ERP (NetSuite) to pull KPI baselines directly.
+
+## Integration Points in the Report
+
+The Assumption Table acts as the "engine" of the report. The following table details how the Assumption Table fields integrate with the report structure to enable dynamic updates:
+
+| Report Section | Integration Description | Key Assumption Fields Used |
+| :--- | :--- | :--- |
+| **Executive Dashboard** | "Total Annual AI Value Opportunity" is the sum of benefits (Step 5) multiplied by the Confidence Adjustment Factor. | All categories, particularly Financials, Labor Costs, and Risk Factors. |
+| **STEP 0: Company Overview** | Directly populated by the Assumption Table. | Company Profile & Financials. |
+| **STEP 1 & 2: Drivers & KPIs** | "Current State" and "Baseline" values are pulled directly from the table. | KPI Baselines, Labor Statistics. |
+| **STEP 3: Friction Point Mapping** | "Estimated Annual Cost" is calculated using time spent on tasks multiplied by labor costs. | Fully Burdened Cost per Hour, Time Spent on Manual Task. |
+| **STEP 5: Benefits Quantification** | Core value calculations. (e.g., Cost Benefit = Time Saved * Fully Burdened Cost). Final value is adjusted by risk factors. | All categories. Confidence Adjustment Factor is applied here. |
+| **STEP 6: Effort & Token Modeling** | Total token costs are calculated using usage estimates multiplied by the token cost assumptions. | AI Modeling & Technology Parameters. |
+| **STEP 7: Priority Scoring** | The scoring methodology uses the defined weights to rank the use cases dynamically. | Risk and Strategic Factors (Weights). |

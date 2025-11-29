@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useLocation, Link } from "wouter";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
@@ -2081,9 +2081,8 @@ function StepCard({ step }: { step: any }) {
                     const colCount = Object.keys(row).filter(k => !k.includes('Formula')).length + 1;
                     
                     return (
-                      <>
+                      <React.Fragment key={i}>
                         <TableRow 
-                          key={i} 
                           className="hover:bg-muted/20 transition-colors cursor-pointer"
                           onClick={() => toggleRow(i)}
                         >
@@ -2105,7 +2104,7 @@ function StepCard({ step }: { step: any }) {
                           ))}
                         </TableRow>
                         {isExpanded && (
-                          <TableRow key={`${i}-expanded`} className="bg-primary/5 border-l-4 border-l-primary">
+                          <TableRow className="bg-primary/5 border-l-4 border-l-primary">
                             <TableCell colSpan={colCount} className="py-2 md:py-4">
                               <div className="flex flex-col gap-2 md:gap-4 px-1 md:px-4">
                                 <div className="text-xs md:text-sm font-medium text-primary">Benefit Calculation Breakdown by Driver:</div>
@@ -2234,7 +2233,7 @@ function StepCard({ step }: { step: any }) {
                             </TableCell>
                           </TableRow>
                         )}
-                      </>
+                      </React.Fragment>
                     );
                   })}
                 </TableBody>
