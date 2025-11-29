@@ -28,6 +28,7 @@ const allowlist = [
   "passport",
   "passport-local",
   "stripe",
+  "undici",
   "uuid",
   "ws",
   "xlsx",
