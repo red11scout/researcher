@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { generateCompanyAnalysis, generateWhatIfSuggestion } from "./ai-service";
+import * as formulaService from "./formula-service";
 import { insertReportSchema } from "@shared/schema";
 
 // Store active SSE connections for progress updates
@@ -736,6 +737,204 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error recalculating report:", error);
       return res.status(500).json({ error: "Failed to recalculate report" });
+    }
+  });
+
+  // ============= FORMULA MANAGEMENT ENDPOINTS =============
+
+  // Get all formulas for a field (with optional useCase filter)
+  app.get("/api/formulas", async (req, res) => {
+    try {
+      const { reportId, fieldKey, useCaseId } = req.query;
+
+      if (!fieldKey || typeof fieldKey !== "string") {
+        return res.status(400).json({ error: "fieldKey is required" });
+      }
+
+      const formulas = await storage.getFormulaConfigs(
+        reportId as string | null,
+        fieldKey,
+        useCaseId !== undefined ? (useCaseId as string | null) : undefined
+      );
+
+      const active = await storage.getActiveFormula(
+        reportId as string | null,
+        fieldKey,
+        useCaseId !== undefined ? (useCaseId as string | null) : undefined
+      );
+
+      return res.json({
+        formulas,
+        activeFormula: active,
+        availableInputs: formulaService.getInputsByCategory(),
+      });
+    } catch (error) {
+      console.error("Error fetching formulas:", error);
+      return res.status(500).json({ error: "Failed to fetch formulas" });
+    }
+  });
+
+  // Get a single formula by ID
+  app.get("/api/formulas/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const formula = await storage.getFormulaById(id);
+
+      if (!formula) {
+        return res.status(404).json({ error: "Formula not found" });
+      }
+
+      return res.json(formula);
+    } catch (error) {
+      console.error("Error fetching formula:", error);
+      return res.status(500).json({ error: "Failed to fetch formula" });
+    }
+  });
+
+  // Create a new formula version
+  app.post("/api/formulas", async (req, res) => {
+    try {
+      const { 
+        reportId, useCaseId, fieldKey, label, expression, 
+        inputFields, constants, notes, isActive 
+      } = req.body;
+
+      if (!fieldKey || !label || !expression) {
+        return res.status(400).json({ error: "fieldKey, label, and expression are required" });
+      }
+
+      // Validate the formula
+      const allInputs = Object.keys(formulaService.AVAILABLE_INPUTS);
+      const constantKeys = (constants || []).map((c: any) => c.key);
+      const validation = formulaService.validateFormula(
+        expression, 
+        [...allInputs, ...constantKeys]
+      );
+
+      if (!validation.isValid) {
+        return res.status(400).json({ 
+          error: "Invalid formula",
+          details: validation.errors,
+          missingVariables: validation.missingVariables,
+        });
+      }
+
+      const formula = await storage.createFormulaConfig({
+        reportId: reportId || null,
+        useCaseId: useCaseId || null,
+        fieldKey,
+        label,
+        expression,
+        inputFields: inputFields || validation.usedVariables,
+        constants: constants || [],
+        notes: notes || null,
+        isActive: isActive ?? true,
+        createdBy: "user",
+      });
+
+      return res.json(formula);
+    } catch (error) {
+      console.error("Error creating formula:", error);
+      return res.status(500).json({ error: "Failed to create formula" });
+    }
+  });
+
+  // Activate a specific formula version
+  app.patch("/api/formulas/:id/activate", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const activated = await storage.activateFormula(id);
+
+      if (!activated) {
+        return res.status(404).json({ error: "Formula not found" });
+      }
+
+      return res.json(activated);
+    } catch (error) {
+      console.error("Error activating formula:", error);
+      return res.status(500).json({ error: "Failed to activate formula" });
+    }
+  });
+
+  // Preview formula evaluation without saving
+  app.post("/api/formulas/preview", async (req, res) => {
+    try {
+      const { expression, context, constants } = req.body;
+
+      if (!expression) {
+        return res.status(400).json({ error: "Expression is required" });
+      }
+
+      const result = formulaService.previewFormula(
+        expression,
+        context || {},
+        constants || []
+      );
+
+      return res.json(result);
+    } catch (error) {
+      console.error("Error previewing formula:", error);
+      return res.status(500).json({ error: "Failed to preview formula" });
+    }
+  });
+
+  // Evaluate a formula with given context
+  app.post("/api/formulas/evaluate", async (req, res) => {
+    try {
+      const { formulaId, context, constants } = req.body;
+
+      let expression: string;
+      let formulaConstants: any[] = [];
+
+      if (formulaId) {
+        const formula = await storage.getFormulaById(formulaId);
+        if (!formula) {
+          return res.status(404).json({ error: "Formula not found" });
+        }
+        expression = formula.expression;
+        formulaConstants = formula.constants || [];
+      } else if (req.body.expression) {
+        expression = req.body.expression;
+        formulaConstants = constants || [];
+      } else {
+        return res.status(400).json({ error: "Either formulaId or expression is required" });
+      }
+
+      const result = formulaService.evaluateFormula(
+        expression,
+        context || {},
+        formulaConstants
+      );
+
+      return res.json(result);
+    } catch (error) {
+      console.error("Error evaluating formula:", error);
+      return res.status(500).json({ error: "Failed to evaluate formula" });
+    }
+  });
+
+  // Initialize default formulas for a report
+  app.post("/api/formulas/initialize/:reportId", async (req, res) => {
+    try {
+      const { reportId } = req.params;
+      const formulas = await storage.initializeDefaultFormulas(reportId);
+      return res.json(formulas);
+    } catch (error) {
+      console.error("Error initializing formulas:", error);
+      return res.status(500).json({ error: "Failed to initialize formulas" });
+    }
+  });
+
+  // Get available inputs for formula editor
+  app.get("/api/formulas/inputs/available", async (_req, res) => {
+    try {
+      return res.json({
+        inputs: formulaService.AVAILABLE_INPUTS,
+        grouped: formulaService.getInputsByCategory(),
+      });
+    } catch (error) {
+      console.error("Error fetching available inputs:", error);
+      return res.status(500).json({ error: "Failed to fetch available inputs" });
     }
   });
 

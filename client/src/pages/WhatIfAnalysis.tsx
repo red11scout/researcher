@@ -32,6 +32,13 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { FormulaExplorer } from "@/components/FormulaExplorer";
 import { 
   ArrowLeft, 
   Plus, 
@@ -51,7 +58,8 @@ import {
   Zap,
   DollarSign,
   ChevronRight,
-  HelpCircle
+  HelpCircle,
+  FunctionSquare
 } from "lucide-react";
 
 interface StepData {
@@ -156,6 +164,15 @@ const formatCurrency = (value: number): string => {
   return `$${Math.round(value)}`;
 };
 
+const CALCULATED_FIELDS: Record<string, { fieldKey: string; fieldLabel: string; step: number }> = {
+  "Total Annual Value": { fieldKey: "totalAnnualImpact", fieldLabel: "Total Annual Impact", step: 5 },
+  "Priority Score": { fieldKey: "priorityScore", fieldLabel: "Priority Score", step: 7 },
+  "Value Score": { fieldKey: "valueScore", fieldLabel: "Value Score", step: 7 },
+  "TTV Score": { fieldKey: "ttvScore", fieldLabel: "TTV Score", step: 7 },
+  "Effort Score": { fieldKey: "effortScore", fieldLabel: "Effort Score", step: 7 },
+  "Annual Token Cost ($)": { fieldKey: "annualTokenCost", fieldLabel: "Annual Token Cost", step: 6 },
+};
+
 export default function WhatIfAnalysis() {
   const [, setLocation] = useLocation();
   const [, params] = useRoute("/whatif/:reportId");
@@ -175,6 +192,16 @@ export default function WhatIfAnalysis() {
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [aiSuggesting, setAiSuggesting] = useState(false);
   const [guidanceStep, setGuidanceStep] = useState(0);
+
+  // Formula Explorer state
+  const [formulaExplorerOpen, setFormulaExplorerOpen] = useState(false);
+  const [selectedFormulaField, setSelectedFormulaField] = useState<{
+    fieldKey: string;
+    fieldLabel: string;
+    useCaseId?: string;
+    useCaseName?: string;
+    context: Record<string, number>;
+  } | null>(null);
 
   const reportId = params?.reportId;
 
@@ -372,6 +399,39 @@ export default function WhatIfAnalysis() {
     setEditingIndex(-1);
     setFormData({});
     setGuidanceStep(0);
+  };
+
+  const buildFormulaContext = (step: number, data: any[]): Record<string, number> => {
+    const context: Record<string, number> = {};
+    
+    if (step === 5 && data.length > 0) {
+      const totals = data.reduce((acc, record) => {
+        return {
+          revenueBenefit: acc.revenueBenefit + parseFormattedValue(record["Revenue Benefit"] || record["Revenue Benefit ($)"]),
+          costBenefit: acc.costBenefit + parseFormattedValue(record["Cost Benefit"] || record["Cost Benefit ($)"]),
+          cashFlowBenefit: acc.cashFlowBenefit + parseFormattedValue(record["Cash Flow Benefit"] || record["Cash Flow Benefit ($)"]),
+          riskBenefit: acc.riskBenefit + parseFormattedValue(record["Risk Benefit"] || record["Risk Benefit ($)"]),
+          totalAnnualImpact: acc.totalAnnualImpact + parseFormattedValue(record["Total Annual Value"] || record["Total Annual Value ($)"]),
+        };
+      }, { revenueBenefit: 0, costBenefit: 0, cashFlowBenefit: 0, riskBenefit: 0, totalAnnualImpact: 0 });
+      
+      Object.assign(context, totals);
+      context.maxTotalImpact = Math.max(...data.map(r => parseFormattedValue(r["Total Annual Value"] || r["Total Annual Value ($)"])));
+    }
+    
+    if (step === 6 && data.length > 0) {
+      context.avgInputTokens = data.reduce((sum, r) => sum + (parseFloat(r["Input Tokens/Run"]) || 0), 0) / data.length;
+      context.avgOutputTokens = data.reduce((sum, r) => sum + (parseFloat(r["Output Tokens/Run"]) || 0), 0) / data.length;
+      context.runsPerYear = data.reduce((sum, r) => sum + (parseFloat(r["Runs/Month"]) || 0) * 12, 0);
+    }
+    
+    if (step === 7 && data.length > 0) {
+      context.weightValue = 40;
+      context.weightTtv = 30;
+      context.weightEffort = 30;
+    }
+    
+    return context;
   };
 
   const handleAISuggest = async () => {
@@ -739,7 +799,41 @@ export default function WhatIfAnalysis() {
                           <TableRow>
                             <TableHead className="w-12">#</TableHead>
                             {fieldDefs.slice(0, 5).map(field => (
-                              <TableHead key={field.key} className="whitespace-nowrap">{field.label}</TableHead>
+                              <TableHead key={field.key} className="whitespace-nowrap">
+                                <div className="flex items-center gap-1">
+                                  {field.label}
+                                  {CALCULATED_FIELDS[field.key] && (
+                                    <TooltipProvider>
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-5 w-5 p-0 text-blue-500 hover:text-blue-700"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              const calcField = CALCULATED_FIELDS[field.key];
+                                              const context = buildFormulaContext(step, stepData);
+                                              setSelectedFormulaField({
+                                                fieldKey: calcField.fieldKey,
+                                                fieldLabel: calcField.fieldLabel,
+                                                context,
+                                              });
+                                              setFormulaExplorerOpen(true);
+                                            }}
+                                            data-testid={`formula-btn-${field.key}`}
+                                          >
+                                            <FunctionSquare className="h-3.5 w-3.5" />
+                                          </Button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>
+                                          <p>View/Edit formula for {field.label}</p>
+                                        </TooltipContent>
+                                      </Tooltip>
+                                    </TooltipProvider>
+                                  )}
+                                </div>
+                              </TableHead>
                             ))}
                             <TableHead className="text-right w-24">Actions</TableHead>
                           </TableRow>
@@ -1166,6 +1260,23 @@ export default function WhatIfAnalysis() {
             )}
           </DialogContent>
         </Dialog>
+
+        {/* Formula Explorer */}
+        <FormulaExplorer
+          open={formulaExplorerOpen}
+          onOpenChange={setFormulaExplorerOpen}
+          fieldKey={selectedFormulaField?.fieldKey || ""}
+          fieldLabel={selectedFormulaField?.fieldLabel || ""}
+          useCaseId={selectedFormulaField?.useCaseId}
+          useCaseName={selectedFormulaField?.useCaseName}
+          context={selectedFormulaField?.context || {}}
+          onFormulaChange={(newResult) => {
+            toast({
+              title: "Formula Updated",
+              description: `New calculated value: ${newResult}`,
+            });
+          }}
+        />
       </div>
     </Layout>
   );

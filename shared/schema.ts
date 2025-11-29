@@ -193,3 +193,102 @@ export const DEFAULT_ASSUMPTIONS: Record<AssumptionCategory, Array<{
     { fieldName: "weight_effort", displayName: "Priority Weight: Effort", defaultValue: "30", valueType: "percentage", unit: "%", description: "Implementation effort weight in priority scoring", usedInSteps: ["7"] },
   ],
 };
+
+// Formula Configuration for calculated fields
+export const formulaConfigs = pgTable("formula_configs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  useCaseId: varchar("use_case_id"), // null = global default
+  reportId: varchar("report_id"), // which report this belongs to
+  fieldKey: text("field_key").notNull(), // e.g., "totalAnnualImpact", "priorityScore"
+  label: text("label").notNull(), // human-friendly name
+  expression: text("expression").notNull(), // the formula: "costSavings + revenueImpact"
+  inputFields: text("input_fields").array().notNull(), // referenced fields
+  constants: jsonb("constants").$type<FormulaConstant[]>().default([]),
+  isActive: boolean("is_active").default(false).notNull(),
+  version: integer("version").default(1).notNull(),
+  notes: text("notes"),
+  createdBy: text("created_by").default("system"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Type for formula constants
+export interface FormulaConstant {
+  key: string;
+  label: string;
+  value: number;
+  description?: string;
+}
+
+export const insertFormulaConfigSchema = createInsertSchema(formulaConfigs).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertFormulaConfig = z.infer<typeof insertFormulaConfigSchema>;
+export type FormulaConfig = typeof formulaConfigs.$inferSelect;
+
+// Predefined field keys for calculated fields
+export const CALCULATED_FIELD_KEYS = [
+  "totalAnnualImpact",
+  "priorityScore",
+  "valueScore",
+  "ttvScore",
+  "effortScore",
+  "annualTokenCost",
+  "netBenefit"
+] as const;
+
+export type CalculatedFieldKey = typeof CALCULATED_FIELD_KEYS[number];
+
+// Default formulas for calculated fields
+export const DEFAULT_FORMULAS: Record<CalculatedFieldKey, {
+  label: string;
+  expression: string;
+  inputFields: string[];
+  description: string;
+}> = {
+  totalAnnualImpact: {
+    label: "Total Annual Impact (Default)",
+    expression: "revenueBenefit + costBenefit + cashFlowBenefit + riskBenefit",
+    inputFields: ["revenueBenefit", "costBenefit", "cashFlowBenefit", "riskBenefit"],
+    description: "Sum of all benefit categories"
+  },
+  priorityScore: {
+    label: "Priority Score (Default)",
+    expression: "(valueScore * weightValue / 100) + (ttvScore * weightTtv / 100) + ((100 - effortScore) * weightEffort / 100)",
+    inputFields: ["valueScore", "ttvScore", "effortScore", "weightValue", "weightTtv", "weightEffort"],
+    description: "Weighted combination of value, time-to-value, and effort scores"
+  },
+  valueScore: {
+    label: "Value Score (Default)",
+    expression: "(totalAnnualImpact / maxTotalImpact) * 100 * (probabilityOfSuccess / 100)",
+    inputFields: ["totalAnnualImpact", "maxTotalImpact", "probabilityOfSuccess"],
+    description: "Normalized value score adjusted by probability"
+  },
+  ttvScore: {
+    label: "TTV Score (Default)",
+    expression: "max(0, 100 - (timeToValueMonths * 10))",
+    inputFields: ["timeToValueMonths"],
+    description: "Time-to-value score (higher = faster implementation)"
+  },
+  effortScore: {
+    label: "Effort Score (Default)",
+    expression: "effortScore",
+    inputFields: ["effortScore"],
+    description: "Direct pass-through of effort estimate"
+  },
+  annualTokenCost: {
+    label: "Annual Token Cost (Default)",
+    expression: "(avgInputTokens * inputTokenCost / 1000000 + avgOutputTokens * outputTokenCost / 1000000) * runsPerYear * (1 - cachingEffectiveness * promptCachingDiscount / 10000)",
+    inputFields: ["avgInputTokens", "inputTokenCost", "avgOutputTokens", "outputTokenCost", "runsPerYear", "cachingEffectiveness", "promptCachingDiscount"],
+    description: "Annual AI token costs with caching discount"
+  },
+  netBenefit: {
+    label: "Net Benefit (Default)",
+    expression: "totalAnnualImpact - annualTokenCost - implementationCost / 3",
+    inputFields: ["totalAnnualImpact", "annualTokenCost", "implementationCost"],
+    description: "Net annual benefit after costs (3-year amortization)"
+  }
+};

@@ -3,17 +3,22 @@ import {
   reports, 
   assumptionSets,
   assumptionFields,
+  formulaConfigs,
   type Report, 
   type InsertReport,
   type AssumptionSet,
   type InsertAssumptionSet,
   type AssumptionField,
   type InsertAssumptionField,
+  type FormulaConfig,
+  type InsertFormulaConfig,
   DEFAULT_ASSUMPTIONS,
+  DEFAULT_FORMULAS,
   ASSUMPTION_CATEGORIES,
-  type AssumptionCategory
+  type AssumptionCategory,
+  type CalculatedFieldKey
 } from "@shared/schema";
-import { eq, desc, and, like, sql } from "drizzle-orm";
+import { eq, desc, and, like, sql, isNull } from "drizzle-orm";
 
 export interface IStorage {
   // Report operations
@@ -42,6 +47,14 @@ export interface IStorage {
   updateAssumptionField(id: string, data: Partial<InsertAssumptionField>): Promise<AssumptionField | undefined>;
   deleteAssumptionField(id: string): Promise<void>;
   initializeDefaultAssumptions(setId: string, companyName?: string): Promise<AssumptionField[]>;
+  
+  // Formula Config operations
+  createFormulaConfig(config: InsertFormulaConfig): Promise<FormulaConfig>;
+  getFormulaConfigs(reportId: string | null, fieldKey: string, useCaseId?: string | null): Promise<FormulaConfig[]>;
+  getActiveFormula(reportId: string | null, fieldKey: string, useCaseId?: string | null): Promise<FormulaConfig | undefined>;
+  activateFormula(id: string): Promise<FormulaConfig | undefined>;
+  getFormulaById(id: string): Promise<FormulaConfig | undefined>;
+  initializeDefaultFormulas(reportId: string): Promise<FormulaConfig[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -325,6 +338,191 @@ export class DatabaseStorage implements IStorage {
     }
 
     return createdFields;
+  }
+
+  // Formula Config operations
+  async createFormulaConfig(config: InsertFormulaConfig): Promise<FormulaConfig> {
+    // Get the next version number for this field/useCase combo
+    const existing = await db
+      .select()
+      .from(formulaConfigs)
+      .where(and(
+        config.reportId ? eq(formulaConfigs.reportId, config.reportId) : isNull(formulaConfigs.reportId),
+        eq(formulaConfigs.fieldKey, config.fieldKey),
+        config.useCaseId ? eq(formulaConfigs.useCaseId, config.useCaseId) : isNull(formulaConfigs.useCaseId)
+      ))
+      .orderBy(desc(formulaConfigs.version));
+
+    const nextVersion = existing.length > 0 ? existing[0].version + 1 : 1;
+
+    // If this will be active, deactivate others first
+    if (config.isActive) {
+      await db
+        .update(formulaConfigs)
+        .set({ isActive: false, updatedAt: new Date() })
+        .where(and(
+          config.reportId ? eq(formulaConfigs.reportId, config.reportId) : isNull(formulaConfigs.reportId),
+          eq(formulaConfigs.fieldKey, config.fieldKey),
+          config.useCaseId ? eq(formulaConfigs.useCaseId, config.useCaseId) : isNull(formulaConfigs.useCaseId)
+        ));
+    }
+
+    const [newConfig] = await db
+      .insert(formulaConfigs)
+      .values({
+        ...config,
+        version: nextVersion,
+      })
+      .returning();
+
+    return newConfig;
+  }
+
+  async getFormulaConfigs(reportId: string | null, fieldKey: string, useCaseId?: string | null): Promise<FormulaConfig[]> {
+    const conditions = [eq(formulaConfigs.fieldKey, fieldKey)];
+    
+    if (reportId) {
+      conditions.push(eq(formulaConfigs.reportId, reportId));
+    } else {
+      conditions.push(isNull(formulaConfigs.reportId));
+    }
+    
+    if (useCaseId !== undefined) {
+      if (useCaseId) {
+        conditions.push(eq(formulaConfigs.useCaseId, useCaseId));
+      } else {
+        conditions.push(isNull(formulaConfigs.useCaseId));
+      }
+    }
+
+    return await db
+      .select()
+      .from(formulaConfigs)
+      .where(and(...conditions))
+      .orderBy(desc(formulaConfigs.version));
+  }
+
+  async getActiveFormula(reportId: string | null, fieldKey: string, useCaseId?: string | null): Promise<FormulaConfig | undefined> {
+    // First try to find use-case specific active formula
+    if (useCaseId) {
+      const [specific] = await db
+        .select()
+        .from(formulaConfigs)
+        .where(and(
+          reportId ? eq(formulaConfigs.reportId, reportId) : isNull(formulaConfigs.reportId),
+          eq(formulaConfigs.fieldKey, fieldKey),
+          eq(formulaConfigs.useCaseId, useCaseId),
+          eq(formulaConfigs.isActive, true)
+        ))
+        .limit(1);
+
+      if (specific) return specific;
+    }
+
+    // Fall back to report-level formula (useCaseId = null)
+    const [reportLevel] = await db
+      .select()
+      .from(formulaConfigs)
+      .where(and(
+        reportId ? eq(formulaConfigs.reportId, reportId) : isNull(formulaConfigs.reportId),
+        eq(formulaConfigs.fieldKey, fieldKey),
+        isNull(formulaConfigs.useCaseId),
+        eq(formulaConfigs.isActive, true)
+      ))
+      .limit(1);
+
+    if (reportLevel) return reportLevel;
+
+    // Fall back to global default (reportId = null, useCaseId = null)
+    if (reportId) {
+      const [global] = await db
+        .select()
+        .from(formulaConfigs)
+        .where(and(
+          isNull(formulaConfigs.reportId),
+          eq(formulaConfigs.fieldKey, fieldKey),
+          isNull(formulaConfigs.useCaseId),
+          eq(formulaConfigs.isActive, true)
+        ))
+        .limit(1);
+
+      return global;
+    }
+
+    return undefined;
+  }
+
+  async activateFormula(id: string): Promise<FormulaConfig | undefined> {
+    // Get the formula to activate
+    const [formula] = await db
+      .select()
+      .from(formulaConfigs)
+      .where(eq(formulaConfigs.id, id))
+      .limit(1);
+
+    if (!formula) return undefined;
+
+    // Deactivate all other formulas for this field/useCase combo
+    await db
+      .update(formulaConfigs)
+      .set({ isActive: false, updatedAt: new Date() })
+      .where(and(
+        formula.reportId ? eq(formulaConfigs.reportId, formula.reportId) : isNull(formulaConfigs.reportId),
+        eq(formulaConfigs.fieldKey, formula.fieldKey),
+        formula.useCaseId ? eq(formulaConfigs.useCaseId, formula.useCaseId) : isNull(formulaConfigs.useCaseId)
+      ));
+
+    // Activate the selected formula
+    const [activated] = await db
+      .update(formulaConfigs)
+      .set({ isActive: true, updatedAt: new Date() })
+      .where(eq(formulaConfigs.id, id))
+      .returning();
+
+    return activated;
+  }
+
+  async getFormulaById(id: string): Promise<FormulaConfig | undefined> {
+    const [formula] = await db
+      .select()
+      .from(formulaConfigs)
+      .where(eq(formulaConfigs.id, id))
+      .limit(1);
+    return formula;
+  }
+
+  async initializeDefaultFormulas(reportId: string): Promise<FormulaConfig[]> {
+    const createdFormulas: FormulaConfig[] = [];
+    const fieldKeys = Object.keys(DEFAULT_FORMULAS) as CalculatedFieldKey[];
+
+    for (const fieldKey of fieldKeys) {
+      const defaultFormula = DEFAULT_FORMULAS[fieldKey];
+      
+      // Check if formula already exists for this report
+      const existing = await this.getFormulaConfigs(reportId, fieldKey, null);
+      if (existing.length > 0) continue;
+
+      const [formula] = await db
+        .insert(formulaConfigs)
+        .values({
+          reportId,
+          useCaseId: null,
+          fieldKey,
+          label: defaultFormula.label,
+          expression: defaultFormula.expression,
+          inputFields: defaultFormula.inputFields,
+          constants: [],
+          isActive: true,
+          version: 1,
+          notes: defaultFormula.description,
+          createdBy: "system",
+        })
+        .returning();
+
+      createdFormulas.push(formula);
+    }
+
+    return createdFormulas;
   }
 }
 

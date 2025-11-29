@@ -1,0 +1,108 @@
+# Recommendations for a Standard Report‑Level Assumption Table
+
+## 1 Current report structure
+
+The *BlueAlly AI Strategic Assessment is arranged like a board presentation:
+
+- **Executive dashboard:** high‑level metrics (total AI value opportunity, revenue/cost/cash‑flow benefits, risk benefit, token usage) and a top‑five use‑case list.
+- **Narrative sections:** an executive summary and seven numbered steps. Step 0 provides a company overview with estimated revenue and assumed data gaps; later steps describe strategic anchors, KPIs, friction points, AI use cases, benefit quantification, token‑use modeling and priority scoring.
+- **Benchmarks:** when a user visits the *Benchmarks* tab in the application, they see industry indicators such as average SaaS revenue multiples, weighted‑average cost of capital (WACC), market volatility (VIX), inflation, unemployment, GDP growth and interest rates.
+
+The report currently embeds assumptions informally. Step 0 explains revenue  and other metrics are conservative estimates because public data are limited. Subsequent sections compute value, cost savings and risk reduction using unstated parameters. A **standardized Assumption Table** should centralize these parameters, provide transparency and allow users to adjust inputs to test different scenarios.  
+
+## 2 Principles for a user‑friendly Assumption Table
+
+A report‑level assumption table should:
+
+1. **Be holistic:** capture all key drivers that feed the value, cost, risk and token‑cost models (company financials, operations, industry benchmarks, macroeconomics, AI technology and modelling assumptions).  
+2. **Be dynamic:** fields should support two modes – *auto‑populate* from reliable sources (via APIs or periodic scraping of authoritative data sets) and *manual override* where users can input or edit values. Each field should record its source and last‑updated date for transparency.  
+3. **Be modular:** group assumptions into categories (e.g., Company Financials, Macroeconomic Indicators, Industry Benchmarks, AI Model Costs, Operational Metrics). A modular design lets the application embed category‑specific fields into relevant report sections (e.g., HR cost assumptions feed into Step 3 friction costs and Step 6 token‑cost calculations).  
+4. **Be traceable and editable:** allow users to add new fields or delete unused ones. Each row should include the field name, description, value, units, source, update status and an “auto‑refresh” flag (whether the field can be automatically updated).  
+
+## 3 Recommended categories and fields
+
+Below are recommended categories and example fields.  The values shown are for illustration and should be replaced by actual data pulled via API or manual entry.  Citations show why each metric matters or how it is defined.
+
+### 3.1 Company financial & operational assumptions
+
+| Field | Description | Rationale & suggested source |
+|---|---|---|
+| **Annual revenue (USD)** | Latest fiscal‑year total revenue. | Underpins total AI value calculations. Pull from company 10‑K/10‑Q via SEC EDGAR API or reputable financial data providers. |
+| **Gross margin (%)** | Percentage of revenue retained after covering direct production/service costs. Calculated as `(revenue – COGS) ÷ revenue`. | Indicates profitability and is used to estimate cost‑benefit potential. |
+| **Operating margin (%)** | Operating income ÷ revenue. | Provides context for cost‑saving potential; fetch from financial statements. |
+| **Revenue growth rate (%)** | Year‑over‑year revenue growth. | Needed to forecast future benefits. |
+| **Number of employees** | Total headcount and number of customer‑facing representatives. | Drives adoption assumptions, cost of labour and productivity calculations. |
+| **Average revenue per representative (USD)** | Annual revenue ÷ number of representatives. | Used to quantify benefits of productivity improvements. |
+| **Fully burdened cost per hour (USD)** | Total employment cost per hour, including wages and indirect costs such as payroll taxes, benefits and paid leave [oai_citation:0‡investopedia.com](https://www.investopedia.com/terms/b/burden-rate.asp#:~:text=,paid%20time%20off%2C%20and%20training). The burden rate may add up to ~50 % beyond base pay [oai_citation:1‡investopedia.com](https://www.investopedia.com/terms/b/burden-rate.asp#:~:text=,paid%20time%20off%2C%20and%20training), and employer compensation averages $45.65 per hour, with $32.07 in wages and $13.58 in benefits [oai_citation:2‡bls.gov](https://www.bls.gov/news.release/pdf/ecec.pdf#:~:text=%2445,and%20tables%201%20and%204). A rule of thumb for small businesses is that an employee costs 1.25–1.4 × their salary [oai_citation:3‡sba.gov](https://www.sba.gov/blog/how-much-does-employee-cost-you#:~:text=There%E2%80%99s%20a%20rule%20of%20thumb,little%20harder%20to%20pin%20down). | Required to translate time savings into cost savings. |
+| **Average salary (USD)** | Average base compensation per representative or employee. | Combined with the burden rate to derive fully burdened cost. |
+| **Customer acquisition cost (CAC)** | Cost to acquire a new customer. | Used to quantify improvements in conversion rates. |
+| **Customer lifetime value (LTV)** | Present value of profits from a customer over the relationship. | Required to estimate revenue uplift from retention improvements. |
+| **Retention rate / churn (%)** | Percentage of customers retained annually. | Drives revenue benefit calculations for retention use cases. |
+| **Compliance cost (USD)** | Annual spending on regulatory compliance (e.g., auditing, call monitoring). | Serves as a baseline for risk‑reduction benefits. |
+| **Audit failure rate (%)** | Current rate of compliance failures or audit exceptions. | Used in risk modeling.
+
+### 3.2 AI model & technology assumptions
+
+| Field | Description | Rationale & suggested source |
+|---|---|---|
+| **Model name** | The AI model used (e.g., Claude 3.5 Sonnet, GPT‑4). | Identifies token costs and capabilities. |
+| **Input token cost (USD per million)** | Price per million input tokens. For Claude 3.5 Sonnet the cost is $3 per million input tokens [oai_citation:4‡anthropic.com](https://www.anthropic.com/news/claude-3-5-sonnet#:~:text=API%2C%20Amazon%20Bedrock%2C%20and%20Google,a%20200K%20token%20context%20window). | Required for token‑cost calculations. |
+| **Output token cost (USD per million)** | Price per million output tokens; Claude 3.5 Sonnet charges $15 per million output tokens [oai_citation:5‡anthropic.com](https://www.anthropic.com/news/claude-3-5-sonnet#:~:text=API%2C%20Amazon%20Bedrock%2C%20and%20Google,a%20200K%20token%20context%20window). | Required for total cost estimates. |
+| **Context window (tokens)** | Maximum tokens per request (e.g., 200 K for Claude 3.5 Sonnet [oai_citation:6‡anthropic.com](https://www.anthropic.com/news/claude-3-5-sonnet#:~:text=API%2C%20Amazon%20Bedrock%2C%20and%20Google,a%20200K%20token%20context%20window)). | Affects design of prompts and caching strategies. |
+| **Average tokens per run (input/output)** | Estimated tokens consumed per use‑case run (from Step 6). | Drives monthly token totals. |
+| **User adoption rate (%)** | Expected percentage of employees using the AI solution. | Used for scaling token usage and cost estimates. |
+| **Confidence multiplier (%)** | Probability‑weighted adjustment factor (e.g., 70 % confidence used in the report). | Allows sensitivity analysis; can be edited by the user. |
+| **Discount rate (%)** | Rate used to discount future cash flows. Often set equal to WACC; see below. | Critical for net‑present‑value calculations. |
+
+### 3.3 Industry benchmark assumptions (can pull from the Benchmarks page)
+
+| Field | Description | Rationale & suggested source |
+|---|---|---|
+| **Average revenue multiple (×)** | Market valuation multiple used for SaaS or financial‑services firms. In 2024 the average SaaS revenue multiple was about 14× [oai_citation:7‡publicsaascompanies.com](https://publicsaascompanies.com/saas-revenue-multiples-in-2024/#:~:text=It%20is%20essential%20to%20compare,SaaS%20shares%2C%20driving%20up%20valuations) (down from ~15× in 2023). | Useful for equity valuation and executive discussions. |
+| **Weighted average cost of capital (WACC)** | Average rate a company pays its capital providers, reflecting the proportional cost of debt and equity [oai_citation:8‡investopedia.com](https://www.investopedia.com/terms/w/wacc.asp#:~:text=Weighted%20average%20cost%20of%20capital,economic%20health%20and%20investment%20potential). | Used as discount rate and to evaluate investment returns. |
+| **Market volatility (VIX) level** | Categorisation of VIX (Low, Normal, High, Very High). A level below 15 indicates low volatility and optimism; 15–25 is normal; 25–30 denotes rising uncertainty; and above 30 signals significant volatility [oai_citation:9‡tradenation.com](https://tradenation.com/articles/vix-volatility-index/#:~:text=There%20are%20different%20levels%20of,could%20be%20interpreted%20as%20follows). | Provides context for risk assumptions and scenario planning. |
+| **Cost of capital (%)** | Current interest rate or corporate bond yield; the Benchmarks page shows 4.2 % WACC, but this should update from Kroll/NYU data. | Feeds discount rate calculations. |
+| **GDP growth rate (%)** | Current or projected annual GDP growth, e.g., 2.1 % on the Benchmarks page. | Influences revenue forecasts. |
+| **Inflation rate (%)** | Year‑over‑year change in the consumer price index; the all‑items CPI rose 3 % in the 12 months ending September 2025 [oai_citation:10‡bls.gov](https://www.bls.gov/news.release/cpi.nr0.htm#:~:text=The%20all%20items%20index%20rose,percent%20over%20the%20last%20year). | Used to adjust nominal projections to real terms. |
+| **Unemployment rate (%)** | National unemployment rate; 4.4 % in September 2025 with 7.6 million unemployed persons [oai_citation:11‡bls.gov](https://www.bls.gov/news.release/empsit.nr0.htm#:~:text=Both%20the%20unemployment%20rate%2C%20at,1). | Indicates labour‑market slack; may influence hiring and wage assumptions. |
+| **Interest rate (Fed funds or 10‑year Treasury)** | Current benchmark interest rate; 5.25 % on the Benchmarks page. | Affects discount rates and borrowing costs. |
+| **Analyst sentiment** | Qualitative indicator (Bullish/Neutral/Bearish) summarizing market expectations. | May inform risk adjustments.
+
+### 3.4 Operational & performance assumptions
+
+| Field | Description | Rationale |
+|---|---|---|
+| **Baseline KPIs** | For each function (sales, customer success, operations etc.) record baseline values such as lead response time, conversion rate, policy issuance cycle time etc., as shown in Step 2. | Needed for target‑setting and measuring improvements. |
+| **Target KPIs** | Desired future values for each KPI. | Drives benefit quantification. |
+| **Conversion uplift (%)** | Expected lift in conversion from AI scoring. | Used in revenue benefit calculations. |
+| **Retention uplift (%)** | Expected improvement in customer retention. | Drives LTV calculations. |
+| **Cycle‑time reduction (%)** | Expected reduction in process cycle times. | Drives cost savings. |
+| **Compliance improvement (%)** | Reduction in audit failures. | Used in risk‑benefit calculations. |
+
+## 4 Automating updates from reliable sources
+
+To keep assumptions current while minimizing user burden, the application should integrate with authoritative data sources:
+
+1. **Company financial data:** Use the SEC EDGAR API to retrieve the latest 10‑K/10‑Q filings and extract key figures (revenue, gross margin, operating margin, headcount). For private companies, integrate with data providers like Crunchbase, PrivCo or S&P Global. Provide manual overrides when data are unavailable.  
+2. **Labour costs:** Pull employer compensation data from the **Bureau of Labor Statistics** (BLS). In June 2025 employer compensation for private‑sector workers averaged **$45.65 per hour**, with wages of **$32.07** and benefits of **$13.58** [oai_citation:12‡bls.gov](https://www.bls.gov/news.release/pdf/ecec.pdf#:~:text=%2445,and%20tables%201%20and%204); this indicates benefits make up about **29.8 %** of labour costs. Cross‑reference with SBA guidance that total employment costs typically equal **1.25–1.4 ×** base salary [oai_citation:13‡sba.gov](https://www.sba.gov/blog/how-much-does-employee-cost-you#:~:text=There%E2%80%99s%20a%20rule%20of%20thumb,little%20harder%20to%20pin%20down). Allow users to adjust based on their specific industry or region.  
+3. **Industry multiples & WACC:** Scrape updated revenue multiples and WACC from trusted finance sites (PublicSaaSCompanies, Kroll, Damodaran’s data library) or incorporate them into the Benchmarks API.  
+4. **Macroeconomic data:** Use the BLS Public Data API or the Federal Reserve’s **FRED** API to automatically populate inflation, unemployment and GDP growth. For example, the CPI all‑items index rose **3 %** over the year to September 2025 [oai_citation:14‡bls.gov](https://www.bls.gov/news.release/cpi.nr0.htm#:~:text=The%20all%20items%20index%20rose,percent%20over%20the%20last%20year) and the unemployment rate was **4.4 %** with **7.6 million** unemployed [oai_citation:15‡bls.gov](https://www.bls.gov/news.release/empsit.nr0.htm#:~:text=Both%20the%20unemployment%20rate%2C%20at,1).  
+5. **Market volatility and sentiment:** Pull the latest VIX value from the CBOE or data providers and map it to descriptive tiers (low, normal, high, very high) as described above [oai_citation:16‡tradenation.com](https://tradenation.com/articles/vix-volatility-index/#:~:text=There%20are%20different%20levels%20of,could%20be%20interpreted%20as%20follows).  
+6. **AI model pricing:** Scrape pricing pages from model providers (e.g., Anthropic, OpenAI) to keep token‑cost assumptions current. Claude 3.5 Sonnet currently costs **$3 per million input tokens** and **$15 per million output tokens** [oai_citation:17‡anthropic.com](https://www.anthropic.com/news/claude-3-5-sonnet#:~:text=API%2C%20Amazon%20Bedrock%2C%20and%20Google,a%20200K%20token%20context%20window).  
+7. **Other indicators:** Integrate with external sources for interest rates (Federal Reserve), tax rates, and sector‑performance indices.  
+
+Each field in the assumption table should indicate whether it is connected to an automatic data source. When a source is available, the “auto‑refresh” flag can trigger periodic updates (e.g., monthly for macro data, quarterly for financials). The application should log the last update date and allow users to lock a value to prevent automatic overwriting.
+
+## 5 Integration into the report
+
+To maximize usability and maintain transparency, the assumption table should be integrated throughout the report:
+
+- **Placement:** Include a dedicated “Assumptions” section near the beginning (after the executive summary) that summarizes all key inputs. Provide links or tooltips from tables and charts back to the relevant assumption fields. A floating sidebar could allow users to view and edit assumptions without leaving their current section.
+
+- **Dynamic linkages:** Each calculation in Steps 1–7 should reference fields from the assumption table rather than hard‑coded numbers. For example, Step 3’s friction cost calculation would use the *fully burdened cost per hour* and *hours wasted per employee*, while Step 5’s revenue benefit would depend on *annual revenue*, *conversion uplift* and *LTV*. When a user edits an assumption, the downstream tables and charts should automatically recalculate.
+
+- **Scenario modeling:** Allow users to create multiple assumption sets (e.g., conservative, base, aggressive). Switching between sets can update the entire report, enabling sensitivity analysis.  
+
+- **Audit trail:** Display the source, date and any manual adjustments for each field. This fosters trust and helps users remember why a particular value was chosen.
+
+By centralizing assumptions in a dynamic table, the application will make AI opportunity assessments more transparent and easier to update. Users can quickly adjust inputs to reflect new data or different scenarios, and the report will recompute value estimates accordingly, enhancing accuracy and credibility.
