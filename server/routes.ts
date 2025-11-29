@@ -13,6 +13,11 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   
+  // Version check
+  app.get("/api/version", (req, res) => {
+    res.json({ version: "2.0.1", buildTime: "2025-11-29T22:15:00Z" });
+  });
+
   // Health check endpoint to verify AI service configuration
   app.get("/api/health", (req, res) => {
     const isProduction = process.env.NODE_ENV === 'production';
