@@ -1,6 +1,6 @@
 import { db } from "@db";
 import { reports, type Report, type InsertReport } from "@shared/schema";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, and, like, sql } from "drizzle-orm";
 
 export interface IStorage {
   createReport(report: InsertReport): Promise<Report>;
@@ -8,6 +8,9 @@ export interface IStorage {
   updateReport(id: string, data: Partial<InsertReport>): Promise<Report | undefined>;
   deleteReport(id: string): Promise<void>;
   getAllReports(): Promise<Report[]>;
+  getWhatIfReports(parentReportId: string): Promise<Report[]>;
+  getNextWhatIfVersion(parentReportId: string): Promise<number>;
+  createWhatIfReport(parentReportId: string, analysisData: any): Promise<Report>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -23,7 +26,10 @@ export class DatabaseStorage implements IStorage {
     const [report] = await db
       .select()
       .from(reports)
-      .where(eq(reports.companyName, companyName))
+      .where(and(
+        eq(reports.companyName, companyName),
+        eq(reports.isWhatIf, false)
+      ))
       .orderBy(desc(reports.updatedAt))
       .limit(1);
     return report;
@@ -49,6 +55,50 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(reports)
       .orderBy(desc(reports.createdAt));
+  }
+
+  async getWhatIfReports(parentReportId: string): Promise<Report[]> {
+    return await db
+      .select()
+      .from(reports)
+      .where(eq(reports.parentReportId, parentReportId))
+      .orderBy(desc(reports.whatIfVersion));
+  }
+
+  async getNextWhatIfVersion(parentReportId: string): Promise<number> {
+    const [result] = await db
+      .select({ maxVersion: sql<number>`COALESCE(MAX(${reports.whatIfVersion}), 0)` })
+      .from(reports)
+      .where(eq(reports.parentReportId, parentReportId));
+    return (result?.maxVersion || 0) + 1;
+  }
+
+  async createWhatIfReport(parentReportId: string, analysisData: any): Promise<Report> {
+    const [parentReport] = await db
+      .select()
+      .from(reports)
+      .where(eq(reports.id, parentReportId))
+      .limit(1);
+
+    if (!parentReport) {
+      throw new Error("Parent report not found");
+    }
+
+    const version = await this.getNextWhatIfVersion(parentReportId);
+    const companyName = `${parentReport.companyName}_WhatIf_${version}`;
+
+    const [newReport] = await db
+      .insert(reports)
+      .values({
+        companyName,
+        analysisData,
+        isWhatIf: true,
+        parentReportId,
+        whatIfVersion: version,
+      })
+      .returning();
+
+    return newReport;
   }
 }
 
