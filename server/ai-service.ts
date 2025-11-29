@@ -236,6 +236,13 @@ Return ONLY valid JSON with this exact structure:
   const userPrompt = `Analyze "${companyName}" and generate a comprehensive AI opportunity assessment following the exact 8-step framework. Remember: apply 5% conservative reduction to revenue estimates, anchor all initiatives to the 4 business drivers, and map use cases to the 6 AI primitives. Return only valid JSON.`;
 
   try {
+    // Verify API key is configured
+    if (!process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY) {
+      throw new Error("Anthropic API key is not configured. Please add the AI_INTEGRATIONS_ANTHROPIC_API_KEY secret.");
+    }
+
+    console.log(`Starting analysis for: ${companyName}`);
+    
     const message = await anthropic.messages.create({
       model: "claude-sonnet-4-5",
       max_tokens: 16000,
@@ -249,7 +256,13 @@ Return ONLY valid JSON with this exact structure:
       ],
     });
 
+    console.log(`Received response for: ${companyName}`);
+
     const responseText = message.content[0].type === "text" ? message.content[0].text : "";
+    
+    if (!responseText) {
+      throw new Error("Empty response received from AI service");
+    }
     
     let jsonText = responseText.trim();
     if (jsonText.startsWith("```json")) {
@@ -258,12 +271,32 @@ Return ONLY valid JSON with this exact structure:
       jsonText = jsonText.replace(/```\n?/g, "").replace(/```\n?$/g, "");
     }
     
-    const analysis = JSON.parse(jsonText);
-    
-    return analysis;
-  } catch (error) {
+    try {
+      const analysis = JSON.parse(jsonText);
+      console.log(`Successfully parsed analysis for: ${companyName}`);
+      return analysis;
+    } catch (parseError) {
+      console.error("JSON Parse Error:", parseError);
+      console.error("Raw response (first 500 chars):", jsonText.substring(0, 500));
+      throw new Error("Failed to parse AI response as JSON. The model may have returned an invalid format.");
+    }
+  } catch (error: any) {
     console.error("AI Analysis Error:", error);
-    throw new Error("Failed to generate company analysis");
+    
+    // Provide more specific error messages
+    if (error.status === 401) {
+      throw new Error("Authentication failed. Please check your Anthropic API key configuration.");
+    } else if (error.status === 429) {
+      throw new Error("Rate limit exceeded. Please wait a moment and try again.");
+    } else if (error.status === 500 || error.status === 503) {
+      throw new Error("AI service is temporarily unavailable. Please try again in a few minutes.");
+    } else if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
+      throw new Error("Cannot connect to AI service. Please check your network connection.");
+    } else if (error.message) {
+      throw new Error(error.message);
+    }
+    
+    throw new Error("Failed to generate company analysis. Please try again.");
   }
 }
 

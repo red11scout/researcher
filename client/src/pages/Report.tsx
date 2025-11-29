@@ -320,7 +320,8 @@ export default function Report() {
       eventSource.close();
 
       if (!response.ok) {
-        throw new Error("Failed to regenerate analysis");
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to regenerate analysis");
       }
 
       const result = await response.json();
