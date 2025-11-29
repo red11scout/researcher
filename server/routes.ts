@@ -15,7 +15,49 @@ export async function registerRoutes(
   
   // Version check
   app.get("/api/version", (req, res) => {
-    res.json({ version: "2.0.1", buildTime: "2025-11-29T22:15:00Z" });
+    res.json({ version: "2.0.2", buildTime: "2025-11-29T22:20:00Z" });
+  });
+
+  // Simple POST test to debug analyze issues
+  app.post("/api/test-post", async (req, res) => {
+    const testResult: any = {
+      timestamp: new Date().toISOString(),
+      receivedBody: req.body,
+      stages: [],
+    };
+    
+    try {
+      testResult.stages.push("1. Received request");
+      
+      const { companyName } = req.body;
+      testResult.stages.push(`2. Company name: ${companyName}`);
+      
+      // Check config
+      const configCheck = checkProductionConfig();
+      testResult.stages.push(`3. Config check: ${JSON.stringify(configCheck)}`);
+      
+      // Check database
+      testResult.stages.push("4. Checking database...");
+      const existingReport = await storage.getReportByCompany(companyName || "TestCorp");
+      testResult.stages.push(`5. Existing report: ${existingReport ? "found" : "not found"}`);
+      
+      // Generate analysis
+      testResult.stages.push("6. Generating analysis...");
+      const analysis = await generateCompanyAnalysis(companyName || "TestCorp");
+      testResult.stages.push("7. Analysis complete");
+      
+      testResult.success = true;
+      testResult.summary = analysis.summary?.substring(0, 100);
+    } catch (error: any) {
+      testResult.success = false;
+      testResult.error = {
+        message: error?.message,
+        name: error?.name,
+        stack: error?.stack?.split('\n').slice(0, 3),
+      };
+    }
+    
+    res.json(testResult);
   });
 
   // Health check endpoint to verify AI service configuration
