@@ -266,3 +266,65 @@ Return ONLY valid JSON with this exact structure:
     throw new Error("Failed to generate company analysis");
   }
 }
+
+export async function generateWhatIfSuggestion(
+  step: number, 
+  context: any, 
+  currentData: any[]
+): Promise<any> {
+  const stepDescriptions: Record<number, string> = {
+    2: "Business Function Inventory & KPI Baselines - Generate KPI records with Function, Sub-Function, KPI Name, Baseline Value, Industry Benchmark, Target Value, Direction, Timeframe, and Measurement Method",
+    3: "Friction Point Mapping - Generate friction point records with Function, Sub-Function, Friction Point description, Severity, Estimated Annual Cost, and Primary Driver Impact",
+    4: "AI Use Case Generation - Generate AI use case records with ID, Function, Sub-Function, Use Case Name, Description, AI Primitives, and Target Friction",
+    6: "Effort & Token Modeling - Generate effort records with ID, Use Case name, Runs/Month, Input Tokens/Run, Output Tokens/Run, Monthly Tokens, Annual Token Cost, Data Readiness (1-5), Integration Complexity (1-5), Change Mgmt (1-5), Effort Score, and Time-to-Value (months)",
+    7: "Priority Scoring & Roadmap - Generate priority records with ID, Use Case, Value Score, TTV Score, Effort Score, Priority Score, Priority Tier, and Recommended Phase"
+  };
+
+  const systemPrompt = `You are an AI assistant helping users create What-If scenarios for enterprise AI assessments. 
+Generate a single NEW record suggestion for Step ${step}: ${stepDescriptions[step] || 'Analysis step'}.
+
+Context about the company and existing analysis:
+${JSON.stringify(context, null, 2)}
+
+Existing records in this step:
+${JSON.stringify(currentData, null, 2)}
+
+RULES:
+1. Generate ONE new record that would be valuable for this company
+2. Use realistic, conservative estimates
+3. Match the exact format of existing records
+4. Generate unique IDs that don't conflict with existing ones
+5. Provide plausible financial values using $M or $K notation
+6. Include all required fields based on the step
+
+Return ONLY valid JSON for the new record object.`;
+
+  try {
+    const message = await anthropic.messages.create({
+      model: "claude-sonnet-4-5",
+      max_tokens: 2000,
+      temperature: 0.7,
+      system: systemPrompt,
+      messages: [
+        {
+          role: "user",
+          content: `Generate a new record suggestion for Step ${step}. Return only valid JSON.`,
+        },
+      ],
+    });
+
+    const responseText = message.content[0].type === "text" ? message.content[0].text : "";
+    
+    let jsonText = responseText.trim();
+    if (jsonText.startsWith("```json")) {
+      jsonText = jsonText.replace(/```json\n?/g, "").replace(/```\n?$/g, "");
+    } else if (jsonText.startsWith("```")) {
+      jsonText = jsonText.replace(/```\n?/g, "").replace(/```\n?$/g, "");
+    }
+    
+    return JSON.parse(jsonText);
+  } catch (error) {
+    console.error("AI Suggestion Error:", error);
+    throw new Error("Failed to generate suggestion");
+  }
+}

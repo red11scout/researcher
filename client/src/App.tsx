@@ -8,6 +8,7 @@ import Home from "@/pages/Home";
 import Report from "@/pages/Report";
 import SavedReports from "@/pages/SavedReports";
 import Benchmarks from "@/pages/Benchmarks";
+import WhatIfAnalysis from "@/pages/WhatIfAnalysis";
 
 function Router() {
   return (
@@ -16,6 +17,7 @@ function Router() {
       <Route path="/report" component={Report} />
       <Route path="/saved" component={SavedReports} />
       <Route path="/benchmarks" component={Benchmarks} />
+      <Route path="/whatif/:reportId" component={WhatIfAnalysis} />
       <Route component={NotFound} />
     </Switch>
   );

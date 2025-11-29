@@ -22,7 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Search, FileText, RefreshCw, Download, Trash2, Calendar, Loader2, Database, ArrowRight } from "lucide-react";
+import { Search, FileText, RefreshCw, Download, Trash2, Calendar, Loader2, Database, ArrowRight, Zap } from "lucide-react";
 import { Link, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 
@@ -239,6 +239,12 @@ export default function SavedReports() {
                       </span>
                     </div>
                     <div className="flex items-center gap-2 pt-2 border-t">
+                      <Link href={`/whatif/${report.id}`} className="flex-1">
+                        <Button variant="outline" size="sm" className="w-full gap-1 text-xs h-8 border-primary text-primary hover:bg-primary/10" data-testid={`button-whatif-mobile-${report.id}`}>
+                          <Zap className="h-3 w-3" />
+                          What-If
+                        </Button>
+                      </Link>
                       <Button 
                         variant="outline" 
                         size="sm"
@@ -324,6 +330,12 @@ export default function SavedReports() {
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex items-center justify-end gap-1">
+                            <Link href={`/whatif/${report.id}`}>
+                              <Button variant="ghost" size="sm" className="gap-1 text-primary hover:text-primary hover:bg-primary/10" data-testid={`button-whatif-${report.id}`}>
+                                <Zap className="h-4 w-4" />
+                                What-If
+                              </Button>
+                            </Link>
                             <Button 
                               variant="ghost" 
                               size="sm"

@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { generateCompanyAnalysis } from "./ai-service";
+import { generateCompanyAnalysis, generateWhatIfSuggestion } from "./ai-service";
 import { insertReportSchema } from "@shared/schema";
 
 // Store active SSE connections for progress updates
@@ -179,6 +179,24 @@ export async function registerRoutes(
     }
   });
 
+  // Get a single report by ID
+  app.get("/api/reports/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const allReports = await storage.getAllReports();
+      const report = allReports.find(r => r.id === id);
+      
+      if (!report) {
+        return res.status(404).json({ error: "Report not found" });
+      }
+      
+      return res.json(report);
+    } catch (error) {
+      console.error("Error fetching report:", error);
+      return res.status(500).json({ error: "Failed to fetch report" });
+    }
+  });
+
   // Delete a report
   app.delete("/api/reports/:id", async (req, res) => {
     try {
@@ -188,6 +206,106 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Error deleting report:", error);
       return res.status(500).json({ error: "Failed to delete report" });
+    }
+  });
+
+  // ===== WHAT-IF ANALYSIS ENDPOINTS =====
+
+  // Create a What-If scenario from an existing report
+  app.post("/api/whatif/:parentReportId", async (req, res) => {
+    try {
+      const { parentReportId } = req.params;
+      const { analysisData } = req.body;
+
+      if (!analysisData) {
+        return res.status(400).json({ error: "Analysis data is required" });
+      }
+
+      const whatIfReport = await storage.createWhatIfReport(parentReportId, analysisData);
+
+      return res.json({
+        id: whatIfReport.id,
+        companyName: whatIfReport.companyName,
+        data: whatIfReport.analysisData,
+        isWhatIf: whatIfReport.isWhatIf,
+        parentReportId: whatIfReport.parentReportId,
+        whatIfVersion: whatIfReport.whatIfVersion,
+        createdAt: whatIfReport.createdAt,
+        updatedAt: whatIfReport.updatedAt,
+      });
+    } catch (error) {
+      console.error("What-If creation error:", error);
+      return res.status(500).json({ 
+        error: "Failed to create What-If scenario",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Get all What-If scenarios for a parent report
+  app.get("/api/whatif/:parentReportId", async (req, res) => {
+    try {
+      const { parentReportId } = req.params;
+      const whatIfReports = await storage.getWhatIfReports(parentReportId);
+      return res.json(whatIfReports);
+    } catch (error) {
+      console.error("Error fetching What-If reports:", error);
+      return res.status(500).json({ error: "Failed to fetch What-If reports" });
+    }
+  });
+
+  // Update a What-If scenario
+  app.put("/api/whatif/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { analysisData } = req.body;
+
+      if (!analysisData) {
+        return res.status(400).json({ error: "Analysis data is required" });
+      }
+
+      const updatedReport = await storage.updateReport(id, { analysisData });
+
+      if (!updatedReport) {
+        return res.status(404).json({ error: "What-If scenario not found" });
+      }
+
+      return res.json({
+        id: updatedReport.id,
+        companyName: updatedReport.companyName,
+        data: updatedReport.analysisData,
+        isWhatIf: updatedReport.isWhatIf,
+        parentReportId: updatedReport.parentReportId,
+        whatIfVersion: updatedReport.whatIfVersion,
+        createdAt: updatedReport.createdAt,
+        updatedAt: updatedReport.updatedAt,
+      });
+    } catch (error) {
+      console.error("What-If update error:", error);
+      return res.status(500).json({ 
+        error: "Failed to update What-If scenario",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // AI suggestion endpoint for What-If analysis
+  app.post("/api/whatif/suggest", async (req, res) => {
+    try {
+      const { step, context, currentData } = req.body;
+
+      if (!step || !context) {
+        return res.status(400).json({ error: "Step and context are required" });
+      }
+
+      const suggestion = await generateWhatIfSuggestion(step, context, currentData);
+      return res.json({ suggestion });
+    } catch (error) {
+      console.error("AI suggestion error:", error);
+      return res.status(500).json({ 
+        error: "Failed to generate suggestion",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   });
 
