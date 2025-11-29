@@ -74,60 +74,126 @@ interface AssumptionSet {
   fields?: AssumptionField[];
 }
 
-const CATEGORY_INFO: Record<string, { label: string; icon: any; description: string; color: string }> = {
+// Parent category structure (from document Section 2)
+const PARENT_CATEGORY_INFO: Record<string, { label: string; icon: any; description: string; color: string }> = {
+  financial_operational: {
+    label: "Company Financial & Operational",
+    icon: Building2,
+    description: "Revenue, margins, employees, labor costs, CAC, LTV, and compliance metrics",
+    color: "bg-blue-600"
+  },
+  ai_technology: {
+    label: "AI Model & Technology",
+    icon: Brain,
+    description: "LLM models, token costs, context windows, adoption rates, and confidence multipliers",
+    color: "bg-purple-600"
+  },
+  industry_benchmark: {
+    label: "Industry Benchmarks",
+    icon: TrendingUp,
+    description: "Revenue multiples, WACC, market volatility, and macroeconomic indicators",
+    color: "bg-green-600"
+  },
+  performance_operational: {
+    label: "Operational & Performance",
+    icon: Calculator,
+    description: "Baseline KPIs, target KPIs, process metrics, and improvement uplift assumptions",
+    color: "bg-orange-600"
+  },
+};
+
+// Subcategory information with parent mapping
+const CATEGORY_INFO: Record<string, { label: string; icon: any; description: string; color: string; parent: string }> = {
   company_financials: { 
     label: "Company Financials", 
     icon: Building2, 
     description: "Revenue, margins, and financial metrics from 10-K/10-Q filings",
-    color: "bg-blue-500"
+    color: "bg-blue-500",
+    parent: "financial_operational"
   },
   labor_statistics: { 
     label: "Labor Statistics", 
     icon: Users, 
     description: "Workforce costs and headcount metrics from BLS data",
-    color: "bg-green-500"
+    color: "bg-blue-400",
+    parent: "financial_operational"
+  },
+  customer_metrics: { 
+    label: "Customer Metrics", 
+    icon: Users, 
+    description: "CAC, LTV, retention rates, and customer satisfaction",
+    color: "bg-blue-300",
+    parent: "financial_operational"
+  },
+  compliance_risk: { 
+    label: "Compliance & Risk", 
+    icon: ShieldAlert, 
+    description: "Compliance costs, audit failure rates, and regulatory fines",
+    color: "bg-blue-200",
+    parent: "financial_operational"
   },
   industry_benchmarks: { 
     label: "Industry Benchmarks", 
     icon: TrendingUp, 
     description: "Sector multiples, WACC, and competitive metrics",
-    color: "bg-purple-500"
+    color: "bg-green-500",
+    parent: "industry_benchmark"
   },
   macroeconomic: { 
     label: "Macroeconomic Indicators", 
     icon: BarChart3, 
     description: "Inflation, GDP, interest rates, and market volatility",
-    color: "bg-cyan-500"
+    color: "bg-green-400",
+    parent: "industry_benchmark"
   },
   ai_modeling: { 
     label: "AI Model Costs", 
     icon: Brain, 
     description: "Token pricing, caching, and model parameters",
-    color: "bg-orange-500"
+    color: "bg-purple-500",
+    parent: "ai_technology"
+  },
+  ai_adoption: { 
+    label: "AI Adoption & Confidence", 
+    icon: Zap, 
+    description: "Adoption rates, confidence multipliers, and ramp-up times",
+    color: "bg-purple-400",
+    parent: "ai_technology"
+  },
+  risk_factors: { 
+    label: "Risk & Weighting Factors", 
+    icon: ShieldAlert, 
+    description: "Confidence factors, adoption rates, and priority scoring weights",
+    color: "bg-purple-300",
+    parent: "ai_technology"
   },
   operational_metrics: { 
     label: "Operational Metrics", 
     icon: Calculator, 
     description: "Process volumes, cycle times, and automation rates",
-    color: "bg-indigo-500"
-  },
-  risk_factors: { 
-    label: "Risk & Prioritization", 
-    icon: ShieldAlert, 
-    description: "Confidence factors, adoption rates, and scoring weights",
-    color: "bg-red-500"
-  },
-  company_profile: { 
-    label: "Company Profile", 
-    icon: Building2, 
-    description: "Basic company information (legacy)",
-    color: "bg-slate-500"
+    color: "bg-orange-500",
+    parent: "performance_operational"
   },
   kpi_baselines: { 
-    label: "KPI Baselines", 
+    label: "Baseline KPIs", 
     icon: BarChart3, 
-    description: "Performance indicators (legacy)",
-    color: "bg-slate-500"
+    description: "Current performance indicators for each business function",
+    color: "bg-orange-400",
+    parent: "performance_operational"
+  },
+  kpi_targets: { 
+    label: "Target KPIs", 
+    icon: TrendingUp, 
+    description: "Desired future values for each KPI",
+    color: "bg-orange-300",
+    parent: "performance_operational"
+  },
+  improvement_uplifts: { 
+    label: "Improvement Uplifts", 
+    icon: TrendingUp, 
+    description: "Expected conversion, retention, and cycle-time improvements",
+    color: "bg-orange-200",
+    parent: "performance_operational"
   },
 };
 
@@ -792,213 +858,236 @@ export default function AssumptionPanel() {
           </Dialog>
         </div>
 
-<Accordion type="multiple" defaultValue={["company_financials", "labor_statistics", "industry_benchmarks", "macroeconomic", "ai_modeling", "operational_metrics", "risk_factors"]} className="space-y-3">
-          {Object.entries(CATEGORY_INFO)
-            .filter(([category]) => {
-              const primaryCats = ["company_financials", "labor_statistics", "industry_benchmarks", "macroeconomic", "ai_modeling", "operational_metrics", "risk_factors"];
-              const fields = getFieldsByCategory(category);
-              return primaryCats.includes(category) || fields.length > 0;
-            })
-            .sort(([a], [b]) => {
-              const primaryCats = ["company_financials", "labor_statistics", "industry_benchmarks", "macroeconomic", "ai_modeling", "operational_metrics", "risk_factors"];
-              const aIdx = primaryCats.indexOf(a);
-              const bIdx = primaryCats.indexOf(b);
-              if (aIdx === -1 && bIdx === -1) return 0;
-              if (aIdx === -1) return 1;
-              if (bIdx === -1) return -1;
-              return aIdx - bIdx;
-            })
-            .map(([category, info]) => {
-            const fields = getFieldsByCategory(category);
-            const Icon = info.icon;
+{/* Parent Category Accordions - Hierarchical Structure */}
+        <Accordion type="multiple" defaultValue={["financial_operational", "ai_technology", "industry_benchmark", "performance_operational"]} className="space-y-4">
+          {Object.entries(PARENT_CATEGORY_INFO).map(([parentKey, parentInfo]) => {
+            const ParentIcon = parentInfo.icon;
+            
+            const subcategories = Object.entries(CATEGORY_INFO)
+              .filter(([, info]) => info.parent === parentKey)
+              .sort(([a], [b]) => {
+                const order = Object.keys(CATEGORY_INFO);
+                return order.indexOf(a) - order.indexOf(b);
+              });
+            
+            const totalFields = subcategories.reduce((sum, [cat]) => sum + getFieldsByCategory(cat).length, 0);
+            
+            if (totalFields === 0 && !subcategories.length) return null;
             
             return (
               <AccordionItem
-                key={category}
-                value={category}
-                className="border rounded-lg bg-white shadow-sm overflow-hidden"
+                key={parentKey}
+                value={parentKey}
+                className="border-2 rounded-xl bg-white shadow-md overflow-hidden"
               >
-                <AccordionTrigger className="px-4 py-3 hover:no-underline hover:bg-slate-50">
-                  <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${info.color} bg-opacity-10`}>
-                      <Icon className={`h-5 w-5 ${info.color.replace("bg-", "text-")}`} />
+                <AccordionTrigger className="px-5 py-4 hover:no-underline hover:bg-slate-50">
+                  <div className="flex items-center gap-4 w-full">
+                    <div className={`p-3 rounded-xl ${parentInfo.color}`}>
+                      <ParentIcon className="h-6 w-6 text-white" />
                     </div>
-                    <div className="text-left">
-                      <h3 className="font-semibold text-slate-900">{info.label}</h3>
-                      <p className="text-sm text-slate-500">{info.description}</p>
+                    <div className="text-left flex-1">
+                      <h2 className="text-lg font-bold text-slate-900">{parentInfo.label}</h2>
+                      <p className="text-sm text-slate-500">{parentInfo.description}</p>
                     </div>
-                    <Badge variant="secondary" className="ml-auto mr-4">
-                      {fields.length} fields
+                    <Badge variant="secondary" className="text-sm px-3 py-1 mr-4">
+                      {totalFields} fields
                     </Badge>
                   </div>
                 </AccordionTrigger>
-                <AccordionContent className="px-4 pb-4">
-                  <div className="space-y-2 mt-2">
-                    {fields.map((field) => {
-                      const isEditing = editingField === field.id;
-                      const pending = pendingChanges[field.id];
-                      const displayValue = pending?.value ?? field.value;
-                      const displaySource = pending?.source ?? field.source;
-                      const hasChange = !!pending;
-
+                <AccordionContent className="px-5 pb-5">
+                  <Accordion type="multiple" defaultValue={subcategories.map(([cat]) => cat)} className="space-y-2 mt-2">
+                    {subcategories.map(([category, info]) => {
+                      const fields = getFieldsByCategory(category);
+                      const Icon = info.icon;
+                      
                       return (
-                        <div
-                          key={field.id}
-                          className={`p-3 rounded-lg border transition-all ${
-                            hasChange
-                              ? "bg-amber-50 border-amber-200"
-                              : field.isLocked
-                              ? "bg-slate-100 border-slate-200"
-                              : "bg-slate-50 border-slate-100"
-                          }`}
-                          data-testid={`field-row-${field.fieldName}`}
+                        <AccordionItem
+                          key={category}
+                          value={category}
+                          className="border rounded-lg bg-slate-50 overflow-hidden"
                         >
-                          <div className="flex items-center gap-4">
-                            {/* Field name & description */}
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-medium text-slate-900">
-                                  {field.displayName}
-                                </span>
-                                {field.isLocked && (
-                                  <Tooltip>
-                                    <TooltipTrigger>
-                                      <Lock className="h-3.5 w-3.5 text-amber-600" />
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      Locked - auto-refresh disabled
-                                    </TooltipContent>
-                                  </Tooltip>
-                                )}
-                                {field.autoRefresh && !field.isLocked && (
-                                  <Tooltip>
-                                    <TooltipTrigger>
-                                      <Zap className="h-3.5 w-3.5 text-green-600" />
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      Auto-refresh: {field.refreshFrequency || "enabled"}
-                                    </TooltipContent>
-                                  </Tooltip>
-                                )}
-                                {field.isCustom && (
-                                  <Badge variant="outline" className="text-xs">Custom</Badge>
-                                )}
-                                {field.description && (
-                                  <Tooltip>
-                                    <TooltipTrigger>
-                                      <Info className="h-3.5 w-3.5 text-slate-400" />
-                                    </TooltipTrigger>
-                                    <TooltipContent className="max-w-xs">
-                                      <p>{field.description}</p>
-                                      {field.sourceUrl && (
-                                        <p className="mt-1 text-xs text-muted-foreground flex items-center gap-1">
-                                          <ExternalLink className="h-3 w-3" />
-                                          Source: {field.sourceUrl}
-                                        </p>
-                                      )}
-                                    </TooltipContent>
-                                  </Tooltip>
-                                )}
+                          <AccordionTrigger className="px-4 py-2.5 hover:no-underline hover:bg-slate-100">
+                            <div className="flex items-center gap-3 w-full">
+                              <div className={`p-1.5 rounded-lg ${info.color} bg-opacity-20`}>
+                                <Icon className={`h-4 w-4 ${info.color.replace("bg-", "text-")}`} />
                               </div>
-                              {/* Used in steps indicator */}
-                              {field.usedInSteps && field.usedInSteps.length > 0 && (
-                                <div className="flex items-center gap-1 mt-1">
-                                  <Link2 className="h-3 w-3 text-slate-400" />
-                                  <span className="text-xs text-slate-500">
-                                    Used in: {field.usedInSteps.map(s => s === "summary" ? "Summary" : `Step ${s}`).join(", ")}
-                                  </span>
+                              <div className="text-left flex-1">
+                                <h3 className="font-semibold text-sm text-slate-800">{info.label}</h3>
+                              </div>
+                              <Badge variant="outline" className="text-xs mr-3">
+                                {fields.length} fields
+                              </Badge>
+                            </div>
+                          </AccordionTrigger>
+                          <AccordionContent className="px-4 pb-3">
+                            <div className="space-y-2 mt-2">
+                              {fields.map((field) => {
+                                const isEditing = editingField === field.id;
+                                const pending = pendingChanges[field.id];
+                                const displayValue = pending?.value ?? field.value;
+                                const displaySource = pending?.source ?? field.source;
+                                const hasChange = !!pending;
+
+                                return (
+                                  <div
+                                    key={field.id}
+                                    className={`p-3 rounded-lg border transition-all ${
+                                      hasChange
+                                        ? "bg-amber-50 border-amber-200"
+                                        : field.isLocked
+                                        ? "bg-white border-slate-200"
+                                        : "bg-white border-slate-100"
+                                    }`}
+                                    data-testid={`field-row-${field.fieldName}`}
+                                  >
+                                    <div className="flex items-center gap-4">
+                                      <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                          <span className="font-medium text-slate-900">
+                                            {field.displayName}
+                                          </span>
+                                          {field.isLocked && (
+                                            <Tooltip>
+                                              <TooltipTrigger>
+                                                <Lock className="h-3.5 w-3.5 text-amber-600" />
+                                              </TooltipTrigger>
+                                              <TooltipContent>
+                                                Locked - auto-refresh disabled
+                                              </TooltipContent>
+                                            </Tooltip>
+                                          )}
+                                          {field.autoRefresh && !field.isLocked && (
+                                            <Tooltip>
+                                              <TooltipTrigger>
+                                                <Zap className="h-3.5 w-3.5 text-green-600" />
+                                              </TooltipTrigger>
+                                              <TooltipContent>
+                                                Auto-refresh: {field.refreshFrequency || "enabled"}
+                                              </TooltipContent>
+                                            </Tooltip>
+                                          )}
+                                          {field.isCustom && (
+                                            <Badge variant="outline" className="text-xs">Custom</Badge>
+                                          )}
+                                          {field.description && (
+                                            <Tooltip>
+                                              <TooltipTrigger>
+                                                <Info className="h-3.5 w-3.5 text-slate-400" />
+                                              </TooltipTrigger>
+                                              <TooltipContent className="max-w-xs">
+                                                <p>{field.description}</p>
+                                                {field.sourceUrl && (
+                                                  <p className="mt-1 text-xs text-muted-foreground flex items-center gap-1">
+                                                    <ExternalLink className="h-3 w-3" />
+                                                    Source: {field.sourceUrl}
+                                                  </p>
+                                                )}
+                                              </TooltipContent>
+                                            </Tooltip>
+                                          )}
+                                        </div>
+                                        {field.usedInSteps && field.usedInSteps.length > 0 && (
+                                          <div className="flex items-center gap-1 mt-1">
+                                            <Link2 className="h-3 w-3 text-slate-400" />
+                                            <span className="text-xs text-slate-500">
+                                              Used in: {field.usedInSteps.map(s => s === "summary" ? "Summary" : `Step ${s}`).join(", ")}
+                                            </span>
+                                          </div>
+                                        )}
+                                      </div>
+
+                                      {isEditing ? (
+                                        <div className="flex items-center gap-2">
+                                          <Input
+                                            value={editValues.value}
+                                            onChange={(e) => setEditValues(prev => ({ ...prev, value: e.target.value }))}
+                                            className="w-32 h-8"
+                                            autoFocus
+                                            data-testid={`edit-value-${field.fieldName}`}
+                                          />
+                                          <Select
+                                            value={editValues.source}
+                                            onValueChange={(v) => setEditValues(prev => ({ ...prev, source: v }))}
+                                          >
+                                            <SelectTrigger className="w-40 h-8">
+                                              <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                              {SOURCE_OPTIONS.map((opt) => (
+                                                <SelectItem key={opt.value} value={opt.value}>
+                                                  {opt.label}
+                                                </SelectItem>
+                                              ))}
+                                            </SelectContent>
+                                          </Select>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
+                                            onClick={() => saveFieldEdit(field.id)}
+                                            data-testid={`save-field-${field.fieldName}`}
+                                          >
+                                            <Check className="h-4 w-4" />
+                                          </Button>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 text-slate-500 hover:text-slate-700"
+                                            onClick={cancelEdit}
+                                            data-testid={`cancel-edit-${field.fieldName}`}
+                                          >
+                                            <X className="h-4 w-4" />
+                                          </Button>
+                                        </div>
+                                      ) : (
+                                        <div className="flex items-center gap-3">
+                                          <span className="font-mono text-sm text-slate-700 min-w-[100px] text-right">
+                                            {formatValue(displayValue, field.valueType, field.unit)}
+                                          </span>
+                                          <Badge 
+                                            variant="outline" 
+                                            className={`text-xs ${SOURCE_COLORS[displaySource] || SOURCE_COLORS["System Default"]}`}
+                                          >
+                                            {displaySource}
+                                          </Badge>
+                                          <Button
+                                            variant="ghost"
+                                            size="icon"
+                                            className="h-8 w-8 text-slate-400 hover:text-blue-600"
+                                            onClick={() => startEditing(field)}
+                                            data-testid={`edit-field-${field.fieldName}`}
+                                          >
+                                            <Pencil className="h-4 w-4" />
+                                          </Button>
+                                          {field.isCustom && (
+                                            <Button
+                                              variant="ghost"
+                                              size="icon"
+                                              className="h-8 w-8 text-slate-400 hover:text-red-600"
+                                              onClick={() => deleteFieldMutation.mutate(field.id)}
+                                              data-testid={`delete-field-${field.fieldName}`}
+                                            >
+                                              <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                              
+                              {fields.length === 0 && (
+                                <div className="text-center py-4 text-slate-500 text-sm">
+                                  No fields in this subcategory yet
                                 </div>
                               )}
                             </div>
-
-                          {/* Value editing */}
-                          {isEditing ? (
-                            <div className="flex items-center gap-2">
-                              <Input
-                                value={editValues.value}
-                                onChange={(e) => setEditValues(prev => ({ ...prev, value: e.target.value }))}
-                                className="w-32 h-8"
-                                autoFocus
-                                data-testid={`edit-value-${field.fieldName}`}
-                              />
-                              <Select
-                                value={editValues.source}
-                                onValueChange={(v) => setEditValues(prev => ({ ...prev, source: v }))}
-                              >
-                                <SelectTrigger className="w-40 h-8">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {SOURCE_OPTIONS.map((opt) => (
-                                    <SelectItem key={opt.value} value={opt.value}>
-                                      {opt.label}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
-                                onClick={() => saveFieldEdit(field.id)}
-                                data-testid={`save-field-${field.fieldName}`}
-                              >
-                                <Check className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-slate-500 hover:text-slate-700"
-                                onClick={cancelEdit}
-                                data-testid={`cancel-edit-${field.fieldName}`}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-3">
-                              <span className="font-mono text-sm text-slate-700 min-w-[100px] text-right">
-                                {formatValue(displayValue, field.valueType, field.unit)}
-                              </span>
-                              <Badge 
-                                variant="outline" 
-                                className={`text-xs ${SOURCE_COLORS[displaySource] || SOURCE_COLORS["System Default"]}`}
-                              >
-                                {displaySource}
-                              </Badge>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-slate-400 hover:text-blue-600"
-                                onClick={() => startEditing(field)}
-                                data-testid={`edit-field-${field.fieldName}`}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              {field.isCustom && (
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  className="h-8 w-8 text-slate-400 hover:text-red-600"
-                                  onClick={() => deleteFieldMutation.mutate(field.id)}
-                                  data-testid={`delete-field-${field.fieldName}`}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              )}
-                            </div>
-                          )}
-                          </div>
-                        </div>
+                          </AccordionContent>
+                        </AccordionItem>
                       );
                     })}
-                    
-                    {fields.length === 0 && (
-                      <div className="text-center py-8 text-slate-500">
-                        No fields in this category yet
-                      </div>
-                    )}
-                  </div>
+                  </Accordion>
                 </AccordionContent>
               </AccordionItem>
             );
