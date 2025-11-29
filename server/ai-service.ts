@@ -1,48 +1,54 @@
 import Anthropic from "@anthropic-ai/sdk";
 import pRetry, { AbortError } from "p-retry";
 
-// Determine if we're in production
-const isProduction = process.env.NODE_ENV === 'production';
+// Helper to get current configuration (evaluated at call time, not module load)
+function getConfig() {
+  const isProduction = process.env.NODE_ENV === 'production';
+  const configuredBaseURL = process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL;
+  const isLocalhostUrl = configuredBaseURL?.includes('localhost');
+  const userApiKey = process.env.ANTHROPIC_API_KEY;
+  const integrationApiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
+  const needsUserKey = isProduction && isLocalhostUrl;
+  const apiKey = userApiKey || integrationApiKey;
+  const baseURL = needsUserKey ? undefined : configuredBaseURL;
+  
+  return {
+    isProduction,
+    isLocalhostUrl,
+    userApiKey,
+    integrationApiKey,
+    needsUserKey,
+    apiKey,
+    baseURL,
+  };
+}
 
-// Get the base URL - in production, localhost URLs won't work
-const configuredBaseURL = process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL;
-const isLocalhostUrl = configuredBaseURL?.includes('localhost');
-
-// Check for user-provided API key first, then fall back to integration key
-const userApiKey = process.env.ANTHROPIC_API_KEY;
-const integrationApiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
-
-// In production with localhost URL, we MUST use a user-provided key
-// The integration key is a dummy that only works with the local proxy
-const needsUserKey = isProduction && isLocalhostUrl;
-const apiKey = userApiKey || integrationApiKey;
-
-// Determine which base URL to use
-// - In production with localhost URL: use default Anthropic API (requires real key)
-// - Otherwise: use the configured URL (which includes the local proxy in dev)
-const baseURL = needsUserKey ? undefined : configuredBaseURL;
-
-// Initialize Anthropic client with timeout
-const anthropic = new Anthropic({
-  apiKey: apiKey,
-  ...(baseURL && { baseURL }), // Only set baseURL if it's valid
-  timeout: 180000, // 3 minute timeout for large analyses
-});
+// Create Anthropic client dynamically (ensures env vars are read at call time)
+function createAnthropicClient() {
+  const config = getConfig();
+  return new Anthropic({
+    apiKey: config.apiKey,
+    ...(config.baseURL && { baseURL: config.baseURL }),
+    timeout: 180000, // 3 minute timeout for large analyses
+  });
+}
 
 // Log configuration status at startup (without revealing secrets)
+const startupConfig = getConfig();
 console.log("AI Service Configuration:", {
-  hasUserApiKey: !!userApiKey,
-  hasIntegrationApiKey: !!integrationApiKey,
-  isLocalhostUrl,
-  needsUserKey,
-  usingBaseUrl: !!baseURL,
-  isProduction,
+  hasUserApiKey: !!startupConfig.userApiKey,
+  hasIntegrationApiKey: !!startupConfig.integrationApiKey,
+  isLocalhostUrl: startupConfig.isLocalhostUrl,
+  needsUserKey: startupConfig.needsUserKey,
+  usingBaseUrl: !!startupConfig.baseURL,
+  isProduction: startupConfig.isProduction,
   nodeEnv: process.env.NODE_ENV,
 });
 
 // Export a function to check if production is properly configured
 export function checkProductionConfig(): { ok: boolean; message: string } {
-  if (needsUserKey && !userApiKey) {
+  const config = getConfig();
+  if (config.needsUserKey && !config.userApiKey) {
     return {
       ok: false,
       message: "Production requires an ANTHROPIC_API_KEY. The built-in AI integration only works in development mode."
@@ -300,15 +306,19 @@ Return ONLY valid JSON with this exact structure:
 
   const userPrompt = `Analyze "${companyName}" and generate a comprehensive AI opportunity assessment following the exact 8-step framework. Remember: apply 5% conservative reduction to revenue estimates, anchor all initiatives to the 4 business drivers, and map use cases to the 6 AI primitives. Return only valid JSON.`;
 
-  // Verify API key is configured appropriately for the environment
-  if (needsUserKey && !userApiKey) {
+  // Get current configuration and verify API key
+  const config = getConfig();
+  if (config.needsUserKey && !config.userApiKey) {
     throw new Error("Production requires an ANTHROPIC_API_KEY secret. Please add your API key in Secrets.");
   }
-  if (!apiKey) {
+  if (!config.apiKey) {
     throw new Error("Anthropic API key is not configured. Please add the ANTHROPIC_API_KEY secret.");
   }
 
   console.log(`Starting analysis for: ${companyName}`);
+
+  // Create client dynamically to ensure env vars are read at call time
+  const anthropic = createAnthropicClient();
 
   try {
     // Use pRetry for automatic retries on transient failures
@@ -430,6 +440,9 @@ RULES:
 6. Include all required fields based on the step
 
 Return ONLY valid JSON for the new record object.`;
+
+  // Create client dynamically
+  const anthropic = createAnthropicClient();
 
   try {
     const message = await anthropic.messages.create({
