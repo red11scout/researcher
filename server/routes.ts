@@ -20,16 +20,52 @@ export async function registerRoutes(
 
   // Database connectivity test
   app.get("/api/test-db", async (req, res) => {
-    const dbUrl = process.env.DATABASE_URL || "";
+    const fs = await import("fs");
+    const replitDbPath = "/tmp/replitdb";
+    
+    let dbUrlSource = "none";
+    let dbUrl = "";
+    let fileExists = false;
+    let fileContent = "";
+    
+    // Check for /tmp/replitdb file
+    try {
+      fileExists = fs.existsSync(replitDbPath);
+      if (fileExists) {
+        fileContent = fs.readFileSync(replitDbPath, "utf-8").trim();
+        if (fileContent && fileContent.startsWith("postgresql://")) {
+          dbUrl = fileContent;
+          dbUrlSource = "/tmp/replitdb";
+        }
+      }
+    } catch (e: any) {
+      fileContent = `Error reading: ${e.message}`;
+    }
+    
+    // Fall back to env var
+    if (!dbUrl && process.env.DATABASE_URL) {
+      dbUrl = process.env.DATABASE_URL;
+      dbUrlSource = "DATABASE_URL env var";
+    }
+    
     const result: any = {
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV,
-      databaseUrl: dbUrl ? {
-        set: true,
+      replitDbFile: {
+        path: replitDbPath,
+        exists: fileExists,
+        contentPreview: fileContent ? `${fileContent.substring(0, 50)}...` : "empty",
+      },
+      envVar: {
+        set: !!process.env.DATABASE_URL,
+        length: process.env.DATABASE_URL?.length || 0,
+      },
+      activeDbUrl: {
+        source: dbUrlSource,
         length: dbUrl.length,
-        protocol: dbUrl.split("://")[0],
+        protocol: dbUrl.split("://")[0] || "none",
         host: dbUrl.includes("@") ? dbUrl.split("@")[1]?.split("/")[0]?.split(":")[0] : "unknown",
-      } : { set: false },
+      },
       tests: {},
     };
     
