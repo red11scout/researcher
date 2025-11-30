@@ -123,10 +123,12 @@ console.log("AI Service Configuration:", {
 // Export a function to check if production is properly configured
 export function checkProductionConfig(): { ok: boolean; message: string } {
   const config = getConfig();
-  if (config.needsUserKey && !config.userApiKey) {
+  
+  // Simply check if we have ANY API key available (user key OR integration key)
+  if (!config.apiKey) {
     return {
       ok: false,
-      message: "Production requires an ANTHROPIC_API_KEY. The built-in AI integration only works in development mode."
+      message: "No Anthropic API key configured. Please add ANTHROPIC_API_KEY in Secrets."
     };
   }
   return { ok: true, message: "AI service configured correctly" };
