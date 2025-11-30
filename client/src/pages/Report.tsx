@@ -295,9 +295,20 @@ export default function Report() {
       }
     } catch (err: any) {
       console.error("Analysis error details:", err);
-      const errorMessage = err instanceof Error 
-        ? err.message 
-        : (typeof err === 'string' ? err : JSON.stringify(err) || "Unknown error");
+      let errorMessage: string;
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      } else if (typeof err === 'string') {
+        errorMessage = err;
+      } else if (err && typeof err === 'object') {
+        errorMessage = err.message || err.error || JSON.stringify(err) || "Unknown error";
+      } else {
+        errorMessage = "Unknown error occurred";
+      }
+      // Ensure we never show just "{}" 
+      if (errorMessage === "{}" || errorMessage === "{}") {
+        errorMessage = "Connection failed - please try again";
+      }
       setError(errorMessage);
       setStatus("complete");
       toast({
@@ -374,9 +385,19 @@ export default function Report() {
       });
     } catch (err: any) {
       console.error("Regenerate error details:", err);
-      const errorMessage = err instanceof Error 
-        ? err.message 
-        : (typeof err === 'string' ? err : JSON.stringify(err) || "Unknown error");
+      let errorMessage: string;
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      } else if (typeof err === 'string') {
+        errorMessage = err;
+      } else if (err && typeof err === 'object') {
+        errorMessage = err.message || err.error || JSON.stringify(err) || "Unknown error";
+      } else {
+        errorMessage = "Unknown error occurred";
+      }
+      if (errorMessage === "{}" || errorMessage === "{}") {
+        errorMessage = "Connection failed - please try again";
+      }
       setError(errorMessage);
       setStatus("complete");
       toast({

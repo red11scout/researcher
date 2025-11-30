@@ -7,28 +7,34 @@ import pRetry, { AbortError } from "p-retry";
 function getConfig() {
   const isProduction = process.env.NODE_ENV === 'production';
   const configuredBaseURL = process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL;
+  const isLocalhostUrl = configuredBaseURL?.includes('localhost');
   const userApiKey = process.env.ANTHROPIC_API_KEY;
   const integrationApiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
   
   // Determine which API key and URL to use:
-  // In PRODUCTION: ALWAYS use Replit's AI Integration (localhost URL works via Replit's infrastructure)
-  // In DEVELOPMENT: Prefer user's own key for faster direct API access
+  // IMPORTANT: Replit AI Integration uses localhost proxy - only works in development
+  // In PRODUCTION: Must use user's own ANTHROPIC_API_KEY with direct Anthropic API
+  // In DEVELOPMENT: Can use either user's key or the integration proxy
   let apiKey: string | undefined;
   let baseURL: string;
   let usingIntegration = false;
   
-  if (isProduction && integrationApiKey && configuredBaseURL) {
-    // Production: Use Replit's AI Integration service
-    // Note: localhost URL is expected - Replit's infrastructure handles it internally
-    apiKey = integrationApiKey;
-    baseURL = configuredBaseURL;
-    usingIntegration = true;
+  if (isProduction) {
+    // Production: MUST use user's own API key (integration localhost proxy doesn't work)
+    if (userApiKey) {
+      apiKey = userApiKey;
+      baseURL = "https://api.anthropic.com";
+    } else {
+      // No user key in production - will fail
+      apiKey = undefined;
+      baseURL = "https://api.anthropic.com";
+    }
   } else if (userApiKey) {
-    // Development: Use user's own API key for direct access
+    // Development with user key: Use direct API for speed
     apiKey = userApiKey;
     baseURL = "https://api.anthropic.com";
   } else if (integrationApiKey && configuredBaseURL) {
-    // Fallback to integration in development if no user key
+    // Development without user key: Use integration proxy
     apiKey = integrationApiKey;
     baseURL = configuredBaseURL;
     usingIntegration = true;
@@ -141,14 +147,22 @@ console.log("AI Service Configuration:", {
 export function checkProductionConfig(): { ok: boolean; message: string } {
   const config = getConfig();
   
-  // Simply check if we have ANY API key available (user key OR integration key)
+  // In production, we MUST have the user's API key
+  if (config.isProduction && !config.userApiKey) {
+    return {
+      ok: false,
+      message: "Production requires ANTHROPIC_API_KEY secret. The Replit AI Integration only works in development."
+    };
+  }
+  
+  // Check if we have ANY API key available
   if (!config.apiKey) {
     return {
       ok: false,
       message: "No Anthropic API key configured. Please add ANTHROPIC_API_KEY in Secrets."
     };
   }
-  return { ok: true, message: "AI service configured correctly" };
+  return { ok: true, message: `AI service configured (using ${config.isProduction ? 'direct API' : config.usingIntegration ? 'integration' : 'direct API'})` };
 }
 
 // Helper function to check if error is rate limit or transient
