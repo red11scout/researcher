@@ -403,12 +403,20 @@ CRITICAL REQUIREMENT: Your ENTIRE response must be valid JSON - no markdown, no 
 
   try {
     // Use pRetry for automatic retries on transient failures
+    // Rate limits (429) need MUCH longer waits - up to 60-90 seconds
     const responseText = await pRetry(
       async () => {
         try {
           return await callAnthropicAPI(systemPrompt, userPrompt, 16000);
         } catch (error: any) {
           console.error(`API call attempt failed:`, error?.message || error);
+          
+          // For rate limit errors (429), wait longer before retrying
+          if (error?.status === 429 || error?.message?.includes("429") || error?.message?.toLowerCase().includes("rate limit")) {
+            console.log("Rate limit hit - waiting 60 seconds before retry...");
+            await new Promise(resolve => setTimeout(resolve, 60000)); // Wait 60 seconds
+            throw error; // Then retry
+          }
           
           // Check if it's a retryable error
           if (isRetryableError(error)) {
@@ -422,11 +430,11 @@ CRITICAL REQUIREMENT: Your ENTIRE response must be valid JSON - no markdown, no 
       },
       {
         retries: 3,
-        minTimeout: 2000,
-        maxTimeout: 30000,
-        factor: 2,
+        minTimeout: 5000,
+        maxTimeout: 120000,
+        factor: 3,
         onFailedAttempt: (error) => {
-          console.log(`Attempt ${error.attemptNumber} failed. ${error.retriesLeft} retries left.`);
+          console.log(`Attempt ${error.attemptNumber} failed. ${error.retriesLeft} retries left. Waiting before retry...`);
         },
       }
     );
@@ -478,8 +486,8 @@ CRITICAL REQUIREMENT: Your ENTIRE response must be valid JSON - no markdown, no 
     // Provide more specific error messages
     if (originalError.status === 401) {
       throw new Error("Authentication failed. Please check your Anthropic API key configuration.");
-    } else if (originalError.status === 429) {
-      throw new Error("Rate limit exceeded. Please wait a moment and try again.");
+    } else if (originalError.status === 429 || originalError.message?.includes("429") || originalError.message?.toLowerCase().includes("rate limit")) {
+      throw new Error("The AI service is busy. Please wait 1-2 minutes and try again. This is normal during high usage periods.");
     } else if (originalError.status === 500 || originalError.status === 503) {
       throw new Error("AI service is temporarily unavailable. Please try again in a few minutes.");
     } else if (originalError.code === 'ECONNREFUSED' || originalError.code === 'ENOTFOUND') {
