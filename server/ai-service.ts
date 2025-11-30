@@ -1,9 +1,7 @@
 import pRetry, { AbortError } from "p-retry";
-import { fetch as undiciFetch } from "undici";
 
-// Use undici fetch directly to bypass Replit's proxy issues
-// The native fetch in Node.js honors HTTPS_PROXY which breaks in production
-const safeFetch = undiciFetch;
+// Use native fetch - test-direct-fetch works with native fetch
+// The undici fetch was causing issues (hanging on requests)
 
 // Helper to get current configuration (evaluated at call time, not module load)
 function getConfig() {
@@ -13,11 +11,12 @@ function getConfig() {
   const userApiKey = process.env.ANTHROPIC_API_KEY;
   const integrationApiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
   const needsUserKey = isProduction && isLocalhostUrl;
-  const apiKey = userApiKey || integrationApiKey;
   
-  // In production, always use official Anthropic API
-  // In development, use Replit's AI integration proxy
-  const baseURL = isProduction ? "https://api.anthropic.com" : (configuredBaseURL || "https://api.anthropic.com");
+  // ALWAYS use the user's API key and official Anthropic API
+  // The Replit AI integration proxy uses a different URL structure that's incompatible
+  // with the standard /v1/messages endpoint
+  const apiKey = userApiKey || integrationApiKey;
+  const baseURL = "https://api.anthropic.com";
   
   return {
     isProduction,
@@ -34,41 +33,79 @@ function getConfig() {
 async function callAnthropicAPI(systemPrompt: string, userPrompt: string, maxTokens: number = 16000): Promise<string> {
   const config = getConfig();
   
+  console.log("[callAnthropicAPI] Starting API call with config:", {
+    baseURL: config.baseURL,
+    hasApiKey: !!config.apiKey,
+    maxTokens,
+    systemPromptLength: systemPrompt.length,
+    userPromptLength: userPrompt.length,
+  });
+  
   if (!config.apiKey) {
+    console.error("[callAnthropicAPI] No API key configured");
     throw new Error("Anthropic API key is not configured");
   }
   
-  const response = await safeFetch(`${config.baseURL}/v1/messages`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": config.apiKey,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-5",
-      max_tokens: maxTokens,
-      temperature: 0.7,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userPrompt }],
-    }),
-  });
-  
-  if (!response.ok) {
-    const errorText = await response.text();
-    const error: any = new Error(`Anthropic API error: ${response.status}`);
-    error.status = response.status;
-    error.body = errorText;
+  try {
+    console.log("[callAnthropicAPI] Making fetch request to:", `${config.baseURL}/v1/messages`);
+    
+    // Use AbortController with 5 minute timeout for large analysis requests
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => {
+      console.log("[callAnthropicAPI] Request timed out after 5 minutes");
+      controller.abort();
+    }, 5 * 60 * 1000);
+    
+    const response = await fetch(`${config.baseURL}/v1/messages`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": config.apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-5-20250929",
+        max_tokens: maxTokens,
+        temperature: 0.7,
+        system: systemPrompt,
+        messages: [{ role: "user", content: userPrompt }],
+      }),
+      signal: controller.signal,
+    });
+    
+    clearTimeout(timeoutId);
+    
+    console.log("[callAnthropicAPI] Response received:", {
+      ok: response.ok,
+      status: response.status,
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("[callAnthropicAPI] API error response:", errorText);
+      const error: any = new Error(`Anthropic API error: ${response.status}`);
+      error.status = response.status;
+      error.body = errorText;
+      throw error;
+    }
+    
+    const data = await response.json() as any;
+    console.log("[callAnthropicAPI] Response parsed successfully, content length:", data.content?.[0]?.text?.length || 0);
+    
+    if (!data.content || !data.content[0] || data.content[0].type !== "text") {
+      console.error("[callAnthropicAPI] Invalid response format:", JSON.stringify(data).substring(0, 500));
+      throw new Error("Invalid response format from Anthropic API");
+    }
+    
+    return data.content[0].text;
+  } catch (error: any) {
+    console.error("[callAnthropicAPI] Exception caught:", {
+      message: error?.message,
+      code: error?.code,
+      cause: error?.cause?.message,
+    });
     throw error;
   }
-  
-  const data = await response.json() as any;
-  
-  if (!data.content || !data.content[0] || data.content[0].type !== "text") {
-    throw new Error("Invalid response format from Anthropic API");
-  }
-  
-  return data.content[0].text;
 }
 
 // Log configuration status at startup (without revealing secrets)

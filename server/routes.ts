@@ -15,7 +15,7 @@ export async function registerRoutes(
   
   // Version check
   app.get("/api/version", (req, res) => {
-    res.json({ version: "2.2.0", buildTime: "2025-11-29T23:40:00Z" });
+    res.json({ version: "2.3.0", buildTime: "2025-11-30T00:03:00Z" });
   });
 
   // Test direct fetch to Anthropic (bypass SDK)
@@ -34,7 +34,7 @@ export async function registerRoutes(
           "anthropic-version": "2023-06-01",
         },
         body: JSON.stringify({
-          model: "claude-sonnet-4-5",
+          model: "claude-sonnet-4-5-20250929",
           max_tokens: 100,
           messages: [{ role: "user", content: "Say hello in 5 words" }],
         }),
@@ -45,6 +45,144 @@ export async function registerRoutes(
     } catch (error: any) {
       res.json({ 
         error: error?.message,
+        cause: error?.cause?.message,
+        code: error?.cause?.code,
+      });
+    }
+  });
+  
+  // Test longer prompt with larger output
+  app.get("/api/test-long", async (req, res) => {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      return res.json({ error: "No ANTHROPIC_API_KEY" });
+    }
+    
+    console.log("[test-long] Starting long prompt test...");
+    
+    // Use the actual system prompt from ai-service to test if size is the issue
+    const longSystemPrompt = `You are a senior strategic AI consultant. Generate a simple JSON analysis with 3 steps.
+Return ONLY valid JSON with this structure:
+{
+  "steps": [
+    {"step": 0, "title": "Overview", "content": "Brief overview"},
+    {"step": 1, "title": "Analysis", "content": "Analysis content"},
+    {"step": 2, "title": "Recommendations", "content": "Recommendations"}
+  ],
+  "summary": "Executive summary"
+}`;
+    
+    try {
+      console.log("[test-long] Making fetch request...");
+      const startTime = Date.now();
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-5-20250929",
+          max_tokens: 4000,
+          system: longSystemPrompt,
+          messages: [{ role: "user", content: "Analyze TestCorp and return the JSON analysis" }],
+        }),
+      });
+      
+      const duration = Date.now() - startTime;
+      console.log("[test-long] Response received:", response.status, "in", duration, "ms");
+      const data = await response.json();
+      console.log("[test-long] Response parsed, content length:", JSON.stringify(data).length);
+      res.json({ success: response.ok, status: response.status, duration, data });
+    } catch (error: any) {
+      console.error("[test-long] Error:", error?.message);
+      res.json({ 
+        error: error?.message,
+        cause: error?.cause?.message,
+        code: error?.cause?.code,
+      });
+    }
+  });
+  
+  // Test with very long system prompt (similar to actual analysis)
+  app.get("/api/test-full-prompt", async (req, res) => {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      return res.json({ error: "No ANTHROPIC_API_KEY" });
+    }
+    
+    console.log("[test-full-prompt] Starting full prompt test...");
+    
+    // Use a shortened version of the actual system prompt
+    const systemPrompt = `You are a senior strategic AI consultant. Generate a comprehensive AI opportunity assessment.
+
+CRITICAL RULES:
+1. Apply CONSERVATIVE BIAS: Reduce all revenue estimates by 5%
+2. Use lower-bound industry benchmarks
+3. All financial values in USD
+
+GENERATE THIS 3-STEP ANALYSIS:
+
+STEP 0: Company Overview
+- Company name, industry, estimated revenue
+
+STEP 1: Strategic Themes
+- 3 strategic themes
+
+STEP 2: Key Recommendations
+- 3 recommendations
+
+Return ONLY valid JSON with this structure:
+{
+  "steps": [
+    {"step": 0, "title": "Company Overview", "content": "prose description", "data": null},
+    {"step": 1, "title": "Strategic Themes", "content": "brief intro", "data": [{"theme": "..."}]},
+    {"step": 2, "title": "Recommendations", "content": "brief intro", "data": [{"recommendation": "..."}]}
+  ],
+  "summary": "Executive summary"
+}`;
+
+    const userPrompt = `Analyze "TestCorp" and generate the 3-step analysis. Return only valid JSON.`;
+    
+    try {
+      console.log("[test-full-prompt] Making fetch request, prompt length:", systemPrompt.length);
+      const startTime = Date.now();
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => {
+        console.log("[test-full-prompt] Request timed out after 3 minutes");
+        controller.abort();
+      }, 3 * 60 * 1000);
+      
+      const response = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-5-20250929",
+          max_tokens: 8000,
+          temperature: 0.7,
+          system: systemPrompt,
+          messages: [{ role: "user", content: userPrompt }],
+        }),
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+      const duration = Date.now() - startTime;
+      console.log("[test-full-prompt] Response received:", response.status, "in", duration, "ms");
+      const data = await response.json();
+      console.log("[test-full-prompt] Response parsed, content length:", JSON.stringify(data).length);
+      res.json({ success: response.ok, status: response.status, duration, data });
+    } catch (error: any) {
+      console.error("[test-full-prompt] Error:", error?.message, error?.name);
+      res.json({ 
+        error: error?.message,
+        name: error?.name,
         cause: error?.cause?.message,
         code: error?.cause?.code,
       });
