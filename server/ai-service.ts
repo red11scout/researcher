@@ -392,9 +392,8 @@ CRITICAL REQUIREMENT: Your ENTIRE response must be valid JSON - no markdown, no 
 
   // Get current configuration and verify API key
   const config = getConfig();
-  if (config.needsUserKey && !config.userApiKey) {
-    throw new Error("Production requires an ANTHROPIC_API_KEY secret. Please add your API key in Secrets.");
-  }
+  
+  // Simply check if we have ANY API key available
   if (!config.apiKey) {
     throw new Error("Anthropic API key is not configured. Please add the ANTHROPIC_API_KEY secret.");
   }
