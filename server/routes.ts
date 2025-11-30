@@ -20,8 +20,16 @@ export async function registerRoutes(
 
   // Database connectivity test
   app.get("/api/test-db", async (req, res) => {
+    const dbUrl = process.env.DATABASE_URL || "";
     const result: any = {
       timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV,
+      databaseUrl: dbUrl ? {
+        set: true,
+        length: dbUrl.length,
+        protocol: dbUrl.split("://")[0],
+        host: dbUrl.includes("@") ? dbUrl.split("@")[1]?.split("/")[0]?.split(":")[0] : "unknown",
+      } : { set: false },
       tests: {},
     };
     
