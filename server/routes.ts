@@ -15,18 +15,67 @@ export async function registerRoutes(
   
   // Version check
   app.get("/api/version", (req, res) => {
-    res.json({ version: "2.3.0", buildTime: "2025-11-30T00:03:00Z" });
+    res.json({ version: "2.4.0", buildTime: "2025-11-30T02:50:00Z" });
+  });
+
+  // Diagnostic endpoint to check API configuration
+  app.get("/api/debug-config", (req, res) => {
+    const userApiKey = process.env.ANTHROPIC_API_KEY;
+    const integrationApiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
+    const integrationBaseUrl = process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL;
+    
+    // Determine which config will be used
+    let activeConfig: string;
+    let activeBaseUrl: string;
+    
+    if (userApiKey) {
+      activeConfig = "USER_API_KEY";
+      activeBaseUrl = "https://api.anthropic.com";
+    } else if (integrationApiKey && integrationBaseUrl) {
+      activeConfig = "INTEGRATION_KEY";
+      activeBaseUrl = integrationBaseUrl;
+    } else {
+      activeConfig = "NONE";
+      activeBaseUrl = "N/A";
+    }
+    
+    res.json({
+      timestamp: new Date().toISOString(),
+      nodeEnv: process.env.NODE_ENV || "not set",
+      replitDeployment: process.env.REPLIT_DEPLOYMENT || "not set",
+      apiKeyStatus: {
+        ANTHROPIC_API_KEY: userApiKey ? `SET (${userApiKey.length} chars, starts with: ${userApiKey.substring(0, 10)}...)` : "NOT SET",
+        AI_INTEGRATIONS_ANTHROPIC_API_KEY: integrationApiKey ? `SET (${integrationApiKey.length} chars)` : "NOT SET",
+        AI_INTEGRATIONS_ANTHROPIC_BASE_URL: integrationBaseUrl ? `SET (${integrationBaseUrl.substring(0, 30)}...)` : "NOT SET",
+      },
+      activeConfiguration: activeConfig,
+      activeBaseUrl: activeBaseUrl,
+      willWork: activeConfig !== "NONE",
+    });
   });
 
   // Test direct fetch to Anthropic (bypass SDK)
   app.get("/api/test-direct-fetch", async (req, res) => {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
-      return res.json({ error: "No ANTHROPIC_API_KEY" });
+    // Use same logic as getConfig
+    const userApiKey = process.env.ANTHROPIC_API_KEY;
+    const integrationApiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
+    const integrationBaseUrl = process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL;
+    
+    let apiKey: string | undefined;
+    let baseUrl: string;
+    
+    if (userApiKey) {
+      apiKey = userApiKey;
+      baseUrl = "https://api.anthropic.com";
+    } else if (integrationApiKey && integrationBaseUrl) {
+      apiKey = integrationApiKey;
+      baseUrl = integrationBaseUrl;
+    } else {
+      return res.json({ error: "No API key configured", hasUserKey: !!userApiKey, hasIntegrationKey: !!integrationApiKey });
     }
     
     try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
+      const response = await fetch(`${baseUrl}/v1/messages`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -41,7 +90,7 @@ export async function registerRoutes(
       });
       
       const data = await response.json();
-      res.json({ success: response.ok, status: response.status, data });
+      res.json({ success: response.ok, status: response.status, baseUrl, data });
     } catch (error: any) {
       res.json({ 
         error: error?.message,
