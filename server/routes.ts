@@ -15,7 +15,43 @@ export async function registerRoutes(
   
   // Version check
   app.get("/api/version", (req, res) => {
-    res.json({ version: "2.4.0", buildTime: "2025-11-30T02:50:00Z" });
+    res.json({ version: "2.5.0", buildTime: "2025-11-30T03:10:00Z" });
+  });
+
+  // Database connectivity test
+  app.get("/api/test-db", async (req, res) => {
+    const result: any = {
+      timestamp: new Date().toISOString(),
+      tests: {},
+    };
+    
+    try {
+      // Test 1: Check if storage is initialized
+      result.tests.storageImport = "checking...";
+      result.tests.storageImport = storage ? "success" : "storage is null";
+      
+      // Test 2: Try to get all reports (simple query)
+      result.tests.getAllReports = "checking...";
+      const reports = await storage.getAllReports();
+      result.tests.getAllReports = `success (${reports.length} reports found)`;
+      
+      // Test 3: Try to get a specific company report
+      result.tests.getReportByCompany = "checking...";
+      const testReport = await storage.getReportByCompany("TestCompany123");
+      result.tests.getReportByCompany = testReport ? "found" : "not found (expected)";
+      
+      result.success = true;
+    } catch (error: any) {
+      result.success = false;
+      result.error = {
+        message: error?.message,
+        name: error?.name,
+        code: error?.code,
+        stack: error?.stack?.split('\n').slice(0, 5),
+      };
+    }
+    
+    res.json(result);
   });
 
   // Diagnostic endpoint to check API configuration
