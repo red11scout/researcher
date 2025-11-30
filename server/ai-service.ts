@@ -12,21 +12,28 @@ function getConfig() {
   const integrationApiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
   
   // Determine which API key and URL to use:
-  // 1. If user has their own ANTHROPIC_API_KEY, use it with the public Anthropic API
-  // 2. Otherwise, use the integration key with the integration proxy URL
+  // In PRODUCTION: Prefer Replit's AI Integration (designed for production deployments)
+  // In DEVELOPMENT: Prefer user's own key for faster direct API access
   let apiKey: string | undefined;
   let baseURL: string;
+  let usingIntegration = false;
   
-  if (userApiKey) {
-    // User's own API key works with public Anthropic API
+  if (isProduction && integrationApiKey && configuredBaseURL && !isLocalhostUrl) {
+    // Production: Use Replit's AI Integration service (designed for production)
+    apiKey = integrationApiKey;
+    baseURL = configuredBaseURL;
+    usingIntegration = true;
+  } else if (userApiKey) {
+    // Development or no valid integration: Use user's own API key
     apiKey = userApiKey;
     baseURL = "https://api.anthropic.com";
   } else if (integrationApiKey && configuredBaseURL) {
-    // Integration key MUST use the integration proxy URL
+    // Fallback to integration in development if no user key
     apiKey = integrationApiKey;
     baseURL = configuredBaseURL;
+    usingIntegration = true;
   } else {
-    // Fallback - no valid configuration
+    // No valid configuration
     apiKey = undefined;
     baseURL = "https://api.anthropic.com";
   }
@@ -36,7 +43,7 @@ function getConfig() {
     isLocalhostUrl,
     userApiKey,
     integrationApiKey,
-    needsUserKey: false, // No longer needed with proper key/URL pairing
+    usingIntegration,
     apiKey,
     baseURL,
   };
@@ -124,8 +131,8 @@ async function callAnthropicAPI(systemPrompt: string, userPrompt: string, maxTok
 // Log configuration status at startup (without revealing secrets)
 const startupConfig = getConfig();
 console.log("AI Service Configuration:", {
-  usingUserApiKey: !!startupConfig.userApiKey,
-  usingIntegrationKey: !startupConfig.userApiKey && !!startupConfig.integrationApiKey,
+  usingUserApiKey: !!startupConfig.userApiKey && !startupConfig.usingIntegration,
+  usingReplitIntegration: startupConfig.usingIntegration,
   baseURL: startupConfig.baseURL,
   isProduction: startupConfig.isProduction,
   configValid: !!startupConfig.apiKey,
