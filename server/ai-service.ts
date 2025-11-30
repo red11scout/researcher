@@ -7,24 +7,24 @@ import pRetry, { AbortError } from "p-retry";
 function getConfig() {
   const isProduction = process.env.NODE_ENV === 'production';
   const configuredBaseURL = process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL;
-  const isLocalhostUrl = configuredBaseURL?.includes('localhost');
   const userApiKey = process.env.ANTHROPIC_API_KEY;
   const integrationApiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
   
   // Determine which API key and URL to use:
-  // In PRODUCTION: Prefer Replit's AI Integration (designed for production deployments)
+  // In PRODUCTION: ALWAYS use Replit's AI Integration (localhost URL works via Replit's infrastructure)
   // In DEVELOPMENT: Prefer user's own key for faster direct API access
   let apiKey: string | undefined;
   let baseURL: string;
   let usingIntegration = false;
   
-  if (isProduction && integrationApiKey && configuredBaseURL && !isLocalhostUrl) {
-    // Production: Use Replit's AI Integration service (designed for production)
+  if (isProduction && integrationApiKey && configuredBaseURL) {
+    // Production: Use Replit's AI Integration service
+    // Note: localhost URL is expected - Replit's infrastructure handles it internally
     apiKey = integrationApiKey;
     baseURL = configuredBaseURL;
     usingIntegration = true;
   } else if (userApiKey) {
-    // Development or no valid integration: Use user's own API key
+    // Development: Use user's own API key for direct access
     apiKey = userApiKey;
     baseURL = "https://api.anthropic.com";
   } else if (integrationApiKey && configuredBaseURL) {
@@ -40,7 +40,6 @@ function getConfig() {
   
   return {
     isProduction,
-    isLocalhostUrl,
     userApiKey,
     integrationApiKey,
     usingIntegration,
