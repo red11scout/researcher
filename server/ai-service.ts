@@ -359,12 +359,19 @@ Also calculate Executive Dashboard metrics:
 - Value per 1M Tokens (annualized)
 - Top 5 Use Cases by Priority Score
 
-Return ONLY valid JSON with this exact structure:
+IMPORTANT: Return ONLY valid JSON. No markdown, no code blocks, no explanatory text. Start with { and end with }.
+
+JSON structure:
 {
   "steps": [
     {"step": 0, "title": "Company Overview", "content": "prose description", "data": null},
     {"step": 1, "title": "Strategic Anchoring & Business Drivers", "content": "brief intro", "data": [{"Strategic Theme": "...", ...}]},
-    ...
+    {"step": 2, "title": "Business Function Inventory & KPI Baselines", "content": "...", "data": [...]},
+    {"step": 3, "title": "Friction Point Mapping", "content": "...", "data": [...]},
+    {"step": 4, "title": "AI Use Case Generation", "content": "...", "data": [...]},
+    {"step": 5, "title": "Benefits Quantification by Driver", "content": "...", "data": [...]},
+    {"step": 6, "title": "Effort & Token Modeling", "content": "...", "data": [...]},
+    {"step": 7, "title": "Priority Scoring & Roadmap", "content": "...", "data": [...]}
   ],
   "summary": "2-3 sentence executive summary",
   "executiveDashboard": {
@@ -379,7 +386,9 @@ Return ONLY valid JSON with this exact structure:
   }
 }`;
 
-  const userPrompt = `Analyze "${companyName}" and generate a comprehensive AI opportunity assessment following the exact 8-step framework. Remember: apply 5% conservative reduction to revenue estimates, anchor all initiatives to the 4 business drivers, and map use cases to the 6 AI primitives. Return only valid JSON.`;
+  const userPrompt = `Analyze "${companyName}" and generate a comprehensive AI opportunity assessment following the exact 8-step framework. Remember: apply 5% conservative reduction to revenue estimates, anchor all initiatives to the 4 business drivers, and map use cases to the 6 AI primitives.
+
+CRITICAL REQUIREMENT: Your ENTIRE response must be valid JSON - no markdown, no text before or after, no code blocks. Start your response with { and end with }. Do not include any explanatory text.`;
 
   // Get current configuration and verify API key
   const config = getConfig();
@@ -429,11 +438,27 @@ Return ONLY valid JSON with this exact structure:
     }
     
     let jsonText = responseText.trim();
+    
+    // Handle various response formats
+    // Remove markdown code blocks
     if (jsonText.startsWith("```json")) {
-      jsonText = jsonText.replace(/```json\n?/g, "").replace(/```\n?$/g, "");
+      jsonText = jsonText.replace(/^```json\s*/g, "").replace(/\s*```$/g, "");
     } else if (jsonText.startsWith("```")) {
-      jsonText = jsonText.replace(/```\n?/g, "").replace(/```\n?$/g, "");
+      jsonText = jsonText.replace(/^```\s*/g, "").replace(/\s*```$/g, "");
     }
+    
+    // Try to find JSON object if there's text before/after it
+    const jsonStartIndex = jsonText.indexOf('{');
+    const jsonEndIndex = jsonText.lastIndexOf('}');
+    
+    if (jsonStartIndex === -1 || jsonEndIndex === -1) {
+      console.error("No JSON object found in response");
+      console.error("Raw response (first 1000 chars):", responseText.substring(0, 1000));
+      throw new Error("AI response does not contain valid JSON. The model returned text instead of the requested JSON format.");
+    }
+    
+    // Extract just the JSON portion
+    jsonText = jsonText.substring(jsonStartIndex, jsonEndIndex + 1);
     
     try {
       const analysis = JSON.parse(jsonText);
@@ -441,8 +466,8 @@ Return ONLY valid JSON with this exact structure:
       return analysis;
     } catch (parseError) {
       console.error("JSON Parse Error:", parseError);
-      console.error("Raw response (first 500 chars):", jsonText.substring(0, 500));
-      throw new Error("Failed to parse AI response as JSON. The model may have returned an invalid format.");
+      console.error("Raw response (first 1000 chars):", jsonText.substring(0, 1000));
+      throw new Error("Failed to parse AI response as JSON. The model may have returned malformed JSON.");
     }
   } catch (error: any) {
     console.error("AI Analysis Error:", error);
