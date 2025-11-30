@@ -10,20 +10,33 @@ function getConfig() {
   const isLocalhostUrl = configuredBaseURL?.includes('localhost');
   const userApiKey = process.env.ANTHROPIC_API_KEY;
   const integrationApiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
-  const needsUserKey = isProduction && isLocalhostUrl;
   
-  // ALWAYS use the user's API key and official Anthropic API
-  // The Replit AI integration proxy uses a different URL structure that's incompatible
-  // with the standard /v1/messages endpoint
-  const apiKey = userApiKey || integrationApiKey;
-  const baseURL = "https://api.anthropic.com";
+  // Determine which API key and URL to use:
+  // 1. If user has their own ANTHROPIC_API_KEY, use it with the public Anthropic API
+  // 2. Otherwise, use the integration key with the integration proxy URL
+  let apiKey: string | undefined;
+  let baseURL: string;
+  
+  if (userApiKey) {
+    // User's own API key works with public Anthropic API
+    apiKey = userApiKey;
+    baseURL = "https://api.anthropic.com";
+  } else if (integrationApiKey && configuredBaseURL) {
+    // Integration key MUST use the integration proxy URL
+    apiKey = integrationApiKey;
+    baseURL = configuredBaseURL;
+  } else {
+    // Fallback - no valid configuration
+    apiKey = undefined;
+    baseURL = "https://api.anthropic.com";
+  }
   
   return {
     isProduction,
     isLocalhostUrl,
     userApiKey,
     integrationApiKey,
-    needsUserKey,
+    needsUserKey: false, // No longer needed with proper key/URL pairing
     apiKey,
     baseURL,
   };
@@ -111,13 +124,11 @@ async function callAnthropicAPI(systemPrompt: string, userPrompt: string, maxTok
 // Log configuration status at startup (without revealing secrets)
 const startupConfig = getConfig();
 console.log("AI Service Configuration:", {
-  hasUserApiKey: !!startupConfig.userApiKey,
-  hasIntegrationApiKey: !!startupConfig.integrationApiKey,
-  isLocalhostUrl: startupConfig.isLocalhostUrl,
-  needsUserKey: startupConfig.needsUserKey,
+  usingUserApiKey: !!startupConfig.userApiKey,
+  usingIntegrationKey: !startupConfig.userApiKey && !!startupConfig.integrationApiKey,
   baseURL: startupConfig.baseURL,
   isProduction: startupConfig.isProduction,
-  nodeEnv: process.env.NODE_ENV,
+  configValid: !!startupConfig.apiKey,
 });
 
 // Export a function to check if production is properly configured
