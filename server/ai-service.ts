@@ -126,9 +126,17 @@ async function callAnthropicAPI(systemPrompt: string, userPrompt: string, maxTok
   } catch (error: any) {
     console.error("[callAnthropicAPI] Exception caught:", {
       message: error?.message,
+      name: error?.name,
       code: error?.code,
       cause: error?.cause?.message,
+      stack: error?.stack?.split('\n').slice(0, 3),
     });
+    // Ensure error has a proper message
+    if (!error?.message) {
+      const newError = new Error("Network connection failed - unable to reach AI service");
+      newError.cause = error;
+      throw newError;
+    }
     throw error;
   }
 }
