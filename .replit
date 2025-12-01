@@ -40,10 +40,6 @@ localPort = 41929
 externalPort = 3002
 
 [[ports]]
-localPort = 42383
-externalPort = 8008
-
-[[ports]]
 localPort = 42497
 externalPort = 3000
 
@@ -86,3 +82,8 @@ waitForPort = 5000
 [agent]
 mockupState = "FULLSTACK"
 integrations = ["javascript_anthropic_ai_integrations:1.0.0"]
+
+[userenv]
+
+[userenv.shared]
+NEON_DB_URL = "postgresql://neondb_owner:npg_4mJDgAxSG7wz@ep-dawn-cherry-admxvi1t-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require"
