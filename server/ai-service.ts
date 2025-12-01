@@ -60,14 +60,6 @@ function getConfig() {
 async function callAnthropicAPI(systemPrompt: string, userPrompt: string, maxTokens: number = 16000): Promise<string> {
   const config = getConfig();
   
-  console.log("[callAnthropicAPI] Starting API call with config:", {
-    baseURL: config.baseURL,
-    hasApiKey: !!config.apiKey,
-    maxTokens,
-    systemPromptLength: systemPrompt.length,
-    userPromptLength: userPrompt.length,
-  });
-  
   if (!config.apiKey) {
     console.error("[callAnthropicAPI] No API key configured");
     throw new Error("Anthropic API key is not configured");
