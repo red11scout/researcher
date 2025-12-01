@@ -105,10 +105,13 @@ const parseFormattedValue = (value: any): number => {
 };
 
 // Formatting helpers (used by both Report and StepCard)
+// Format numbers with commas for readability (e.g., 1,234,567)
 const addCommas = (num: number): string => {
   return num.toLocaleString('en-US');
 };
 
+// Format currency values with $ symbol and commas
+// Examples: $1,234 | $45,678 | $1.2M | $3.5B
 const formatCurrency = (value: number | string): string => {
   if (typeof value === 'string') {
     if (value.startsWith('$')) return value;
@@ -117,14 +120,26 @@ const formatCurrency = (value: number | string): string => {
     value = num;
   }
   if (typeof value !== 'number' || isNaN(value)) return '$0';
-  if (value >= 1000000) {
-    return `$${(value / 1000000).toFixed(1)}M`;
-  } else if (value >= 1000) {
-    return `$${addCommas(Math.round(value))}`;
+  
+  // Handle negative values
+  const isNegative = value < 0;
+  const absValue = Math.abs(value);
+  const prefix = isNegative ? '-$' : '$';
+  
+  if (absValue >= 1000000000) {
+    return `${prefix}${(absValue / 1000000000).toFixed(1)}B`;
+  } else if (absValue >= 1000000) {
+    return `${prefix}${(absValue / 1000000).toFixed(1)}M`;
+  } else if (absValue >= 1000) {
+    return `${prefix}${addCommas(Math.round(absValue))}`;
+  } else if (absValue > 0) {
+    return `${prefix}${absValue.toFixed(0)}`;
   }
-  return `$${addCommas(Math.round(value))}`;
+  return '$0';
 };
 
+// Format plain numbers with commas for readability
+// Examples: 1,234 | 45,678 | 1.2M | 3.5B
 const formatNumber = (value: number | string): string => {
   if (typeof value === 'string') {
     const num = parseFloat(value.replace(/[,]/g, ''));
@@ -132,12 +147,19 @@ const formatNumber = (value: number | string): string => {
     value = num;
   }
   if (typeof value !== 'number' || isNaN(value)) return '0';
-  if (value >= 1000000000) {
-    return `${(value / 1000000000).toFixed(1)}B`;
-  } else if (value >= 1000000) {
-    return `${(value / 1000000).toFixed(1)}M`;
+  
+  const isNegative = value < 0;
+  const absValue = Math.abs(value);
+  const prefix = isNegative ? '-' : '';
+  
+  if (absValue >= 1000000000) {
+    return `${prefix}${(absValue / 1000000000).toFixed(1)}B`;
+  } else if (absValue >= 1000000) {
+    return `${prefix}${(absValue / 1000000).toFixed(1)}M`;
+  } else if (absValue >= 1000) {
+    return `${prefix}${addCommas(Math.round(absValue))}`;
   }
-  return addCommas(Math.round(value));
+  return `${prefix}${Math.round(absValue)}`;
 };
 
 interface ProgressUpdate {
@@ -2643,15 +2665,26 @@ function StepCard({ step }: { step: any }) {
   const hasData = step.data && Array.isArray(step.data) && step.data.length > 0;
   const stepInfo = stepTooltips[step.step];
   
-  const formatCurrency = (value: number): string => {
-    if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
-    if (value >= 1000) return `$${value.toLocaleString()}`;
-    return `$${value.toFixed(0)}`;
+  const formatCurrencyLocal = (value: number): string => {
+    const isNegative = value < 0;
+    const absValue = Math.abs(value);
+    const prefix = isNegative ? '-$' : '$';
+    
+    if (absValue >= 1000000000) return `${prefix}${(absValue / 1000000000).toFixed(1)}B`;
+    if (absValue >= 1000000) return `${prefix}${(absValue / 1000000).toFixed(1)}M`;
+    if (absValue >= 1000) return `${prefix}${absValue.toLocaleString('en-US')}`;
+    return `${prefix}${absValue.toFixed(0)}`;
   };
   
-  const formatNumber = (value: number): string => {
-    if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
-    return value.toLocaleString();
+  const formatNumberLocal = (value: number): string => {
+    const isNegative = value < 0;
+    const absValue = Math.abs(value);
+    const prefix = isNegative ? '-' : '';
+    
+    if (absValue >= 1000000000) return `${prefix}${(absValue / 1000000000).toFixed(1)}B`;
+    if (absValue >= 1000000) return `${prefix}${(absValue / 1000000).toFixed(1)}M`;
+    if (absValue >= 1000) return `${prefix}${absValue.toLocaleString('en-US')}`;
+    return `${prefix}${Math.round(absValue)}`;
   };
   
   const toggleRow = (index: number) => {

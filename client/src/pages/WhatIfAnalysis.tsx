@@ -158,10 +158,16 @@ const parseFormattedValue = (value: string | number | undefined): number => {
   return num;
 };
 
+// Format currency with $ symbol and commas for readability
 const formatCurrency = (value: number): string => {
-  if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
-  if (value >= 1000) return `$${Math.round(value / 1000)}K`;
-  return `$${Math.round(value)}`;
+  const isNegative = value < 0;
+  const absValue = Math.abs(value);
+  const prefix = isNegative ? '-$' : '$';
+  
+  if (absValue >= 1000000000) return `${prefix}${(absValue / 1000000000).toFixed(1)}B`;
+  if (absValue >= 1000000) return `${prefix}${(absValue / 1000000).toFixed(1)}M`;
+  if (absValue >= 1000) return `${prefix}${absValue.toLocaleString('en-US')}`;
+  return `${prefix}${Math.round(absValue)}`;
 };
 
 const CALCULATED_FIELDS: Record<string, { fieldKey: string; fieldLabel: string; step: number }> = {
