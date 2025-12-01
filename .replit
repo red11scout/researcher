@@ -86,4 +86,3 @@ integrations = ["javascript_anthropic_ai_integrations:1.0.0"]
 [userenv]
 
 [userenv.shared]
-NEON_DB_URL = "postgresql://neondb_owner:npg_4mJDgAxSG7wz@ep-dawn-cherry-admxvi1t-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require"
