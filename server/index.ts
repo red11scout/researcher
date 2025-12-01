@@ -1,14 +1,5 @@
-// CRITICAL: Disable Replit's HTTPS_PROXY before any network requests
-// Production sets HTTPS_PROXY=http://helium:... which breaks fetch/SDK calls
-import { Agent, setGlobalDispatcher } from "undici";
-if (process.env.NODE_ENV === "production") {
-  setGlobalDispatcher(new Agent());
-  delete process.env.HTTP_PROXY;
-  delete process.env.HTTPS_PROXY;
-  delete process.env.http_proxy;
-  delete process.env.https_proxy;
-  console.log("Production: Disabled proxy settings for direct API access");
-}
+// NOTE: Do NOT disable proxy settings globally - it breaks database connections
+// Instead, we bypass proxy per-request only for Anthropic API calls in ai-service.ts
 
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
