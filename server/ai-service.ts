@@ -146,16 +146,6 @@ async function callAnthropicAPI(systemPrompt: string, userPrompt: string, maxTok
   }
 }
 
-// Log configuration status at startup (without revealing secrets)
-const startupConfig = getConfig();
-console.log("AI Service Configuration:", {
-  usingUserApiKey: !!startupConfig.userApiKey && !startupConfig.usingIntegration,
-  usingReplitIntegration: startupConfig.usingIntegration,
-  baseURL: startupConfig.baseURL,
-  isProduction: startupConfig.isProduction,
-  configValid: !!startupConfig.apiKey,
-});
-
 // Export a function to check if production is properly configured
 export function checkProductionConfig(): { ok: boolean; message: string } {
   const config = getConfig();
