@@ -247,13 +247,25 @@ export default function Report() {
 
       let response: Response;
       try {
+        // Use AbortController with 5-minute timeout for long-running analysis
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+          controller.abort();
+        }, 5 * 60 * 1000); // 5 minutes
+        
         response = await fetch("/api/analyze", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ companyName, sessionId }),
+          signal: controller.signal,
         });
+        
+        clearTimeout(timeoutId);
       } catch (fetchError: any) {
         eventSource.close();
+        if (fetchError?.name === 'AbortError') {
+          throw new Error('Analysis timed out after 5 minutes. Please try again.');
+        }
         throw new Error(`Network error: ${fetchError?.message || 'Failed to connect to server'}`);
       }
 
@@ -345,13 +357,25 @@ export default function Report() {
 
       let response: Response;
       try {
+        // Use AbortController with 5-minute timeout for long-running analysis
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => {
+          controller.abort();
+        }, 5 * 60 * 1000); // 5 minutes
+        
         response = await fetch(`/api/regenerate/${reportId}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ companyName, sessionId }),
+          signal: controller.signal,
         });
+        
+        clearTimeout(timeoutId);
       } catch (fetchError: any) {
         eventSource.close();
+        if (fetchError?.name === 'AbortError') {
+          throw new Error('Analysis timed out after 5 minutes. Please try again.');
+        }
         throw new Error(`Network error: ${fetchError?.message || 'Failed to connect to server'}`);
       }
 
