@@ -348,6 +348,12 @@ Return ONLY valid JSON with this structure:
         length: dbUrl.length,
         host: dbUrlHost,
       },
+      pgEnvVars: {
+        PGHOST: process.env.PGHOST || "not set",
+        PGPORT: process.env.PGPORT || "not set",
+        PGDATABASE: process.env.PGDATABASE || "not set",
+        PGUSER: process.env.PGUSER ? "set" : "not set",
+      },
     });
   });
 
