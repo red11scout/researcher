@@ -1,5 +1,11 @@
 import pRetry, { AbortError } from "p-retry";
 import Anthropic from "@anthropic-ai/sdk";
+import https from "https";
+
+// Create a custom HTTPS agent that bypasses any proxy settings
+const directAgent = new https.Agent({
+  rejectUnauthorized: true,
+});
 
 // Helper to get current configuration (evaluated at call time, not module load)
 function getConfig() {
@@ -58,13 +64,42 @@ function getAnthropicClient(): Anthropic {
     throw new Error("Anthropic API key is not configured");
   }
   
-  // Create new client if config changed or doesn't exist
-  const clientOptions: { apiKey: string; baseURL?: string } = {
+  // Create client with custom fetch that uses direct agent (no proxy)
+  const clientOptions: any = {
     apiKey: config.apiKey,
   };
   
   if (config.baseURL) {
     clientOptions.baseURL = config.baseURL;
+  }
+  
+  // In production, use custom fetch with direct HTTPS agent to bypass proxy
+  if (config.isProduction) {
+    clientOptions.fetch = async (url: string, init: any) => {
+      // Clear any proxy environment variables for this request
+      const originalHttpProxy = process.env.HTTP_PROXY;
+      const originalHttpsProxy = process.env.HTTPS_PROXY;
+      const originalHttpProxyLower = process.env.http_proxy;
+      const originalHttpsProxyLower = process.env.https_proxy;
+      
+      delete process.env.HTTP_PROXY;
+      delete process.env.HTTPS_PROXY;
+      delete process.env.http_proxy;
+      delete process.env.https_proxy;
+      
+      try {
+        const response = await fetch(url, {
+          ...init,
+        });
+        return response;
+      } finally {
+        // Restore proxy env vars
+        if (originalHttpProxy) process.env.HTTP_PROXY = originalHttpProxy;
+        if (originalHttpsProxy) process.env.HTTPS_PROXY = originalHttpsProxy;
+        if (originalHttpProxyLower) process.env.http_proxy = originalHttpProxyLower;
+        if (originalHttpsProxyLower) process.env.https_proxy = originalHttpsProxyLower;
+      }
+    };
   }
   
   anthropicClient = new Anthropic(clientOptions);
@@ -81,7 +116,7 @@ async function callAnthropicAPI(systemPrompt: string, userPrompt: string, maxTok
   }
   
   try {
-    console.log("[callAnthropicAPI] Making API request using Anthropic SDK");
+    console.log("[callAnthropicAPI] Making API request using Anthropic SDK, production:", config.isProduction);
     
     const client = getAnthropicClient();
     
