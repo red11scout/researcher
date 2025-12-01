@@ -299,6 +299,59 @@ Return ONLY valid JSON with this structure:
     });
   });
 
+  // Debug endpoint to check database configuration in production
+  app.get("/api/debug-db-config", (req, res) => {
+    const fs = require("fs");
+    const replitDbPath = "/tmp/replitdb";
+    
+    let replitDbContent = null;
+    let replitDbExists = false;
+    try {
+      replitDbExists = fs.existsSync(replitDbPath);
+      if (replitDbExists) {
+        const content = fs.readFileSync(replitDbPath, "utf-8").trim();
+        // Mask credentials but show structure
+        if (content.includes("@")) {
+          const parts = content.split("@");
+          const hostPart = parts[1] || "";
+          const host = hostPart.split("/")[0] || "";
+          replitDbContent = {
+            hasContent: true,
+            length: content.length,
+            startsWithPostgres: content.startsWith("postgresql://"),
+            host: host.split(":")[0] || "unknown",
+          };
+        } else {
+          replitDbContent = { hasContent: true, length: content.length, format: "unknown" };
+        }
+      }
+    } catch (error: any) {
+      replitDbContent = { error: error.message };
+    }
+    
+    const dbUrl = process.env.DATABASE_URL || "";
+    let dbUrlHost = "not set";
+    if (dbUrl.includes("@")) {
+      const parts = dbUrl.split("@");
+      const hostPart = parts[1] || "";
+      dbUrlHost = hostPart.split("/")[0]?.split(":")[0] || "unknown";
+    }
+    
+    res.json({
+      environment: process.env.NODE_ENV,
+      replitDbFile: {
+        path: replitDbPath,
+        exists: replitDbExists,
+        content: replitDbContent,
+      },
+      envDatabaseUrl: {
+        set: !!process.env.DATABASE_URL,
+        length: dbUrl.length,
+        host: dbUrlHost,
+      },
+    });
+  });
+
   // Direct analyze test - same as /api/analyze but simpler logging
   app.post("/api/analyze-direct", async (req, res) => {
     console.log("=== ANALYZE-DIRECT START ===");
