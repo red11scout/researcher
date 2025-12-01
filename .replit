@@ -86,3 +86,7 @@ integrations = ["javascript_anthropic_ai_integrations:1.0.0"]
 [userenv]
 
 [userenv.shared]
+
+[userenv.production]
+NO_PROXY = "api.anthropic.com"
+no_proxy = "api.anthropic.com"
