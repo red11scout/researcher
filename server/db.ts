@@ -1,33 +1,30 @@
 import { drizzle } from "drizzle-orm/neon-serverless";
 import ws from "ws";
 import * as schema from "@shared/schema";
-import * as fs from "fs";
 
 function getDatabaseUrl(): string {
-  // In production deployments, Replit stores the database URL in a file
-  const replitDbPath = "/tmp/replitdb";
-  
-  // First, try to read from the file (production deployment)
-  try {
-    if (fs.existsSync(replitDbPath)) {
-      const dbUrl = fs.readFileSync(replitDbPath, "utf-8").trim();
-      if (dbUrl && dbUrl.startsWith("postgresql://")) {
-        console.log("Using DATABASE_URL from /tmp/replitdb file");
-        return dbUrl;
-      }
+  // Priority 1: Use NEON_DATABASE_URL if available (works in both dev and production)
+  if (process.env.NEON_DATABASE_URL) {
+    const url = process.env.NEON_DATABASE_URL.trim();
+    // Validate it looks like a proper PostgreSQL URL
+    if (url.startsWith("postgresql://") || url.startsWith("postgres://")) {
+      console.log("Using NEON_DATABASE_URL (external Neon database)");
+      console.log("Database host:", url.split("@")[1]?.split("/")[0] || "unknown");
+      return url;
+    } else {
+      console.error("NEON_DATABASE_URL is set but doesn't look like a valid PostgreSQL URL");
+      console.error("URL starts with:", url.substring(0, 20));
     }
-  } catch (error) {
-    console.log("Could not read /tmp/replitdb, falling back to env var");
   }
   
-  // Fall back to environment variable (development)
+  // Priority 2: Fall back to DATABASE_URL (Replit's internal database - dev only)
   if (process.env.DATABASE_URL) {
     console.log("Using DATABASE_URL from environment variable");
     return process.env.DATABASE_URL;
   }
   
   throw new Error(
-    "DATABASE_URL must be set. Did you forget to provision a database?",
+    "Database URL not configured. Set NEON_DATABASE_URL for production or DATABASE_URL for development.",
   );
 }
 
