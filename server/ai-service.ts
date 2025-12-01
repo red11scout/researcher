@@ -1,44 +1,41 @@
 import pRetry, { AbortError } from "p-retry";
+import Anthropic from "@anthropic-ai/sdk";
 
 // Helper to get current configuration (evaluated at call time, not module load)
 function getConfig() {
   const isProduction = process.env.NODE_ENV === 'production';
   const configuredBaseURL = process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL;
-  const isLocalhostUrl = configuredBaseURL?.includes('localhost');
   const userApiKey = process.env.ANTHROPIC_API_KEY;
   const integrationApiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
   
   // Determine which API key and URL to use:
-  // IMPORTANT: Replit AI Integration uses localhost proxy - only works in development
-  // In PRODUCTION: Must use user's own ANTHROPIC_API_KEY with direct Anthropic API
+  // In PRODUCTION: Must use user's own ANTHROPIC_API_KEY
   // In DEVELOPMENT: Can use either user's key or the integration proxy
   let apiKey: string | undefined;
-  let baseURL: string;
+  let baseURL: string | undefined;
   let usingIntegration = false;
   
   if (isProduction) {
-    // Production: MUST use user's own API key (integration localhost proxy doesn't work)
+    // Production: Use user's API key with default Anthropic endpoint
     if (userApiKey) {
       apiKey = userApiKey;
-      baseURL = "https://api.anthropic.com";
+      baseURL = undefined; // Let SDK use default
     } else {
-      // No user key in production - will fail
       apiKey = undefined;
-      baseURL = "https://api.anthropic.com";
+      baseURL = undefined;
     }
   } else if (userApiKey) {
-    // Development with user key: Use direct API for speed
+    // Development with user key: Use direct API
     apiKey = userApiKey;
-    baseURL = "https://api.anthropic.com";
+    baseURL = undefined; // Let SDK use default
   } else if (integrationApiKey && configuredBaseURL) {
     // Development without user key: Use integration proxy
     apiKey = integrationApiKey;
     baseURL = configuredBaseURL;
     usingIntegration = true;
   } else {
-    // No valid configuration
     apiKey = undefined;
-    baseURL = "https://api.anthropic.com";
+    baseURL = undefined;
   }
   
   return {
@@ -51,7 +48,30 @@ function getConfig() {
   };
 }
 
-// Direct API call using native fetch
+// Create Anthropic client lazily
+let anthropicClient: Anthropic | null = null;
+
+function getAnthropicClient(): Anthropic {
+  const config = getConfig();
+  
+  if (!config.apiKey) {
+    throw new Error("Anthropic API key is not configured");
+  }
+  
+  // Create new client if config changed or doesn't exist
+  const clientOptions: { apiKey: string; baseURL?: string } = {
+    apiKey: config.apiKey,
+  };
+  
+  if (config.baseURL) {
+    clientOptions.baseURL = config.baseURL;
+  }
+  
+  anthropicClient = new Anthropic(clientOptions);
+  return anthropicClient;
+}
+
+// API call using official Anthropic SDK
 async function callAnthropicAPI(systemPrompt: string, userPrompt: string, maxTokens: number = 16000): Promise<string> {
   const config = getConfig();
   
@@ -61,72 +81,34 @@ async function callAnthropicAPI(systemPrompt: string, userPrompt: string, maxTok
   }
   
   try {
-    console.log("[callAnthropicAPI] Making fetch request to:", `${config.baseURL}/v1/messages`);
+    console.log("[callAnthropicAPI] Making API request using Anthropic SDK");
     
-    // Use AbortController with 5 minute timeout for large analysis requests
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => {
-      console.log("[callAnthropicAPI] Request timed out after 5 minutes");
-      controller.abort();
-    }, 5 * 60 * 1000);
+    const client = getAnthropicClient();
     
-    // Use native fetch for better compatibility with Replit's production environment
-    const response = await fetch(`${config.baseURL}/v1/messages`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": config.apiKey,
-        "anthropic-version": "2023-06-01",
-      },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-5-20250929",
-        max_tokens: maxTokens,
-        temperature: 0.7,
-        system: systemPrompt,
-        messages: [{ role: "user", content: userPrompt }],
-      }),
-      signal: controller.signal,
+    const message = await client.messages.create({
+      model: "claude-sonnet-4-5-20250929",
+      max_tokens: maxTokens,
+      system: systemPrompt,
+      messages: [{ role: "user", content: userPrompt }],
     });
     
-    clearTimeout(timeoutId);
+    console.log("[callAnthropicAPI] Response received successfully");
     
-    console.log("[callAnthropicAPI] Response received:", {
-      ok: response.ok,
-      status: response.status,
-    });
-    
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("[callAnthropicAPI] API error response:", errorText);
-      const error: any = new Error(`Anthropic API error: ${response.status}`);
-      error.status = response.status;
-      error.body = errorText;
-      throw error;
-    }
-    
-    const data = await response.json() as any;
-    console.log("[callAnthropicAPI] Response parsed successfully, content length:", data.content?.[0]?.text?.length || 0);
-    
-    if (!data.content || !data.content[0] || data.content[0].type !== "text") {
-      console.error("[callAnthropicAPI] Invalid response format:", JSON.stringify(data).substring(0, 500));
+    if (!message.content || !message.content[0] || message.content[0].type !== "text") {
+      console.error("[callAnthropicAPI] Invalid response format");
       throw new Error("Invalid response format from Anthropic API");
     }
     
-    return data.content[0].text;
+    const text = message.content[0].text;
+    console.log("[callAnthropicAPI] Response parsed successfully, content length:", text.length);
+    
+    return text;
   } catch (error: any) {
     console.error("[callAnthropicAPI] Exception caught:", {
       message: error?.message,
       name: error?.name,
-      code: error?.code,
-      cause: error?.cause?.message,
-      stack: error?.stack?.split('\n').slice(0, 3),
+      status: error?.status,
     });
-    // Ensure error has a proper message
-    if (!error?.message) {
-      const newError = new Error("Network connection failed - unable to reach AI service");
-      newError.cause = error;
-      throw newError;
-    }
     throw error;
   }
 }
