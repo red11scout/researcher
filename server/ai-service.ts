@@ -1,7 +1,9 @@
 import pRetry, { AbortError } from "p-retry";
+import { Agent, fetch as undiciFetch } from "undici";
 
-// Use native fetch - test-direct-fetch works with native fetch
-// The undici fetch was causing issues (hanging on requests)
+// Create a custom agent that bypasses proxy for Anthropic API calls
+// This is needed because Replit's production proxy doesn't work for external HTTPS APIs
+const noProxyAgent = new Agent();
 
 // Helper to get current configuration (evaluated at call time, not module load)
 function getConfig() {
@@ -81,7 +83,9 @@ async function callAnthropicAPI(systemPrompt: string, userPrompt: string, maxTok
       controller.abort();
     }, 5 * 60 * 1000);
     
-    const response = await fetch(`${config.baseURL}/v1/messages`, {
+    // Use undici fetch with custom agent to bypass Replit's proxy for external API calls
+    // This is critical for production where the proxy breaks HTTPS connections to api.anthropic.com
+    const response = await undiciFetch(`${config.baseURL}/v1/messages`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -96,6 +100,7 @@ async function callAnthropicAPI(systemPrompt: string, userPrompt: string, maxTok
         messages: [{ role: "user", content: userPrompt }],
       }),
       signal: controller.signal,
+      dispatcher: noProxyAgent,
     });
     
     clearTimeout(timeoutId);
