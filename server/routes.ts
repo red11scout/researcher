@@ -310,20 +310,19 @@ Return ONLY valid JSON with this structure:
       replitDbExists = fs.existsSync(replitDbPath);
       if (replitDbExists) {
         const content = fs.readFileSync(replitDbPath, "utf-8").trim();
-        // Mask credentials but show structure
-        if (content.includes("@")) {
-          const parts = content.split("@");
-          const hostPart = parts[1] || "";
-          const host = hostPart.split("/")[0] || "";
-          replitDbContent = {
-            hasContent: true,
-            length: content.length,
-            startsWithPostgres: content.startsWith("postgresql://"),
-            host: host.split(":")[0] || "unknown",
-          };
-        } else {
-          replitDbContent = { hasContent: true, length: content.length, format: "unknown" };
-        }
+        // Show first 100 chars (masked if credentials)
+        const preview = content.substring(0, 100);
+        const startsWithPostgres = content.startsWith("postgresql://");
+        const startsWithHttp = content.startsWith("http");
+        
+        replitDbContent = {
+          hasContent: true,
+          length: content.length,
+          startsWithPostgres,
+          startsWithHttp,
+          preview: preview.replace(/\/\/[^@]+@/, "//***@"), // mask credentials
+          hasAtSign: content.includes("@"),
+        };
       }
     } catch (error: any) {
       replitDbContent = { error: error.message };
