@@ -64,31 +64,18 @@ export async function registerRoutes(
 
   // Diagnostic endpoint to check API configuration
   app.get("/api/debug-config", (req, res) => {
-    const userApiKey = process.env.ANTHROPIC_API_KEY;
     const integrationApiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
     const integrationBaseUrl = process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL;
     
-    // Determine which config will be used
-    let activeConfig: string;
-    let activeBaseUrl: string;
-    
-    if (userApiKey) {
-      activeConfig = "USER_API_KEY";
-      activeBaseUrl = "https://api.anthropic.com";
-    } else if (integrationApiKey && integrationBaseUrl) {
-      activeConfig = "INTEGRATION_KEY";
-      activeBaseUrl = integrationBaseUrl;
-    } else {
-      activeConfig = "NONE";
-      activeBaseUrl = "N/A";
-    }
+    // Use Replit-managed integration
+    const activeConfig = integrationApiKey ? "INTEGRATION_KEY" : "NONE";
+    const activeBaseUrl = integrationBaseUrl || "https://api.anthropic.com";
     
     res.json({
       timestamp: new Date().toISOString(),
       nodeEnv: process.env.NODE_ENV || "not set",
       replitDeployment: process.env.REPLIT_DEPLOYMENT || "not set",
       apiKeyStatus: {
-        ANTHROPIC_API_KEY: userApiKey ? `SET (${userApiKey.length} chars, starts with: ${userApiKey.substring(0, 10)}...)` : "NOT SET",
         AI_INTEGRATIONS_ANTHROPIC_API_KEY: integrationApiKey ? `SET (${integrationApiKey.length} chars)` : "NOT SET",
         AI_INTEGRATIONS_ANTHROPIC_BASE_URL: integrationBaseUrl ? `SET (${integrationBaseUrl.substring(0, 30)}...)` : "NOT SET",
       },
@@ -100,23 +87,16 @@ export async function registerRoutes(
 
   // Test direct fetch to Anthropic (bypass SDK)
   app.get("/api/test-direct-fetch", async (req, res) => {
-    // Use same logic as getConfig
-    const userApiKey = process.env.ANTHROPIC_API_KEY;
+    // Use Replit-managed integration
     const integrationApiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
     const integrationBaseUrl = process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL;
     
-    let apiKey: string | undefined;
-    let baseUrl: string;
-    
-    if (userApiKey) {
-      apiKey = userApiKey;
-      baseUrl = "https://api.anthropic.com";
-    } else if (integrationApiKey && integrationBaseUrl) {
-      apiKey = integrationApiKey;
-      baseUrl = integrationBaseUrl;
-    } else {
-      return res.json({ error: "No API key configured", hasUserKey: !!userApiKey, hasIntegrationKey: !!integrationApiKey });
+    if (!integrationApiKey) {
+      return res.json({ error: "No API key configured", hasIntegrationKey: false });
     }
+    
+    const apiKey = integrationApiKey;
+    const baseUrl = integrationBaseUrl || "https://api.anthropic.com";
     
     try {
       const response = await fetch(`${baseUrl}/v1/messages`, {
@@ -146,9 +126,9 @@ export async function registerRoutes(
   
   // Test longer prompt with larger output
   app.get("/api/test-long", async (req, res) => {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const apiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
     if (!apiKey) {
-      return res.json({ error: "No ANTHROPIC_API_KEY" });
+      return res.json({ error: "No AI integration API key configured" });
     }
     
     console.log("[test-long] Starting long prompt test...");
@@ -200,9 +180,9 @@ Return ONLY valid JSON with this structure:
   
   // Test with very long system prompt (similar to actual analysis)
   app.get("/api/test-full-prompt", async (req, res) => {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const apiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
     if (!apiKey) {
-      return res.json({ error: "No ANTHROPIC_API_KEY" });
+      return res.json({ error: "No AI integration API key configured" });
     }
     
     console.log("[test-full-prompt] Starting full prompt test...");
@@ -420,11 +400,6 @@ Return ONLY valid JSON with this structure:
 
   // Health check endpoint to verify AI service configuration
   app.get("/api/health", (req, res) => {
-    const isProduction = process.env.NODE_ENV === 'production';
-    const isLocalhostUrl = process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL?.includes("localhost");
-    const hasUserKey = !!process.env.ANTHROPIC_API_KEY;
-    const needsUserKey = isProduction && isLocalhostUrl;
-    
     const configCheck = checkProductionConfig();
     
     const config = {
@@ -432,9 +407,7 @@ Return ONLY valid JSON with this structure:
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV || "development",
       aiConfigured: {
-        hasUserApiKey: hasUserKey,
         hasIntegrationApiKey: !!process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
-        needsUserKey,
         configOk: configCheck.ok,
         message: configCheck.message,
       },
@@ -485,29 +458,22 @@ Return ONLY valid JSON with this structure:
   app.get("/api/test-ai", async (req, res) => {
     const Anthropic = (await import("@anthropic-ai/sdk")).default;
     
-    const isProduction = process.env.NODE_ENV === 'production';
-    const isLocalhostUrl = process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL?.includes("localhost");
-    const userApiKey = process.env.ANTHROPIC_API_KEY;
     const integrationApiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
-    const needsUserKey = isProduction && isLocalhostUrl;
-    const apiKey = userApiKey || integrationApiKey;
-    const baseURL = needsUserKey ? undefined : process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL;
+    const baseURL = process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL;
     
     const testResult: any = {
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV || "development",
       config: {
-        hasUserApiKey: !!userApiKey,
         hasIntegrationApiKey: !!integrationApiKey,
-        needsUserKey,
         usingBaseUrl: !!baseURL,
-        keyUsed: userApiKey ? "user" : (integrationApiKey ? "integration" : "none"),
+        keyUsed: integrationApiKey ? "integration" : "none",
       },
     };
     
     try {
       const anthropic = new Anthropic({
-        apiKey: apiKey,
+        apiKey: integrationApiKey,
         ...(baseURL && { baseURL }),
         timeout: 30000,
       });

@@ -11,33 +11,18 @@ const directAgent = new https.Agent({
 function getConfig() {
   const isProduction = process.env.NODE_ENV === 'production';
   const configuredBaseURL = process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL;
-  const userApiKey = process.env.ANTHROPIC_API_KEY;
   const integrationApiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
   
-  // Determine which API key and URL to use:
-  // In PRODUCTION: Must use user's own ANTHROPIC_API_KEY
-  // In DEVELOPMENT: Can use either user's key or the integration proxy
+  // Use the Replit-managed integration for both development and production
+  // The AI_INTEGRATIONS_ANTHROPIC_API_KEY is the preferred, secure approach
   let apiKey: string | undefined;
   let baseURL: string | undefined;
   let usingIntegration = false;
   
-  if (isProduction) {
-    // Production: Use user's API key with default Anthropic endpoint
-    if (userApiKey) {
-      apiKey = userApiKey;
-      baseURL = undefined; // Let SDK use default
-    } else {
-      apiKey = undefined;
-      baseURL = undefined;
-    }
-  } else if (userApiKey) {
-    // Development with user key: Use direct API
-    apiKey = userApiKey;
-    baseURL = undefined; // Let SDK use default
-  } else if (integrationApiKey && configuredBaseURL) {
-    // Development without user key: Use integration proxy
+  if (integrationApiKey) {
+    // Use Replit-managed integration (works in both dev and production)
     apiKey = integrationApiKey;
-    baseURL = configuredBaseURL;
+    baseURL = configuredBaseURL; // Use integration base URL if available
     usingIntegration = true;
   } else {
     apiKey = undefined;
@@ -46,7 +31,6 @@ function getConfig() {
   
   return {
     isProduction,
-    userApiKey,
     integrationApiKey,
     usingIntegration,
     apiKey,
@@ -152,22 +136,14 @@ async function callAnthropicAPI(systemPrompt: string, userPrompt: string, maxTok
 export function checkProductionConfig(): { ok: boolean; message: string } {
   const config = getConfig();
   
-  // In production, we MUST have the user's API key
-  if (config.isProduction && !config.userApiKey) {
-    return {
-      ok: false,
-      message: "Production requires ANTHROPIC_API_KEY secret. The Replit AI Integration only works in development."
-    };
-  }
-  
-  // Check if we have ANY API key available
+  // Check if we have the Replit-managed integration API key
   if (!config.apiKey) {
     return {
       ok: false,
-      message: "No Anthropic API key configured. Please add ANTHROPIC_API_KEY in Secrets."
+      message: "No Anthropic API key configured. Please set up the Anthropic integration in Replit."
     };
   }
-  return { ok: true, message: `AI service configured (using ${config.isProduction ? 'direct API' : config.usingIntegration ? 'integration' : 'direct API'})` };
+  return { ok: true, message: `AI service configured (using Replit-managed integration)` };
 }
 
 // Helper function to check if error is rate limit or transient
@@ -468,9 +444,9 @@ CRITICAL REQUIREMENT: Your ENTIRE response must be valid JSON - no markdown, no 
   // Get current configuration and verify API key
   const config = getConfig();
   
-  // Simply check if we have ANY API key available
+  // Simply check if we have the integration API key available
   if (!config.apiKey) {
-    throw new Error("Anthropic API key is not configured. Please add the ANTHROPIC_API_KEY secret.");
+    throw new Error("Anthropic API key is not configured. Please set up the Anthropic integration in Replit.");
   }
 
   console.log(`Starting analysis for: ${companyName}`);
