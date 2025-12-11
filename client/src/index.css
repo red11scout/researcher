@@ -52,113 +52,125 @@
   --color-sidebar-border: hsl(var(--sidebar-border));
   --color-sidebar-ring: hsl(var(--sidebar-ring));
 
+  /* BlueAlly Brand Colors */
+  --color-blueally-navy: #0339AF;
+  --color-blueally-royal: #4C73E9;
+  --color-blueally-green: #7A8B51;
+  --color-blueally-dark: #0a192f;
+  --color-blueally-light: #f8faff;
+
   --font-sans: 'Inter', sans-serif;
-  --font-display: 'Roboto', sans-serif;
+  --font-heading: 'Montserrat', sans-serif;
+  --font-display: 'Montserrat', sans-serif;
   
-  --radius: 0.5rem;
+  --radius: 0.75rem;
 }
 
-/* LIGHT MODE - Google/Enterprise Style */
+/* LIGHT MODE - BlueAlly Brand Style */
 :root {
-  /* Clean White Background */
-  --background: 0 0% 100%;
-  --foreground: 215 27% 20%; /* Dark Blue-Grey for text */
+  /* Clean Light Background with slight blue tint */
+  --background: 220 50% 99%; /* #f8faff equivalent */
+  --foreground: 215 50% 15%; /* Dark Blue-Grey for text */
 
   /* Card Surface */
   --card: 0 0% 100%;
-  --card-foreground: 215 27% 20%;
+  --card-foreground: 215 50% 15%;
 
   /* Popovers */
   --popover: 0 0% 100%;
-  --popover-foreground: 215 27% 20%;
+  --popover-foreground: 215 50% 15%;
 
-  /* Primary Blue - Google Style */
-  --primary: 217 89% 61%; /* #1a73e8 */
+  /* Primary - BlueAlly Navy #0339AF */
+  --primary: 218 96% 35%;
   --primary-foreground: 0 0% 100%;
 
-  /* Secondary - Subtle Gray */
-  --secondary: 210 40% 96.1%;
-  --secondary-foreground: 222.2 47.4% 11.2%;
+  /* Secondary - BlueAlly Royal #4C73E9 */
+  --secondary: 224 79% 61%;
+  --secondary-foreground: 0 0% 100%;
 
   /* Muted */
-  --muted: 210 40% 96.1%;
+  --muted: 220 20% 96%;
   --muted-foreground: 215 16% 47%;
 
-  /* Accent - Light Blue hover */
-  --accent: 210 40% 96.1%;
-  --accent-foreground: 222.2 47.4% 11.2%;
+  /* Accent - BlueAlly Green #7A8B51 */
+  --accent: 78 27% 43%;
+  --accent-foreground: 0 0% 100%;
 
   /* Destructive */
   --destructive: 0 84.2% 60.2%;
   --destructive-foreground: 210 40% 98%;
 
   /* Borders & Inputs */
-  --border: 214.3 31.8% 91.4%;
-  --input: 214.3 31.8% 91.4%;
-  --ring: 217 89% 61%;
+  --border: 220 20% 90%;
+  --input: 220 20% 90%;
+  --ring: 218 96% 35%; /* Matches primary */
 
-  /* Charts */
-  --chart-1: 217 89% 61%; /* Blue */
-  --chart-2: 160 84% 39%; /* Green */
-  --chart-3: 30 90% 50%;  /* Orange */
-  --chart-4: 280 60% 60%; /* Purple */
-  --chart-5: 340 75% 55%; /* Red */
+  /* Charts - BlueAlly themed */
+  --chart-1: 218 96% 35%; /* BlueAlly Navy */
+  --chart-2: 78 27% 43%;  /* BlueAlly Green */
+  --chart-3: 224 79% 61%; /* BlueAlly Royal */
+  --chart-4: 280 60% 60%; /* Purple accent */
+  --chart-5: 30 90% 50%;  /* Orange accent */
 
   /* Sidebar */
-  --sidebar: 0 0% 98%;
-  --sidebar-foreground: 215 27% 20%;
-  --sidebar-primary: 217 89% 61%;
+  --sidebar: 220 50% 99%;
+  --sidebar-foreground: 215 50% 15%;
+  --sidebar-primary: 218 96% 35%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 210 40% 96.1%;
-  --sidebar-accent-foreground: 215 27% 20%;
-  --sidebar-border: 220 13% 91%;
-  --sidebar-ring: 217.2 91.2% 59.8%;
+  --sidebar-accent: 220 20% 96%;
+  --sidebar-accent-foreground: 215 50% 15%;
+  --sidebar-border: 220 20% 90%;
+  --sidebar-ring: 218 96% 35%;
 }
 
-/* DARK MODE - Not prioritized but good to have */
+/* DARK MODE - BlueAlly Executive Dark */
 .dark {
-  --background: 222.2 84% 4.9%;
-  --foreground: 210 40% 98%;
+  --background: 220 50% 8%; /* #0a192f equivalent */
+  --foreground: 220 20% 95%;
 
-  --card: 222.2 84% 4.9%;
-  --card-foreground: 210 40% 98%;
+  --card: 220 45% 12%;
+  --card-foreground: 220 20% 95%;
 
-  --popover: 222.2 84% 4.9%;
-  --popover-foreground: 210 40% 98%;
+  --popover: 220 45% 12%;
+  --popover-foreground: 220 20% 95%;
 
-  --primary: 217 91% 60%;
-  --primary-foreground: 222.2 47.4% 11.2%;
+  /* Primary - BlueAlly Navy (lighter for dark mode) */
+  --primary: 224 79% 61%; /* BlueAlly Royal for better visibility */
+  --primary-foreground: 0 0% 100%;
 
-  --secondary: 217.2 32.6% 17.5%;
-  --secondary-foreground: 210 40% 98%;
+  /* Secondary */
+  --secondary: 220 40% 20%;
+  --secondary-foreground: 220 20% 95%;
 
-  --muted: 217.2 32.6% 17.5%;
-  --muted-foreground: 215 20.2% 65.1%;
+  --muted: 220 40% 18%;
+  --muted-foreground: 220 15% 60%;
 
-  --accent: 217.2 32.6% 17.5%;
-  --accent-foreground: 210 40% 98%;
+  /* Accent - BlueAlly Green */
+  --accent: 78 35% 50%;
+  --accent-foreground: 0 0% 100%;
 
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 210 40% 98%;
+  --destructive: 0 62.8% 45%;
+  --destructive-foreground: 220 20% 95%;
 
-  --border: 217.2 32.6% 17.5%;
-  --input: 217.2 32.6% 17.5%;
-  --ring: 212.7 26.8% 83.9%;
+  --border: 220 40% 20%;
+  --input: 220 40% 20%;
+  --ring: 224 79% 61%;
 
-  --chart-1: 220 70% 50%;
-  --chart-2: 160 60% 45%;
-  --chart-3: 30 80% 55%;
+  /* Charts - Dark mode adjusted */
+  --chart-1: 224 79% 61%;
+  --chart-2: 78 35% 55%;
+  --chart-3: 218 70% 50%;
   --chart-4: 280 65% 60%;
-  --chart-5: 340 75% 55%;
+  --chart-5: 30 85% 55%;
 
-  --sidebar: 222.2 84% 4.9%;
-  --sidebar-foreground: 210 40% 98%;
-  --sidebar-primary: 217 91% 60%;
+  --sidebar: 220 50% 8%;
+  --sidebar-foreground: 220 20% 95%;
+  --sidebar-primary: 224 79% 61%;
   --sidebar-primary-foreground: 0 0% 100%;
-  --sidebar-accent: 217.2 32.6% 17.5%;
-  --sidebar-accent-foreground: 210 40% 98%;
-  --sidebar-border: 217.2 32.6% 17.5%;
-  --sidebar-ring: 217.2 91.2% 59.8%;
+  --sidebar-accent: 220 40% 18%;
+  --sidebar-accent-foreground: 220 20% 95%;
+  --sidebar-border: 220 40% 20%;
+  --sidebar-ring: 224 79% 61%;
 }
 
 @layer base {
@@ -169,6 +181,6 @@
     @apply font-sans antialiased bg-background text-foreground;
   }
   h1, h2, h3, h4, h5, h6 {
-    @apply font-display tracking-tight;
+    @apply font-heading tracking-tight;
   }
 }
