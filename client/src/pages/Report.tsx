@@ -1208,7 +1208,6 @@ export default function Report() {
     
     // Cover Sheet - Board Standard
     const coverSheet = wb.addWorksheet('Cover');
-    coverSheet.columns = [{ width: 60 }];
     
     const coverData = [
       [""],
@@ -1226,21 +1225,17 @@ export default function Report() {
       ["Enterprise AI Advisory"],
     ];
     
-    coverData.forEach((row, index) => {
+    coverData.forEach((row) => {
       coverSheet.addRow(row);
     });
+    
+    // Set column width for cover sheet
+    coverSheet.getColumn(1).width = 60;
     
     // Executive Dashboard Sheet - Board Standard
     if (data.executiveDashboard) {
       const dash = data.executiveDashboard;
       const dashSheet = wb.addWorksheet('Executive Dashboard');
-      dashSheet.columns = [
-        { width: 25 },
-        { width: 50 },
-        { width: 18 },
-        { width: 18 },
-        { width: 18 }
-      ];
       
       const dashData = [
         [""],
@@ -1274,9 +1269,16 @@ export default function Report() {
       dashData.forEach((row) => {
         dashSheet.addRow(row);
       });
+      
+      // Set column widths for dashboard
+      dashSheet.getColumn(1).width = 25;
+      dashSheet.getColumn(2).width = 50;
+      dashSheet.getColumn(3).width = 18;
+      dashSheet.getColumn(4).width = 18;
+      dashSheet.getColumn(5).width = 18;
     }
 
-    // Step sheets with proper column widths
+    // Step sheets with proper column widths and data handling
     data.steps.forEach((step: any) => {
       if (step.data && step.data.length > 0) {
         const sheetName = `Step ${step.step}`.substring(0, 31);
@@ -1287,21 +1289,34 @@ export default function Report() {
         ws.addRow([step.content || '']);
         ws.addRow(['']);
         
-        // Add data with headers
-        if (step.data.length > 0) {
-          const cols = Object.keys(step.data[0]);
-          ws.addRow(cols);
-          
-          step.data.forEach((dataRow: any) => {
-            const values = cols.map(col => dataRow[col]);
-            ws.addRow(values);
+        // Get all unique column keys from all data rows to handle varying structures
+        const allKeys = new Set<string>();
+        step.data.forEach((dataRow: any) => {
+          Object.keys(dataRow).forEach(key => allKeys.add(key));
+        });
+        const cols = Array.from(allKeys);
+        
+        // Add column headers
+        ws.addRow(cols);
+        
+        // Add data rows, preserving native types
+        step.data.forEach((dataRow: any) => {
+          const values = cols.map(col => {
+            const val = dataRow[col];
+            // Handle different value types
+            if (val === null || val === undefined) return '';
+            if (typeof val === 'object') return JSON.stringify(val);
+            // Preserve numbers, booleans, and strings as native types
+            return val;
           });
-          
-          // Set column widths
-          ws.columns = cols.map(col => ({
-            width: Math.min(40, Math.max(15, col.length + 5))
-          }));
-        }
+          ws.addRow(values);
+        });
+        
+        // Set column widths based on content
+        cols.forEach((col, index) => {
+          const columnIndex = index + 1;
+          ws.getColumn(columnIndex).width = Math.min(40, Math.max(15, col.length + 5));
+        });
       }
     });
 
