@@ -161,10 +161,23 @@ export function mapReportToDashboardData(report: Report): DashboardData {
   const dashboard = analysis.executiveDashboard;
   
   const totalValue = dashboard.totalAnnualValue || 0;
-  const totalValueFormatted = totalValue >= 1000000 
-    ? (totalValue / 1000000).toFixed(1) 
-    : (totalValue / 1000).toFixed(0);
-  const valueSuffix = totalValue >= 1000000 ? "M" : "K";
+  
+  // Safe formatting for any value range including sub-$1K
+  let totalValueFormatted: string;
+  let valueSuffix: string;
+  if (totalValue >= 1000000) {
+    totalValueFormatted = (totalValue / 1000000).toFixed(1);
+    valueSuffix = "M";
+  } else if (totalValue >= 1000) {
+    totalValueFormatted = (totalValue / 1000).toFixed(0);
+    valueSuffix = "K";
+  } else if (totalValue > 0) {
+    totalValueFormatted = totalValue.toFixed(0);
+    valueSuffix = "";
+  } else {
+    totalValueFormatted = "0";
+    valueSuffix = "";
+  }
 
   const step0 = analysis.steps.find(s => s.step === 0);
   const companyOverview = step0?.content || `AI-driven optimization opportunities for ${report.companyName}`;
@@ -185,7 +198,7 @@ export function mapReportToDashboardData(report: Report): DashboardData {
       id: 2,
       label: "Cost Reduction",
       value: formatValue(dashboard.totalCostBenefit || 0),
-      growth: `-${Math.round(((dashboard.totalCostBenefit || 0) / totalValue) * 100)}%`,
+      growth: totalValue > 0 ? `-${Math.round(((dashboard.totalCostBenefit || 0) / totalValue) * 100)}%` : "-0%",
       iconName: "Activity",
       desc: "Back-office automation"
     },
@@ -201,7 +214,7 @@ export function mapReportToDashboardData(report: Report): DashboardData {
       id: 4,
       label: "Risk Mitigation",
       value: formatValue(dashboard.totalRiskBenefit || 0),
-      growth: `-${Math.round(((dashboard.totalRiskBenefit || 0) / totalValue) * 100)}%`,
+      growth: totalValue > 0 ? `-${Math.round(((dashboard.totalRiskBenefit || 0) / totalValue) * 100)}%` : "-0%",
       iconName: "Shield",
       desc: "Compliance & fraud detection"
     }
