@@ -12,11 +12,13 @@ import SavedReports from "@/pages/SavedReports";
 import Benchmarks from "@/pages/Benchmarks";
 import WhatIfAnalysis from "@/pages/WhatIfAnalysis";
 import AssumptionPanel from "@/pages/AssumptionPanel";
+import DashboardPage from "@/pages/DashboardPage";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
+      <Route path="/dashboard" component={DashboardPage} />
       <Route path="/report" component={Report} />
       <Route path="/reports/:id/html" component={HTMLReportViewer} />
       <Route path="/reports/:id" component={ReportViewer} />
