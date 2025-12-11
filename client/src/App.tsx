@@ -7,6 +7,7 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import Report from "@/pages/Report";
 import ReportViewer from "@/pages/ReportViewer";
+import HTMLReportViewer from "@/pages/HTMLReportViewer";
 import SavedReports from "@/pages/SavedReports";
 import Benchmarks from "@/pages/Benchmarks";
 import WhatIfAnalysis from "@/pages/WhatIfAnalysis";
@@ -17,6 +18,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/report" component={Report} />
+      <Route path="/reports/:id/html" component={HTMLReportViewer} />
       <Route path="/reports/:id" component={ReportViewer} />
       <Route path="/saved" component={SavedReports} />
       <Route path="/benchmarks" component={Benchmarks} />

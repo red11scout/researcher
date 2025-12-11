@@ -48,7 +48,7 @@ import {
   ArrowLeft, ArrowRight, Brain, Calculator, TrendingUp, TrendingDown, 
   DollarSign, ShieldCheck, Zap, Target, ChevronDown, ChevronRight,
   Settings2, HelpCircle, Info, Sliders, BarChart3, Building2,
-  Users, ClipboardList, Lightbulb, Scale, MapPin, Save, Layers
+  Users, ClipboardList, Lightbulb, Scale, MapPin, Save, Layers, Share2
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import jsPDF from 'jspdf';
@@ -1933,6 +1933,33 @@ export default function Report() {
     }
   };
 
+  const handleShareHTML = async () => {
+    if (!reportId) {
+      toast({
+        title: "Unable to Share",
+        description: "Report must be saved before sharing.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const shareUrl = `${window.location.origin}/reports/${reportId}/html`;
+    
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      toast({
+        title: "Link Copied",
+        description: "Shareable HTML report URL copied to clipboard.",
+      });
+    } catch {
+      toast({
+        title: "Copy Failed",
+        description: "Unable to copy link. URL: " + shareUrl,
+        variant: "destructive",
+      });
+    }
+  };
+
   const analysisSteps = [
     { step: 0, title: "Company Overview", desc: "Gathering company information..." },
     { step: 1, title: "Strategic Anchoring", desc: "Identifying business drivers..." },
@@ -2299,8 +2326,8 @@ export default function Report() {
                   <DropdownMenuItem onClick={() => handleDownload("Markdown")} data-testid="menu-md">
                     <FileText className="mr-2 h-4 w-4" /> Download Markdown
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleDownload("HTML")} data-testid="menu-html">
-                    <FileText className="mr-2 h-4 w-4" /> Download HTML
+                  <DropdownMenuItem onClick={handleShareHTML} data-testid="menu-share-html">
+                    <Share2 className="mr-2 h-4 w-4" /> Share HTML Report
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
