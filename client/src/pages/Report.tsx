@@ -53,7 +53,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { Document, Packer, Paragraph, TextRun, Table as DocxTable, TableRow as DocxTableRow, TableCell as DocxTableCell, WidthType, BorderStyle, HeadingLevel, AlignmentType } from 'docx';
 import blueAllyLogoUrl from '@assets/image_1764369352062.png';
@@ -1203,10 +1203,13 @@ export default function Report() {
   };
 
   // Excel Generation - Board Presentation Standard
-  const generateExcel = () => {
-    const wb = XLSX.utils.book_new();
+  const generateExcel = async () => {
+    const wb = new ExcelJS.Workbook();
     
     // Cover Sheet - Board Standard
+    const coverSheet = wb.addWorksheet('Cover');
+    coverSheet.columns = [{ width: 60 }];
+    
     const coverData = [
       [""],
       [""],
@@ -1222,13 +1225,23 @@ export default function Report() {
       ["Prepared by BlueAlly Insight"],
       ["Enterprise AI Advisory"],
     ];
-    const coverSheet = XLSX.utils.aoa_to_sheet(coverData);
-    coverSheet['!cols'] = [{ wch: 60 }];
-    XLSX.utils.book_append_sheet(wb, coverSheet, "Cover");
+    
+    coverData.forEach((row, index) => {
+      coverSheet.addRow(row);
+    });
     
     // Executive Dashboard Sheet - Board Standard
     if (data.executiveDashboard) {
       const dash = data.executiveDashboard;
+      const dashSheet = wb.addWorksheet('Executive Dashboard');
+      dashSheet.columns = [
+        { width: 25 },
+        { width: 50 },
+        { width: 18 },
+        { width: 18 },
+        { width: 18 }
+      ];
+      
       const dashData = [
         [""],
         ["EXECUTIVE DASHBOARD"],
@@ -1257,42 +1270,45 @@ export default function Report() {
           formatCurrency(uc.annualValue)
         ]) || [])
       ];
-      const dashSheet = XLSX.utils.aoa_to_sheet(dashData);
-      dashSheet['!cols'] = [
-        { wch: 25 },
-        { wch: 50 },
-        { wch: 18 },
-        { wch: 18 },
-        { wch: 18 }
-      ];
-      XLSX.utils.book_append_sheet(wb, dashSheet, "Executive Dashboard");
+      
+      dashData.forEach((row) => {
+        dashSheet.addRow(row);
+      });
     }
 
     // Step sheets with proper column widths
     data.steps.forEach((step: any) => {
       if (step.data && step.data.length > 0) {
-        // Add header rows
-        const headerRows = [
-          [`STEP ${step.step}: ${step.title.toUpperCase()}`],
-          [step.content || ''],
-          ['']
-        ];
-        
-        const ws = XLSX.utils.aoa_to_sheet(headerRows);
-        XLSX.utils.sheet_add_json(ws, step.data, { origin: 'A4' });
-        
-        // Set column widths
-        const cols = Object.keys(step.data[0]);
-        ws['!cols'] = cols.map(col => ({
-          wch: Math.min(40, Math.max(15, col.length + 5))
-        }));
-        
         const sheetName = `Step ${step.step}`.substring(0, 31);
-        XLSX.utils.book_append_sheet(wb, ws, sheetName);
+        const ws = wb.addWorksheet(sheetName);
+        
+        // Add header rows
+        ws.addRow([`STEP ${step.step}: ${step.title.toUpperCase()}`]);
+        ws.addRow([step.content || '']);
+        ws.addRow(['']);
+        
+        // Add data with headers
+        if (step.data.length > 0) {
+          const cols = Object.keys(step.data[0]);
+          ws.addRow(cols);
+          
+          step.data.forEach((dataRow: any) => {
+            const values = cols.map(col => dataRow[col]);
+            ws.addRow(values);
+          });
+          
+          // Set column widths
+          ws.columns = cols.map(col => ({
+            width: Math.min(40, Math.max(15, col.length + 5))
+          }));
+        }
       }
     });
 
-    XLSX.writeFile(wb, `BlueAlly_AI_Assessment_${companyName.replace(/\s+/g, '_')}.xlsx`);
+    // Write to buffer and save
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    saveAs(blob, `BlueAlly_AI_Assessment_${companyName.replace(/\s+/g, '_')}.xlsx`);
   };
 
   // Word Generation - Board Presentation Standard
