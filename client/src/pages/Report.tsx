@@ -48,7 +48,7 @@ import {
   ArrowLeft, ArrowRight, Brain, Calculator, TrendingUp, TrendingDown, 
   DollarSign, ShieldCheck, Zap, Target, ChevronDown, ChevronRight,
   Settings2, HelpCircle, Info, Sliders, BarChart3, Building2,
-  Users, ClipboardList, Lightbulb, Scale, MapPin, Save, Layers, Share2
+  Users, ClipboardList, Lightbulb, Scale, MapPin, Save, Layers, Share2, LayoutDashboard
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import jsPDF from 'jspdf';
@@ -2328,6 +2328,13 @@ export default function Report() {
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={handleShareHTML} data-testid="menu-share-html">
                     <Share2 className="mr-2 h-4 w-4" /> Share HTML Report
+                  </DropdownMenuItem>
+                  <DropdownMenuItem 
+                    onClick={() => reportId && setLocation(`/dashboard/${reportId}`)} 
+                    data-testid="menu-view-dashboard"
+                    disabled={!reportId}
+                  >
+                    <LayoutDashboard className="mr-2 h-4 w-4" /> View Dashboard
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
