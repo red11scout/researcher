@@ -28,6 +28,10 @@ import {
   SectionHeader,
   PriorityBadge,
   ValueCell,
+  DriverBadge,
+  InsightCallout,
+  CriticalAlert,
+  CTASection,
   type TableColumn
 } from "@/components/report";
 import { useEffect, useState } from "react";
@@ -69,7 +73,7 @@ const useCaseColumns: TableColumn<UseCase>[] = [
     header: 'Value Driver',
     sortable: true,
     render: (value) => (
-      <span className="text-sm text-gray-600">{value}</span>
+      <DriverBadge driver={value} size="sm" />
     )
   },
   {
@@ -444,19 +448,26 @@ export default function ReportViewer() {
           </div>
 
           {valueBreakdownData.length > 0 && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <ValueBreakdownChart
-                data={valueBreakdownData}
-                title="Value Distribution by Driver"
-                height={280}
-              />
-              <DonutChart
-                data={valueBreakdownData}
-                title="Value Composition"
-                totalLabel="Total Value"
-                height={280}
-              />
-            </div>
+            <>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <ValueBreakdownChart
+                  data={valueBreakdownData}
+                  title="Value Distribution by Driver"
+                  height={280}
+                />
+                <DonutChart
+                  data={valueBreakdownData}
+                  title="Value Composition"
+                  totalLabel="Total Value"
+                  height={280}
+                />
+              </div>
+              
+              <InsightCallout variant="highlight">
+                The value distribution shows where AI can deliver the greatest impact for your organization. 
+                Focus on the largest segments to maximize ROI from your AI investments.
+              </InsightCallout>
+            </>
           )}
         </section>
 
@@ -474,6 +485,16 @@ export default function ReportViewer() {
               icon={Target}
               accentColor="green"
             />
+            
+            {topUseCases.some((uc: UseCase) => uc.priority?.toLowerCase() === 'critical' || uc.priority?.toLowerCase() === 'high') && (
+              <CriticalAlert 
+                severity="warning" 
+                title="Time-Sensitive Opportunities"
+              >
+                Several high-priority use cases have been identified that could provide significant competitive advantage. 
+                Early implementation is recommended to capture maximum value.
+              </CriticalAlert>
+            )}
             
             <ModernTable
               data={topUseCases}
@@ -506,9 +527,19 @@ export default function ReportViewer() {
             </div>
           </section>
         )}
+
+        <section id="next-steps" className="scroll-mt-24 print:hidden">
+          <CTASection
+            heading="Schedule Your AI Workshop"
+            subheading="Ready to transform these insights into action? Our team of AI experts will help you prioritize and implement the highest-value opportunities for your organization."
+            email="ai@blueally.com"
+            phone="(888) 505-2583"
+            buttonText="Book Your Workshop"
+          />
+        </section>
       </main>
 
-      <footer className="bg-gradient-to-br from-slate-900 to-blueally-navy text-white py-16 mt-16 print:hidden relative overflow-hidden">
+      <footer className="bg-gradient-to-br from-slate-900 to-blueally-navy text-white py-12 mt-16 print:hidden relative overflow-hidden">
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHZpZXdCb3g9IjAgMCA2MCA2MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiNmZmZmZmYiIGZpbGwtb3BhY2l0eT0iMC4wMyI+PGNpcmNsZSBjeD0iMzAiIGN5PSIzMCIgcj0iMiIvPjwvZz48L2c+PC9zdmc+')] opacity-50" />
         <div className="max-w-7xl mx-auto px-6 text-center relative z-10">
           <motion.div

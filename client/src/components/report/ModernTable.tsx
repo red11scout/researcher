@@ -1,6 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react';
+import { 
+  ChevronUp, 
+  ChevronDown, 
+  ChevronsUpDown,
+  AlertTriangle,
+  AlertCircle,
+  Info,
+  CheckCircle
+} from 'lucide-react';
 
 export interface TableColumn<T> {
   key: keyof T | string;
@@ -30,6 +38,33 @@ const priorityColors: Record<string, string> = {
   low: 'bg-green-100 text-green-700 border-green-200',
 };
 
+const severityConfig: Record<string, { 
+  icon: React.ElementType; 
+  colors: string;
+  iconColor: string;
+}> = {
+  critical: {
+    icon: AlertTriangle,
+    colors: 'bg-red-100 text-red-700 border-red-200',
+    iconColor: 'text-red-600',
+  },
+  high: {
+    icon: AlertCircle,
+    colors: 'bg-orange-100 text-orange-700 border-orange-200',
+    iconColor: 'text-orange-600',
+  },
+  medium: {
+    icon: Info,
+    colors: 'bg-blue-100 text-blue-700 border-blue-200',
+    iconColor: 'text-blue-600',
+  },
+  low: {
+    icon: CheckCircle,
+    colors: 'bg-green-100 text-green-700 border-green-200',
+    iconColor: 'text-green-600',
+  },
+};
+
 export function PriorityBadge({ priority }: { priority: string }) {
   const normalizedPriority = priority.toLowerCase();
   const colorClass = priorityColors[normalizedPriority] || 'bg-gray-100 text-gray-700 border-gray-200';
@@ -41,17 +76,86 @@ export function PriorityBadge({ priority }: { priority: string }) {
   );
 }
 
-export function ValueCell({ value, prefix = '$' }: { value: number | string; prefix?: string }) {
+export interface SeverityBadgeProps {
+  severity: string;
+  showIcon?: boolean;
+  showLabel?: boolean;
+}
+
+export function SeverityBadge({ severity, showIcon = true, showLabel = true }: SeverityBadgeProps) {
+  const normalizedSeverity = severity.toLowerCase();
+  const config = severityConfig[normalizedSeverity] || {
+    icon: Info,
+    colors: 'bg-gray-100 text-gray-700 border-gray-200',
+    iconColor: 'text-gray-500',
+  };
+  
+  const Icon = config.icon;
+  
+  return (
+    <span 
+      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold border ${config.colors}`}
+      data-testid={`severity-badge-${normalizedSeverity}`}
+    >
+      {showIcon && <Icon className={`w-3.5 h-3.5 ${config.iconColor}`} />}
+      {showLabel && <span>{severity}</span>}
+    </span>
+  );
+}
+
+export interface ValueCellProps {
+  value: number | string;
+  prefix?: string;
+  suffix?: string;
+  align?: 'left' | 'right';
+  highlight?: boolean;
+}
+
+export function ValueCell({ 
+  value, 
+  prefix = '$', 
+  suffix = '',
+  align = 'right',
+  highlight = false 
+}: ValueCellProps) {
   const formattedValue = typeof value === 'number'
     ? value >= 1000000
-      ? `${prefix}${(value / 1000000).toFixed(1)}M`
+      ? `${prefix}${(value / 1000000).toFixed(1)}M${suffix}`
       : value >= 1000
-      ? `${prefix}${(value / 1000).toFixed(0)}K`
-      : `${prefix}${value.toFixed(0)}`
+      ? `${prefix}${(value / 1000).toFixed(0)}K${suffix}`
+      : `${prefix}${value.toLocaleString()}${suffix}`
     : value;
 
   return (
-    <span className="font-semibold text-blueally-navy">{formattedValue}</span>
+    <span 
+      className={`font-semibold tabular-nums ${highlight ? 'text-blueally-green' : 'text-blueally-navy'} ${align === 'right' ? 'text-right block' : ''}`}
+    >
+      {formattedValue}
+    </span>
+  );
+}
+
+export function NumberCell({ value, decimals = 0 }: { value: number; decimals?: number }) {
+  const formatted = value.toLocaleString(undefined, {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
+  
+  return (
+    <span className="font-medium tabular-nums text-right block text-blueally-slate">
+      {formatted}
+    </span>
+  );
+}
+
+export function PercentCell({ value, showSign = false }: { value: number; showSign?: boolean }) {
+  const isPositive = value >= 0;
+  const formatted = `${showSign && isPositive ? '+' : ''}${value.toFixed(1)}%`;
+  
+  return (
+    <span className={`font-medium tabular-nums text-right block ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+      {formatted}
+    </span>
   );
 }
 
