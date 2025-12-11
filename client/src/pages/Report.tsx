@@ -1898,7 +1898,7 @@ export default function Report() {
     try {
       switch (format) {
         case "PDF": await generatePDF(); break;
-        case "Excel": generateExcel(); break;
+        case "Excel": await generateExcel(); break;
         case "Word": generateWord(); break;
         case "Markdown": generateMarkdown(); break;
         case "HTML": generateHTML(); break;
