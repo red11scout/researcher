@@ -103,8 +103,8 @@ async function main() {
     
     // Files to update
     const filesToUpdate = [
-      { path: 'server/routes.ts', message: 'Add shareable link endpoint GET /api/reports/:id' },
-      { path: 'server/storage.ts', message: 'Add getReportById method for shareable links' },
+      { path: 'client/src/pages/ReportViewer.tsx', message: 'Add read-only ReportViewer page for shareable links' },
+      { path: 'client/src/App.tsx', message: 'Register /reports/:id route for ReportViewer' },
     ];
     
     console.log('\n📤 Updating files...');
