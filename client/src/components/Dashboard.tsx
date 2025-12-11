@@ -6,7 +6,7 @@ import {
 } from 'recharts';
 import { 
   ArrowRight, TrendingUp, Shield, Banknote, Activity, 
-  ChevronRight, Play, Clock, Zap, CheckCircle2, Lock
+  ChevronRight, Play, Clock, Zap, CheckCircle2, Lock, Share2, Download, FileText, Check
 } from 'lucide-react';
 
 const BRAND = {
@@ -239,10 +239,13 @@ const FlywheelBackground = () => (
 
 interface StickyHeaderProps {
   clientName: string;
+  onShareUrl?: () => void;
+  onDownloadWorkshop?: () => void;
 }
 
-const StickyHeader = ({ clientName }: StickyHeaderProps) => {
+const StickyHeader = ({ clientName, onShareUrl, onDownloadWorkshop }: StickyHeaderProps) => {
   const [isScrolled, setIsScrolled] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -252,6 +255,14 @@ const StickyHeader = ({ clientName }: StickyHeaderProps) => {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  const handleShare = () => {
+    if (onShareUrl) {
+      onShareUrl();
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
   return (
     <motion.header 
@@ -265,10 +276,25 @@ const StickyHeader = ({ clientName }: StickyHeaderProps) => {
           <div className="h-6 w-px bg-gray-300 hidden md:block"></div>
           <div className="text-gray-500 font-medium hidden md:block">{clientName} Assessment</div>
         </div>
-        <button className="bg-[#0339AF] hover:bg-[#4C73E9] text-white px-6 py-2 rounded-full font-semibold text-sm transition-colors shadow-lg flex items-center gap-2 group">
-          Schedule Workshop
-          <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-        </button>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={handleShare}
+            className="p-2 rounded-full border border-gray-300 hover:bg-gray-100 transition-colors flex items-center gap-2"
+            data-testid="button-share-url"
+            title="Copy shareable link"
+          >
+            {copied ? <Check className="w-4 h-4 text-green-600" /> : <Share2 className="w-4 h-4 text-gray-600" />}
+            <span className="hidden md:inline text-sm text-gray-600">{copied ? 'Copied!' : 'Share'}</span>
+          </button>
+          <button 
+            onClick={onDownloadWorkshop}
+            className="bg-[#0339AF] hover:bg-[#4C73E9] text-white px-6 py-2 rounded-full font-semibold text-sm transition-colors shadow-lg flex items-center gap-2 group"
+            data-testid="button-workshop-details"
+          >
+            Workshop Details
+            <FileText className="w-4 h-4" />
+          </button>
+        </div>
       </div>
     </motion.header>
   );
@@ -529,9 +555,11 @@ const UseCaseCarousel = ({ data, clientName }: UseCaseCarouselProps) => {
 interface CTASectionProps {
   totalValue: string;
   valueSuffix: string;
+  onDownloadWorkshop?: () => void;
+  onDownloadPDF?: () => void;
 }
 
-const CTASection = ({ totalValue, valueSuffix }: CTASectionProps) => {
+const CTASection = ({ totalValue, valueSuffix, onDownloadWorkshop, onDownloadPDF }: CTASectionProps) => {
   return (
     <section className="py-32 bg-[#0339AF] text-white relative overflow-hidden">
       <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent"></div>
@@ -543,11 +571,20 @@ const CTASection = ({ totalValue, valueSuffix }: CTASectionProps) => {
         </p>
         
         <div className="flex flex-col md:flex-row justify-center items-center gap-4">
-          <button className="bg-white text-[#0339AF] px-8 py-4 rounded-full font-bold text-lg hover:shadow-2xl hover:scale-105 transition-all flex items-center gap-2">
-            Schedule Workshop
-            <ArrowRight className="w-5 h-5" />
+          <button 
+            onClick={onDownloadWorkshop}
+            className="bg-white text-[#0339AF] px-8 py-4 rounded-full font-bold text-lg hover:shadow-2xl hover:scale-105 transition-all flex items-center gap-2"
+            data-testid="button-workshop-details-cta"
+          >
+            Workshop Details
+            <FileText className="w-5 h-5" />
           </button>
-          <button className="px-8 py-4 rounded-full font-semibold text-white border border-white/30 hover:bg-white/10 transition-all">
+          <button 
+            onClick={onDownloadPDF}
+            className="px-8 py-4 rounded-full font-semibold text-white border border-white/30 hover:bg-white/10 transition-all flex items-center gap-2"
+            data-testid="button-download-pdf"
+          >
+            <Download className="w-5 h-5" />
             Download Full PDF Report
           </button>
         </div>
@@ -570,17 +607,25 @@ const CTASection = ({ totalValue, valueSuffix }: CTASectionProps) => {
 
 interface DashboardProps {
   data?: DashboardData;
+  onShareUrl?: () => void;
+  onDownloadPDF?: () => void;
+  onDownloadWorkshop?: () => void;
 }
 
-export default function Dashboard({ data = DEFAULT_DATA }: DashboardProps) {
+export default function Dashboard({ data = DEFAULT_DATA, onShareUrl, onDownloadPDF, onDownloadWorkshop }: DashboardProps) {
   return (
     <div className="min-h-screen bg-slate-50 font-sans selection:bg-blue-200">
-      <StickyHeader clientName={data.clientName} />
+      <StickyHeader clientName={data.clientName} onShareUrl={onShareUrl} onDownloadWorkshop={onDownloadWorkshop} />
       <HeroSection data={data.hero} clientName={data.clientName} />
       <ExecutiveSummary data={data.executiveSummary} />
       <PriorityMatrix data={data.priorityMatrix} />
       <UseCaseCarousel data={data.useCases} clientName={data.clientName} />
-      <CTASection totalValue={data.hero.totalValue} valueSuffix={data.hero.valueSuffix} />
+      <CTASection 
+        totalValue={data.hero.totalValue} 
+        valueSuffix={data.hero.valueSuffix} 
+        onDownloadWorkshop={onDownloadWorkshop}
+        onDownloadPDF={onDownloadPDF}
+      />
       
       <footer className="bg-slate-900 text-slate-500 py-12 border-t border-slate-800">
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4">
