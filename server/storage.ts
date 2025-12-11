@@ -23,6 +23,7 @@ import { eq, desc, and, like, sql, isNull } from "drizzle-orm";
 export interface IStorage {
   // Report operations
   createReport(report: InsertReport): Promise<Report>;
+  getReportById(id: string): Promise<Report | undefined>;
   getReportByCompany(companyName: string): Promise<Report | undefined>;
   updateReport(id: string, data: Partial<InsertReport>): Promise<Report | undefined>;
   deleteReport(id: string): Promise<void>;
@@ -64,6 +65,15 @@ export class DatabaseStorage implements IStorage {
       .values(report)
       .returning();
     return newReport;
+  }
+
+  async getReportById(id: string): Promise<Report | undefined> {
+    const [report] = await db
+      .select()
+      .from(reports)
+      .where(eq(reports.id, id))
+      .limit(1);
+    return report;
   }
 
   async getReportByCompany(companyName: string): Promise<Report | undefined> {

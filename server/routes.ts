@@ -18,6 +18,26 @@ export async function registerRoutes(
     res.json({ version: "2.5.0", buildTime: "2025-11-30T03:10:00Z" });
   });
 
+  // Shareable link endpoint - Get report by ID
+  app.get("/api/reports/:id", async (req, res) => {
+    try {
+      const reportId = req.params.id;
+      
+      // Fetch report from DB using storage interface
+      const report = await storage.getReportById(reportId);
+
+      if (!report) {
+        return res.status(404).json({ message: "Report not found" });
+      }
+
+      // Return the full report data
+      res.json(report);
+    } catch (error) {
+      console.error("Error fetching report:", error);
+      res.status(500).json({ message: "Failed to load report" });
+    }
+  });
+
   // Database connectivity test
   app.get("/api/test-db", async (req, res) => {
     const dbUrl = process.env.DATABASE_URL || "";

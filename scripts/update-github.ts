@@ -103,9 +103,8 @@ async function main() {
     
     // Files to update
     const filesToUpdate = [
-      { path: 'tailwind.config.ts', message: 'Add BlueAlly brand colors tailwind config' },
-      { path: 'client/src/index.css', message: 'Update CSS with BlueAlly brand colors' },
-      { path: 'server/ai-service.ts', message: 'Enhance AI prompts with Shadow Analysis technique' },
+      { path: 'server/routes.ts', message: 'Add shareable link endpoint GET /api/reports/:id' },
+      { path: 'server/storage.ts', message: 'Add getReportById method for shareable links' },
     ];
     
     console.log('\n📤 Updating files...');
