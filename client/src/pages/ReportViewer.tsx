@@ -393,6 +393,7 @@ export default function ReportViewer() {
                   <WorkflowExportPanel 
                     reportId={report.id} 
                     companyName={report.companyName}
+                    analysisData={report.analysisData}
                   />
                 )}
                 <Button 

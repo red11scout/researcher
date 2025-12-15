@@ -2361,6 +2361,7 @@ export default function Report() {
                 <WorkflowExportPanel 
                   reportId={reportId} 
                   companyName={companyName}
+                  analysisData={data}
                 />
               )}
             </div>
