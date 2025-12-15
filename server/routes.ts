@@ -834,6 +834,56 @@ Return ONLY valid JSON with this structure:
     }
   });
 
+  // Generate process steps for a specific use case (standalone endpoint)
+  app.post("/api/process-steps", async (req, res) => {
+    try {
+      const { 
+        description, 
+        frictionPoint, 
+        businessFunction = "General Operations",
+        detailLevel = "standard"
+      } = req.body;
+
+      if (!description || !frictionPoint) {
+        return res.status(400).json({ 
+          error: "Missing required fields",
+          message: "Both 'description' and 'frictionPoint' are required"
+        });
+      }
+
+      const { generateProcessSteps } = await import("./workflow-generator");
+
+      const processSteps = await generateProcessSteps({
+        description,
+        frictionPoint,
+        businessFunction,
+        detailLevel: detailLevel as "summary" | "standard" | "detailed"
+      });
+
+      return res.json({
+        success: true,
+        data: processSteps,
+        metadata: {
+          description,
+          frictionPoint,
+          businessFunction,
+          detailLevel,
+          generatedAt: new Date().toISOString(),
+          currentStateStepCount: processSteps.currentStateWorkflow.length,
+          targetStateStepCount: processSteps.targetStateWorkflow.length,
+          aiEnabledSteps: processSteps.targetStateWorkflow.filter(s => s.isAIEnabled).length,
+          hitlCheckpoints: processSteps.targetStateWorkflow.filter(s => s.isHumanInTheLoop).length
+        }
+      });
+    } catch (error) {
+      console.error("Process steps generation error:", error);
+      return res.status(500).json({ 
+        error: "Failed to generate process steps",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   // ===== WHAT-IF ANALYSIS ENDPOINTS =====
 
   // Create a What-If scenario from an existing report

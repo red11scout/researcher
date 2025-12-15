@@ -103,6 +103,451 @@ function getDefaultAgentTypeForPattern(pattern: AgenticPattern | string | null):
   return "Semantic Router";
 }
 
+interface ProcessStepsInput {
+  description: string;
+  frictionPoint: string;
+  businessFunction?: string;
+  detailLevel?: "summary" | "standard" | "detailed";
+}
+
+interface ProcessStepsOutput {
+  currentStateWorkflow: WorkflowStep[];
+  targetStateWorkflow: TargetWorkflowStep[];
+  agenticPattern?: AgenticPattern;
+  patternRationale?: string;
+  comparisonMetrics?: WorkflowComparisonMetrics;
+}
+
+const PROCESS_STEPS_PROMPT = `You are an expert business process analyst specializing in AI transformation and workflow optimization.
+
+Your task is to generate detailed, realistic process steps for a business workflow transformation.
+
+## CURRENT STATE REQUIREMENTS (Manual/Legacy Process):
+Generate 6-10 steps showing the CURRENT inefficient process. Each step MUST include:
+- Clear identification of INEFFICIENCIES (slow, manual, error-prone aspects)
+- BOTTLENECKS that cause delays or capacity constraints
+- MANUAL STEPS that require human effort and are candidates for automation
+- Realistic time estimates based on industry standards
+- Pain points that justify the transformation
+
+At least 2 steps must be marked as isBottleneck: true
+At least 2 steps must be marked as isFrictionPoint: true
+Include specific, quantifiable pain points (e.g., "45% of time spent on data re-entry")
+
+## TARGET STATE REQUIREMENTS (AI-Enhanced Process):
+Generate 8-12 steps showing the AI-ENHANCED process. This MUST demonstrate:
+- AI AUTOMATION replacing manual work (at least 50% of steps should be AI-enabled)
+- REDUCED PROCESSING TIME (target 60-80% reduction)
+- FASTER EXECUTION through parallel processing and real-time analysis
+- At least ONE Human-in-the-Loop checkpoint for quality assurance
+- Clear mapping to AI capabilities (classification, extraction, routing, generation, validation)
+
+At least 4 steps must have isAIEnabled: true with specific aiCapabilities
+Exactly 1-2 steps must have isHumanInTheLoop: true for oversight
+
+## OUTPUT FORMAT (strict JSON only, no markdown):
+{
+  "agenticPattern": "Semantic Router|Orchestrator-Workers|ReAct Loop|Drafter-Critic|Constitutional Guardrail|RAG Detective|Memetic Agent|Human-in-the-Loop",
+  "patternRationale": "2-3 sentences explaining pattern selection",
+  "currentStateWorkflow": [
+    {
+      "stepNumber": 1,
+      "stepId": "CS-01",
+      "stepName": "Descriptive Step Name",
+      "description": "Detailed description of manual process",
+      "actor": {"type": "human", "name": "Role Name", "role": "Department"},
+      "duration": {"value": 15, "unit": "minutes", "variability": "per item"},
+      "systems": ["Legacy System 1", "Spreadsheet"],
+      "dataSources": ["Manual input", "Email attachments"],
+      "isBottleneck": true,
+      "isFrictionPoint": true,
+      "isDecisionPoint": false,
+      "painPoints": ["58% time on low-value tasks", "Manual data entry errors"],
+      "connectedTo": ["CS-02"]
+    }
+  ],
+  "targetStateWorkflow": [
+    {
+      "stepNumber": 1,
+      "stepId": "TS-01",
+      "stepName": "AI-Powered Step Name",
+      "description": "How AI transforms this step",
+      "actor": {"type": "ai_agent", "name": "AI Classifier", "role": "Automated Processing"},
+      "duration": {"value": 5, "unit": "seconds", "variability": "per item"},
+      "systems": ["AI Platform", "Integrated CRM"],
+      "dataSources": ["API feeds", "Knowledge base"],
+      "isBottleneck": false,
+      "isFrictionPoint": false,
+      "isDecisionPoint": false,
+      "painPoints": [],
+      "connectedTo": ["TS-02"],
+      "isAIEnabled": true,
+      "isHumanInTheLoop": false,
+      "aiCapabilities": ["Classification", "Extraction", "Routing"],
+      "agentType": "Semantic Router",
+      "model": "Claude Sonnet",
+      "automationLevel": "full"
+    }
+  ],
+  "comparisonMetrics": {
+    "timeReduction": {"before": "4 hours/case", "after": "45 min/case", "improvement": "81%"},
+    "costReduction": {"before": "$150/case", "after": "$35/case", "improvement": "77%"},
+    "qualityImprovement": {"before": "82% accuracy", "after": "96% accuracy", "improvement": "17%"},
+    "throughputIncrease": {"before": "25 cases/day", "after": "120 cases/day", "improvement": "380%"}
+  }
+}
+
+Return ONLY valid JSON. No markdown, no code blocks, no explanations.`;
+
+export async function generateProcessSteps(
+  input: ProcessStepsInput
+): Promise<ProcessStepsOutput> {
+  const { description, frictionPoint, businessFunction = "General Operations", detailLevel = "standard" } = input;
+  
+  const stepCounts = {
+    summary: { current: "5-6", target: "6-8" },
+    standard: { current: "6-10", target: "8-12" },
+    detailed: { current: "10-15", target: "12-18" }
+  };
+  
+  const counts = stepCounts[detailLevel];
+  
+  const prompt = `${PROCESS_STEPS_PROMPT}
+
+CONTEXT FOR THIS WORKFLOW:
+- Use Case Description: ${description}
+- Target Friction Point: ${frictionPoint}
+- Business Function: ${businessFunction}
+- Detail Level: ${detailLevel}
+- Current State Steps: ${counts.current} steps
+- Target State Steps: ${counts.target} steps
+
+Generate realistic, industry-specific workflow steps that address the specific friction point and demonstrate measurable AI transformation benefits.`;
+
+  try {
+    const response = await anthropic.messages.create({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 10000,
+      messages: [{ role: "user", content: prompt }],
+    });
+
+    const content = response.content[0];
+    if (content.type !== "text") {
+      throw new Error("Unexpected response type from Claude API");
+    }
+
+    const jsonMatch = content.text.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) {
+      throw new Error("No valid JSON found in Claude response");
+    }
+
+    const parsedData = JSON.parse(jsonMatch[0]);
+    
+    const fakeUseCase: UseCase = {
+      name: description.substring(0, 50),
+      description,
+      businessFunction,
+      frictionPoint,
+    };
+    const validatedData = validateAndCorrectWorkflow(parsedData, fakeUseCase);
+
+    return {
+      currentStateWorkflow: validatedData.currentStateWorkflow as WorkflowStep[],
+      targetStateWorkflow: validatedData.targetStateWorkflow as TargetWorkflowStep[],
+      agenticPattern: validatedData.agenticPattern as AgenticPattern,
+      patternRationale: validatedData.patternRationale,
+      comparisonMetrics: validatedData.comparisonMetrics as WorkflowComparisonMetrics,
+    };
+  } catch (error) {
+    console.error("Error in generateProcessSteps:", error);
+    return generateFallbackProcessSteps(input);
+  }
+}
+
+function generateFallbackProcessSteps(input: ProcessStepsInput): ProcessStepsOutput {
+  const { description, frictionPoint, businessFunction = "General Operations" } = input;
+  
+  const currentStateWorkflow: WorkflowStep[] = [
+    {
+      stepNumber: 1,
+      stepId: "CS-01",
+      stepName: "Manual Request Reception",
+      description: `Staff receives ${businessFunction.toLowerCase()} requests through email, phone, or forms`,
+      actor: { type: "human", name: "Intake Specialist", role: businessFunction },
+      duration: { value: 12, unit: "minutes", variability: "per item" },
+      systems: ["Email", "Phone System", "Paper Forms"],
+      dataSources: ["Customer communications", "Internal requests"],
+      isBottleneck: true,
+      isFrictionPoint: true,
+      isDecisionPoint: false,
+      painPoints: [
+        "45% of time spent on data entry",
+        "Multiple communication channels create delays",
+        frictionPoint || "Manual processing creates bottlenecks"
+      ],
+      connectedTo: ["CS-02"],
+    },
+    {
+      stepNumber: 2,
+      stepId: "CS-02",
+      stepName: "Manual Data Entry & Verification",
+      description: "Staff manually enters and verifies data from received requests",
+      actor: { type: "human", name: "Data Entry Clerk", role: "Operations" },
+      duration: { value: 20, unit: "minutes", variability: "per item" },
+      systems: ["Legacy Database", "Spreadsheet"],
+      dataSources: ["Source documents", "Previous records"],
+      isBottleneck: true,
+      isFrictionPoint: false,
+      isDecisionPoint: false,
+      painPoints: [
+        "15% error rate in manual entry",
+        "Duplicate data entry across systems",
+        "Time-consuming verification process"
+      ],
+      connectedTo: ["CS-03"],
+    },
+    {
+      stepNumber: 3,
+      stepId: "CS-03",
+      stepName: "Manual Classification & Prioritization",
+      description: "Supervisor reviews and classifies requests based on experience",
+      actor: { type: "human", name: "Supervisor", role: "Team Lead" },
+      duration: { value: 8, unit: "minutes", variability: "per item" },
+      systems: ["Ticketing System"],
+      dataSources: ["Request details", "Historical patterns"],
+      isBottleneck: false,
+      isFrictionPoint: true,
+      isDecisionPoint: true,
+      painPoints: [
+        "Inconsistent classification criteria",
+        "Subjective priority decisions",
+        "Delays when supervisor unavailable"
+      ],
+      connectedTo: ["CS-04"],
+    },
+    {
+      stepNumber: 4,
+      stepId: "CS-04",
+      stepName: "Manual Assignment & Routing",
+      description: "Work assigned to team members based on availability and skills",
+      actor: { type: "human", name: "Team Lead", role: "Management" },
+      duration: { value: 5, unit: "minutes", variability: "per item" },
+      systems: ["Task Management", "Email"],
+      dataSources: ["Team capacity", "Skill matrix"],
+      isBottleneck: false,
+      isFrictionPoint: true,
+      isDecisionPoint: true,
+      painPoints: [
+        "Suboptimal workload distribution",
+        "Skill mismatches",
+        "Manual tracking overhead"
+      ],
+      connectedTo: ["CS-05"],
+    },
+    {
+      stepNumber: 5,
+      stepId: "CS-05",
+      stepName: "Manual Processing & Execution",
+      description: "Team members process requests using standard procedures",
+      actor: { type: "human", name: "Processor", role: "Specialist" },
+      duration: { value: 45, unit: "minutes", variability: "per item" },
+      systems: ["Multiple Legacy Systems", "Manual Checklists"],
+      dataSources: ["Reference documents", "Process guides"],
+      isBottleneck: true,
+      isFrictionPoint: false,
+      isDecisionPoint: false,
+      painPoints: [
+        "Context switching between systems",
+        "Manual lookup of reference data",
+        "Repetitive low-value tasks"
+      ],
+      connectedTo: ["CS-06"],
+    },
+    {
+      stepNumber: 6,
+      stepId: "CS-06",
+      stepName: "Manual Quality Check",
+      description: "Senior staff reviews completed work for accuracy",
+      actor: { type: "human", name: "Quality Reviewer", role: "Senior Specialist" },
+      duration: { value: 15, unit: "minutes", variability: "per item" },
+      systems: ["Review Checklist", "Approval System"],
+      dataSources: ["Completed work", "Quality standards"],
+      isBottleneck: false,
+      isFrictionPoint: false,
+      isDecisionPoint: true,
+      painPoints: [
+        "Sampling-based review misses errors",
+        "Rework loops add delays",
+        "Quality inconsistency"
+      ],
+      connectedTo: [],
+    },
+  ];
+
+  const targetStateWorkflow: TargetWorkflowStep[] = [
+    {
+      stepNumber: 1,
+      stepId: "TS-01",
+      stepName: "AI-Powered Request Ingestion",
+      description: "AI automatically captures and digitizes incoming requests from all channels",
+      actor: { type: "ai_agent", name: "Intake AI", role: "Automated Reception" },
+      duration: { value: 15, unit: "seconds", variability: "per item" },
+      systems: ["AI Platform", "Unified Inbox", "OCR Engine"],
+      dataSources: ["Multi-channel feeds", "Document scanners"],
+      isBottleneck: false,
+      isFrictionPoint: false,
+      isDecisionPoint: false,
+      painPoints: [],
+      connectedTo: ["TS-02"],
+      isAIEnabled: true,
+      isHumanInTheLoop: false,
+      aiCapabilities: ["Document Processing", "OCR", "Multi-channel Integration"],
+      agentType: "Semantic Router",
+      model: "Claude Sonnet",
+      automationLevel: "full",
+    },
+    {
+      stepNumber: 2,
+      stepId: "TS-02",
+      stepName: "Intelligent Data Extraction",
+      description: "AI extracts, validates, and structures data from documents and messages",
+      actor: { type: "ai_agent", name: "Extraction Agent", role: "Data Processing" },
+      duration: { value: 8, unit: "seconds", variability: "per item" },
+      systems: ["AI Extraction Engine", "Validation Rules"],
+      dataSources: ["Incoming documents", "Reference databases"],
+      isBottleneck: false,
+      isFrictionPoint: false,
+      isDecisionPoint: false,
+      painPoints: [],
+      connectedTo: ["TS-03"],
+      isAIEnabled: true,
+      isHumanInTheLoop: false,
+      aiCapabilities: ["Entity Extraction", "Data Validation", "Error Detection"],
+      agentType: "RAG Detective",
+      model: "Claude Sonnet",
+      automationLevel: "full",
+    },
+    {
+      stepNumber: 3,
+      stepId: "TS-03",
+      stepName: "AI Classification & Routing",
+      description: "AI classifies requests and routes to optimal processing path",
+      actor: { type: "ai_agent", name: "Classification Agent", role: "Intelligent Routing" },
+      duration: { value: 3, unit: "seconds", variability: "per item" },
+      systems: ["AI Classifier", "Routing Engine"],
+      dataSources: ["Request patterns", "Historical outcomes"],
+      isBottleneck: false,
+      isFrictionPoint: false,
+      isDecisionPoint: true,
+      painPoints: [],
+      connectedTo: ["TS-04"],
+      isAIEnabled: true,
+      isHumanInTheLoop: false,
+      aiCapabilities: ["Classification", "Priority Scoring", "Intelligent Routing"],
+      agentType: "Semantic Router",
+      model: "Claude Sonnet",
+      automationLevel: "full",
+    },
+    {
+      stepNumber: 4,
+      stepId: "TS-04",
+      stepName: "Automated Processing",
+      description: "AI executes standard processing tasks with real-time validation",
+      actor: { type: "ai_agent", name: "Processing Agent", role: "Task Execution" },
+      duration: { value: 2, unit: "minutes", variability: "per item" },
+      systems: ["AI Workflow Engine", "Integrated Systems"],
+      dataSources: ["Business rules", "Reference data"],
+      isBottleneck: false,
+      isFrictionPoint: false,
+      isDecisionPoint: false,
+      painPoints: [],
+      connectedTo: ["TS-05"],
+      isAIEnabled: true,
+      isHumanInTheLoop: false,
+      aiCapabilities: ["Task Automation", "Rule Application", "Cross-system Integration"],
+      agentType: "Orchestrator-Workers",
+      model: "Claude Sonnet",
+      automationLevel: "full",
+    },
+    {
+      stepNumber: 5,
+      stepId: "TS-05",
+      stepName: "Human-in-the-Loop Review",
+      description: "Expert reviews AI decisions on complex or high-value cases",
+      actor: { type: "human", name: "Senior Specialist", role: "Quality Oversight" },
+      duration: { value: 5, unit: "minutes", variability: "per item" },
+      systems: ["AI Review Dashboard", "Decision Support"],
+      dataSources: ["AI recommendations", "Confidence scores"],
+      isBottleneck: false,
+      isFrictionPoint: false,
+      isDecisionPoint: true,
+      painPoints: [],
+      connectedTo: ["TS-06"],
+      isAIEnabled: false,
+      isHumanInTheLoop: true,
+      aiCapabilities: [],
+      agentType: "Human-in-the-Loop",
+      model: null,
+      automationLevel: "supervised",
+    },
+    {
+      stepNumber: 6,
+      stepId: "TS-06",
+      stepName: "AI Quality Assurance",
+      description: "AI performs comprehensive quality checks and flags anomalies",
+      actor: { type: "ai_agent", name: "QA Agent", role: "Quality Validation" },
+      duration: { value: 10, unit: "seconds", variability: "per item" },
+      systems: ["AI QA Engine", "Anomaly Detection"],
+      dataSources: ["Quality metrics", "Historical patterns"],
+      isBottleneck: false,
+      isFrictionPoint: false,
+      isDecisionPoint: false,
+      painPoints: [],
+      connectedTo: ["TS-07"],
+      isAIEnabled: true,
+      isHumanInTheLoop: false,
+      aiCapabilities: ["Quality Scoring", "Anomaly Detection", "Compliance Check"],
+      agentType: "Constitutional Guardrail",
+      model: "Claude Sonnet",
+      automationLevel: "full",
+    },
+    {
+      stepNumber: 7,
+      stepId: "TS-07",
+      stepName: "Automated Completion & Notification",
+      description: "AI finalizes processing and sends automated notifications",
+      actor: { type: "ai_agent", name: "Completion Agent", role: "Finalization" },
+      duration: { value: 5, unit: "seconds", variability: "per item" },
+      systems: ["Notification Engine", "Audit System"],
+      dataSources: ["Completion status", "Stakeholder preferences"],
+      isBottleneck: false,
+      isFrictionPoint: false,
+      isDecisionPoint: false,
+      painPoints: [],
+      connectedTo: [],
+      isAIEnabled: true,
+      isHumanInTheLoop: false,
+      aiCapabilities: ["Notification Generation", "Status Updates", "Audit Logging"],
+      agentType: "Drafter-Critic",
+      model: "Claude Sonnet",
+      automationLevel: "full",
+    },
+  ];
+
+  return {
+    currentStateWorkflow,
+    targetStateWorkflow,
+    agenticPattern: "Orchestrator-Workers",
+    patternRationale: `Orchestrator-Workers pattern selected as this ${businessFunction.toLowerCase()} process involves multiple specialized tasks that benefit from coordinated AI agents working in parallel with human oversight.`,
+    comparisonMetrics: {
+      timeReduction: { before: "105 min/item", after: "12 min/item", improvement: "89%" },
+      costReduction: { before: "$85/item", after: "$18/item", improvement: "79%" },
+      qualityImprovement: { before: "85% accuracy", after: "97% accuracy", improvement: "14%" },
+      throughputIncrease: { before: "45 items/day", after: "280 items/day", improvement: "522%" },
+    },
+  };
+}
+
 function validateAndCorrectWorkflow(workflowData: any, useCase: UseCase): any {
   const currentSteps = workflowData.currentStateWorkflow || [];
   const targetSteps = workflowData.targetStateWorkflow || [];
