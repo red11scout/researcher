@@ -15,7 +15,8 @@ import {
   FileText,
   Target,
   Lightbulb,
-  ChevronDown
+  ChevronDown,
+  Download
 } from "lucide-react";
 import { type Report } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
@@ -234,6 +235,32 @@ export default function ReportViewer() {
     window.print();
   };
 
+  const handleExportJSON = () => {
+    if (!report) return;
+    
+    const exportData = {
+      id: report.id,
+      companyName: report.companyName,
+      createdAt: report.createdAt,
+      analysis: report.analysis,
+    };
+    
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${report.companyName.replace(/[^a-zA-Z0-9]/g, '_')}_AI_Assessment.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    toast({
+      title: "JSON Exported",
+      description: "Report data downloaded as JSON file.",
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-blueally-light p-8 space-y-8">
@@ -352,6 +379,14 @@ export default function ReportViewer() {
                   data-testid="button-share-link"
                 >
                   <Share2 className="w-4 h-4 mr-2" /> Share
+                </Button>
+                <Button 
+                  onClick={handleExportJSON} 
+                  variant="outline" 
+                  className="text-blueally-navy border-white bg-white hover:bg-gray-100 rounded-full"
+                  data-testid="button-export-json"
+                >
+                  <Download className="w-4 h-4 mr-2" /> JSON
                 </Button>
                 <Button 
                   onClick={handlePrint} 
