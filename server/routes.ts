@@ -739,6 +739,101 @@ Return ONLY valid JSON with this structure:
     }
   });
 
+  // ===== WORKFLOW GENERATION ENDPOINTS =====
+
+  // Generate Miro-ready workflow data for a report
+  app.post("/api/reports/:id/workflows", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { 
+        format = "enhanced",
+        detailLevel = "standard",
+        includeAgenticPatterns = true,
+        includeAssumptions = true,
+        includeMiroMetadata = true
+      } = req.body;
+
+      // Import workflow generator dynamically
+      const { 
+        generateAllWorkflows, 
+        createWorkflowExport, 
+        extractUseCasesFromAnalysis 
+      } = await import("./workflow-generator");
+
+      // Get the report
+      const report = await storage.getReportById(id);
+      if (!report) {
+        return res.status(404).json({ error: "Report not found" });
+      }
+
+      const analysis = report.analysisData as any;
+      
+      // Extract use cases from the analysis
+      const useCases = extractUseCasesFromAnalysis(analysis);
+      
+      if (useCases.length === 0) {
+        return res.status(400).json({ 
+          error: "No use cases found in report",
+          message: "The report must contain use cases in Step 4 or Step 5 to generate workflows"
+        });
+      }
+
+      // Generate workflows for all use cases
+      const options = {
+        format: format as "standard" | "enhanced" | "csv",
+        detailLevel: detailLevel as "summary" | "standard" | "detailed",
+        includeAgenticPatterns,
+        includeAssumptions,
+        includeMiroMetadata
+      };
+
+      const workflows = await generateAllWorkflows(useCases, options);
+
+      // Create the export data
+      const exportData = createWorkflowExport(
+        id,
+        report.companyName,
+        workflows,
+        options,
+        includeAssumptions ? (analysis.assumptions || {}) : undefined
+      );
+
+      return res.json(exportData);
+    } catch (error) {
+      console.error("Workflow generation error:", error);
+      return res.status(500).json({ 
+        error: "Failed to generate workflows",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Get workflow data if already generated (cached in report)
+  app.get("/api/reports/:id/workflows", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const report = await storage.getReportById(id);
+      
+      if (!report) {
+        return res.status(404).json({ error: "Report not found" });
+      }
+
+      const analysis = report.analysisData as any;
+      
+      if (analysis.workflowData) {
+        return res.json(analysis.workflowData);
+      }
+
+      return res.status(404).json({ 
+        error: "Workflows not generated",
+        message: "Use POST /api/reports/:id/workflows to generate workflow data"
+      });
+    } catch (error) {
+      console.error("Error fetching workflows:", error);
+      return res.status(500).json({ error: "Failed to fetch workflows" });
+    }
+  });
+
   // ===== WHAT-IF ANALYSIS ENDPOINTS =====
 
   // Create a What-If scenario from an existing report
