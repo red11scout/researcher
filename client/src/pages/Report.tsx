@@ -57,6 +57,7 @@ import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { Document, Packer, Paragraph, TextRun, Table as DocxTable, TableRow as DocxTableRow, TableCell as DocxTableCell, WidthType, BorderStyle, HeadingLevel, AlignmentType } from 'docx';
 import blueAllyLogoUrl from '@assets/image_1764369352062.png';
+import { WorkflowExportPanel } from "@/components/report/WorkflowExportPanel";
 
 const loadImageAsBase64 = (url: string): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -2355,6 +2356,13 @@ export default function Report() {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+              
+              {reportId && (
+                <WorkflowExportPanel 
+                  reportId={reportId} 
+                  companyName={companyName}
+                />
+              )}
             </div>
           </div>
         </div>
