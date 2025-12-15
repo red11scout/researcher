@@ -1902,6 +1902,19 @@ export default function Report() {
     saveAs(blob, `BlueAlly_AI_Assessment_${companyName.replace(/\s+/g, '_')}.html`);
   };
 
+  const generateJSON = () => {
+    if (!data) return;
+    
+    const exportData = {
+      companyName,
+      generatedAt: new Date().toISOString(),
+      analysis: data,
+    };
+    
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    saveAs(blob, `BlueAlly_AI_Assessment_${companyName.replace(/\s+/g, '_')}.json`);
+  };
+
   const handleDownload = async (format: string) => {
     if (!data) return;
 
@@ -1917,6 +1930,7 @@ export default function Report() {
         case "Word": generateWord(); break;
         case "Markdown": generateMarkdown(); break;
         case "HTML": generateHTML(); break;
+        case "JSON": generateJSON(); break;
       }
       
       toast({
@@ -2325,6 +2339,9 @@ export default function Report() {
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => handleDownload("Markdown")} data-testid="menu-md">
                     <FileText className="mr-2 h-4 w-4" /> Download Markdown
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleDownload("JSON")} data-testid="menu-json">
+                    <FileText className="mr-2 h-4 w-4" /> Download JSON
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={handleShareHTML} data-testid="menu-share-html">
                     <Share2 className="mr-2 h-4 w-4" /> Share HTML Report
