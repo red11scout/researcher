@@ -1,0 +1,121 @@
+Enhancement Request: Add Miro-Ready Workflow Data Generation
+I need to enhance the AI Use Case Assessment app to generate detailed business process workflows for each of the 10 use cases. The output should include granular "Before AI" and "After AI" process flows that can be imported into Miro for visualization.
+CORE REQUIREMENT:
+For each of the 10 use cases, generate a workflowData object containing:
+1. Current State Workflow (6-10 steps)
+Each step needs:
+json{
+  "stepNumber": 1,
+  "stepId": "CS-01",
+  "stepName": "Step Name",
+  "description": "What happens in this step",
+  "actor": {"type": "human|system", "name": "Actor Name", "role": "Job Title"},
+  "duration": {"value": 15, "unit": "minutes", "variability": "per item"},
+  "systems": ["CRM", "Excel"],
+  "dataSources": ["Customer data", "Manual forms"],
+  "isBottleneck": true,
+  "isFrictionPoint": true,
+  "isDecisionPoint": false,
+  "painPoints": ["58% time wasted on low-value tasks", "No data-driven decisions"],
+  "connectedTo": ["CS-02"]
+}
+2. Target State Workflow (8-12 steps)
+Each step needs the above PLUS:
+json{
+  "isAIEnabled": true,
+  "isHumanInTheLoop": false,
+  "aiCapabilities": ["Classification", "Routing", "Prediction"],
+  "agentType": "Semantic Router",
+  "model": "Claude Sonnet"
+}
+3. Agentic Pattern Mapping
+Map each use case to one of these patterns:
+
+Orchestrator-Workers: Multi-step complex tasks
+Semantic Router: Classification/routing decisions
+ReAct Loop: Autonomous troubleshooting
+Drafter-Critic: Content generation with review
+Constitutional Guardrail: Compliance-sensitive outputs
+RAG Detective: Knowledge retrieval/research
+Memetic Agent: Personalization with memory
+Human-in-the-Loop: High-stakes approval gates
+
+4. Comparison Metrics
+Calculate before/after improvements:
+json{
+  "comparisonMetrics": {
+    "timeReduction": {"before": "15 hrs/week", "after": "6 hrs/week", "improvement": "60%"},
+    "conversionImprovement": {"before": "12%", "after": "27%", "improvement": "125%"}
+  }
+}
+5. Miro Metadata
+Include color/icon mappings for visualization:
+json{
+  "miroMetadata": {
+    "colorScheme": {
+      "bottleneckHighlight": "#FFCDD2",
+      "aiEnabledHighlight": "#C8E6C9",
+      "humanCheckpointHighlight": "#FFF9C4"
+    },
+    "iconMapping": {
+      "human": "👤",
+      "ai_agent": "🤖",
+      "bottleneck": "🔴"
+    }
+  }
+}
+IMPLEMENTATION APPROACH:
+
+Create workflowGenerator.js with:
+
+generateProcessSteps(useCase, state) - Uses AI to analyze use case and generate steps
+mapAgenticPattern(useCase) - Maps use case to appropriate pattern
+calculateComparisonMetrics(currentSteps, targetSteps) - Computes improvements
+
+
+After generating the 10 use cases in the existing flow, call the workflow generator for each:
+
+javascriptconst workflowData = await Promise.all(
+  useCases.map(async (uc) => ({
+    useCaseId: uc.id,
+    useCaseName: uc.name,
+    agenticPattern: mapAgenticPattern(uc),
+    currentStateWorkflow: await generateProcessSteps(uc, 'current'),
+    targetStateWorkflow: await generateProcessSteps(uc, 'target'),
+    comparisonMetrics: calculateComparisonMetrics(...),
+    miroMetadata: getMiroMetadata()
+  }))
+);
+
+Add to the final JSON export:
+
+javascriptconst report = {
+  ...existingReportData,
+  workflowData: workflowData,
+  masterAssumptions: extractMasterAssumptions(analysis),
+  agenticPatternLibrary: AGENTIC_PATTERNS
+};
+KEY RULES:
+
+Every workflow MUST have at least one Human-in-the-Loop checkpoint
+Current state MUST identify bottlenecks and friction points
+Target state MUST show which steps are AI-enabled
+All durations must be realistic estimates
+Steps must connect logically via connectedTo array
+
+UI ADDITION:
+Add an export options panel:
+
+Export Format: Standard JSON / Enhanced + Workflows / CSV
+Workflow Detail Level: Summary (5-6) / Standard (8-10) / Detailed (12-15)
+Checkboxes: Include agentic patterns, assumptions, Miro metadata
+
+SUCCESS CRITERIA:
+
+10 complete workflow pairs generated
+Each current state has bottlenecks identified
+Each target state has AI agents specified
+JSON validates and exports cleanly
+Generation completes in < 90 seconds
+
+Please implement this enhancement to the existing app.

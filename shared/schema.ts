@@ -422,3 +422,216 @@ export const DEFAULT_FORMULAS: Record<CalculatedFieldKey, {
     description: "Net annual benefit after costs (3-year amortization)"
   }
 };
+
+// ============================================================================
+// WORKFLOW DATA TYPES - Miro-Ready Process Flow Generation
+// ============================================================================
+
+// Agentic Patterns for AI use cases
+export const AGENTIC_PATTERNS = [
+  "Orchestrator-Workers",
+  "Semantic Router", 
+  "ReAct Loop",
+  "Drafter-Critic",
+  "Constitutional Guardrail",
+  "RAG Detective",
+  "Memetic Agent",
+  "Human-in-the-Loop"
+] as const;
+
+export type AgenticPattern = typeof AGENTIC_PATTERNS[number];
+
+// Agentic Pattern descriptions for UI
+export const AGENTIC_PATTERN_META: Record<AgenticPattern, { 
+  description: string; 
+  icon: string;
+  useCaseExamples: string[];
+}> = {
+  "Orchestrator-Workers": {
+    description: "Multi-step complex tasks with coordinated sub-agents",
+    icon: "🎭",
+    useCaseExamples: ["Multi-department analysis", "Complex document processing", "End-to-end workflows"]
+  },
+  "Semantic Router": {
+    description: "Classification and intelligent routing decisions",
+    icon: "🔀",
+    useCaseExamples: ["Support ticket triage", "Lead qualification", "Intent classification"]
+  },
+  "ReAct Loop": {
+    description: "Autonomous troubleshooting with reasoning and action cycles",
+    icon: "🔄",
+    useCaseExamples: ["Technical diagnostics", "Root cause analysis", "Self-healing systems"]
+  },
+  "Drafter-Critic": {
+    description: "Content generation with iterative review and refinement",
+    icon: "✍️",
+    useCaseExamples: ["Report generation", "Email drafting", "Content creation"]
+  },
+  "Constitutional Guardrail": {
+    description: "Compliance-sensitive outputs with built-in constraints",
+    icon: "🛡️",
+    useCaseExamples: ["Regulatory compliance", "Policy enforcement", "Risk assessment"]
+  },
+  "RAG Detective": {
+    description: "Knowledge retrieval and research with source validation",
+    icon: "🔍",
+    useCaseExamples: ["Knowledge search", "Policy lookup", "Research assistance"]
+  },
+  "Memetic Agent": {
+    description: "Personalization with persistent memory and context",
+    icon: "🧠",
+    useCaseExamples: ["Customer personalization", "Adaptive learning", "User preference tracking"]
+  },
+  "Human-in-the-Loop": {
+    description: "High-stakes approval gates requiring human oversight",
+    icon: "👤",
+    useCaseExamples: ["Approval workflows", "Exception handling", "Quality assurance"]
+  }
+};
+
+// Workflow step actor
+export interface WorkflowActor {
+  type: "human" | "system" | "ai_agent";
+  name: string;
+  role: string;
+}
+
+// Duration specification
+export interface WorkflowDuration {
+  value: number;
+  unit: "seconds" | "minutes" | "hours" | "days";
+  variability: "per item" | "per batch" | "per day" | "fixed";
+}
+
+// Base workflow step (current state)
+export interface WorkflowStep {
+  stepNumber: number;
+  stepId: string;
+  stepName: string;
+  description: string;
+  actor: WorkflowActor;
+  duration: WorkflowDuration;
+  systems: string[];
+  dataSources: string[];
+  isBottleneck: boolean;
+  isFrictionPoint: boolean;
+  isDecisionPoint: boolean;
+  painPoints: string[];
+  connectedTo: string[];
+}
+
+// Target state workflow step (extends base with AI properties)
+export interface TargetWorkflowStep extends WorkflowStep {
+  isAIEnabled: boolean;
+  isHumanInTheLoop: boolean;
+  aiCapabilities: string[];
+  agentType: AgenticPattern | null;
+  model: string | null;
+  automationLevel: "full" | "assisted" | "supervised" | "manual";
+}
+
+// Comparison metrics for before/after
+export interface ComparisonMetric {
+  before: string;
+  after: string;
+  improvement: string;
+  unit?: string;
+}
+
+export interface WorkflowComparisonMetrics {
+  timeReduction: ComparisonMetric;
+  costReduction?: ComparisonMetric;
+  qualityImprovement?: ComparisonMetric;
+  throughputIncrease?: ComparisonMetric;
+  errorReduction?: ComparisonMetric;
+  customerSatisfaction?: ComparisonMetric;
+}
+
+// Miro visualization metadata
+export interface MiroMetadata {
+  colorScheme: {
+    bottleneckHighlight: string;
+    frictionPointHighlight: string;
+    aiEnabledHighlight: string;
+    humanCheckpointHighlight: string;
+    decisionPointHighlight: string;
+    normalStep: string;
+  };
+  iconMapping: {
+    human: string;
+    system: string;
+    ai_agent: string;
+    bottleneck: string;
+    friction: string;
+    decision: string;
+    hitl: string;
+  };
+  layoutSettings: {
+    stepWidth: number;
+    stepHeight: number;
+    horizontalGap: number;
+    verticalGap: number;
+  };
+}
+
+// Complete workflow data for a single use case
+export interface UseCaseWorkflowData {
+  useCaseId: string;
+  useCaseName: string;
+  businessFunction: string;
+  agenticPattern: AgenticPattern;
+  patternRationale: string;
+  currentStateWorkflow: WorkflowStep[];
+  targetStateWorkflow: TargetWorkflowStep[];
+  comparisonMetrics: WorkflowComparisonMetrics;
+  implementationNotes: string[];
+  humanCheckpoints: string[];
+}
+
+// Export options configuration
+export interface WorkflowExportOptions {
+  format: "standard" | "enhanced" | "csv";
+  detailLevel: "summary" | "standard" | "detailed";
+  includeAgenticPatterns: boolean;
+  includeAssumptions: boolean;
+  includeMiroMetadata: boolean;
+}
+
+// Complete workflow export data
+export interface WorkflowExportData {
+  reportId: string;
+  companyName: string;
+  generatedAt: string;
+  exportOptions: WorkflowExportOptions;
+  workflowData: UseCaseWorkflowData[];
+  masterAssumptions?: Record<string, any>;
+  agenticPatternLibrary: typeof AGENTIC_PATTERN_META;
+  miroMetadata: MiroMetadata;
+}
+
+// Default Miro metadata
+export const DEFAULT_MIRO_METADATA: MiroMetadata = {
+  colorScheme: {
+    bottleneckHighlight: "#FFCDD2",      // Red - bottlenecks
+    frictionPointHighlight: "#FFE0B2",   // Orange - friction
+    aiEnabledHighlight: "#C8E6C9",       // Green - AI enabled
+    humanCheckpointHighlight: "#FFF9C4", // Yellow - human review
+    decisionPointHighlight: "#E1BEE7",   // Purple - decisions
+    normalStep: "#E3F2FD"                // Light blue - normal
+  },
+  iconMapping: {
+    human: "👤",
+    system: "💻",
+    ai_agent: "🤖",
+    bottleneck: "🔴",
+    friction: "🟠",
+    decision: "🔷",
+    hitl: "✋"
+  },
+  layoutSettings: {
+    stepWidth: 200,
+    stepHeight: 120,
+    horizontalGap: 50,
+    verticalGap: 80
+  }
+};
