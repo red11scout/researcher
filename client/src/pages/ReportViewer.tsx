@@ -36,6 +36,7 @@ import {
   type TableColumn
 } from "@/components/report";
 import { useEffect, useState } from "react";
+import { WorkflowExportPanel } from "@/components/report/WorkflowExportPanel";
 
 interface UseCase {
   name: string;
@@ -242,7 +243,7 @@ export default function ReportViewer() {
       id: report.id,
       companyName: report.companyName,
       createdAt: report.createdAt,
-      analysis: report.analysis,
+      analysis: report.analysisData,
     };
     
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
@@ -388,6 +389,12 @@ export default function ReportViewer() {
                 >
                   <Download className="w-4 h-4 mr-2" /> JSON
                 </Button>
+                {report?.id && (
+                  <WorkflowExportPanel 
+                    reportId={report.id} 
+                    companyName={report.companyName}
+                  />
+                )}
                 <Button 
                   onClick={handlePrint} 
                   variant="outline" 
