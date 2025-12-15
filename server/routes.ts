@@ -931,6 +931,58 @@ Return ONLY valid JSON with this structure:
     }
   });
 
+  // Validate workflow data quality
+  app.post("/api/validate-workflow", async (req, res) => {
+    try {
+      const { currentStateWorkflow, targetStateWorkflow, config } = req.body;
+
+      if (!currentStateWorkflow || !targetStateWorkflow) {
+        return res.status(400).json({ 
+          error: "Missing required fields",
+          message: "Both 'currentStateWorkflow' and 'targetStateWorkflow' arrays are required"
+        });
+      }
+
+      if (!Array.isArray(currentStateWorkflow) || !Array.isArray(targetStateWorkflow)) {
+        return res.status(400).json({ 
+          error: "Invalid field types",
+          message: "'currentStateWorkflow' and 'targetStateWorkflow' must be arrays"
+        });
+      }
+
+      const { validateWorkflowData, repairWorkflowData } = await import("./workflow-generator");
+
+      const validationResult = validateWorkflowData(currentStateWorkflow, targetStateWorkflow, config);
+
+      let repairResult = null;
+      if (!validationResult.isValid) {
+        repairResult = repairWorkflowData(currentStateWorkflow, targetStateWorkflow, config);
+      }
+
+      return res.json({
+        success: true,
+        validation: validationResult,
+        repair: repairResult ? {
+          available: true,
+          repairsApplied: repairResult.repairsApplied,
+          repairedWorkflows: {
+            current: repairResult.current,
+            target: repairResult.target
+          }
+        } : {
+          available: false,
+          message: "Workflow data is valid, no repairs needed"
+        }
+      });
+    } catch (error) {
+      console.error("Workflow validation error:", error);
+      return res.status(500).json({ 
+        error: "Failed to validate workflow",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   // ===== WHAT-IF ANALYSIS ENDPOINTS =====
 
   // Create a What-If scenario from an existing report

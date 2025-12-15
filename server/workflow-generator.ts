@@ -11,8 +11,11 @@ import type {
   AIPrimitive,
   BusinessFunction,
   AgenticPatternMapping,
+  WorkflowValidationIssue,
+  WorkflowValidationResult,
+  WorkflowValidationConfig,
 } from "@shared/schema";
-import { AGENTIC_PATTERNS, AGENTIC_PATTERN_META, DEFAULT_MIRO_METADATA } from "@shared/schema";
+import { AGENTIC_PATTERNS, AGENTIC_PATTERN_META, DEFAULT_MIRO_METADATA, DEFAULT_VALIDATION_CONFIG } from "@shared/schema";
 
 const anthropic = new Anthropic({
   apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
@@ -1390,4 +1393,424 @@ export function extractUseCasesFromAnalysis(analysis: any): UseCase[] {
   }
   
   return useCases.slice(0, 10);
+}
+
+// ============================================================================
+// WORKFLOW VALIDATION SYSTEM
+// ============================================================================
+
+function convertDurationToMinutes(duration: { value: number; unit: string }): number {
+  const { value, unit } = duration;
+  switch (unit) {
+    case "seconds": return value / 60;
+    case "minutes": return value;
+    case "hours": return value * 60;
+    case "days": return value * 60 * 24;
+    default: return value;
+  }
+}
+
+function validateRequiredFields(
+  step: WorkflowStep | TargetWorkflowStep,
+  stepType: "current" | "target"
+): WorkflowValidationIssue[] {
+  const issues: WorkflowValidationIssue[] = [];
+  const requiredFields = ["stepNumber", "stepId", "stepName", "description", "actor", "duration"];
+  
+  for (const field of requiredFields) {
+    if (!(step as any)[field]) {
+      issues.push({
+        severity: "error",
+        code: "MISSING_REQUIRED_FIELD",
+        message: `Step ${step.stepId || step.stepNumber} is missing required field: ${field}`,
+        stepId: step.stepId,
+        field,
+        suggestion: `Add the ${field} property to step ${step.stepId || step.stepNumber}`
+      });
+    }
+  }
+  
+  if (step.actor) {
+    if (!step.actor.type) {
+      issues.push({
+        severity: "error",
+        code: "INVALID_ACTOR",
+        message: `Step ${step.stepId} has invalid actor - missing type`,
+        stepId: step.stepId,
+        field: "actor.type",
+        suggestion: "Set actor.type to 'human', 'system', or 'ai_agent'"
+      });
+    }
+    if (!step.actor.name) {
+      issues.push({
+        severity: "warning",
+        code: "MISSING_ACTOR_NAME",
+        message: `Step ${step.stepId} actor is missing a name`,
+        stepId: step.stepId,
+        field: "actor.name"
+      });
+    }
+  }
+  
+  if (step.duration) {
+    if (typeof step.duration.value !== "number" || step.duration.value < 0) {
+      issues.push({
+        severity: "error",
+        code: "INVALID_DURATION",
+        message: `Step ${step.stepId} has invalid duration value`,
+        stepId: step.stepId,
+        field: "duration.value",
+        suggestion: "Duration value must be a positive number"
+      });
+    }
+    if (!["seconds", "minutes", "hours", "days"].includes(step.duration.unit)) {
+      issues.push({
+        severity: "error",
+        code: "INVALID_DURATION_UNIT",
+        message: `Step ${step.stepId} has invalid duration unit: ${step.duration.unit}`,
+        stepId: step.stepId,
+        field: "duration.unit",
+        suggestion: "Use 'seconds', 'minutes', 'hours', or 'days'"
+      });
+    }
+  }
+  
+  if (stepType === "target") {
+    const targetStep = step as TargetWorkflowStep;
+    if (targetStep.isAIEnabled === undefined) {
+      issues.push({
+        severity: "warning",
+        code: "MISSING_AI_ENABLED_FLAG",
+        message: `Target step ${step.stepId} is missing isAIEnabled flag`,
+        stepId: step.stepId,
+        field: "isAIEnabled"
+      });
+    }
+    if (targetStep.isHumanInTheLoop === undefined) {
+      issues.push({
+        severity: "warning",
+        code: "MISSING_HITL_FLAG",
+        message: `Target step ${step.stepId} is missing isHumanInTheLoop flag`,
+        stepId: step.stepId,
+        field: "isHumanInTheLoop"
+      });
+    }
+  }
+  
+  return issues;
+}
+
+function validateConnectedSteps(
+  steps: (WorkflowStep | TargetWorkflowStep)[],
+  stepType: "current" | "target"
+): WorkflowValidationIssue[] {
+  const issues: WorkflowValidationIssue[] = [];
+  const stepIds = new Set(steps.map(s => s.stepId));
+  const referencedSteps = new Set<string>();
+  
+  for (const step of steps) {
+    if (step.connectedTo && step.connectedTo.length > 0) {
+      for (const targetId of step.connectedTo) {
+        if (!stepIds.has(targetId)) {
+          issues.push({
+            severity: "error",
+            code: "INVALID_CONNECTION",
+            message: `Step ${step.stepId} connects to non-existent step ${targetId}`,
+            stepId: step.stepId,
+            field: "connectedTo",
+            suggestion: `Remove or correct the connection to ${targetId}`
+          });
+        }
+        referencedSteps.add(targetId);
+      }
+    }
+  }
+  
+  for (const step of steps) {
+    if (step.stepNumber > 1 && !referencedSteps.has(step.stepId)) {
+      const hasIncomingFromPrevious = steps.some(
+        s => s.connectedTo?.includes(step.stepId)
+      );
+      if (!hasIncomingFromPrevious) {
+        issues.push({
+          severity: "warning",
+          code: "ORPHANED_STEP",
+          message: `Step ${step.stepId} (${step.stepName}) has no incoming connections - may be orphaned`,
+          stepId: step.stepId,
+          suggestion: "Ensure this step is connected in the workflow flow"
+        });
+      }
+    }
+  }
+  
+  const lastStep = steps[steps.length - 1];
+  if (lastStep && lastStep.connectedTo && lastStep.connectedTo.length > 0) {
+    issues.push({
+      severity: "info",
+      code: "TERMINAL_WITH_CONNECTIONS",
+      message: `Last step ${lastStep.stepId} has outgoing connections - verify this is intentional`,
+      stepId: lastStep.stepId,
+      field: "connectedTo"
+    });
+  }
+  
+  return issues;
+}
+
+function validateDurationRealism(
+  steps: (WorkflowStep | TargetWorkflowStep)[],
+  config: WorkflowValidationConfig
+): WorkflowValidationIssue[] {
+  const issues: WorkflowValidationIssue[] = [];
+  
+  for (const step of steps) {
+    if (!step.duration) continue;
+    
+    const durationMinutes = convertDurationToMinutes(step.duration);
+    
+    if (durationMinutes < config.minDurationSeconds / 60) {
+      issues.push({
+        severity: "warning",
+        code: "DURATION_TOO_SHORT",
+        message: `Step ${step.stepId} has unusually short duration (${step.duration.value} ${step.duration.unit})`,
+        stepId: step.stepId,
+        field: "duration",
+        suggestion: "Verify this duration is realistic for the described task"
+      });
+    }
+    
+    if (durationMinutes > config.maxDurationMinutes) {
+      issues.push({
+        severity: "warning",
+        code: "DURATION_TOO_LONG",
+        message: `Step ${step.stepId} has unusually long duration (${step.duration.value} ${step.duration.unit} = ${Math.round(durationMinutes)} minutes)`,
+        stepId: step.stepId,
+        field: "duration",
+        suggestion: "Consider breaking this into multiple steps or verify the estimate"
+      });
+    }
+  }
+  
+  return issues;
+}
+
+export function validateWorkflowData(
+  currentStateWorkflow: WorkflowStep[],
+  targetStateWorkflow: TargetWorkflowStep[],
+  config: WorkflowValidationConfig = DEFAULT_VALIDATION_CONFIG
+): WorkflowValidationResult {
+  const errors: WorkflowValidationIssue[] = [];
+  const warnings: WorkflowValidationIssue[] = [];
+  const infos: WorkflowValidationIssue[] = [];
+  
+  const bottleneckCount = currentStateWorkflow.filter(s => s.isBottleneck).length;
+  const frictionPointCount = currentStateWorkflow.filter(s => s.isFrictionPoint).length;
+  const hitlCheckpointCount = targetStateWorkflow.filter(s => s.isHumanInTheLoop).length;
+  const aiEnabledStepCount = targetStateWorkflow.filter(s => s.isAIEnabled).length;
+  
+  if (currentStateWorkflow.length < config.minCurrentSteps) {
+    errors.push({
+      severity: "error",
+      code: "INSUFFICIENT_CURRENT_STEPS",
+      message: `Current state workflow has ${currentStateWorkflow.length} steps, minimum required is ${config.minCurrentSteps}`,
+      suggestion: `Add ${config.minCurrentSteps - currentStateWorkflow.length} more steps to current state workflow`
+    });
+  }
+  
+  if (targetStateWorkflow.length < config.minTargetSteps) {
+    errors.push({
+      severity: "error",
+      code: "INSUFFICIENT_TARGET_STEPS",
+      message: `Target state workflow has ${targetStateWorkflow.length} steps, minimum required is ${config.minTargetSteps}`,
+      suggestion: `Add ${config.minTargetSteps - targetStateWorkflow.length} more steps to target state workflow`
+    });
+  }
+  
+  if (config.requireBottleneck && bottleneckCount === 0) {
+    errors.push({
+      severity: "error",
+      code: "NO_BOTTLENECK",
+      message: "Current state workflow must have at least one bottleneck identified",
+      suggestion: "Mark at least one step as isBottleneck: true to identify process inefficiencies"
+    });
+  }
+  
+  if (frictionPointCount === 0) {
+    warnings.push({
+      severity: "warning",
+      code: "NO_FRICTION_POINT",
+      message: "Current state workflow has no friction points identified",
+      suggestion: "Consider marking steps with isFrictionPoint: true to highlight pain points"
+    });
+  }
+  
+  if (config.requireHITL && hitlCheckpointCount === 0) {
+    errors.push({
+      severity: "error",
+      code: "NO_HITL_CHECKPOINT",
+      message: "Target state workflow must have at least one Human-in-the-Loop checkpoint",
+      suggestion: "Add at least one step with isHumanInTheLoop: true for enterprise compliance"
+    });
+  }
+  
+  if (aiEnabledStepCount === 0) {
+    errors.push({
+      severity: "error",
+      code: "NO_AI_ENABLED_STEPS",
+      message: "Target state workflow has no AI-enabled steps",
+      suggestion: "Add at least one step with isAIEnabled: true to show AI transformation value"
+    });
+  }
+  
+  for (const step of currentStateWorkflow) {
+    const fieldIssues = validateRequiredFields(step, "current");
+    for (const issue of fieldIssues) {
+      if (issue.severity === "error") errors.push(issue);
+      else if (issue.severity === "warning") warnings.push(issue);
+      else infos.push(issue);
+    }
+  }
+  
+  for (const step of targetStateWorkflow) {
+    const fieldIssues = validateRequiredFields(step, "target");
+    for (const issue of fieldIssues) {
+      if (issue.severity === "error") errors.push(issue);
+      else if (issue.severity === "warning") warnings.push(issue);
+      else infos.push(issue);
+    }
+  }
+  
+  const currentConnIssues = validateConnectedSteps(currentStateWorkflow, "current");
+  const targetConnIssues = validateConnectedSteps(targetStateWorkflow, "target");
+  
+  for (const issue of [...currentConnIssues, ...targetConnIssues]) {
+    if (issue.severity === "error") errors.push(issue);
+    else if (issue.severity === "warning") warnings.push(issue);
+    else infos.push(issue);
+  }
+  
+  const currentDurationIssues = validateDurationRealism(currentStateWorkflow, config);
+  const targetDurationIssues = validateDurationRealism(targetStateWorkflow, config);
+  
+  for (const issue of [...currentDurationIssues, ...targetDurationIssues]) {
+    if (issue.severity === "error") errors.push(issue);
+    else if (issue.severity === "warning") warnings.push(issue);
+    else infos.push(issue);
+  }
+  
+  const orphanedStepCount = 
+    currentConnIssues.filter(i => i.code === "ORPHANED_STEP").length +
+    targetConnIssues.filter(i => i.code === "ORPHANED_STEP").length;
+  
+  const durationOutlierCount = 
+    currentDurationIssues.length + targetDurationIssues.length;
+  
+  const currentStateValid = !errors.some(e => 
+    e.code === "INSUFFICIENT_CURRENT_STEPS" || 
+    e.code === "NO_BOTTLENECK" ||
+    (e.stepId?.startsWith("CS-"))
+  );
+  
+  const targetStateValid = !errors.some(e => 
+    e.code === "INSUFFICIENT_TARGET_STEPS" || 
+    e.code === "NO_HITL_CHECKPOINT" ||
+    e.code === "NO_AI_ENABLED_STEPS" ||
+    (e.stepId?.startsWith("TS-"))
+  );
+  
+  return {
+    isValid: errors.length === 0,
+    currentStateValid,
+    targetStateValid,
+    totalIssues: errors.length + warnings.length + infos.length,
+    errors,
+    warnings,
+    infos,
+    metrics: {
+      currentStepCount: currentStateWorkflow.length,
+      targetStepCount: targetStateWorkflow.length,
+      bottleneckCount,
+      frictionPointCount,
+      hitlCheckpointCount,
+      aiEnabledStepCount,
+      orphanedStepCount,
+      durationOutlierCount
+    }
+  };
+}
+
+export function repairWorkflowData(
+  currentStateWorkflow: WorkflowStep[],
+  targetStateWorkflow: TargetWorkflowStep[],
+  config: WorkflowValidationConfig = DEFAULT_VALIDATION_CONFIG
+): { current: WorkflowStep[]; target: TargetWorkflowStep[]; repairsApplied: string[] } {
+  const repairsApplied: string[] = [];
+  let current = [...currentStateWorkflow];
+  let target = [...targetStateWorkflow];
+  
+  if (current.length > 0 && !current.some(s => s.isBottleneck)) {
+    const longestStep = current.reduce((prev, curr) => {
+      const prevDur = convertDurationToMinutes(prev.duration);
+      const currDur = convertDurationToMinutes(curr.duration);
+      return currDur > prevDur ? curr : prev;
+    });
+    longestStep.isBottleneck = true;
+    repairsApplied.push(`Marked step ${longestStep.stepId} as bottleneck (longest duration)`);
+  }
+  
+  if (current.length > 0 && !current.some(s => s.isFrictionPoint)) {
+    const firstManualStep = current.find(s => s.actor?.type === "human");
+    if (firstManualStep) {
+      firstManualStep.isFrictionPoint = true;
+      repairsApplied.push(`Marked step ${firstManualStep.stepId} as friction point`);
+    }
+  }
+  
+  if (target.length > 0 && !target.some(s => s.isHumanInTheLoop)) {
+    const decisionStep = target.find(s => s.isDecisionPoint);
+    const lastStep = target[target.length - 1];
+    const stepToMark = decisionStep || lastStep;
+    if (stepToMark) {
+      stepToMark.isHumanInTheLoop = true;
+      stepToMark.automationLevel = "supervised";
+      repairsApplied.push(`Added HITL checkpoint to step ${stepToMark.stepId}`);
+    }
+  }
+  
+  if (target.length > 0 && !target.some(s => s.isAIEnabled)) {
+    const firstStep = target[0];
+    if (firstStep) {
+      firstStep.isAIEnabled = true;
+      firstStep.aiCapabilities = firstStep.aiCapabilities || ["Data Processing"];
+      firstStep.automationLevel = "assisted";
+      repairsApplied.push(`Marked step ${firstStep.stepId} as AI-enabled`);
+    }
+  }
+  
+  for (const step of current) {
+    if (!step.connectedTo) step.connectedTo = [];
+  }
+  for (const step of target) {
+    if (!step.connectedTo) step.connectedTo = [];
+  }
+  
+  for (let i = 0; i < current.length - 1; i++) {
+    const currentStep = current[i];
+    const nextStep = current[i + 1];
+    if (!currentStep.connectedTo.includes(nextStep.stepId)) {
+      currentStep.connectedTo.push(nextStep.stepId);
+      repairsApplied.push(`Connected current step ${currentStep.stepId} to ${nextStep.stepId}`);
+    }
+  }
+  
+  for (let i = 0; i < target.length - 1; i++) {
+    const currentStep = target[i];
+    const nextStep = target[i + 1];
+    if (!currentStep.connectedTo.includes(nextStep.stepId)) {
+      currentStep.connectedTo.push(nextStep.stepId);
+      repairsApplied.push(`Connected target step ${currentStep.stepId} to ${nextStep.stepId}`);
+    }
+  }
+  
+  return { current, target, repairsApplied };
 }

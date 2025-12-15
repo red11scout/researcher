@@ -654,6 +654,55 @@ export interface WorkflowExportData {
   miroMetadata: MiroMetadata;
 }
 
+// Workflow Validation Types
+export interface WorkflowValidationIssue {
+  severity: "error" | "warning" | "info";
+  code: string;
+  message: string;
+  stepId?: string;
+  field?: string;
+  suggestion?: string;
+}
+
+export interface WorkflowValidationResult {
+  isValid: boolean;
+  currentStateValid: boolean;
+  targetStateValid: boolean;
+  totalIssues: number;
+  errors: WorkflowValidationIssue[];
+  warnings: WorkflowValidationIssue[];
+  infos: WorkflowValidationIssue[];
+  metrics: {
+    currentStepCount: number;
+    targetStepCount: number;
+    bottleneckCount: number;
+    frictionPointCount: number;
+    hitlCheckpointCount: number;
+    aiEnabledStepCount: number;
+    orphanedStepCount: number;
+    durationOutlierCount: number;
+  };
+}
+
+// Validation configuration
+export interface WorkflowValidationConfig {
+  minCurrentSteps: number;
+  minTargetSteps: number;
+  requireBottleneck: boolean;
+  requireHITL: boolean;
+  maxDurationMinutes: number;
+  minDurationSeconds: number;
+}
+
+export const DEFAULT_VALIDATION_CONFIG: WorkflowValidationConfig = {
+  minCurrentSteps: 6,
+  minTargetSteps: 8,
+  requireBottleneck: true,
+  requireHITL: true,
+  maxDurationMinutes: 480, // 8 hours max per step
+  minDurationSeconds: 1,   // 1 second min per step
+};
+
 // Default Miro metadata
 export const DEFAULT_MIRO_METADATA: MiroMetadata = {
   colorScheme: {
