@@ -8,6 +8,9 @@ import type {
   MiroMetadata,
   WorkflowExportData,
   WorkflowExportOptions,
+  AIPrimitive,
+  BusinessFunction,
+  AgenticPatternMapping,
 } from "@shared/schema";
 import { AGENTIC_PATTERNS, AGENTIC_PATTERN_META, DEFAULT_MIRO_METADATA } from "@shared/schema";
 
@@ -673,37 +676,222 @@ function validateAndCorrectWorkflow(workflowData: any, useCase: UseCase): any {
   return workflowData;
 }
 
+// AI Primitive keywords for detection
+const AI_PRIMITIVE_KEYWORDS: Record<string, string[]> = {
+  classification: ["classify", "categoriz", "triage", "sort", "priorit", "label", "tag", "segment"],
+  generation: ["generate", "create", "write", "draft", "produce", "compose", "synthesiz"],
+  retrieval: ["search", "find", "lookup", "query", "retrieve", "fetch", "discover"],
+  extraction: ["extract", "parse", "identify", "recognize", "capture", "pull", "scrape"],
+  summarization: ["summariz", "condense", "digest", "abstract", "brief", "overview"],
+  translation: ["translat", "convert", "transform", "localize", "interpret"],
+  reasoning: ["reason", "analyze", "evaluat", "assess", "diagnos", "deduc", "infer"],
+  validation: ["validat", "verify", "check", "confirm", "audit", "compli", "review"],
+  prediction: ["predict", "forecast", "estimat", "project", "anticipat", "model"],
+  routing: ["route", "direct", "assign", "dispatch", "forward", "escalat"],
+  orchestration: ["orchestrat", "coordinat", "manag", "workflow", "automat", "pipeline"],
+  monitoring: ["monitor", "track", "alert", "notif", "watch", "observ", "detect"],
+};
+
+// Business function keywords for detection
+const BUSINESS_FUNCTION_KEYWORDS: Record<string, string[]> = {
+  Sales: ["sales", "deal", "opportunity", "pipeline", "lead", "prospect", "quota", "revenue"],
+  Marketing: ["marketing", "campaign", "brand", "content", "seo", "advertis", "social media"],
+  Finance: ["finance", "financ", "invoic", "payment", "budget", "account", "expense", "billing"],
+  Operations: ["operation", "process", "workflow", "efficien", "productiv", "throughput"],
+  HR: ["hr", "human resource", "recruit", "hiring", "employee", "talent", "onboard", "payroll"],
+  IT: ["it ", "technolog", "system", "software", "infrastructure", "deploy", "devops"],
+  Legal: ["legal", "contract", "agreement", "litigation", "intellectual property", "patent"],
+  Compliance: ["complian", "regulat", "policy", "governance", "risk", "audit", "sox", "gdpr"],
+  "Customer Service": ["customer", "support", "service", "ticket", "helpdesk", "complaint", "inquiry"],
+  "Supply Chain": ["supply chain", "inventory", "logistics", "procurement", "vendor", "supplier", "shipping"],
+  "R&D": ["r&d", "research", "develop", "innovation", "prototype", "experiment", "patent"],
+  Executive: ["executive", "strateg", "board", "c-suite", "leadership", "decision"],
+  General: ["general", "business", "enterprise", "organization"],
+};
+
+// Pattern scoring weights based on primitives
+const PATTERN_PRIMITIVE_SCORES: Record<AgenticPattern, Record<string, number>> = {
+  "Semantic Router": { classification: 3, routing: 3, extraction: 2, prediction: 1 },
+  "Orchestrator-Workers": { orchestration: 3, routing: 2, monitoring: 2, generation: 1 },
+  "ReAct Loop": { reasoning: 3, validation: 2, extraction: 2, monitoring: 1 },
+  "Drafter-Critic": { generation: 3, validation: 2, summarization: 2, translation: 1 },
+  "Constitutional Guardrail": { validation: 3, reasoning: 2, monitoring: 2, extraction: 1 },
+  "RAG Detective": { retrieval: 3, extraction: 2, summarization: 2, reasoning: 1 },
+  "Memetic Agent": { prediction: 3, reasoning: 2, generation: 2, extraction: 1 },
+  "Human-in-the-Loop": { validation: 2, reasoning: 2, routing: 2, monitoring: 1 },
+};
+
+// Pattern scoring weights based on business function
+const PATTERN_FUNCTION_SCORES: Record<AgenticPattern, Record<string, number>> = {
+  "Semantic Router": { "Customer Service": 3, Sales: 2, Operations: 2, HR: 1 },
+  "Orchestrator-Workers": { Operations: 3, "Supply Chain": 3, Finance: 2, IT: 2 },
+  "ReAct Loop": { IT: 3, "R&D": 2, Operations: 2, "Customer Service": 1 },
+  "Drafter-Critic": { Marketing: 3, Legal: 3, "R&D": 2, Sales: 1 },
+  "Constitutional Guardrail": { Compliance: 3, Legal: 3, Finance: 2, HR: 2 },
+  "RAG Detective": { "R&D": 3, Legal: 2, "Customer Service": 2, Sales: 1 },
+  "Memetic Agent": { Marketing: 3, Sales: 3, "Customer Service": 2, HR: 1 },
+  "Human-in-the-Loop": { Compliance: 3, Finance: 2, Legal: 2, Executive: 3 },
+};
+
+// Detect AI primitives from text
+function detectAIPrimitives(text: string): AIPrimitive[] {
+  const lowerText = text.toLowerCase();
+  const detected: AIPrimitive[] = [];
+  
+  for (const [primitive, keywords] of Object.entries(AI_PRIMITIVE_KEYWORDS)) {
+    for (const keyword of keywords) {
+      if (lowerText.includes(keyword)) {
+        if (!detected.includes(primitive as AIPrimitive)) {
+          detected.push(primitive as AIPrimitive);
+        }
+        break;
+      }
+    }
+  }
+  
+  return detected;
+}
+
+// Detect business function from text
+function detectBusinessFunction(text: string, explicitFunction?: string): BusinessFunction {
+  if (explicitFunction) {
+    const normalized = explicitFunction.toLowerCase();
+    for (const func of Object.keys(BUSINESS_FUNCTION_KEYWORDS)) {
+      if (func.toLowerCase() === normalized || normalized.includes(func.toLowerCase())) {
+        return func as BusinessFunction;
+      }
+    }
+  }
+  
+  const lowerText = text.toLowerCase();
+  let bestMatch: BusinessFunction = "General";
+  let highestScore = 0;
+  
+  for (const [func, keywords] of Object.entries(BUSINESS_FUNCTION_KEYWORDS)) {
+    let score = 0;
+    for (const keyword of keywords) {
+      if (lowerText.includes(keyword)) {
+        score++;
+      }
+    }
+    if (score > highestScore) {
+      highestScore = score;
+      bestMatch = func as BusinessFunction;
+    }
+  }
+  
+  return bestMatch;
+}
+
+// Calculate pattern scores based on detected primitives and function
+function calculatePatternScores(
+  primitives: AIPrimitive[],
+  businessFunction: BusinessFunction
+): Map<AgenticPattern, number> {
+  const scores = new Map<AgenticPattern, number>();
+  
+  for (const pattern of AGENTIC_PATTERNS) {
+    let score = 0;
+    
+    const primitiveScores = PATTERN_PRIMITIVE_SCORES[pattern] || {};
+    for (const primitive of primitives) {
+      score += primitiveScores[primitive] || 0;
+    }
+    
+    const functionScores = PATTERN_FUNCTION_SCORES[pattern] || {};
+    score += functionScores[businessFunction] || 0;
+    
+    scores.set(pattern, score);
+  }
+  
+  return scores;
+}
+
+// Enterprise HITL rationale generator
+function generateHITLRationale(businessFunction: BusinessFunction, primitives: AIPrimitive[]): string {
+  const hasHighRisk = primitives.includes("validation") || 
+                      primitives.includes("reasoning") || 
+                      primitives.includes("prediction");
+  const isRegulated = ["Compliance", "Legal", "Finance", "HR"].includes(businessFunction);
+  
+  if (isRegulated) {
+    return `Human-in-the-Loop oversight is mandatory for ${businessFunction} operations due to regulatory requirements and the need for accountable decision-making. Critical checkpoints ensure compliance and risk mitigation.`;
+  }
+  
+  if (hasHighRisk) {
+    return `Human-in-the-Loop checkpoints are essential for quality assurance and error correction when AI performs ${primitives.join(", ")} operations. Expert oversight maintains accuracy and prevents costly mistakes.`;
+  }
+  
+  return `Human-in-the-Loop governance ensures enterprise-grade accountability. Human experts review AI recommendations at key decision points, maintaining quality standards and providing an audit trail.`;
+}
+
+export function mapAgenticPatterns(useCase: UseCase): AgenticPatternMapping {
+  const text = `${useCase.name} ${useCase.description || ""} ${useCase.frictionPoint || ""}`.toLowerCase();
+  
+  const primitives = detectAIPrimitives(text);
+  const businessFunction = detectBusinessFunction(text, useCase.businessFunction);
+  
+  const scores = calculatePatternScores(primitives, businessFunction);
+  
+  const sortedPatterns = Array.from(scores.entries())
+    .filter(([pattern]) => pattern !== "Human-in-the-Loop")
+    .sort((a, b) => b[1] - a[1]);
+  
+  const [primaryPattern, primaryScore] = sortedPatterns[0] || ["Semantic Router", 0];
+  const [secondaryPattern, secondaryScore] = sortedPatterns[1] || [null, 0];
+  
+  const maxPossibleScore = 15;
+  const confidenceScore = Math.min(100, Math.round((primaryScore / maxPossibleScore) * 100));
+  
+  const primaryRationale = generatePatternRationale(primaryPattern, primitives, businessFunction);
+  
+  let secondaryRationale: string | null = null;
+  let finalSecondaryPattern: AgenticPattern | null = null;
+  
+  if (secondaryPattern && secondaryScore > 0 && secondaryScore >= primaryScore * 0.5) {
+    finalSecondaryPattern = secondaryPattern;
+    secondaryRationale = `${secondaryPattern} serves as a complementary pattern for ${primitives.filter(p => PATTERN_PRIMITIVE_SCORES[secondaryPattern]?.[p]).join(", ") || "supporting"} capabilities.`;
+  }
+  
+  const hitlRationale = generateHITLRationale(businessFunction, primitives);
+  
+  return {
+    primaryPattern,
+    primaryRationale,
+    secondaryPattern: finalSecondaryPattern,
+    secondaryRationale,
+    hitlPattern: "Human-in-the-Loop",
+    hitlRationale,
+    detectedPrimitives: primitives,
+    detectedFunction: businessFunction,
+    confidenceScore,
+  };
+}
+
+function generatePatternRationale(
+  pattern: AgenticPattern,
+  primitives: string[],
+  businessFunction: string
+): string {
+  const primitivesText = primitives.length > 0 ? primitives.join(", ") : "general processing";
+  
+  const rationales: Record<AgenticPattern, string> = {
+    "Semantic Router": `Semantic Router pattern optimally handles ${primitivesText} operations for ${businessFunction}. It excels at intelligent classification and routing of requests to appropriate processing paths, reducing manual triage overhead by 70-90%.`,
+    "Orchestrator-Workers": `Orchestrator-Workers pattern coordinates multiple ${primitivesText} tasks for ${businessFunction}. A central orchestrator decomposes complex work and delegates to specialized worker agents, enabling parallel processing and efficient resource utilization.`,
+    "ReAct Loop": `ReAct Loop pattern enables iterative ${primitivesText} with reasoning-action cycles for ${businessFunction}. The agent reasons about observations, takes actions, and refines its approach until reaching the optimal solution.`,
+    "Drafter-Critic": `Drafter-Critic pattern ensures high-quality ${primitivesText} outputs for ${businessFunction}. One agent generates content while another evaluates and refines it, achieving publication-quality results through structured iteration.`,
+    "Constitutional Guardrail": `Constitutional Guardrail pattern enforces ${primitivesText} compliance for ${businessFunction}. AI outputs are validated against defined policies and constraints, ensuring regulatory compliance and risk mitigation.`,
+    "RAG Detective": `RAG Detective pattern enhances ${primitivesText} with knowledge retrieval for ${businessFunction}. The agent searches relevant documents and data sources to ground responses in authoritative information.`,
+    "Memetic Agent": `Memetic Agent pattern personalizes ${primitivesText} for ${businessFunction}. The agent learns from interactions and adapts its behavior to individual user preferences and organizational patterns.`,
+    "Human-in-the-Loop": `Human-in-the-Loop pattern ensures expert oversight of ${primitivesText} for ${businessFunction}. AI recommendations are validated by domain experts at critical decision points.`,
+  };
+  
+  return rationales[pattern] || `${pattern} pattern selected for ${primitivesText} operations in ${businessFunction}.`;
+}
+
 export async function mapAgenticPattern(useCase: UseCase): Promise<AgenticPattern> {
-  const name = useCase.name.toLowerCase();
-  const desc = (useCase.description || "").toLowerCase();
-  const combined = `${name} ${desc}`;
-  
-  if (combined.includes("triage") || combined.includes("routing") || combined.includes("classification") || combined.includes("priorit")) {
-    return "Semantic Router";
-  }
-  if (combined.includes("document") || combined.includes("content") || combined.includes("report") || combined.includes("draft")) {
-    return "Drafter-Critic";
-  }
-  if (combined.includes("compliance") || combined.includes("policy") || combined.includes("regulatory") || combined.includes("audit")) {
-    return "Constitutional Guardrail";
-  }
-  if (combined.includes("knowledge") || combined.includes("search") || combined.includes("research") || combined.includes("lookup")) {
-    return "RAG Detective";
-  }
-  if (combined.includes("troubleshoot") || combined.includes("diagnos") || combined.includes("debug") || combined.includes("root cause")) {
-    return "ReAct Loop";
-  }
-  if (combined.includes("personal") || combined.includes("recommend") || combined.includes("preference") || combined.includes("adaptive")) {
-    return "Memetic Agent";
-  }
-  if (combined.includes("approval") || combined.includes("review") || combined.includes("exception") || combined.includes("escalat")) {
-    return "Human-in-the-Loop";
-  }
-  if (combined.includes("multi") || combined.includes("orchestrat") || combined.includes("coordinat") || combined.includes("end-to-end")) {
-    return "Orchestrator-Workers";
-  }
-  
-  return "Semantic Router";
+  const mapping = mapAgenticPatterns(useCase);
+  return mapping.primaryPattern;
 }
 
 export async function generateWorkflowForUseCase(
@@ -756,13 +944,16 @@ Generate realistic, industry-specific workflow steps. Return ONLY valid JSON.`;
     let workflowData = JSON.parse(jsonMatch[0]);
     
     workflowData = validateAndCorrectWorkflow(workflowData, useCase);
+    
+    const patternMapping = mapAgenticPatterns(useCase);
 
     return {
       useCaseId: useCase.id || `UC-${Date.now()}`,
       useCaseName: useCase.name,
       businessFunction: useCase.businessFunction || "General Operations",
-      agenticPattern: workflowData.agenticPattern as AgenticPattern,
-      patternRationale: workflowData.patternRationale || `${workflowData.agenticPattern} pattern selected for this use case.`,
+      agenticPattern: patternMapping.primaryPattern,
+      patternRationale: patternMapping.primaryRationale,
+      patternMapping,
       currentStateWorkflow: workflowData.currentStateWorkflow as WorkflowStep[],
       targetStateWorkflow: workflowData.targetStateWorkflow as TargetWorkflowStep[],
       comparisonMetrics: workflowData.comparisonMetrics as WorkflowComparisonMetrics,
@@ -776,14 +967,15 @@ Generate realistic, industry-specific workflow steps. Return ONLY valid JSON.`;
 }
 
 function generateFallbackWorkflow(useCase: UseCase): UseCaseWorkflowData {
-  const pattern = mapAgenticPatternSync(useCase);
+  const patternMapping = mapAgenticPatterns(useCase);
   
   return {
     useCaseId: useCase.id || `UC-${Date.now()}`,
     useCaseName: useCase.name,
     businessFunction: useCase.businessFunction || "General Operations",
-    agenticPattern: pattern,
-    patternRationale: `${pattern} pattern selected based on use case characteristics.`,
+    agenticPattern: patternMapping.primaryPattern,
+    patternRationale: patternMapping.primaryRationale,
+    patternMapping,
     currentStateWorkflow: [
       {
         stepNumber: 1,
@@ -894,7 +1086,7 @@ function generateFallbackWorkflow(useCase: UseCase): UseCaseWorkflowData {
         isAIEnabled: true,
         isHumanInTheLoop: false,
         aiCapabilities: ["NLP", "Data Extraction", "Validation"],
-        agentType: pattern,
+        agentType: patternMapping.primaryPattern,
         model: "Claude Sonnet",
         automationLevel: "full",
       },
@@ -957,7 +1149,7 @@ function generateFallbackWorkflow(useCase: UseCase): UseCaseWorkflowData {
         isAIEnabled: true,
         isHumanInTheLoop: false,
         aiCapabilities: ["Data Processing", "Decision Support"],
-        agentType: pattern,
+        agentType: patternMapping.primaryPattern,
         model: "Claude Sonnet",
         automationLevel: "assisted",
       },

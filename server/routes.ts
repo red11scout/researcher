@@ -834,6 +834,53 @@ Return ONLY valid JSON with this structure:
     }
   });
 
+  // Map agentic patterns for a use case
+  app.post("/api/pattern-mapping", async (req, res) => {
+    try {
+      const { 
+        name, 
+        description, 
+        businessFunction,
+        frictionPoint
+      } = req.body;
+
+      if (!name) {
+        return res.status(400).json({ 
+          error: "Missing required field",
+          message: "'name' is required for pattern mapping"
+        });
+      }
+
+      const { mapAgenticPatterns } = await import("./workflow-generator");
+
+      const patternMapping = mapAgenticPatterns({
+        name,
+        description: description || "",
+        businessFunction: businessFunction || "General",
+        frictionPoint: frictionPoint || ""
+      });
+
+      return res.json({
+        success: true,
+        patternMapping,
+        summary: {
+          primaryPattern: patternMapping.primaryPattern,
+          secondaryPattern: patternMapping.secondaryPattern,
+          hitlPattern: patternMapping.hitlPattern,
+          detectedPrimitives: patternMapping.detectedPrimitives,
+          detectedFunction: patternMapping.detectedFunction,
+          confidenceScore: patternMapping.confidenceScore
+        }
+      });
+    } catch (error) {
+      console.error("Pattern mapping error:", error);
+      return res.status(500).json({ 
+        error: "Failed to map patterns",
+        message: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
   // Generate process steps for a specific use case (standalone endpoint)
   app.post("/api/process-steps", async (req, res) => {
     try {

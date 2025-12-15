@@ -574,6 +574,50 @@ export interface MiroMetadata {
   };
 }
 
+// AI Primitives for pattern classification
+export type AIPrimitive = 
+  | "classification"
+  | "generation"
+  | "retrieval"
+  | "extraction"
+  | "summarization"
+  | "translation"
+  | "reasoning"
+  | "validation"
+  | "prediction"
+  | "routing"
+  | "orchestration"
+  | "monitoring";
+
+// Business functions for pattern mapping
+export type BusinessFunction =
+  | "Sales"
+  | "Marketing"
+  | "Finance"
+  | "Operations"
+  | "HR"
+  | "IT"
+  | "Legal"
+  | "Compliance"
+  | "Customer Service"
+  | "Supply Chain"
+  | "R&D"
+  | "Executive"
+  | "General";
+
+// Pattern mapping result with primary, secondary, and HITL
+export interface AgenticPatternMapping {
+  primaryPattern: AgenticPattern;
+  primaryRationale: string;
+  secondaryPattern: AgenticPattern | null;
+  secondaryRationale: string | null;
+  hitlPattern: "Human-in-the-Loop";
+  hitlRationale: string;
+  detectedPrimitives: AIPrimitive[];
+  detectedFunction: BusinessFunction;
+  confidenceScore: number;
+}
+
 // Complete workflow data for a single use case
 export interface UseCaseWorkflowData {
   useCaseId: string;
@@ -581,6 +625,7 @@ export interface UseCaseWorkflowData {
   businessFunction: string;
   agenticPattern: AgenticPattern;
   patternRationale: string;
+  patternMapping?: AgenticPatternMapping;
   currentStateWorkflow: WorkflowStep[];
   targetStateWorkflow: TargetWorkflowStep[];
   comparisonMetrics: WorkflowComparisonMetrics;
