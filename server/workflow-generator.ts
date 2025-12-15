@@ -9,7 +9,7 @@ import type {
   WorkflowExportData,
   WorkflowExportOptions,
 } from "@shared/schema";
-import { AGENTIC_PATTERN_META, DEFAULT_MIRO_METADATA } from "@shared/schema";
+import { AGENTIC_PATTERNS, AGENTIC_PATTERN_META, DEFAULT_MIRO_METADATA } from "@shared/schema";
 
 const anthropic = new Anthropic({
   apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
@@ -96,6 +96,138 @@ OUTPUT FORMAT (strict JSON):
 
 Use Case Details:`;
 
+function getDefaultAgentTypeForPattern(pattern: AgenticPattern | string | null): AgenticPattern {
+  if (pattern && AGENTIC_PATTERNS.includes(pattern as AgenticPattern)) {
+    return pattern as AgenticPattern;
+  }
+  return "Semantic Router";
+}
+
+function validateAndCorrectWorkflow(workflowData: any, useCase: UseCase): any {
+  const currentSteps = workflowData.currentStateWorkflow || [];
+  const targetSteps = workflowData.targetStateWorkflow || [];
+  const selectedPattern = getDefaultAgentTypeForPattern(workflowData.agenticPattern);
+
+  let hasBottleneck = currentSteps.some((s: WorkflowStep) => s.isBottleneck);
+  let hasFriction = currentSteps.some((s: WorkflowStep) => s.isFrictionPoint);
+  
+  if (currentSteps.length > 0) {
+    if (!hasBottleneck) {
+      const bottleneckIndex = currentSteps.length === 1 ? 0 : Math.floor(currentSteps.length / 3);
+      currentSteps[bottleneckIndex].isBottleneck = true;
+      if (!currentSteps[bottleneckIndex].painPoints) {
+        currentSteps[bottleneckIndex].painPoints = [];
+      }
+      if (!currentSteps[bottleneckIndex].painPoints.some((p: string) => p.includes("bottleneck") || p.includes("delay"))) {
+        currentSteps[bottleneckIndex].painPoints.push("Manual processing creates delays - identified as bottleneck");
+      }
+    }
+    
+    if (!hasFriction) {
+      const frictionIndex = currentSteps.length === 1 ? 0 : Math.floor(currentSteps.length * 2 / 3);
+      currentSteps[frictionIndex].isFrictionPoint = true;
+      if (!currentSteps[frictionIndex].painPoints) {
+        currentSteps[frictionIndex].painPoints = [];
+      }
+      if (!currentSteps[frictionIndex].painPoints.some((p: string) => p.includes("friction") || p.includes("handoff"))) {
+        currentSteps[frictionIndex].painPoints.push("Handoff delays and data re-entry required - friction point");
+      }
+    }
+  }
+
+  if (targetSteps.length > 0) {
+    let hasAIEnabled = targetSteps.some((s: TargetWorkflowStep) => s.isAIEnabled);
+    
+    if (!hasAIEnabled) {
+      targetSteps.forEach((step: TargetWorkflowStep) => {
+        if (step.actor?.type === "ai_agent" || step.actor?.type === "system") {
+          step.isAIEnabled = true;
+          step.aiCapabilities = step.aiCapabilities?.length ? step.aiCapabilities : ["Automation", "Processing"];
+          step.model = step.model || "Claude Sonnet";
+          step.agentType = step.agentType || selectedPattern;
+          step.automationLevel = step.automationLevel || "full";
+        }
+      });
+      
+      hasAIEnabled = targetSteps.some((s: TargetWorkflowStep) => s.isAIEnabled);
+    }
+    
+    if (!hasAIEnabled) {
+      const aiStepIndex = targetSteps.findIndex((s: TargetWorkflowStep) => !s.isHumanInTheLoop);
+      const indexToModify = aiStepIndex >= 0 ? aiStepIndex : 0;
+      
+      if (!targetSteps[indexToModify].isHumanInTheLoop) {
+        targetSteps[indexToModify].isAIEnabled = true;
+        targetSteps[indexToModify].actor = { type: "ai_agent", name: "AI Processing Agent", role: "Automated Processor" };
+        targetSteps[indexToModify].aiCapabilities = ["Classification", "Processing", "Validation"];
+        targetSteps[indexToModify].model = "Claude Sonnet";
+        targetSteps[indexToModify].agentType = selectedPattern;
+        targetSteps[indexToModify].automationLevel = "full";
+      }
+    }
+  }
+
+  let hasHITL = targetSteps.some((s: TargetWorkflowStep) => s.isHumanInTheLoop);
+  if (!hasHITL && targetSteps.length > 0) {
+    const midIndex = Math.floor(targetSteps.length / 2);
+    targetSteps[midIndex].isHumanInTheLoop = true;
+    targetSteps[midIndex].isAIEnabled = false;
+    targetSteps[midIndex].automationLevel = "supervised";
+    targetSteps[midIndex].actor = { type: "human", name: "Reviewer", role: "Quality Assurance" };
+    targetSteps[midIndex].agentType = "Human-in-the-Loop";
+    targetSteps[midIndex].model = null;
+    workflowData.humanCheckpoints = workflowData.humanCheckpoints || [];
+    workflowData.humanCheckpoints.push(
+      `Step ${targetSteps[midIndex].stepId || `TS-${midIndex + 1}`}: Human review checkpoint (auto-added for compliance)`
+    );
+  }
+
+  currentSteps.forEach((step: WorkflowStep, index: number) => {
+    step.stepNumber = step.stepNumber || index + 1;
+    step.stepId = step.stepId || `CS-${String(index + 1).padStart(2, '0')}`;
+    step.actor = step.actor || { type: "human", name: "Staff", role: "Operator" };
+    step.duration = step.duration || { value: 15, unit: "minutes", variability: "per item" };
+    step.systems = step.systems || ["Manual System"];
+    step.dataSources = step.dataSources || ["Manual Input"];
+    step.painPoints = step.painPoints || [];
+    step.connectedTo = step.connectedTo || (index < currentSteps.length - 1 ? [`CS-${String(index + 2).padStart(2, '0')}`] : []);
+    if (step.isBottleneck === undefined) step.isBottleneck = false;
+    if (step.isFrictionPoint === undefined) step.isFrictionPoint = false;
+    if (step.isDecisionPoint === undefined) step.isDecisionPoint = false;
+  });
+
+  targetSteps.forEach((step: TargetWorkflowStep, index: number) => {
+    step.stepNumber = step.stepNumber || index + 1;
+    step.stepId = step.stepId || `TS-${String(index + 1).padStart(2, '0')}`;
+    step.actor = step.actor || { type: "ai_agent", name: "AI Agent", role: "Processor" };
+    step.duration = step.duration || { value: 5, unit: "minutes", variability: "per item" };
+    step.systems = step.systems || ["AI Platform"];
+    step.dataSources = step.dataSources || ["API"];
+    step.painPoints = step.painPoints || [];
+    step.connectedTo = step.connectedTo || (index < targetSteps.length - 1 ? [`TS-${String(index + 2).padStart(2, '0')}`] : []);
+    step.automationLevel = step.automationLevel || (step.isHumanInTheLoop ? "supervised" : "full");
+    step.aiCapabilities = step.aiCapabilities || (step.isAIEnabled ? ["Processing", "Automation"] : []);
+    step.agentType = step.agentType || (step.isAIEnabled ? selectedPattern : (step.isHumanInTheLoop ? "Human-in-the-Loop" : selectedPattern));
+    step.model = step.model || (step.isAIEnabled ? "Claude Sonnet" : null);
+    if (step.isBottleneck === undefined) step.isBottleneck = false;
+    if (step.isFrictionPoint === undefined) step.isFrictionPoint = false;
+    if (step.isDecisionPoint === undefined) step.isDecisionPoint = false;
+    if (step.isAIEnabled === undefined) step.isAIEnabled = step.actor?.type === "ai_agent";
+    if (step.isHumanInTheLoop === undefined) step.isHumanInTheLoop = step.actor?.type === "human";
+  });
+
+  workflowData.currentStateWorkflow = currentSteps;
+  workflowData.targetStateWorkflow = targetSteps;
+  workflowData.agenticPattern = workflowData.agenticPattern || selectedPattern;
+  workflowData.implementationNotes = workflowData.implementationNotes || [
+    "Phased rollout recommended for minimal disruption",
+    "Human-in-the-Loop checkpoint ensures quality control"
+  ];
+  workflowData.humanCheckpoints = workflowData.humanCheckpoints || [];
+
+  return workflowData;
+}
+
 export async function mapAgenticPattern(useCase: UseCase): Promise<AgenticPattern> {
   const name = useCase.name.toLowerCase();
   const desc = (useCase.description || "").toLowerCase();
@@ -176,28 +308,16 @@ Generate realistic, industry-specific workflow steps. Return ONLY valid JSON.`;
       throw new Error("No JSON found in response");
     }
 
-    const workflowData = JSON.parse(jsonMatch[0]);
-
-    const hasHITL = workflowData.targetStateWorkflow?.some(
-      (step: TargetWorkflowStep) => step.isHumanInTheLoop
-    );
+    let workflowData = JSON.parse(jsonMatch[0]);
     
-    if (!hasHITL && workflowData.targetStateWorkflow?.length > 0) {
-      const midIndex = Math.floor(workflowData.targetStateWorkflow.length / 2);
-      workflowData.targetStateWorkflow[midIndex].isHumanInTheLoop = true;
-      workflowData.targetStateWorkflow[midIndex].automationLevel = "supervised";
-      workflowData.humanCheckpoints = workflowData.humanCheckpoints || [];
-      workflowData.humanCheckpoints.push(
-        `Step ${workflowData.targetStateWorkflow[midIndex].stepId}: Human review checkpoint added`
-      );
-    }
+    workflowData = validateAndCorrectWorkflow(workflowData, useCase);
 
     return {
       useCaseId: useCase.id || `UC-${Date.now()}`,
       useCaseName: useCase.name,
       businessFunction: useCase.businessFunction || "General Operations",
       agenticPattern: workflowData.agenticPattern as AgenticPattern,
-      patternRationale: workflowData.patternRationale,
+      patternRationale: workflowData.patternRationale || `${workflowData.agenticPattern} pattern selected for this use case.`,
       currentStateWorkflow: workflowData.currentStateWorkflow as WorkflowStep[],
       targetStateWorkflow: workflowData.targetStateWorkflow as TargetWorkflowStep[],
       comparisonMetrics: workflowData.comparisonMetrics as WorkflowComparisonMetrics,
