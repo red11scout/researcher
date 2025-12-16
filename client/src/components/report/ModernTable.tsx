@@ -66,12 +66,12 @@ const severityConfig: Record<string, {
 };
 
 export function PriorityBadge({ priority }: { priority: string }) {
-  const normalizedPriority = priority.toLowerCase();
+  const normalizedPriority = (priority || 'unknown').toLowerCase();
   const colorClass = priorityColors[normalizedPriority] || 'bg-gray-100 text-gray-700 border-gray-200';
   
   return (
     <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold border ${colorClass}`}>
-      {priority}
+      {priority || 'Unknown'}
     </span>
   );
 }
@@ -83,7 +83,7 @@ export interface SeverityBadgeProps {
 }
 
 export function SeverityBadge({ severity, showIcon = true, showLabel = true }: SeverityBadgeProps) {
-  const normalizedSeverity = severity.toLowerCase();
+  const normalizedSeverity = (severity || 'unknown').toLowerCase();
   const config = severityConfig[normalizedSeverity] || {
     icon: Info,
     colors: 'bg-gray-100 text-gray-700 border-gray-200',

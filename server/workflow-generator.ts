@@ -1057,6 +1057,14 @@ Generate realistic, industry-specific workflow steps. Return ONLY valid JSON.`;
     
     workflowData = validateAndCorrectWorkflow(workflowData, useCase);
     
+    return workflowData;
+  } catch (error) {
+    console.error(`Error generating workflow for ${useCase.name}:`, error);
+    return generateFallbackWorkflow(useCase);
+  }
+}
+
+export async function generateAllWorkflows(
   useCases: UseCase[],
   options: WorkflowExportOptions
 ): Promise<UseCaseWorkflowData[]> {

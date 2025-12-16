@@ -101,13 +101,13 @@ export function DriverBadge({
   showLabel = true,
   variant = 'default',
 }: DriverBadgeProps) {
-  const normalizedDriver = driver.toLowerCase();
+  const normalizedDriver = (driver || 'unknown').toLowerCase();
   const config = driverConfigs[normalizedDriver] || {
     icon: TrendingUp,
     color: '#64748B',
     bgColor: 'bg-gray-50',
     borderColor: 'border-gray-200',
-    label: driver,
+    label: driver || 'Unknown',
   };
 
   const Icon = config.icon;
@@ -142,12 +142,12 @@ export function DriverBadge({
 }
 
 export function getDriverIcon(driver: string): LucideIcon {
-  const normalizedDriver = driver.toLowerCase();
+  const normalizedDriver = (driver || 'unknown').toLowerCase();
   return driverConfigs[normalizedDriver]?.icon || TrendingUp;
 }
 
 export function getDriverColor(driver: string): string {
-  const normalizedDriver = driver.toLowerCase();
+  const normalizedDriver = (driver || 'unknown').toLowerCase();
   return driverConfigs[normalizedDriver]?.color || '#64748B';
 }
 
