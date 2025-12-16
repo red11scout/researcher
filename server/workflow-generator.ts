@@ -1354,14 +1354,16 @@ export function extractUseCasesFromAnalysis(analysis: any): UseCase[] {
   const useCases: UseCase[] = [];
   
   const step4 = analysis.steps?.find((s: any) => s.step === 4);
+  
+  // Check step4.useCases first (newer format)
   if (step4?.useCases) {
     step4.useCases.forEach((uc: any, index: number) => {
       useCases.push({
-        id: `UC-${index + 1}`,
-        name: uc.name || uc.useCase || `Use Case ${index + 1}`,
-        description: uc.description || uc.challenge || "",
-        businessFunction: uc.function || uc.businessFunction || "General",
-        frictionPoint: uc.frictionPoint || uc.challenge || "",
+        id: uc.ID || uc.id || `UC-${index + 1}`,
+        name: uc.name || uc.useCase || uc["Use Case Name"] || `Use Case ${index + 1}`,
+        description: uc.description || uc.Description || uc.challenge || "",
+        businessFunction: uc.function || uc.Function || uc.businessFunction || uc["Sub-Function"] || "General",
+        frictionPoint: uc.frictionPoint || uc["Target Friction"] || uc.challenge || "",
         benefits: {
           revenue: uc.revenueBenefit || uc.benefits?.revenue || 0,
           cost: uc.costBenefit || uc.benefits?.cost || 0,
@@ -1372,7 +1374,32 @@ export function extractUseCasesFromAnalysis(analysis: any): UseCase[] {
     });
   }
   
+  // Also check step4.data (common format from AI generation)
+  if (step4?.data && Array.isArray(step4.data)) {
+    step4.data.forEach((uc: any, index: number) => {
+      // Skip if we already have this use case
+      const existingName = uc["Use Case Name"] || uc.name || uc.useCase;
+      if (existingName && !useCases.find(u => u.name === existingName)) {
+        useCases.push({
+          id: uc.ID || uc.id || `UC-${useCases.length + 1}`,
+          name: existingName || `Use Case ${useCases.length + 1}`,
+          description: uc.Description || uc.description || uc.challenge || "",
+          businessFunction: uc.Function || uc.function || uc["Sub-Function"] || uc.businessFunction || "General",
+          frictionPoint: uc["Target Friction"] || uc.frictionPoint || uc.challenge || "",
+          benefits: {
+            revenue: 0,
+            cost: 0,
+            cashFlow: 0,
+            risk: 0,
+          },
+        });
+      }
+    });
+  }
+  
   const step5 = analysis.steps?.find((s: any) => s.step === 5);
+  
+  // Check step5.valueOpportunities first
   if (step5?.valueOpportunities) {
     step5.valueOpportunities.forEach((vo: any, index: number) => {
       if (!useCases.find(uc => uc.name === vo.opportunity)) {
@@ -1386,6 +1413,43 @@ export function extractUseCasesFromAnalysis(analysis: any): UseCase[] {
             cost: vo.costBenefit || 0,
             cashFlow: vo.cashFlowBenefit || 0,
             risk: vo.riskBenefit || 0,
+          },
+        });
+      }
+    });
+  }
+  
+  // Also check step5.data for benefits quantification
+  if (step5?.data && Array.isArray(step5.data)) {
+    step5.data.forEach((vo: any) => {
+      const useCaseName = vo["Use Case"] || vo.useCase || vo.name;
+      const existingUseCase = useCases.find(uc => 
+        uc.name === useCaseName || 
+        uc.id === vo.ID || 
+        uc.id === vo.id
+      );
+      
+      if (existingUseCase) {
+        // Update benefits for existing use case
+        const prevBenefits = existingUseCase.benefits || { revenue: 0, cost: 0, cashFlow: 0, risk: 0 };
+        existingUseCase.benefits = {
+          revenue: parseFloat(String(vo["Revenue Benefit ($)"] || vo.revenueBenefit || prevBenefits.revenue || 0).replace(/[^0-9.-]/g, '')) || 0,
+          cost: parseFloat(String(vo["Cost Benefit ($)"] || vo.costBenefit || prevBenefits.cost || 0).replace(/[^0-9.-]/g, '')) || 0,
+          cashFlow: parseFloat(String(vo["Cash Flow Benefit ($)"] || vo.cashFlowBenefit || prevBenefits.cashFlow || 0).replace(/[^0-9.-]/g, '')) || 0,
+          risk: parseFloat(String(vo["Risk Benefit ($)"] || vo.riskBenefit || prevBenefits.risk || 0).replace(/[^0-9.-]/g, '')) || 0,
+        };
+      } else if (useCaseName && !useCases.find(uc => uc.name === useCaseName)) {
+        // Add new use case from step 5
+        useCases.push({
+          id: vo.ID || vo.id || `UC-${useCases.length + 1}`,
+          name: useCaseName,
+          description: vo.description || "",
+          businessFunction: vo.function || vo.Function || "General",
+          benefits: {
+            revenue: parseFloat(String(vo["Revenue Benefit ($)"] || vo.revenueBenefit || 0).replace(/[^0-9.-]/g, '')) || 0,
+            cost: parseFloat(String(vo["Cost Benefit ($)"] || vo.costBenefit || 0).replace(/[^0-9.-]/g, '')) || 0,
+            cashFlow: parseFloat(String(vo["Cash Flow Benefit ($)"] || vo.cashFlowBenefit || 0).replace(/[^0-9.-]/g, '')) || 0,
+            risk: parseFloat(String(vo["Risk Benefit ($)"] || vo.riskBenefit || 0).replace(/[^0-9.-]/g, '')) || 0,
           },
         });
       }
