@@ -1,0 +1,286 @@
+I need to fix the workflow generator. Currently it produces identical generic workflows for all use cases. 
+
+The generateProcessSteps function must create UNIQUE workflows for each use case by analyzing:
+1. The use case description
+2. The target friction being solved
+3. The business function (Sales, Compliance, Underwriting, etc.)
+
+Here are the 10 use cases with their SPECIFIC workflow requirements:
+
+---
+
+UC-01: Intelligent Lead Scoring & Routing Engine
+Function: Sales & Distribution
+Friction: "Representatives manually qualify leads; 58% time on low-probability prospects"
+
+CURRENT STATE steps should include:
+1. Lead arrives in CRM from campaigns
+2. Round-robin assignment to reps (no intelligence)
+3. Rep manually reviews lead profile (8 min/lead)
+4. Gut-feel prioritization (Low/Med/High)
+5. Manual outreach attempts
+6. Outcome logged in CRM (inconsistent)
+7. Monthly conversion report (backward-looking)
+
+TARGET STATE steps should include:
+1. Multi-channel lead ingestion + enrichment
+2. AI scores lead 0-100 using 47 variables
+3. Intelligent rep-lead matching by specialty
+4. AI generates personalized brief + talking points
+5. Rep reviews AI recommendations (HITL)
+6. Rep conducts contextual outreach
+7. AI captures outcome + triggers next action
+8. Feedback loop updates scoring model
+
+---
+
+UC-02: Automated Underwriting Document Intelligence
+Function: Underwriting & Risk
+Friction: "Manual review of medical records; underwriters spend 65% time on data extraction"
+
+CURRENT STATE:
+1. Application documents received (mail/fax/email)
+2. Manual document sorting by type
+3. Data entry from forms to system
+4. Medical records manual review (4 hrs/case)
+5. Financial document analysis
+6. Risk score calculation (manual lookup)
+7. Underwriter decision documentation
+8. Quality review before issuance
+
+TARGET STATE:
+1. Intelligent document capture (OCR)
+2. AI document classification
+3. Automated data extraction (NLP)
+4. AI medical history synthesis
+5. Risk factor identification
+6. AI-generated risk summary
+7. Underwriter validates AI recommendation (HITL)
+8. Automated decision documentation
+
+---
+
+UC-03: Proactive Compliance Surveillance & Alert Triage
+Function: Compliance & Risk Management
+Friction: "Rules-based alerts with 82% false positive rate; 4,800 hrs/month manual investigation"
+
+CURRENT STATE:
+1. Rules engine generates 340 alerts/day
+2. Alerts queue in compliance system
+3. Analyst opens alert for investigation
+4. Manual transaction lookup across systems
+5. Rep communication review
+6. False positive documentation (82% of cases)
+7. Case escalation or closure
+8. Monthly regulatory reporting
+
+TARGET STATE:
+1. ML model analyzes transactions
+2. Behavior-based risk scoring
+3. AI triages into High/Med/Low tiers
+4. Evidence package auto-generated
+5. Analyst reviews High-risk cases (HITL)
+6. AI handles Low-risk with audit trail
+7. Pattern learning from outcomes
+8. Automated regulatory reporting
+
+---
+
+UC-04: Adaptive Representative Onboarding & Certification
+Function: Sales & Distribution
+Friction: "90-day time-to-productivity; one-size-fits-all training"
+
+CURRENT STATE:
+1. New rep submits application
+2. Background check processing
+3. Licensing exam scheduling
+4. Generic training curriculum assigned
+5. Classroom/video training (40 hrs)
+6. Product certification exams
+7. First field assignment
+8. Monthly performance review
+
+TARGET STATE:
+1. AI assesses rep background/experience
+2. Personalized curriculum generation
+3. Adaptive microlearning delivery
+4. AI coaching chatbot (24/7)
+5. Knowledge gap identification
+6. Human mentor session triggers (HITL)
+7. Accelerated certification path
+8. Continuous skill development
+
+---
+
+UC-05: Next-Best-Action Cross-Sell Recommendation Engine
+Function: Client Services
+Friction: "1.4 products/household vs 2.1 target; reactive annual reviews"
+
+CURRENT STATE:
+1. Client contacts rep for service
+2. Rep checks basic account info
+3. Manual needs assessment (if time permits)
+4. Generic product brochure sharing
+5. Annual review meeting scheduled
+6. Spreadsheet tracking of opportunities
+7. No systematic follow-up
+
+TARGET STATE:
+1. Life event detection (15 data sources)
+2. AI predicts product needs
+3. Propensity-to-buy scoring
+4. Personalized offer package generated
+5. Rep reviews recommendations (HITL)
+6. Automated nurture campaign launch
+7. Optimal contact timing
+8. Outcome tracking + model refinement
+
+---
+
+UC-06: Intelligent Regulatory Reporting & Filing Assistant  
+Function: Compliance & Risk Management
+Friction: "Manual aggregation across systems; 220 findings annually"
+
+CURRENT STATE:
+1. Regulatory calendar tracking (manual)
+2. Data requests to multiple departments
+3. Data extraction from source systems
+4. Manual reconciliation of inconsistencies
+5. Report draft compilation
+6. Legal review of interpretations
+7. CCO approval before submission
+8. Filing and audit trail documentation
+
+TARGET STATE:
+1. AI monitors 47 regulatory calendars
+2. Automated data extraction
+3. AI reconciles inconsistencies
+4. Draft filing generation
+5. Anomaly flagging for review
+6. Legal validates interpretations (HITL)
+7. CCO reviews and approves (HITL)
+8. Automated submission + audit trail
+
+---
+
+UC-07: Conversational AI Representative Support & Knowledge Base
+Function: Technology & Operations  
+Friction: "2.8M support contacts/year at $8.50 each; tier-1 deflectable"
+
+CURRENT STATE:
+1. Rep encounters issue
+2. Searches internal knowledge base
+3. Calls support hotline
+4. Wait time in queue (avg 12 min)
+5. Agent gathers context (redundant)
+6. Issue research by agent
+7. Resolution or escalation
+8. Ticket closure and survey
+
+TARGET STATE:
+1. Rep asks AI assistant
+2. Intent classification
+3. Knowledge base search (RAG)
+4. AI provides answer with sources
+5. Issue resolved (65% cases)
+6. Complex cases: context handoff to human (HITL)
+7. Human agent resolution
+8. Feedback improves AI responses
+
+---
+
+UC-08: Predictive Application Abandonment Prevention
+Function: Underwriting & Risk
+Friction: "18% abandonment during underwriting; $12M lost revenue"
+
+CURRENT STATE:
+1. Application submitted
+2. Documents requested
+3. Applicant delays (no visibility)
+4. Manual reminder emails (batch)
+5. Status check by rep (reactive)
+6. Application expires after 30 days
+7. Lost business attribution difficult
+
+TARGET STATE:
+1. Application journey tracking
+2. ML predicts abandonment risk
+3. Missing document detection
+4. AI-triggered SMS/email reminders
+5. Conversational AI answers questions
+6. Rep alert for high-value at-risk (HITL)
+7. Personal intervention for flagged cases
+8. Journey optimization from patterns
+
+---
+
+UC-09: AI-Powered Campaign Personalization & Optimization
+Function: Marketing & Analytics
+Friction: "Batch campaigns; 12% conversion vs 25% industry best"
+
+CURRENT STATE:
+1. Quarterly campaign planning
+2. Broad audience segmentation
+3. Generic creative development
+4. Batch email/mail deployment
+5. Manual A/B test analysis
+6. 4-week performance review
+7. Next quarter adjustment
+
+TARGET STATE:
+1. AI creates 200+ micro-segments
+2. Dynamic content generation
+3. Send time optimization
+4. Real-time A/B testing
+5. Budget auto-reallocation
+6. Marketing reviews strategy (HITL)
+7. Continuous personalization
+8. Cross-channel orchestration
+
+---
+
+UC-10: Representative Performance Early Warning & Coaching
+Function: Sales & Distribution
+Friction: "52% annual turnover; reactive monthly reviews"
+
+CURRENT STATE:
+1. Monthly production report generated
+2. Manager reviews numbers
+3. Underperformers identified (lagging)
+4. Performance improvement plan created
+5. Coaching session scheduled
+6. Rep either improves or exits
+7. Exit interview (too late)
+8. Replacement recruiting begins
+
+TARGET STATE:
+1. 35 leading indicators tracked daily
+2. ML predicts at-risk reps 60 days ahead
+3. Risk severity scoring
+4. Personalized coaching plan generated
+5. Manager notified with action plan (HITL)
+6. Peer mentor matching
+7. Progress monitoring
+8. Intervention effectiveness tracking
+
+---
+
+IMPLEMENTATION INSTRUCTIONS:
+
+1. Update generateProcessSteps() to accept the use case object and generate steps based on:
+   - useCase.description
+   - useCase.targetFriction
+   - useCase.function
+   - useCase.subFunction
+
+2. Use Claude API to generate contextual steps. The prompt should include the specific use case context and generate appropriate steps.
+
+3. Each workflow must be UNIQUE - no two use cases should have identical steps.
+
+4. Current state should emphasize manual work, bottlenecks, and pain points specific to that process.
+
+5. Target state should show AI automation with the appropriate agentic pattern (Semantic Router, ReAct, Drafter-Critic, etc.)
+
+6. Comparison metrics should be derived from the benefit calculations in the original report data.
+
+Please update the workflow generator to produce these unique, contextual workflows for each use case.
