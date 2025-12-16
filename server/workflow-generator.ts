@@ -16,6 +16,7 @@ import type {
   WorkflowValidationConfig,
 } from "@shared/schema";
 import { AGENTIC_PATTERNS, AGENTIC_PATTERN_META, DEFAULT_MIRO_METADATA, DEFAULT_VALIDATION_CONFIG } from "@shared/schema";
+import { findMatchingTemplate, type UseCaseWorkflowTemplate } from "./workflow-templates";
 
 const anthropic = new Anthropic({
   apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
@@ -551,6 +552,114 @@ function generateFallbackProcessSteps(input: ProcessStepsInput): ProcessStepsOut
       qualityImprovement: { before: "85% accuracy", after: "97% accuracy", improvement: "14%" },
       throughputIncrease: { before: "45 items/day", after: "280 items/day", improvement: "522%" },
     },
+  };
+}
+
+function determineAgentTypeFromCapabilities(capabilities: string[], defaultPattern: AgenticPattern): AgenticPattern {
+  const capText = capabilities.join(" ").toLowerCase();
+  
+  if (capText.includes("classification") || capText.includes("routing") || capText.includes("triage")) {
+    return "Semantic Router";
+  }
+  if (capText.includes("generation") || capText.includes("draft") || capText.includes("content")) {
+    return "Drafter-Critic";
+  }
+  if (capText.includes("retrieval") || capText.includes("search") || capText.includes("knowledge")) {
+    return "RAG Detective";
+  }
+  if (capText.includes("compliance") || capText.includes("validation") || capText.includes("policy")) {
+    return "Constitutional Guardrail";
+  }
+  if (capText.includes("orchestrat") || capText.includes("coordinat") || capText.includes("workflow")) {
+    return "Orchestrator-Workers";
+  }
+  if (capText.includes("reason") || capText.includes("iterative") || capText.includes("refine")) {
+    return "ReAct Loop";
+  }
+  if (capText.includes("personal") || capText.includes("adaptive") || capText.includes("learning")) {
+    return "Memetic Agent";
+  }
+  
+  return defaultPattern;
+}
+
+function generateFallbackWorkflow(useCase: UseCase): UseCaseWorkflowData {
+  const matchingTemplate = findMatchingTemplate(useCase);
+  const patternMapping = mapAgenticPatterns(useCase);
+  
+  if (matchingTemplate) {
+    const currentWorkflow: WorkflowStep[] = matchingTemplate.currentStateWorkflow.map(step => ({
+      ...step,
+      painPoints: [...step.painPoints],
+      systems: [...step.systems],
+      dataSources: [...step.dataSources],
+      connectedTo: [...step.connectedTo],
+      actor: { ...step.actor },
+      duration: { ...step.duration },
+    }));
+    
+    const targetWorkflow: TargetWorkflowStep[] = matchingTemplate.targetStateWorkflow.map(step => ({
+      ...step,
+      agentType: step.isHumanInTheLoop 
+        ? "Human-in-the-Loop" as AgenticPattern 
+        : (step.aiCapabilities && step.aiCapabilities.length > 0 
+            ? determineAgentTypeFromCapabilities(step.aiCapabilities, matchingTemplate.agenticPattern) 
+            : matchingTemplate.agenticPattern),
+      painPoints: [...step.painPoints],
+      systems: [...step.systems],
+      dataSources: [...step.dataSources],
+      connectedTo: [...step.connectedTo],
+      actor: { ...step.actor },
+      duration: { ...step.duration },
+      aiCapabilities: step.aiCapabilities ? [...step.aiCapabilities] : [],
+    }));
+    
+    const templatePatternMapping: AgenticPatternMapping = {
+      ...patternMapping,
+      primaryPattern: matchingTemplate.agenticPattern,
+      primaryRationale: matchingTemplate.patternRationale,
+    };
+    
+    return {
+      useCaseId: useCase.id || `UC-${Date.now()}`,
+      useCaseName: useCase.name,
+      businessFunction: useCase.businessFunction || matchingTemplate.businessFunction,
+      agenticPattern: matchingTemplate.agenticPattern,
+      patternRationale: matchingTemplate.patternRationale,
+      patternMapping: templatePatternMapping,
+      currentStateWorkflow: currentWorkflow,
+      targetStateWorkflow: targetWorkflow,
+      comparisonMetrics: { ...matchingTemplate.comparisonMetrics },
+      implementationNotes: [...matchingTemplate.implementationNotes],
+      humanCheckpoints: [...matchingTemplate.humanCheckpoints],
+    };
+  }
+  
+  const fallbackSteps = generateFallbackProcessSteps({
+    description: useCase.description || useCase.name,
+    frictionPoint: useCase.frictionPoint || "Manual processes causing delays",
+    businessFunction: useCase.businessFunction,
+  });
+  
+  return {
+    useCaseId: useCase.id || `UC-${Date.now()}`,
+    useCaseName: useCase.name,
+    businessFunction: useCase.businessFunction || "General Operations",
+    agenticPattern: patternMapping.primaryPattern,
+    patternRationale: patternMapping.primaryRationale,
+    patternMapping,
+    currentStateWorkflow: fallbackSteps.currentStateWorkflow,
+    targetStateWorkflow: fallbackSteps.targetStateWorkflow,
+    comparisonMetrics: fallbackSteps.comparisonMetrics!,
+    implementationNotes: [
+      "Phased rollout recommended starting with high-volume processes",
+      "Human-in-the-Loop checkpoints ensure quality control during transition",
+      "Continuous model refinement based on outcome data",
+    ],
+    humanCheckpoints: [
+      "Human review checkpoint for quality assurance",
+      "Exception handling escalated to domain experts",
+    ],
   };
 }
 
