@@ -6,7 +6,7 @@ import {
 } from 'recharts';
 import { 
   ArrowRight, TrendingUp, Shield, Banknote, Activity, 
-  ChevronRight, Play, Clock, Zap, CheckCircle2, Lock, Share2, Download, FileText, Check
+  ChevronRight, Clock, Zap, CheckCircle2, Lock, Share2, Download, FileText, Check
 } from 'lucide-react';
 import { format } from '@/lib/formatters';
 
@@ -544,16 +544,11 @@ const UseCaseCarousel = ({ data, clientName }: UseCaseCarouselProps) => {
                 </div>
               </div>
 
-              <div className="flex gap-2 mb-6">
+              <div className="flex gap-2">
                 {uc.tags.map(tag => (
                   <span key={tag} className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">{tag}</span>
                 ))}
               </div>
-
-              <button className="w-full py-3 rounded-lg border border-[#0339AF] text-[#0339AF] font-semibold text-sm hover:bg-[#0339AF] hover:text-white transition-all flex justify-center items-center gap-2 group">
-                <Play className="w-4 h-4 fill-current" />
-                Simulate Workflow
-              </button>
             </div>
           ))}
         </div>
