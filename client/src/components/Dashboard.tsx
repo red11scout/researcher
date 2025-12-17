@@ -436,14 +436,14 @@ const PriorityMatrix = ({ data }: PriorityMatrixProps) => {
       <div className="max-w-7xl mx-auto px-6 relative z-10">
         <div className="flex flex-col md:flex-row justify-between items-end mb-12">
           <div>
-            <h2 className="text-3xl font-bold mb-4">{data.title}</h2>
+            <h2 className="text-3xl font-bold mb-4 text-white">{data.title}</h2>
             <p className="text-slate-400 max-w-xl whitespace-pre-line">
               {data.description}
             </p>
           </div>
           <div className="flex gap-4 mt-6 md:mt-0">
             <div className="flex items-center gap-2 text-sm text-slate-400"><div className="w-3 h-3 rounded-full bg-[#0339AF]"></div>High Value</div>
-            <div className="flex items-center gap-2 text-sm text-slate-400"><div className="w-3 h-3 rounded-full bg-[#4C73E9]"></div>Quick Win</div>
+            <div className="flex items-center gap-2 text-sm text-slate-400"><div className="w-3 h-3 rounded-full bg-[#059669]"></div>Quick Win</div>
           </div>
         </div>
 
