@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useRoute, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import Dashboard from "@/components/Dashboard";
@@ -11,6 +12,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import workshopPdfUrl from '@assets/BlueAlly_AI_Workshop_Preview_1765480873162.pdf';
 import { format, parseFormattedValue } from '@/lib/formatters';
+import { ShareModal } from "@/components/dashboard";
 
 const formatCurrency = (value: number | string): string => {
   if (typeof value === 'string') {
@@ -27,6 +29,7 @@ export default function DashboardPage() {
   const [, setLocation] = useLocation();
   const reportId = params?.reportId;
   const { toast } = useToast();
+  const [showShareModal, setShowShareModal] = useState(false);
 
   const { data: report, isLoading, error } = useQuery<any>({
     queryKey: [`/api/reports/${reportId}`],
@@ -34,19 +37,7 @@ export default function DashboardPage() {
   });
 
   const handleShareUrl = () => {
-    const url = window.location.href;
-    navigator.clipboard.writeText(url).then(() => {
-      toast({
-        title: "Link copied!",
-        description: "Dashboard URL has been copied to clipboard.",
-      });
-    }).catch(() => {
-      toast({
-        title: "Copy failed",
-        description: "Please copy the URL from your browser address bar.",
-        variant: "destructive",
-      });
-    });
+    setShowShareModal(true);
   };
 
   const handleDownloadWorkshop = () => {
@@ -279,11 +270,18 @@ export default function DashboardPage() {
   const dashboardData = mapReportToDashboardData(report);
 
   return (
-    <Dashboard 
-      data={dashboardData}
-      onShareUrl={handleShareUrl}
-      onDownloadPDF={handleDownloadPDF}
-      onDownloadWorkshop={handleDownloadWorkshop}
-    />
+    <>
+      <Dashboard 
+        data={dashboardData}
+        onShareUrl={handleShareUrl}
+        onDownloadPDF={handleDownloadPDF}
+        onDownloadWorkshop={handleDownloadWorkshop}
+      />
+      <ShareModal
+        open={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        reportData={report.analysisData}
+      />
+    </>
   );
 }
