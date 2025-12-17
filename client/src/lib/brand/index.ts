@@ -10,7 +10,7 @@ export const brand = {
   description: 'Strategic AI consulting for Fortune 500 enterprises',
   
   logos: {
-    dark: '/assets/logos/blueally-logo-dark.svg',
+    dark: '/assets/logos/blueally-logo-dark.png',
     white: '/assets/logos/blueally-logo-white.svg',
     blue: '/assets/logos/blueally-logo-blue.svg',
     iconDark: '/assets/logos/blueally-icon-dark.svg',
