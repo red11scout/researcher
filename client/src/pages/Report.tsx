@@ -57,7 +57,22 @@ import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { Document, Packer, Paragraph, TextRun, Table as DocxTable, TableRow as DocxTableRow, TableCell as DocxTableCell, WidthType, BorderStyle, HeadingLevel, AlignmentType } from 'docx';
 import blueAllyLogoUrl from '@assets/image_1764369352062.png';
+import blueAllyLogoWhiteUrl from '@assets/blueally-logo-white.png';
 import { WorkflowExportPanel } from "@/components/report/WorkflowExportPanel";
+
+// Sanitize text for PDF - remove emojis and fix encoding issues
+const sanitizeForPDF = (text: string): string => {
+  if (!text) return '';
+  return text
+    // Replace ⚠️ CRITICAL ASSUMPTION with proper formatting
+    .replace(/⚠️?\s*CRITICAL\s*ASSUMPTION:?\s*/gi, 'CRITICAL ASSUMPTION: ')
+    // Remove warning emoji
+    .replace(/⚠️/g, '')
+    .replace(/⚠/g, '')
+    // Clean up multiple spaces
+    .replace(/\s+/g, ' ')
+    .trim();
+};
 
 const loadImageAsBase64 = (url: string): Promise<string> => {
   return new Promise((resolve, reject) => {
@@ -586,8 +601,46 @@ export default function Report() {
     let currentPage = 1;
     const tocEntries: { title: string; page: number }[] = [];
     
+    // Pre-load logo for header
+    let headerLogoBase64: string | null = null;
+    try {
+      headerLogoBase64 = await loadImageAsBase64(blueAllyLogoWhiteUrl);
+    } catch (e) {
+      console.warn('Could not load header logo, using text fallback');
+    }
+    
     // Set professional font
     doc.setFont('helvetica');
+
+    // Helper: Draw header with logo
+    const drawHeader = () => {
+      doc.setFillColor(...BRAND.primaryBlue);
+      doc.rect(0, 0, pageWidth, 14, 'F');
+      
+      if (headerLogoBase64) {
+        // Logo on left side of header
+        try {
+          doc.addImage(headerLogoBase64, 'PNG', 8, 2, 28, 10);
+        } catch (e) {
+          // Fallback to text if image fails
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(10);
+          doc.setTextColor(...BRAND.white);
+          doc.text('BlueAlly', 12, 9);
+        }
+      } else {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.setTextColor(...BRAND.white);
+        doc.text('BlueAlly', 12, 9);
+      }
+      
+      // Title text on right side
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.setTextColor(...BRAND.white);
+      doc.text('AI Strategic Assessment', pageWidth - 12, 9, { align: 'right' });
+    };
 
     // Helper: Add page with header/footer - Board Standard
     const addPageWithBranding = (isFirst = false) => {
@@ -596,15 +649,8 @@ export default function Report() {
         currentPage++;
       }
       
-      // Clean header bar
-      doc.setFillColor(...BRAND.primaryBlue);
-      doc.rect(0, 0, pageWidth, 14, 'F');
-      
-      // Centered header text
-      doc.setFont('helvetica', 'bold');
-      doc.setFontSize(10);
-      doc.setTextColor(...BRAND.white);
-      doc.text('BlueAlly  |  AI Strategic Assessment', centerX, 9, { align: 'center' });
+      // Draw header with logo
+      drawHeader();
       
       // Clean footer
       doc.setFillColor(...BRAND.primaryBlue);
@@ -896,7 +942,7 @@ export default function Report() {
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(12);
       doc.setTextColor(...BRAND.darkNavy);
-      const summaryLines = doc.splitTextToSize(data.summary, contentWidth - 10);
+      const summaryLines = doc.splitTextToSize(sanitizeForPDF(data.summary), contentWidth - 10);
       
       for (const line of summaryLines) {
         yPos = ensureSpace(8, yPos);
@@ -917,7 +963,8 @@ export default function Report() {
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(12);
         doc.setTextColor(...BRAND.gray);
-        const contentLines = doc.splitTextToSize(step.content, contentWidth - 20);
+        const sanitizedContent = sanitizeForPDF(step.content);
+        const contentLines = doc.splitTextToSize(sanitizedContent, contentWidth - 20);
         for (const line of contentLines) {
           yPos = ensureSpace(8, yPos);
           doc.text(line, centerX, yPos, { align: 'center', maxWidth: contentWidth - 20 });
@@ -950,7 +997,7 @@ export default function Report() {
             if (typeof val === 'number' && val > 1000) {
               return formatNumber(val);
             }
-            return String(val || '').substring(0, cellCharLimit);
+            return sanitizeForPDF(String(val || '')).substring(0, cellCharLimit);
           })
         );
         
@@ -1025,12 +1072,7 @@ export default function Report() {
           didDrawPage: () => {
             currentPage = doc.getNumberOfPages();
             // Re-add header/footer on new pages
-            doc.setFillColor(...BRAND.primaryBlue);
-            doc.rect(0, 0, pageWidth, 14, 'F');
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(10);
-            doc.setTextColor(...BRAND.white);
-            doc.text('BlueAlly  |  AI Strategic Assessment', centerX, 9, { align: 'center' });
+            drawHeader();
             
             doc.setFillColor(...BRAND.primaryBlue);
             doc.rect(0, pageHeight - 14, pageWidth, 14, 'F');
@@ -1108,12 +1150,7 @@ export default function Report() {
             margin: { left: margin, right: margin },
             didDrawPage: () => {
               currentPage = doc.getNumberOfPages();
-              doc.setFillColor(...BRAND.primaryBlue);
-              doc.rect(0, 0, pageWidth, 14, 'F');
-              doc.setFont('helvetica', 'bold');
-              doc.setFontSize(10);
-              doc.setTextColor(...BRAND.white);
-              doc.text('BlueAlly  |  AI Strategic Assessment', centerX, 9, { align: 'center' });
+              drawHeader();
               
               doc.setFillColor(...BRAND.primaryBlue);
               doc.rect(0, pageHeight - 14, pageWidth, 14, 'F');
