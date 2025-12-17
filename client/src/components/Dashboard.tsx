@@ -570,7 +570,7 @@ const CTASection = ({ totalValue, valueSuffix, onDownloadWorkshop, onDownloadPDF
       <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent"></div>
       
       <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
-        <h2 className="text-4xl md:text-5xl font-bold mb-8 tracking-tight">Ready to activate the Flywheel?</h2>
+        <h2 className="text-4xl md:text-5xl font-bold mb-8 tracking-tight text-white">Ready to activate the Flywheel?</h2>
         <p className="text-blue-100 text-lg md:text-xl mb-12 max-w-2xl mx-auto">
           The ${totalValue}{valueSuffix} opportunity is real. The next step is a 3-Day Use Case Workshop to transform this assessment into pilot-ready roadmaps.
         </p>
