@@ -1975,6 +1975,53 @@ export default function Report() {
     }
   };
 
+  const handleShareDashboard = async () => {
+    if (!data || !companyName) {
+      toast({
+        title: "Unable to Share",
+        description: "Report must be loaded before sharing.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: "Creating Share Link",
+      description: "Generating shareable dashboard URL...",
+    });
+
+    try {
+      const response = await fetch('/api/share', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          reportData: {
+            companyName,
+            analysisData: data,
+          }
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to create share link');
+      }
+      
+      const result = await response.json();
+      await navigator.clipboard.writeText(result.shareUrl);
+      
+      toast({
+        title: "Dashboard Link Copied",
+        description: "Shareable dashboard URL copied to clipboard. Link expires in 30 days.",
+      });
+    } catch (err) {
+      toast({
+        title: "Share Failed",
+        description: "Unable to create shareable link. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const analysisSteps = [
     { step: 0, title: "Company Overview", desc: "Gathering company information..." },
     { step: 1, title: "Strategic Anchoring", desc: "Identifying business drivers..." },
@@ -2348,11 +2395,11 @@ export default function Report() {
                     <Share2 className="mr-2 h-4 w-4" /> Share HTML Report
                   </DropdownMenuItem>
                   <DropdownMenuItem 
-                    onClick={() => reportId && setLocation(`/dashboard/${reportId}`)} 
+                    onClick={handleShareDashboard} 
                     data-testid="menu-view-dashboard"
-                    disabled={!reportId}
+                    disabled={!data}
                   >
-                    <LayoutDashboard className="mr-2 h-4 w-4" /> View Dashboard
+                    <LayoutDashboard className="mr-2 h-4 w-4" /> Share Dashboard
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
