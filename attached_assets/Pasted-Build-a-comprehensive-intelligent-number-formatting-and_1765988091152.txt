@@ -1,0 +1,489 @@
+Build a comprehensive, intelligent number formatting and data visualization system that rivals the polish of Bloomberg Terminal and the clarity of Apple's financial presentations.
+
+═══════════════════════════════════════════════════════════════════════════════
+PART A: CORE FORMATTING ENGINE
+═══════════════════════════════════════════════════════════════════════════════
+
+Create `client/src/lib/formatters/index.ts`:
+```typescript
+/**
+ * Enterprise Number Formatting System
+ * Handles all numeric display with intelligence about context, scale, and user preference
+ */
+
+export interface FormatOptions {
+  precision?: number;
+  compact?: boolean;
+  showSign?: boolean;
+  locale?: string;
+  animate?: boolean;
+}
+
+// Core formatters with smart defaults
+export const format = {
+  /**
+   * Currency formatting with intelligent scaling
+   * $1,234 | $1.2M | $1.2B
+   */
+  currency(value: number | null | undefined, options: FormatOptions = {}): string {
+    if (value == null || !isFinite(value)) return '—';
+    
+    const { compact = false, showSign = false } = options;
+    const absValue = Math.abs(value);
+    const sign = value < 0 ? '-' : (showSign && value > 0 ? '+' : '');
+    
+    if (compact && absValue >= 1_000_000_000) {
+      return `${sign}$${(absValue / 1_000_000_000).toFixed(1).replace(/\.0$/, '')}B`;
+    }
+    if (compact && absValue >= 1_000_000) {
+      return `${sign}$${(absValue / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`;
+    }
+    if (compact && absValue >= 10_000) {
+      return `${sign}$${(absValue / 1_000).toFixed(0)}K`;
+    }
+    
+    return `${sign}$${Math.round(absValue).toLocaleString('en-US')}`;
+  },
+
+  /**
+   * Percentage with intelligent precision
+   * Shows 1 decimal only when value is < 10
+   */
+  percent(value: number | null | undefined, options: FormatOptions = {}): string {
+    if (value == null || !isFinite(value)) return '—';
+    
+    const { showSign = false } = options;
+    const sign = value < 0 ? '-' : (showSign && value > 0 ? '+' : '');
+    const absValue = Math.abs(value);
+    
+    // Smart precision: show decimal for small percentages
+    const formatted = absValue < 10 && absValue !== Math.floor(absValue)
+      ? absValue.toFixed(1)
+      : Math.round(absValue).toString();
+    
+    return `${sign}${formatted}%`;
+  },
+
+  /**
+   * Large numbers with appropriate scale
+   */
+  number(value: number | null | undefined, options: FormatOptions = {}): string {
+    if (value == null || !isFinite(value)) return '—';
+    
+    const { compact = false, precision = 0 } = options;
+    const absValue = Math.abs(value);
+    
+    if (compact) {
+      if (absValue >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B`;
+      if (absValue >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+      if (absValue >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
+    }
+    
+    return precision > 0 
+      ? value.toFixed(precision).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+      : Math.round(value).toLocaleString('en-US');
+  },
+
+  /**
+   * Token counts - always integers, comma-separated
+   */
+  tokens(value: number | null | undefined): string {
+    if (value == null || !isFinite(value)) return '—';
+    return Math.round(value).toLocaleString('en-US');
+  },
+
+  /**
+   * ROI multiplier display (e.g., "3.2x")
+   */
+  multiplier(value: number | null | undefined): string {
+    if (value == null || !isFinite(value)) return '—';
+    return `${value.toFixed(1)}x`;
+  },
+
+  /**
+   * Time duration (months, years)
+   */
+  duration(months: number | null | undefined): string {
+    if (months == null || !isFinite(months)) return '—';
+    if (months < 1) return '< 1 month';
+    if (months === 1) return '1 month';
+    if (months < 12) return `${Math.round(months)} months`;
+    if (months === 12) return '1 year';
+    const years = months / 12;
+    return years === Math.floor(years) 
+      ? `${years} years` 
+      : `${years.toFixed(1)} years`;
+  },
+
+  /**
+   * Range formatting for estimates
+   */
+  range(min: number, max: number, formatter: (n: number) => string = format.currency): string {
+    if (min === max) return formatter(min);
+    return `${formatter(min)} – ${formatter(max)}`;
+  },
+};
+
+// Null-safe accessors for nested data
+export function safeGet<T>(obj: any, path: string, defaultValue: T): T {
+  return path.split('.').reduce((acc, part) => acc?.[part], obj) ?? defaultValue;
+}
+```
+
+═══════════════════════════════════════════════════════════════════════════════
+PART B: ANIMATED NUMBER COMPONENT
+═══════════════════════════════════════════════════════════════════════════════
+
+Create `client/src/components/ui/animated-number.tsx`:
+```typescript
+import { useEffect, useRef, useState } from 'react';
+import { format } from '@/lib/formatters';
+import { cn } from '@/lib/utils';
+
+interface AnimatedNumberProps {
+  value: number;
+  formatter?: (value: number) => string;
+  duration?: number;
+  className?: string;
+  prefix?: string;
+  suffix?: string;
+}
+
+export function AnimatedNumber({ 
+  value, 
+  formatter = format.number, 
+  duration = 1000,
+  className,
+  prefix,
+  suffix,
+}: AnimatedNumberProps) {
+  const [displayValue, setDisplayValue] = useState(0);
+  const previousValue = useRef(0);
+  const animationRef = useRef<number>();
+
+  useEffect(() => {
+    const startValue = previousValue.current;
+    const endValue = value;
+    const startTime = performance.now();
+    
+    const animate = (currentTime: number) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      
+      // Easing function: ease-out-expo
+      const eased = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+      
+      const current = startValue + (endValue - startValue) * eased;
+      setDisplayValue(current);
+      
+      if (progress < 1) {
+        animationRef.current = requestAnimationFrame(animate);
+      } else {
+        previousValue.current = endValue;
+      }
+    };
+    
+    animationRef.current = requestAnimationFrame(animate);
+    
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, [value, duration]);
+
+  return (
+    <span className={cn('tabular-nums', className)}>
+      {prefix}{formatter(displayValue)}{suffix}
+    </span>
+  );
+}
+```
+
+═══════════════════════════════════════════════════════════════════════════════
+PART C: SMART METRIC CARD WITH TRENDS
+═══════════════════════════════════════════════════════════════════════════════
+
+Create `client/src/components/ui/metric-card.tsx`:
+```typescript
+import { AnimatedNumber } from './animated-number';
+import { format } from '@/lib/formatters';
+import { cn } from '@/lib/utils';
+import { TrendingUp, TrendingDown, Minus, Info } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipTrigger } from './tooltip';
+
+interface MetricCardProps {
+  label: string;
+  value: number;
+  previousValue?: number;
+  formatter?: (value: number) => string;
+  description?: string;
+  icon?: React.ReactNode;
+  trend?: 'up' | 'down' | 'neutral';
+  trendValue?: number;
+  size?: 'sm' | 'md' | 'lg';
+  variant?: 'default' | 'highlight' | 'muted';
+}
+
+export function MetricCard({
+  label,
+  value,
+  formatter = format.currency,
+  description,
+  icon,
+  trend,
+  trendValue,
+  size = 'md',
+  variant = 'default',
+}: MetricCardProps) {
+  const sizeClasses = {
+    sm: { card: 'p-4', label: 'text-xs', value: 'text-xl', trend: 'text-xs' },
+    md: { card: 'p-6', label: 'text-sm', value: 'text-3xl', trend: 'text-sm' },
+    lg: { card: 'p-8', label: 'text-base', value: 'text-4xl', trend: 'text-base' },
+  };
+
+  const variantClasses = {
+    default: 'bg-white border-slate-200',
+    highlight: 'bg-gradient-to-br from-brand-navy to-brand-blue text-white border-transparent',
+    muted: 'bg-slate-50 border-slate-100',
+  };
+
+  const TrendIcon = trend === 'up' ? TrendingUp : trend === 'down' ? TrendingDown : Minus;
+  const trendColor = trend === 'up' ? 'text-emerald-600' : trend === 'down' ? 'text-red-500' : 'text-slate-400';
+
+  return (
+    <div className={cn(
+      'rounded-xl border shadow-sm transition-all hover:shadow-md',
+      sizeClasses[size].card,
+      variantClasses[variant],
+    )}>
+      <div className="flex items-start justify-between mb-2">
+        <div className="flex items-center gap-2">
+          {icon && <span className="text-slate-400">{icon}</span>}
+          <span className={cn(
+            'font-medium uppercase tracking-wide',
+            sizeClasses[size].label,
+            variant === 'highlight' ? 'text-white/80' : 'text-slate-500',
+          )}>
+            {label}
+          </span>
+        </div>
+        {description && (
+          <Tooltip>
+            <TooltipTrigger>
+              <Info className="w-4 h-4 text-slate-300 hover:text-slate-500 transition-colors" />
+            </TooltipTrigger>
+            <TooltipContent>{description}</TooltipContent>
+          </Tooltip>
+        )}
+      </div>
+      
+      <div className={cn(
+        'font-semibold tracking-tight',
+        sizeClasses[size].value,
+        variant === 'highlight' ? 'text-white' : 'text-slate-900',
+      )}>
+        <AnimatedNumber value={value} formatter={formatter} />
+      </div>
+      
+      {(trend || trendValue !== undefined) && (
+        <div className={cn('flex items-center gap-1 mt-2', sizeClasses[size].trend, trendColor)}>
+          <TrendIcon className="w-4 h-4" />
+          {trendValue !== undefined && (
+            <span>{format.percent(trendValue, { showSign: true })}</span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+═══════════════════════════════════════════════════════════════════════════════
+PART D: GLOBAL IMPLEMENTATION
+═══════════════════════════════════════════════════════════════════════════════
+
+1. Search entire codebase and replace ALL raw number displays:
+   
+   FIND patterns:
+   - `{value.toFixed(2)}`
+   - `{`$${value}`}`
+   - `{value}%`
+   - `{Math.round(value)}`
+   - `{value.toLocaleString()}`
+   
+   REPLACE with appropriate formatter:
+   - Revenue/cost → `{format.currency(value)}`
+   - Percentages → `{format.percent(value)}`
+   - Token counts → `{format.tokens(value)}`
+   - ROI → `{format.multiplier(value)}`
+   - Durations → `{format.duration(value)}`
+
+2. Update all table cells with numeric data to use:
+   - `className="text-right tabular-nums"` for alignment
+   - Appropriate formatter for the data type
+
+3. Create consistent null-state displays:
+   - Use `'—'` (em-dash) for null/undefined values
+   - Never show `NaN`, `undefined`, `null`, or `0` for missing data
+
+4. Add `tabular-nums` class to ALL numeric displays for proper alignment:
+```css
+   .tabular-nums {
+     font-variant-numeric: tabular-nums;
+   }
+```
+
+═══════════════════════════════════════════════════════════════════════════════
+PART E: SPARKLINE MICRO-CHARTS
+═══════════════════════════════════════════════════════════════════════════════
+
+Create `client/src/components/ui/sparkline.tsx`:
+```typescript
+import { useMemo } from 'react';
+import { cn } from '@/lib/utils';
+
+interface SparklineProps {
+  data: number[];
+  width?: number;
+  height?: number;
+  strokeWidth?: number;
+  color?: string;
+  fillOpacity?: number;
+  className?: string;
+  showDots?: boolean;
+}
+
+export function Sparkline({
+  data,
+  width = 100,
+  height = 24,
+  strokeWidth = 2,
+  color = '#0066CC',
+  fillOpacity = 0.1,
+  className,
+  showDots = false,
+}: SparklineProps) {
+  const pathD = useMemo(() => {
+    if (data.length < 2) return '';
+    
+    const min = Math.min(...data);
+    const max = Math.max(...data);
+    const range = max - min || 1;
+    
+    const points = data.map((value, i) => ({
+      x: (i / (data.length - 1)) * width,
+      y: height - ((value - min) / range) * height,
+    }));
+    
+    // Create smooth curve using bezier
+    const line = points.map((point, i) => {
+      if (i === 0) return `M ${point.x},${point.y}`;
+      
+      const prev = points[i - 1];
+      const cpX = (prev.x + point.x) / 2;
+      return `C ${cpX},${prev.y} ${cpX},${point.y} ${point.x},${point.y}`;
+    }).join(' ');
+    
+    return line;
+  }, [data, width, height]);
+
+  const fillPath = useMemo(() => {
+    if (!pathD) return '';
+    return `${pathD} L ${width},${height} L 0,${height} Z`;
+  }, [pathD, width, height]);
+
+  const lastPoint = useMemo(() => {
+    if (data.length < 1) return null;
+    const min = Math.min(...data);
+    const max = Math.max(...data);
+    const range = max - min || 1;
+    return {
+      x: width,
+      y: height - ((data[data.length - 1] - min) / range) * height,
+    };
+  }, [data, width, height]);
+
+  return (
+    <svg 
+      width={width} 
+      height={height} 
+      className={cn('overflow-visible', className)}
+      viewBox={`0 0 ${width} ${height}`}
+    >
+      {/* Fill area */}
+      <path
+        d={fillPath}
+        fill={color}
+        fillOpacity={fillOpacity}
+      />
+      
+      {/* Line */}
+      <path
+        d={pathD}
+        fill="none"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      
+      {/* End dot */}
+      {showDots && lastPoint && (
+        <circle
+          cx={lastPoint.x}
+          cy={lastPoint.y}
+          r={strokeWidth * 1.5}
+          fill={color}
+        />
+      )}
+    </svg>
+  );
+}
+```
+
+═══════════════════════════════════════════════════════════════════════════════
+TESTING REQUIREMENTS
+═══════════════════════════════════════════════════════════════════════════════
+
+Create tests at `client/src/lib/formatters/__tests__/formatters.test.ts`:
+```typescript
+import { format } from '../index';
+
+describe('Currency Formatter', () => {
+  test('formats whole numbers with commas', () => {
+    expect(format.currency(1234567)).toBe('$1,234,567');
+  });
+  
+  test('handles millions compactly', () => {
+    expect(format.currency(1500000, { compact: true })).toBe('$1.5M');
+  });
+  
+  test('handles null gracefully', () => {
+    expect(format.currency(null)).toBe('—');
+  });
+  
+  test('handles negative values', () => {
+    expect(format.currency(-50000)).toBe('-$50,000');
+  });
+});
+
+describe('Percent Formatter', () => {
+  test('rounds to whole number by default', () => {
+    expect(format.percent(45.7)).toBe('46%');
+  });
+  
+  test('shows decimal for small values', () => {
+    expect(format.percent(3.7)).toBe('3.7%');
+  });
+});
+```
+
+Run full test suite and verify ALL numbers display correctly across:
+- Step-by-step report sections
+- Benefits quantification tables
+- Token modeling displays
+- Priority scoring matrix
+- PDF export
+- Dashboard charts and metrics
+- What-if analysis results
