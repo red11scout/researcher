@@ -6,7 +6,15 @@ BlueAlly Insight is an enterprise research and analysis platform that generates 
 
 The platform features a modern, professional interface with interactive data visualization, real-time analysis progress tracking, industry benchmarking capabilities, and comprehensive What-If Analysis with full scenario modeling.
 
-## Recent Changes (November 2025)
+## Recent Changes (December 2025)
+
+**Apple-Grade Typography System (Complete)**:
+- Inter font loaded with optimized preconnect and display swap for fast rendering
+- Comprehensive typography scale with display, heading, body, and utility sizes
+- Custom CSS properties for font sizes, line heights, and letter spacing in @theme inline block
+- Reusable typography React components (Text, Display, PageTitle, SectionTitle, etc.)
+- Global base styles for h1-h6, p, a elements with proper hierarchy
+- text-gradient, text-balance, text-pretty utility classes
 
 **Phase 2 - Interactive Report Shell (Complete)**:
 - Embedded Assumption Panel drawer with inline editing and live recalculation
