@@ -1755,7 +1755,10 @@ Return ONLY valid JSON with this structure:
         viewCount: 0,
       });
       
-      const baseUrl = process.env.APP_URL || `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`;
+      // Get base URL from request origin or construct from host header
+      const protocol = req.headers['x-forwarded-proto'] || 'https';
+      const host = req.headers['x-forwarded-host'] || req.headers.host || 'localhost:5000';
+      const baseUrl = process.env.APP_URL || `${protocol}://${host}`;
       const shareUrl = `${baseUrl}/shared/${shareId}`;
       
       return res.json({ 
