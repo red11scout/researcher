@@ -8,6 +8,7 @@ import {
   ArrowRight, TrendingUp, Shield, Banknote, Activity, 
   ChevronRight, Play, Clock, Zap, CheckCircle2, Lock, Share2, Download, FileText, Check
 } from 'lucide-react';
+import { format } from '@/lib/formatters';
 
 const BRAND = {
   primary: '#0339AF',
@@ -192,14 +193,18 @@ interface AnimatedCounterProps {
   value: string;
   prefix?: string;
   suffix?: string;
+  formatter?: (v: number) => string;
 }
 
-const AnimatedCounter = ({ value, prefix = "", suffix = "" }: AnimatedCounterProps) => {
+const AnimatedCounter = ({ value, prefix = "", suffix = "", formatter = format.number }: AnimatedCounterProps) => {
   const [displayValue, setDisplayValue] = useState(0);
+  const numericValue = parseFloat(value);
   
   useEffect(() => {
+    if (isNaN(numericValue)) return;
+    
     let start = 0;
-    const end = parseFloat(value);
+    const end = numericValue;
     const duration = 2000;
     const increment = end / (duration / 16);
 
@@ -214,10 +219,15 @@ const AnimatedCounter = ({ value, prefix = "", suffix = "" }: AnimatedCounterPro
     }, 16);
 
     return () => clearInterval(timer);
-  }, [value]);
+  }, [numericValue]);
+
+  // Handle null/undefined/NaN with em-dash
+  if (isNaN(numericValue)) {
+    return <span className="tabular-nums">—</span>;
+  }
 
   return (
-    <span>{prefix}{displayValue.toFixed(1)}{suffix}</span>
+    <span className="tabular-nums">{prefix}{formatter(displayValue)}{suffix}</span>
   );
 };
 

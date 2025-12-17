@@ -94,17 +94,29 @@ export const format: {
 
   /**
    * Large numbers with appropriate scale
+   * precision: -1 (default) = smart precision (show decimals only when meaningful)
+   * precision: 0 = round to integer
+   * precision: 1+ = fixed decimal places
    */
   number(value: number | null | undefined, options: FormatOptions = {}): string {
     if (value == null || !isFinite(value)) return '—';
     
-    const { compact = false, precision = 0 } = options;
+    const { compact = false, precision = -1 } = options;
     const absValue = Math.abs(value);
     
     if (compact) {
       if (absValue >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B`;
       if (absValue >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
       if (absValue >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
+    }
+    
+    // Smart precision: show 1 decimal if value has meaningful decimal portion
+    if (precision === -1) {
+      const hasDecimal = value !== Math.floor(value);
+      if (hasDecimal && absValue < 1000) {
+        return value.toFixed(1);
+      }
+      return Math.round(value).toLocaleString('en-US');
     }
     
     return precision > 0 

@@ -59,7 +59,7 @@ export function DonutChart({
       return (
         <div className="bg-white px-4 py-3 rounded-lg shadow-lg border border-gray-100">
           <p className="font-semibold text-blueally-slate">{item.name}</p>
-          <p className="text-lg font-bold" style={{ color: item.color }}>
+          <p className="text-lg font-bold tabular-nums" style={{ color: item.color }}>
             {formatValue(item.value)}
           </p>
           <p className="text-sm text-gray-500">{percentage}% of total</p>

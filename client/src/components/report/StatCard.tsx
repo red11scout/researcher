@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, LucideIcon } from 'lucide-react';
+import { format } from '@/lib/formatters';
 
 export interface StatCardProps {
   value: number | string;
@@ -51,12 +52,14 @@ function AnimatedNumber({
   value, 
   prefix = '', 
   suffix = '',
-  animate = true 
+  animate = true,
+  formatter = format.currencyAuto
 }: { 
   value: number; 
   prefix?: string; 
   suffix?: string;
   animate?: boolean;
+  formatter?: (v: number) => string;
 }) {
   const [displayValue, setDisplayValue] = useState(animate ? 0 : value);
 
@@ -87,15 +90,22 @@ function AnimatedNumber({
     return () => clearInterval(timer);
   }, [value, animate]);
 
-  const formattedValue = typeof value === 'number' && value >= 1000000
-    ? (displayValue / 1000000).toFixed(1) + 'M'
-    : typeof value === 'number' && value >= 1000
-    ? (displayValue / 1000).toFixed(1) + 'K'
-    : displayValue.toFixed(1);
+  // Handle null/undefined values with em-dash
+  if (value == null || isNaN(value)) {
+    return <span className="tabular-nums">—</span>;
+  }
+
+  // Use centralized formatter for consistent formatting
+  const formattedValue = formatter(displayValue);
+  
+  // Skip prefix/suffix if formatter already handles them (currency formatters include $)
+  const isCurrencyFormatter = formatter === format.currencyAuto || formatter === format.currency;
+  const finalPrefix = isCurrencyFormatter ? '' : prefix;
+  const finalSuffix = isCurrencyFormatter ? '' : suffix;
 
   return (
-    <span>
-      {prefix}{formattedValue}{suffix}
+    <span className="tabular-nums">
+      {finalPrefix}{formattedValue}{finalSuffix}
     </span>
   );
 }
@@ -134,7 +144,7 @@ export function StatCard({
           {label}
         </p>
         
-        <div className={`text-4xl font-bold tracking-tight mb-2 ${colors.text}`}>
+        <div className={`text-4xl font-bold tracking-tight mb-2 tabular-nums ${colors.text}`}>
           {typeof numericValue === 'number' && !isNaN(numericValue) ? (
             <AnimatedNumber value={numericValue} prefix={prefix} suffix={suffix} animate={animate} />
           ) : (

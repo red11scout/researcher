@@ -2500,7 +2500,7 @@ export default function Report() {
                           </Tooltip>
                         </TooltipProvider>
                       </div>
-                      <div className="text-lg md:text-2xl font-bold text-primary" data-testid="text-total-value">
+                      <div className="text-lg md:text-2xl font-bold text-primary tabular-nums" data-testid="text-total-value">
                         {formatCurrency(data.executiveDashboard.totalAnnualValue)}
                       </div>
                     </div>
@@ -2518,7 +2518,7 @@ export default function Report() {
                           </Tooltip>
                         </TooltipProvider>
                       </div>
-                      <div className="text-lg md:text-2xl font-bold">
+                      <div className="text-lg md:text-2xl font-bold tabular-nums">
                         {formatNumber(data.executiveDashboard.totalMonthlyTokens)}
                       </div>
                     </div>
@@ -2536,7 +2536,7 @@ export default function Report() {
                           </Tooltip>
                         </TooltipProvider>
                       </div>
-                      <div className="text-lg md:text-2xl font-bold">
+                      <div className="text-lg md:text-2xl font-bold tabular-nums">
                         {formatCurrency(data.executiveDashboard.valuePerMillionTokens)}
                       </div>
                     </div>
@@ -2711,7 +2711,7 @@ function DashboardMetric({ icon, label, value, color, bgColor, tooltip }: {
           </TooltipProvider>
         )}
       </div>
-      <div className={`text-sm md:text-xl font-bold ${color}`}>{value}</div>
+      <div className={`text-sm md:text-xl font-bold tabular-nums ${color}`}>{value}</div>
     </div>
   );
 }
