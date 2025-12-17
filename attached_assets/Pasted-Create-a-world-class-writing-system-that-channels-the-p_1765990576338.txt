@@ -1,0 +1,496 @@
+Create a world-class writing system that channels the precision of Karpathy's explanations, the gravitas of Hinton's insights, the clarity of Tegmark's prose, and the elegant brevity of Hemingway. Every word must earn its place.
+
+═══════════════════════════════════════════════════════════════════════════════
+PART A: CENTRALIZED COPY SYSTEM
+═══════════════════════════════════════════════════════════════════════════════
+
+Create `client/src/lib/copy/index.ts`:
+```typescript
+/**
+ * BlueAlly AI Assessment - Copy System
+ * 
+ * Voice Principles:
+ * 1. Lead with data, follow with insight
+ * 2. One idea per sentence
+ * 3. Active voice exclusively
+ * 4. Quantify everything possible
+ * 5. No hedging ("might", "could potentially", "may help")
+ * 6. Technical accuracy, accessible delivery
+ */
+
+export const copy = {
+  // ═══════════════════════════════════════════════════════════════════════════
+  // BRAND & IDENTITY
+  // ═══════════════════════════════════════════════════════════════════════════
+  brand: {
+    name: 'BlueAlly',
+    tagline: 'Enterprise AI Transformation',
+    legal: '© 2024 BlueAlly AI Consulting. All rights reserved.',
+    confidential: 'Confidential — Prepared exclusively for',
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // HERO & LANDING
+  // ═══════════════════════════════════════════════════════════════════════════
+  hero: {
+    title: 'AI Opportunity Assessment',
+    subtitle: 'Quantified impact. Strategic roadmap. Clear priorities.',
+    cta: 'Begin Assessment',
+    description: 'Transform strategic uncertainty into actionable intelligence. Identify high-impact AI opportunities, quantify their value, and build a prioritized implementation roadmap.',
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SECTION HEADERS - Clear, minimal, action-oriented
+  // ═══════════════════════════════════════════════════════════════════════════
+  sections: {
+    overview: {
+      title: 'Company Intelligence',
+      subtitle: 'Foundation for strategic analysis',
+    },
+    strategy: {
+      title: 'Strategic Anchors',
+      subtitle: 'Business drivers that shape AI priorities',
+    },
+    kpis: {
+      title: 'Performance Baselines',
+      subtitle: 'Current metrics that anchor impact projections',
+    },
+    friction: {
+      title: 'Friction Points',
+      subtitle: 'Operational bottlenecks ripe for AI intervention',
+    },
+    useCases: {
+      title: 'AI Use Cases',
+      subtitle: 'Targeted opportunities ranked by impact and feasibility',
+    },
+    benefits: {
+      title: 'Quantified Benefits',
+      subtitle: 'Revenue, cost, cash flow, and risk impact',
+    },
+    tokens: {
+      title: 'Token Economics',
+      subtitle: 'Infrastructure costs at projected scale',
+    },
+    priority: {
+      title: 'Implementation Priority',
+      subtitle: 'Weighted scoring drives sequencing',
+    },
+    whatIf: {
+      title: 'Scenario Modeling',
+      subtitle: 'Adjust assumptions, see impact in real time',
+    },
+    dashboard: {
+      title: 'Executive Dashboard',
+      subtitle: 'Key metrics at a glance',
+    },
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ACTION LABELS - Verb-first, decisive
+  // ═══════════════════════════════════════════════════════════════════════════
+  actions: {
+    generate: 'Generate Assessment',
+    regenerate: 'Regenerate',
+    export: 'Export Report',
+    exportPdf: 'Download PDF',
+    exportWord: 'Download Word',
+    exportExcel: 'Download Excel',
+    exportMarkdown: 'Download Markdown',
+    viewDashboard: 'Open Dashboard',
+    shareDashboard: 'Share Dashboard',
+    copyLink: 'Copy Link',
+    startOver: 'New Assessment',
+    saveProgress: 'Save Draft',
+    continue: 'Continue',
+    cancel: 'Cancel',
+    confirm: 'Confirm',
+    apply: 'Apply Changes',
+    reset: 'Reset to Default',
+    expand: 'Show More',
+    collapse: 'Show Less',
+    edit: 'Edit',
+    delete: 'Delete',
+    download: 'Download',
+    print: 'Print',
+    refresh: 'Refresh',
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STATUS & LOADING - Informative, specific
+  // ═══════════════════════════════════════════════════════════════════════════
+  status: {
+    loading: {
+      default: 'Processing...',
+      analyzing: 'Analyzing strategic context...',
+      extracting: 'Extracting business drivers...',
+      mapping: 'Mapping friction points...',
+      generating: 'Generating use cases...',
+      quantifying: 'Quantifying benefits...',
+      modeling: 'Building token model...',
+      scoring: 'Calculating priority scores...',
+      compiling: 'Compiling final assessment...',
+      exporting: 'Preparing export...',
+      saving: 'Saving...',
+    },
+    success: {
+      generated: 'Assessment complete',
+      exported: 'Export ready',
+      saved: 'Changes saved',
+      copied: 'Copied to clipboard',
+      shared: 'Share link created',
+    },
+    error: {
+      default: 'Something went wrong. Please try again.',
+      network: 'Network error. Check your connection.',
+      timeout: 'Request timed out. Retry with simpler input.',
+      validation: 'Please check your input and try again.',
+      auth: 'Session expired. Please refresh the page.',
+      apiLimit: 'API limit reached. Please wait a moment.',
+      generation: 'Analysis interrupted. Adjust input and retry.',
+      export: 'Export failed. Please try again.',
+    },
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // EMPTY STATES - Helpful, forward-looking
+  // ═══════════════════════════════════════════════════════════════════════════
+  empty: {
+    noCompany: 'Enter company details to begin your assessment.',
+    noUseCases: 'No use cases identified. Try adding more context about business challenges.',
+    noBenefits: 'Benefits will populate once use cases are generated.',
+    noTokens: 'Token estimates require defined use cases.',
+    noPriority: 'Priority scoring follows benefits quantification.',
+    noHistory: 'Previous assessments will appear here.',
+    noResults: 'No results match your criteria.',
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TOOLTIPS - Precise, educational
+  // ═══════════════════════════════════════════════════════════════════════════
+  tooltips: {
+    roi: '36-month return on investment, calculated as (Total Benefits - Total Costs) / Total Costs',
+    npv: 'Net present value using 10% discount rate over 36-month horizon',
+    payback: 'Months until cumulative benefits exceed cumulative costs',
+    confidence: 'Estimate reliability based on data quality and assumptions',
+    tokenCost: 'Monthly inference cost at projected transaction volume',
+    priorityScore: 'Weighted composite of impact (40%), feasibility (30%), strategic fit (30%)',
+    tier: 'Critical: Deploy immediately. High: Next quarter. Medium: This year. Low: Evaluate.',
+    revenue: 'Direct revenue increase from AI implementation',
+    cost: 'Operational cost reduction from automation and efficiency',
+    cash: 'Working capital improvement from faster cycles',
+    risk: 'Risk mitigation value from improved accuracy and compliance',
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // FORM LABELS & PLACEHOLDERS
+  // ═══════════════════════════════════════════════════════════════════════════
+  form: {
+    company: {
+      name: { label: 'Company Name', placeholder: 'Acme Corporation' },
+      industry: { label: 'Industry', placeholder: 'Select industry...' },
+      size: { label: 'Company Size', placeholder: 'Select size...' },
+      revenue: { label: 'Annual Revenue', placeholder: '$100,000,000' },
+      employees: { label: 'Employee Count', placeholder: '5,000' },
+      description: { label: 'Company Description', placeholder: 'Describe core business, products, and market position...' },
+      challenges: { label: 'Key Challenges', placeholder: 'Primary operational challenges and strategic priorities...' },
+    },
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // DASHBOARD COPY
+  // ═══════════════════════════════════════════════════════════════════════════
+  dashboard: {
+    metrics: {
+      totalImpact: 'Total Annual Impact',
+      avgRoi: 'Average ROI',
+      useCaseCount: 'Use Cases Identified',
+      criticalCount: 'Critical Priority',
+    },
+    cta: {
+      title: 'Ready to implement?',
+      subtitle: 'BlueAlly transforms assessment into execution.',
+      primary: 'Schedule Consultation',
+      secondary: 'Download Full Report',
+    },
+    share: {
+      title: 'Share This Dashboard',
+      subtitle: 'Anyone with the link can view this dashboard for 30 days.',
+      copied: 'Link copied!',
+      expires: 'Expires',
+    },
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PDF REPORT COPY
+  // ═══════════════════════════════════════════════════════════════════════════
+  pdf: {
+    cover: {
+      title: 'AI Opportunity Assessment',
+      preparedFor: 'Prepared for',
+      preparedBy: 'Prepared by BlueAlly AI Consulting',
+      date: 'Assessment Date',
+    },
+    header: {
+      confidential: 'Confidential',
+    },
+    footer: {
+      page: 'Page',
+      of: 'of',
+    },
+    executive: {
+      title: 'Executive Summary',
+      keyFindings: 'Key Findings',
+      topOpportunities: 'Top Opportunities',
+      recommendation: 'Strategic Recommendation',
+    },
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // VALIDATION MESSAGES
+  // ═══════════════════════════════════════════════════════════════════════════
+  validation: {
+    required: 'This field is required',
+    minLength: (min: number) => `Minimum ${min} characters`,
+    maxLength: (max: number) => `Maximum ${max} characters`,
+    invalidEmail: 'Enter a valid email address',
+    invalidNumber: 'Enter a valid number',
+    invalidUrl: 'Enter a valid URL',
+    positive: 'Must be a positive number',
+    range: (min: number, max: number) => `Must be between ${min} and ${max}`,
+  },
+};
+
+// Helper to get nested copy with fallback
+export function getCopy(path: string, fallback: string = ''): string {
+  return path.split('.').reduce((obj: any, key) => obj?.[key], copy) ?? fallback;
+}
+```
+
+═══════════════════════════════════════════════════════════════════════════════
+PART B: DYNAMIC LOADING STATES
+═══════════════════════════════════════════════════════════════════════════════
+
+Create `client/src/components/ui/loading-state.tsx`:
+```typescript
+import { useEffect, useState } from 'react';
+import { copy } from '@/lib/copy';
+import { cn } from '@/lib/utils';
+import { Loader2 } from 'lucide-react';
+
+interface LoadingStateProps {
+  stage?: 'analyzing' | 'extracting' | 'mapping' | 'generating' | 'quantifying' | 'modeling' | 'scoring' | 'compiling';
+  className?: string;
+  showProgress?: boolean;
+}
+
+const stages = [
+  'analyzing',
+  'extracting', 
+  'mapping',
+  'generating',
+  'quantifying',
+  'modeling',
+  'scoring',
+  'compiling',
+] as const;
+
+export function LoadingState({ stage, className, showProgress = true }: LoadingStateProps) {
+  const [currentStage, setCurrentStage] = useState(0);
+  
+  // Auto-advance stages for demo/visual feedback
+  useEffect(() => {
+    if (!stage && showProgress) {
+      const interval = setInterval(() => {
+        setCurrentStage(prev => (prev + 1) % stages.length);
+      }, 2500);
+      return () => clearInterval(interval);
+    }
+  }, [stage, showProgress]);
+
+  const activeStage = stage || stages[currentStage];
+  const stageIndex = stages.indexOf(activeStage);
+  const progress = ((stageIndex + 1) / stages.length) * 100;
+
+  return (
+    <div className={cn('flex flex-col items-center justify-center py-12', className)}>
+      <div className="relative mb-6">
+        <Loader2 className="w-12 h-12 text-brand-blue animate-spin" />
+        <div className="absolute inset-0 w-12 h-12 rounded-full border-4 border-slate-100" />
+      </div>
+      
+      <p className="text-heading-sm text-slate-700 mb-2">
+        {copy.status.loading[activeStage]}
+      </p>
+      
+      {showProgress && (
+        <div className="w-64 mt-4">
+          <div className="h-1 bg-slate-100 rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-gradient-to-r from-brand-navy to-brand-blue transition-all duration-500 ease-out"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <div className="flex justify-between mt-2 text-caption text-slate-400">
+            <span>Step {stageIndex + 1} of {stages.length}</span>
+            <span>{Math.round(progress)}%</span>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+═══════════════════════════════════════════════════════════════════════════════
+PART C: EMPTY STATE COMPONENT
+═══════════════════════════════════════════════════════════════════════════════
+
+Create `client/src/components/ui/empty-state.tsx`:
+```typescript
+import { cn } from '@/lib/utils';
+import { LucideIcon, FileQuestion, Inbox, Search, Database } from 'lucide-react';
+import { Button } from './button';
+
+interface EmptyStateProps {
+  icon?: LucideIcon;
+  title: string;
+  description?: string;
+  action?: {
+    label: string;
+    onClick: () => void;
+  };
+  variant?: 'default' | 'compact' | 'card';
+  className?: string;
+}
+
+const iconMap = {
+  default: FileQuestion,
+  search: Search,
+  data: Database,
+  inbox: Inbox,
+};
+
+export function EmptyState({
+  icon: Icon = FileQuestion,
+  title,
+  description,
+  action,
+  variant = 'default',
+  className,
+}: EmptyStateProps) {
+  const variants = {
+    default: 'py-16',
+    compact: 'py-8',
+    card: 'py-12 px-6 bg-slate-50 rounded-xl border border-dashed border-slate-200',
+  };
+
+  return (
+    <div className={cn(
+      'flex flex-col items-center justify-center text-center',
+      variants[variant],
+      className
+    )}>
+      <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center mb-4">
+        <Icon className="w-6 h-6 text-slate-400" />
+      </div>
+      
+      <h3 className="text-heading-sm text-slate-700 mb-1">{title}</h3>
+      
+      {description && (
+        <p className="text-body-sm text-slate-500 max-w-sm mb-4">{description}</p>
+      )}
+      
+      {action && (
+        <Button variant="outline" size="sm" onClick={action.onClick}>
+          {action.label}
+        </Button>
+      )}
+    </div>
+  );
+}
+```
+
+═══════════════════════════════════════════════════════════════════════════════
+PART D: AI PROMPT ENGINEERING FOR REPORT CONTENT
+═══════════════════════════════════════════════════════════════════════════════
+
+Update the backend system prompt in `server/services/ai.ts`:
+```typescript
+const SYSTEM_PROMPT = `You are an elite AI strategy consultant at BlueAlly, producing C-suite-ready assessments.
+
+## Voice & Tone
+- Channel Karpathy's precision, Hinton's depth, Tegmark's clarity, Hemingway's brevity
+- Lead every insight with data. Quantify everything.
+- One idea per sentence. No compound sentences over 20 words.
+- Active voice exclusively. "AI reduces" not "reductions are achieved"
+- Zero hedging: Never use "might", "could potentially", "may help"
+- Technical accuracy for executive audience
+
+## Structure Rules
+- Headlines: 3-5 words, action-oriented
+- Bullet points: Start with metric or action verb
+- Paragraphs: 2-3 sentences maximum
+- Tables: Column headers must be self-explanatory
+
+## Number Formatting
+- Currency: Always include $ and commas. No decimals. (e.g., $1,234,567)
+- Percentages: Include % sign. Round to whole numbers unless < 10%. (e.g., 47% or 3.2%)
+- Large numbers: Use M for millions, B for billions (e.g., $1.2M, $3.4B)
+- Ranges: Use en-dash with spaces (e.g., $1M – $3M)
+
+## Content Standards
+- Every use case needs: specific metric improved, baseline value, target value, timeline
+- Benefits must be traceable to specific operational changes
+- Token estimates must include assumptions about volume and frequency
+- Priority scores must show component weights
+
+## Forbidden
+- Generic statements without data: "improve efficiency"
+- Passive voice: "costs will be reduced"
+- Weasel words: "significant", "substantial", "various"
+- Unsupported claims: Any number without clear derivation`;
+```
+
+═══════════════════════════════════════════════════════════════════════════════
+PART E: GLOBAL COPY REPLACEMENT
+═══════════════════════════════════════════════════════════════════════════════
+
+Search the entire codebase and replace ALL hardcoded strings:
+
+1. All button text → `copy.actions.*`
+2. All section titles → `copy.sections.*`
+3. All error messages → `copy.status.error.*`
+4. All loading messages → `copy.status.loading.*`
+5. All empty states → `copy.empty.*`
+6. All form labels → `copy.form.*`
+7. All tooltips → `copy.tooltips.*`
+
+Import pattern for all components:
+```typescript
+import { copy } from '@/lib/copy';
+
+// Usage
+<Button>{copy.actions.generate}</Button>
+<h2>{copy.sections.benefits.title}</h2>
+<p>{copy.status.error.default}</p>
+```
+
+═══════════════════════════════════════════════════════════════════════════════
+PART F: MICRO-COPY AUDIT
+═══════════════════════════════════════════════════════════════════════════════
+
+Review and apply these principles to every text element:
+
+BEFORE → AFTER transformations:
+
+"Click here to generate your report" → "Generate Assessment"
+"Your report is being processed, please wait..." → "Analyzing strategic context..."
+"No data available at this time" → "Enter company details to begin."
+"An error occurred while processing your request" → "Analysis interrupted. Adjust input and retry."
+"Are you sure you want to delete this?" → "Delete this assessment? This cannot be undone."
+"Successfully saved!" → "Saved"
+"Loading..." → [Specific stage message from loading state]
+"Export to PDF" → "Download PDF"
+"Click to copy" → "Copy Link"
+"Share this dashboard with others" → "Share Dashboard"
+"The ROI for this use case is calculated as..." → [Show in tooltip on hover, not inline]
