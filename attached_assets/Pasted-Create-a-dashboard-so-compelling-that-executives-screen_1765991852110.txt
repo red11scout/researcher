@@ -1,0 +1,794 @@
+Create a dashboard so compelling that executives screenshot it for their board presentations. This is where data becomes storytelling.
+
+═══════════════════════════════════════════════════════════════════════════════
+PART A: SHAREABLE DASHBOARD INFRASTRUCTURE
+═══════════════════════════════════════════════════════════════════════════════
+
+**Backend: Create share routes**
+
+Create `server/routes/share.ts`:
+```typescript
+import { Router } from 'express';
+import { nanoid } from 'nanoid';
+import { db } from '../db';
+import { sharedDashboards } from '../db/schema';
+import { eq, lt } from 'drizzle-orm';
+
+const router = Router();
+
+// Create share link
+router.post('/api/share', async (req, res) => {
+  try {
+    const { reportData } = req.body;
+    
+    if (!reportData) {
+      return res.status(400).json({ error: 'Report data required' });
+    }
+    
+    const shareId = nanoid(12); // Short, URL-safe ID
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+    
+    await db.insert(sharedDashboards).values({
+      id: shareId,
+      data: JSON.stringify(reportData),
+      createdAt: new Date(),
+      expiresAt,
+      viewCount: 0,
+    });
+    
+    const shareUrl = `${process.env.APP_URL || 'https://smart-report-ai.replit.app'}/dashboard/${shareId}`;
+    
+    return res.json({ 
+      shareId,
+      shareUrl,
+      expiresAt: expiresAt.toISOString(),
+    });
+  } catch (error) {
+    console.error('Share creation failed:', error);
+    return res.status(500).json({ error: 'Failed to create share link' });
+  }
+});
+
+// Get shared dashboard
+router.get('/api/share/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const dashboard = await db.query.sharedDashboards.findFirst({
+      where: eq(sharedDashboards.id, id),
+    });
+    
+    if (!dashboard) {
+      return res.status(404).json({ error: 'Dashboard not found' });
+    }
+    
+    if (new Date(dashboard.expiresAt) < new Date()) {
+      return res.status(410).json({ error: 'Dashboard link has expired' });
+    }
+    
+    // Increment view count
+    await db
+      .update(sharedDashboards)
+      .set({ viewCount: dashboard.viewCount + 1 })
+      .where(eq(sharedDashboards.id, id));
+    
+    return res.json({
+      data: JSON.parse(dashboard.data),
+      createdAt: dashboard.createdAt,
+      expiresAt: dashboard.expiresAt,
+      viewCount: dashboard.viewCount + 1,
+    });
+  } catch (error) {
+    console.error('Share retrieval failed:', error);
+    return res.status(500).json({ error: 'Failed to load dashboard' });
+  }
+});
+
+// Cleanup expired dashboards (run periodically)
+export async function cleanupExpiredShares() {
+  await db
+    .delete(sharedDashboards)
+    .where(lt(sharedDashboards.expiresAt, new Date()));
+}
+
+export default router;
+```
+
+**Database Schema Addition:**
+```typescript
+// In server/db/schema.ts
+export const sharedDashboards = pgTable('shared_dashboards', {
+  id: text('id').primaryKey(),
+  data: text('data').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  expiresAt: timestamp('expires_at').notNull(),
+  viewCount: integer('view_count').default(0).notNull(),
+});
+```
+
+═══════════════════════════════════════════════════════════════════════════════
+PART B: DASHBOARD PAGE COMPONENT
+═══════════════════════════════════════════════════════════════════════════════
+
+Create `client/src/pages/dashboard.tsx`:
+```typescript
+import { useEffect, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Header } from '@/components/layout/header';
+import { Footer } from '@/components/layout/footer';
+import { MetricCard } from '@/components/ui/metric-card';
+import { Button } from '@/components/ui/button';
+import { LoadingState } from '@/components/ui/loading-state';
+import { EmptyState } from '@/components/ui/empty-state';
+import { ShareModal } from '@/components/dashboard/share-modal';
+import { BenefitsChart } from '@/components/dashboard/benefits-chart';
+import { PriorityMatrix } from '@/components/dashboard/priority-matrix';
+import { TimelineChart } from '@/components/dashboard/timeline-chart';
+import { UseCasesTable } from '@/components/dashboard/use-cases-table';
+import { CTASection } from '@/components/dashboard/cta-section';
+import { format } from '@/lib/formatters';
+import { copy } from '@/lib/copy';
+import { 
+  Share2, 
+  Download, 
+  TrendingUp, 
+  DollarSign, 
+  Target, 
+  Zap,
+  ExternalLink,
+  RefreshCw,
+} from 'lucide-react';
+
+interface DashboardData {
+  company: { name: string; industry: string; };
+  totals: {
+    annualImpact: number;
+    avgRoi: number;
+    useCaseCount: number;
+    criticalCount: number;
+  };
+  useCases: any[];
+  benefits: {
+    revenue: number;
+    cost: number;
+    cash: number;
+    risk: number;
+  };
+}
+
+export function DashboardPage() {
+  const { shareId } = useParams();
+  const navigate = useNavigate();
+  const [data, setData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [showShareModal, setShowShareModal] = useState(false);
+
+  useEffect(() => {
+    async function loadDashboard() {
+      if (!shareId) {
+        // Load from local state/context if no shareId
+        // This handles the case when viewing from the app directly
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/share/${shareId}`);
+        
+        if (!response.ok) {
+          if (response.status === 404) {
+            setError('Dashboard not found');
+          } else if (response.status === 410) {
+            setError('This dashboard link has expired');
+          } else {
+            setError('Failed to load dashboard');
+          }
+          return;
+        }
+        
+        const result = await response.json();
+        setData(result.data);
+      } catch (err) {
+        setError('Failed to load dashboard');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadDashboard();
+  }, [shareId]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <LoadingState />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <EmptyState
+          title={error}
+          description="The dashboard you're looking for doesn't exist or has expired."
+          action={{
+            label: 'Create New Assessment',
+            onClick: () => navigate('/'),
+          }}
+        />
+      </div>
+    );
+  }
+
+  if (!data) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <EmptyState
+          title="No dashboard data"
+          description="Generate an assessment first to view the dashboard."
+          action={{
+            label: 'Start Assessment',
+            onClick: () => navigate('/'),
+          }}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
+      {/* Header */}
+      <Header 
+        variant="light" 
+        sticky
+        actions={
+          <div className="flex items-center gap-3">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setShowShareModal(true)}
+            >
+              <Share2 className="w-4 h-4 mr-2" />
+              Share
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => {/* Export handler */}}
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Export
+            </Button>
+          </div>
+        }
+      />
+
+      {/* Hero Section */}
+      <section className="bg-gradient-brand text-white py-12">
+        <div className="max-w-7xl mx-auto px-6">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <p className="text-white/70 text-sm font-medium uppercase tracking-wide mb-2">
+                AI Opportunity Assessment
+              </p>
+              <h1 className="text-3xl font-bold">{data.company.name}</h1>
+              <p className="text-white/70 mt-1">{data.company.industry}</p>
+            </div>
+          </div>
+
+          {/* Key Metrics */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <MetricCard
+              label="Total Annual Impact"
+              value={data.totals.annualImpact}
+              formatter={v => format.currency(v, { compact: true })}
+              icon={<DollarSign className="w-5 h-5" />}
+              variant="highlight"
+              size="lg"
+            />
+            <MetricCard
+              label="Average ROI"
+              value={data.totals.avgRoi}
+              formatter={format.percent}
+              icon={<TrendingUp className="w-5 h-5" />}
+              variant="highlight"
+              size="lg"
+            />
+            <MetricCard
+              label="Use Cases"
+              value={data.totals.useCaseCount}
+              formatter={format.number}
+              icon={<Target className="w-5 h-5" />}
+              variant="highlight"
+              size="lg"
+            />
+            <MetricCard
+              label="Critical Priority"
+              value={data.totals.criticalCount}
+              formatter={format.number}
+              icon={<Zap className="w-5 h-5" />}
+              variant="highlight"
+              size="lg"
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Charts Section */}
+      <section className="max-w-7xl mx-auto px-6 py-12">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Benefits Breakdown */}
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <h2 className="text-heading-lg text-slate-800 mb-6">
+              Benefits by Category
+            </h2>
+            <BenefitsChart data={data.benefits} />
+          </div>
+
+          {/* Priority Distribution */}
+          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+            <h2 className="text-heading-lg text-slate-800 mb-6">
+              Priority Distribution
+            </h2>
+            <PriorityMatrix useCases={data.useCases} />
+          </div>
+        </div>
+
+        {/* Use Cases Table */}
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mt-6">
+          <h2 className="text-heading-lg text-slate-800 mb-6">
+            Use Cases by Priority
+          </h2>
+          <UseCasesTable useCases={data.useCases} />
+        </div>
+
+        {/* Implementation Timeline */}
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mt-6">
+          <h2 className="text-heading-lg text-slate-800 mb-6">
+            Implementation Roadmap
+          </h2>
+          <TimelineChart useCases={data.useCases} />
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <CTASection />
+
+      {/* Footer */}
+      <Footer variant="dark" />
+
+      {/* Share Modal */}
+      <ShareModal 
+        open={showShareModal}
+        onClose={() => setShowShareModal(false)}
+        reportData={data}
+      />
+    </div>
+  );
+}
+```
+
+═══════════════════════════════════════════════════════════════════════════════
+PART C: CHART COMPONENTS WITH CONSISTENT COLORS
+═══════════════════════════════════════════════════════════════════════════════
+
+Create `client/src/components/dashboard/chart-config.ts`:
+```typescript
+/**
+ * Chart Configuration
+ * Consistent colors and styling across all visualizations
+ */
+
+export const chartColors = {
+  // Primary palette - use for main data series
+  primary: [
+    '#003366', // Navy
+    '#0066CC', // Blue
+    '#00A3E0', // Sky
+    '#4BA3C7', // Light blue
+    '#7CBBD4', // Lighter blue
+  ],
+  
+  // Categorical palette - use for distinct categories
+  categorical: [
+    '#003366', // Navy
+    '#059669', // Emerald
+    '#D97706', // Amber
+    '#DC2626', // Red
+    '#7C3AED', // Purple
+  ],
+  
+  // Priority colors
+  priority: {
+    critical: '#DC2626',
+    high: '#D97706',
+    medium: '#0066CC',
+    low: '#64748B',
+  },
+  
+  // Benefit category colors
+  benefits: {
+    revenue: '#003366',
+    cost: '#059669',
+    cash: '#0066CC',
+    risk: '#7C3AED',
+  },
+  
+  // Sequential for heatmaps/gradients
+  sequential: [
+    '#E0F2FE',
+    '#7DD3FC',
+    '#38BDF8',
+    '#0284C7',
+    '#0369A1',
+  ],
+};
+
+export const chartConfig = {
+  // Font
+  fontFamily: 'Inter, system-ui, sans-serif',
+  fontSize: {
+    title: 14,
+    label: 12,
+    tick: 11,
+    legend: 12,
+  },
+  
+  // Axis styling
+  axis: {
+    stroke: '#E2E8F0',
+    tickStroke: '#94A3B8',
+    labelFill: '#64748B',
+  },
+  
+  // Grid
+  grid: {
+    stroke: '#F1F5F9',
+    strokeDasharray: '4 4',
+  },
+  
+  // Tooltip
+  tooltip: {
+    backgroundColor: '#0F172A',
+    borderRadius: 8,
+    padding: 12,
+    textColor: '#FFFFFF',
+  },
+  
+  // Animation
+  animation: {
+    duration: 500,
+    easing: 'ease-out',
+  },
+};
+```
+
+Create `client/src/components/dashboard/benefits-chart.tsx`:
+```typescript
+import { 
+  PieChart, 
+  Pie, 
+  Cell, 
+  ResponsiveContainer, 
+  Legend,
+  Tooltip,
+} from 'recharts';
+import { chartColors, chartConfig } from './chart-config';
+import { format } from '@/lib/formatters';
+
+interface BenefitsChartProps {
+  data: {
+    revenue: number;
+    cost: number;
+    cash: number;
+    risk: number;
+  };
+}
+
+export function BenefitsChart({ data }: BenefitsChartProps) {
+  const chartData = [
+    { name: 'Revenue', value: data.revenue, color: chartColors.benefits.revenue },
+    { name: 'Cost Savings', value: data.cost, color: chartColors.benefits.cost },
+    { name: 'Cash Flow', value: data.cash, color: chartColors.benefits.cash },
+    { name: 'Risk Mitigation', value: data.risk, color: chartColors.benefits.risk },
+  ].filter(d => d.value > 0);
+
+  const total = chartData.reduce((sum, d) => sum + d.value, 0);
+
+  return (
+    <div className="h-80">
+      <ResponsiveContainer width="100%" height="100%">
+        <PieChart>
+          <Pie
+            data={chartData}
+            cx="50%"
+            cy="50%"
+            innerRadius={60}
+            outerRadius={100}
+            paddingAngle={2}
+            dataKey="value"
+            animationDuration={chartConfig.animation.duration}
+          >
+            {chartData.map((entry, index) => (
+              <Cell key={index} fill={entry.color} />
+            ))}
+          </Pie>
+          <Tooltip
+            formatter={(value: number) => format.currency(value, { compact: true })}
+            contentStyle={{
+              backgroundColor: chartConfig.tooltip.backgroundColor,
+              border: 'none',
+              borderRadius: chartConfig.tooltip.borderRadius,
+              color: chartConfig.tooltip.textColor,
+              fontSize: chartConfig.fontSize.label,
+            }}
+          />
+          <Legend
+            verticalAlign="bottom"
+            height={36}
+            formatter={(value, entry) => (
+              <span style={{ color: entry.color, fontSize: chartConfig.fontSize.legend }}>
+                {value}
+              </span>
+            )}
+          />
+        </PieChart>
+      </ResponsiveContainer>
+      
+      {/* Center label */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div className="text-center">
+          <p className="text-2xl font-bold text-slate-900">
+            {format.currency(total, { compact: true })}
+          </p>
+          <p className="text-sm text-slate-500">Total</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+```
+
+═══════════════════════════════════════════════════════════════════════════════
+PART D: SHARE MODAL
+═══════════════════════════════════════════════════════════════════════════════
+
+Create `client/src/components/dashboard/share-modal.tsx`:
+```typescript
+import { useState } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { copy } from '@/lib/copy';
+import { Copy, Check, Link, Calendar } from 'lucide-react';
+
+interface ShareModalProps {
+  open: boolean;
+  onClose: () => void;
+  reportData: any;
+}
+
+export function ShareModal({ open, onClose, reportData }: ShareModalProps) {
+  const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [expiresAt, setExpiresAt] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleCreateShare() {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const response = await fetch('/api/share', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reportData }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to create share link');
+      }
+      
+      const data = await response.json();
+      setShareUrl(data.shareUrl);
+      setExpiresAt(data.expiresAt);
+    } catch (err) {
+      setError('Failed to create share link. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleCopy() {
+    if (!shareUrl) return;
+    
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      // Fallback for older browsers
+      const input = document.createElement('input');
+      input.value = shareUrl;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand('copy');
+      document.body.removeChild(input);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  }
+
+  function formatExpiryDate(dateString: string) {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Link className="w-5 h-5 text-brand-blue" />
+            {copy.dashboard.share.title}
+          </DialogTitle>
+          <DialogDescription>
+            {copy.dashboard.share.subtitle}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-4">
+          {!shareUrl ? (
+            <Button 
+              onClick={handleCreateShare}
+              disabled={loading}
+              className="w-full"
+            >
+              {loading ? 'Creating link...' : 'Create Share Link'}
+            </Button>
+          ) : (
+            <>
+              <div className="flex items-center gap-2">
+                <Input
+                  value={shareUrl}
+                  readOnly
+                  className="flex-1 bg-slate-50"
+                />
+                <Button
+                  size="icon"
+                  variant="outline"
+                  onClick={handleCopy}
+                  className="shrink-0"
+                >
+                  {copied ? (
+                    <Check className="w-4 h-4 text-emerald-600" />
+                  ) : (
+                    <Copy className="w-4 h-4" />
+                  )}
+                </Button>
+              </div>
+              
+              {copied && (
+                <p className="text-sm text-emerald-600 font-medium">
+                  {copy.dashboard.share.copied}
+                </p>
+              )}
+              
+              {expiresAt && (
+                <div className="flex items-center gap-2 text-sm text-slate-500">
+                  <Calendar className="w-4 h-4" />
+                  <span>
+                    {copy.dashboard.share.expires}: {formatExpiryDate(expiresAt)}
+                  </span>
+                </div>
+              )}
+            </>
+          )}
+          
+          {error && (
+            <p className="text-sm text-red-600">{error}</p>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+```
+
+═══════════════════════════════════════════════════════════════════════════════
+PART E: CTA SECTION
+═══════════════════════════════════════════════════════════════════════════════
+
+Create `client/src/components/dashboard/cta-section.tsx`:
+```typescript
+import { Button } from '@/components/ui/button';
+import { copy } from '@/lib/copy';
+import { ArrowRight, Download } from 'lucide-react';
+
+export function CTASection() {
+  return (
+    <section className="bg-gradient-brand py-16">
+      <div className="max-w-4xl mx-auto text-center px-6">
+        <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
+          {copy.dashboard.cta.title}
+        </h2>
+        <p className="text-lg text-white/80 mb-8 max-w-2xl mx-auto">
+          {copy.dashboard.cta.subtitle}
+        </p>
+        <div className="flex flex-col sm:flex-row justify-center gap-4">
+          <Button 
+            size="lg"
+            className="bg-white text-brand-navy hover:bg-slate-100"
+          >
+            {copy.dashboard.cta.primary}
+            <ArrowRight className="w-4 h-4 ml-2" />
+          </Button>
+          <Button 
+            size="lg"
+            variant="outline"
+            className="border-white text-white hover:bg-white/10"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            {copy.dashboard.cta.secondary}
+          </Button>
+        </div>
+      </div>
+    </section>
+  );
+}
+```
+
+═══════════════════════════════════════════════════════════════════════════════
+PART F: ROUTING UPDATE
+═══════════════════════════════════════════════════════════════════════════════
+
+Update routing to include dashboard page:
+```typescript
+// In client/src/App.tsx or routes configuration
+import { DashboardPage } from './pages/dashboard';
+
+// Add route
+<Route path="/dashboard/:shareId?" element={<DashboardPage />} />
+```
+
+═══════════════════════════════════════════════════════════════════════════════
+PART G: BUTTON FUNCTIONALITY AUDIT
+═══════════════════════════════════════════════════════════════════════════════
+
+Implement these button functions:
+
+1. **Share Button** → Opens ShareModal, creates unique URL
+2. **Export Button** → Opens dropdown with PDF/Excel/Word options
+3. **Refresh Button** → Re-fetches data (if applicable)
+4. **Full Screen Button** → Uses browser fullscreen API
+5. **Download Chart as PNG** → Uses html2canvas to capture chart
+
+Remove any buttons that don't have clear functionality.
+
+═══════════════════════════════════════════════════════════════════════════════
+PART H: RESPONSIVE DESIGN
+═══════════════════════════════════════════════════════════════════════════════
+
+Ensure dashboard is fully responsive:
+
+- Desktop (1280px+): 4-column metric grid, 2-column chart grid
+- Tablet (768-1279px): 2-column metric grid, single chart column
+- Mobile (<768px): Single column, stacked cards, collapsible sections
+
+Test on:
+- iPhone SE (375px)
+- iPhone 14 Pro (393px)
+- iPad (768px)
+- Desktop (1440px)
+- 4K display (2560px)

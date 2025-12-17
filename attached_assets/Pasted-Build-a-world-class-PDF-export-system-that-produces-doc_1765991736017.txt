@@ -1,0 +1,719 @@
+Build a world-class PDF export system that produces documents indistinguishable from those created by top-tier consulting firms like McKinsey, BCG, or Bain. Every page must be perfect.
+
+═══════════════════════════════════════════════════════════════════════════════
+PART A: PDF ARCHITECTURE
+═══════════════════════════════════════════════════════════════════════════════
+
+Install required packages:
+```bash
+npm install @react-pdf/renderer
+```
+
+Create PDF configuration at `client/src/lib/pdf/config.ts`:
+```typescript
+/**
+ * PDF Configuration - Enterprise Report Styling
+ */
+
+export const pdfConfig = {
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PAGE SETTINGS
+  // ═══════════════════════════════════════════════════════════════════════════
+  page: {
+    size: 'A4',
+    orientation: 'portrait',
+    margins: {
+      top: 72,      // 1 inch
+      bottom: 72,
+      left: 54,     // 0.75 inch
+      right: 54,
+    },
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TYPOGRAPHY
+  // ═══════════════════════════════════════════════════════════════════════════
+  fonts: {
+    family: 'Helvetica',  // Safe PDF font
+    sizes: {
+      displayXl: 36,
+      display: 28,
+      h1: 22,
+      h2: 18,
+      h3: 14,
+      h4: 12,
+      body: 11,
+      bodySm: 10,
+      caption: 9,
+      tiny: 8,
+    },
+    weights: {
+      normal: 'normal',
+      medium: 'normal',  // Helvetica doesn't have medium
+      semibold: 'bold',
+      bold: 'bold',
+    },
+    lineHeights: {
+      tight: 1.2,
+      normal: 1.5,
+      relaxed: 1.7,
+    },
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // COLORS
+  // ═══════════════════════════════════════════════════════════════════════════
+  colors: {
+    // Brand
+    brandNavy: '#003366',
+    brandBlue: '#0066CC',
+    brandSky: '#00A3E0',
+    
+    // Text
+    textPrimary: '#0F172A',
+    textSecondary: '#334155',
+    textTertiary: '#64748B',
+    textMuted: '#94A3B8',
+    
+    // Backgrounds
+    white: '#FFFFFF',
+    bgLight: '#F8FAFC',
+    bgSubtle: '#F1F5F9',
+    
+    // Borders
+    borderLight: '#E2E8F0',
+    borderDefault: '#CBD5E1',
+    
+    // Status
+    success: '#059669',
+    warning: '#D97706',
+    error: '#DC2626',
+    
+    // Table
+    tableHeader: '#F1F5F9',
+    tableRowAlt: '#FAFAFA',
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // SPACING
+  // ═══════════════════════════════════════════════════════════════════════════
+  spacing: {
+    xs: 4,
+    sm: 8,
+    md: 12,
+    lg: 16,
+    xl: 24,
+    xxl: 32,
+    section: 40,
+  },
+};
+```
+
+═══════════════════════════════════════════════════════════════════════════════
+PART B: PDF DOCUMENT STRUCTURE
+═══════════════════════════════════════════════════════════════════════════════
+
+Create `client/src/lib/pdf/document.tsx`:
+```typescript
+import {
+  Document,
+  Page,
+  Text,
+  View,
+  Image,
+  StyleSheet,
+} from '@react-pdf/renderer';
+import { pdfConfig } from './config';
+import { format } from '@/lib/formatters';
+
+const { colors, fonts, spacing, page } = pdfConfig;
+
+// ═══════════════════════════════════════════════════════════════════════════
+// STYLES
+// ═══════════════════════════════════════════════════════════════════════════
+
+const styles = StyleSheet.create({
+  // Page
+  page: {
+    paddingTop: page.margins.top,
+    paddingBottom: page.margins.bottom,
+    paddingLeft: page.margins.left,
+    paddingRight: page.margins.right,
+    fontFamily: fonts.family,
+    fontSize: fonts.sizes.body,
+    color: colors.textSecondary,
+    backgroundColor: colors.white,
+  },
+  
+  // Cover page
+  coverPage: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: colors.white,
+  },
+  coverLogo: {
+    width: 180,
+    marginBottom: spacing.xxl,
+  },
+  coverTitle: {
+    fontSize: fonts.sizes.displayXl,
+    fontWeight: fonts.weights.bold,
+    color: colors.brandNavy,
+    marginBottom: spacing.md,
+    textAlign: 'center',
+  },
+  coverSubtitle: {
+    fontSize: fonts.sizes.h2,
+    color: colors.textTertiary,
+    marginBottom: spacing.xxl,
+    textAlign: 'center',
+  },
+  coverCompany: {
+    fontSize: fonts.sizes.h1,
+    fontWeight: fonts.weights.semibold,
+    color: colors.textPrimary,
+    marginBottom: spacing.lg,
+    textAlign: 'center',
+  },
+  coverMeta: {
+    fontSize: fonts.sizes.body,
+    color: colors.textTertiary,
+    textAlign: 'center',
+  },
+  coverFooter: {
+    position: 'absolute',
+    bottom: page.margins.bottom,
+    left: 0,
+    right: 0,
+    textAlign: 'center',
+  },
+
+  // Header/Footer
+  header: {
+    position: 'absolute',
+    top: 24,
+    left: page.margins.left,
+    right: page.margins.right,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingBottom: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+  },
+  headerLogo: {
+    height: 20,
+  },
+  headerText: {
+    fontSize: fonts.sizes.caption,
+    color: colors.textMuted,
+  },
+  footer: {
+    position: 'absolute',
+    bottom: 24,
+    left: page.margins.left,
+    right: page.margins.right,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.borderLight,
+  },
+  footerText: {
+    fontSize: fonts.sizes.tiny,
+    color: colors.textMuted,
+  },
+  pageNumber: {
+    fontSize: fonts.sizes.tiny,
+    color: colors.textMuted,
+  },
+
+  // Content
+  section: {
+    marginBottom: spacing.section,
+  },
+  sectionTitle: {
+    fontSize: fonts.sizes.h1,
+    fontWeight: fonts.weights.bold,
+    color: colors.brandNavy,
+    marginBottom: spacing.sm,
+  },
+  sectionSubtitle: {
+    fontSize: fonts.sizes.body,
+    color: colors.textTertiary,
+    marginBottom: spacing.lg,
+  },
+  
+  // Typography
+  h2: {
+    fontSize: fonts.sizes.h2,
+    fontWeight: fonts.weights.semibold,
+    color: colors.textPrimary,
+    marginBottom: spacing.md,
+    marginTop: spacing.xl,
+  },
+  h3: {
+    fontSize: fonts.sizes.h3,
+    fontWeight: fonts.weights.semibold,
+    color: colors.textSecondary,
+    marginBottom: spacing.sm,
+    marginTop: spacing.lg,
+  },
+  paragraph: {
+    fontSize: fonts.sizes.body,
+    lineHeight: fonts.lineHeights.relaxed,
+    color: colors.textSecondary,
+    marginBottom: spacing.md,
+  },
+  
+  // Tables
+  table: {
+    marginTop: spacing.md,
+    marginBottom: spacing.lg,
+  },
+  tableRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderLight,
+  },
+  tableRowAlt: {
+    backgroundColor: colors.tableRowAlt,
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    backgroundColor: colors.tableHeader,
+    borderBottomWidth: 2,
+    borderBottomColor: colors.borderDefault,
+  },
+  tableCell: {
+    padding: spacing.sm,
+    fontSize: fonts.sizes.bodySm,
+  },
+  tableCellHeader: {
+    padding: spacing.sm,
+    fontSize: fonts.sizes.bodySm,
+    fontWeight: fonts.weights.semibold,
+    color: colors.textPrimary,
+  },
+  tableCellNumber: {
+    textAlign: 'right',
+  },
+
+  // Metrics grid
+  metricsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginVertical: spacing.lg,
+  },
+  metricCard: {
+    width: '48%',
+    marginRight: '2%',
+    marginBottom: spacing.md,
+    padding: spacing.md,
+    backgroundColor: colors.bgLight,
+    borderRadius: 4,
+  },
+  metricLabel: {
+    fontSize: fonts.sizes.caption,
+    color: colors.textTertiary,
+    marginBottom: spacing.xs,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  metricValue: {
+    fontSize: fonts.sizes.h2,
+    fontWeight: fonts.weights.bold,
+    color: colors.brandNavy,
+  },
+
+  // Executive summary box
+  summaryBox: {
+    backgroundColor: colors.bgLight,
+    padding: spacing.lg,
+    borderRadius: 4,
+    marginVertical: spacing.lg,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.brandNavy,
+  },
+  
+  // Bullet list
+  bulletList: {
+    marginLeft: spacing.md,
+    marginBottom: spacing.md,
+  },
+  bulletItem: {
+    flexDirection: 'row',
+    marginBottom: spacing.sm,
+  },
+  bullet: {
+    width: 16,
+    fontSize: fonts.sizes.body,
+    color: colors.brandBlue,
+  },
+  bulletText: {
+    flex: 1,
+    fontSize: fonts.sizes.body,
+    color: colors.textSecondary,
+    lineHeight: fonts.lineHeights.normal,
+  },
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// COMPONENTS
+// ═══════════════════════════════════════════════════════════════════════════
+
+interface ReportData {
+  company: {
+    name: string;
+    industry: string;
+    revenue: number;
+  };
+  generatedAt: Date;
+  sections: {
+    overview: any;
+    strategy: any;
+    kpis: any;
+    friction: any;
+    useCases: any[];
+    benefits: any;
+    tokens: any;
+    priority: any[];
+  };
+  totals: {
+    annualImpact: number;
+    avgRoi: number;
+    useCaseCount: number;
+    criticalCount: number;
+  };
+}
+
+// Cover Page
+function CoverPage({ data, logoUrl }: { data: ReportData; logoUrl: string }) {
+  return (
+    <Page size="A4" style={[styles.page, styles.coverPage]}>
+      <Image src={logoUrl} style={styles.coverLogo} />
+      <Text style={styles.coverTitle}>AI Opportunity</Text>
+      <Text style={styles.coverTitle}>Assessment</Text>
+      <Text style={styles.coverSubtitle}>Strategic Analysis & Implementation Roadmap</Text>
+      <View style={{ marginTop: 40 }}>
+        <Text style={styles.coverCompany}>{data.company.name}</Text>
+        <Text style={styles.coverMeta}>{data.company.industry}</Text>
+        <Text style={styles.coverMeta}>
+          {new Date(data.generatedAt).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          })}
+        </Text>
+      </View>
+      <View style={styles.coverFooter}>
+        <Text style={styles.coverMeta}>Prepared by BlueAlly AI Consulting</Text>
+        <Text style={[styles.coverMeta, { marginTop: 4, fontSize: 9, color: colors.textMuted }]}>
+          Confidential
+        </Text>
+      </View>
+    </Page>
+  );
+}
+
+// Content Page with header/footer
+function ContentPage({ 
+  children, 
+  logoUrl,
+  pageNum,
+  totalPages,
+  companyName,
+}: { 
+  children: React.ReactNode;
+  logoUrl: string;
+  pageNum: number;
+  totalPages: number;
+  companyName: string;
+}) {
+  return (
+    <Page size="A4" style={styles.page}>
+      {/* Header */}
+      <View style={styles.header} fixed>
+        <Image src={logoUrl} style={styles.headerLogo} />
+        <Text style={styles.headerText}>Confidential</Text>
+      </View>
+      
+      {/* Content */}
+      <View style={{ flex: 1, paddingTop: 20 }}>
+        {children}
+      </View>
+      
+      {/* Footer */}
+      <View style={styles.footer} fixed>
+        <Text style={styles.footerText}>
+          {companyName} | AI Opportunity Assessment
+        </Text>
+        <Text style={styles.pageNumber}>
+          Page {pageNum} of {totalPages}
+        </Text>
+      </View>
+    </Page>
+  );
+}
+
+// Executive Summary Section
+function ExecutiveSummary({ data }: { data: ReportData }) {
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>Executive Summary</Text>
+      <Text style={styles.sectionSubtitle}>
+        Key findings from AI opportunity analysis
+      </Text>
+      
+      {/* Key Metrics */}
+      <View style={styles.metricsGrid}>
+        <View style={styles.metricCard}>
+          <Text style={styles.metricLabel}>Total Annual Impact</Text>
+          <Text style={styles.metricValue}>
+            {format.currency(data.totals.annualImpact, { compact: true })}
+          </Text>
+        </View>
+        <View style={styles.metricCard}>
+          <Text style={styles.metricLabel}>Average ROI</Text>
+          <Text style={styles.metricValue}>
+            {format.percent(data.totals.avgRoi)}
+          </Text>
+        </View>
+        <View style={styles.metricCard}>
+          <Text style={styles.metricLabel}>Use Cases Identified</Text>
+          <Text style={styles.metricValue}>
+            {data.totals.useCaseCount}
+          </Text>
+        </View>
+        <View style={styles.metricCard}>
+          <Text style={styles.metricLabel}>Critical Priority</Text>
+          <Text style={styles.metricValue}>
+            {data.totals.criticalCount}
+          </Text>
+        </View>
+      </View>
+      
+      {/* Summary Box */}
+      <View style={styles.summaryBox}>
+        <Text style={styles.h3}>Strategic Recommendation</Text>
+        <Text style={styles.paragraph}>
+          Based on comprehensive analysis of {data.company.name}'s operations, 
+          we have identified {data.totals.useCaseCount} high-impact AI opportunities 
+          with combined annual value potential of {format.currency(data.totals.annualImpact, { compact: true })}.
+          {data.totals.criticalCount > 0 && ` ${data.totals.criticalCount} use cases 
+          are marked Critical priority for immediate implementation.`}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+// Use Cases Table
+function UseCasesTable({ useCases }: { useCases: any[] }) {
+  const columnWidths = ['35%', '20%', '20%', '15%', '10%'];
+  
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>AI Use Cases</Text>
+      <Text style={styles.sectionSubtitle}>
+        Prioritized opportunities ranked by impact and feasibility
+      </Text>
+      
+      <View style={styles.table}>
+        {/* Header */}
+        <View style={styles.tableHeader}>
+          <Text style={[styles.tableCellHeader, { width: columnWidths[0] }]}>Use Case</Text>
+          <Text style={[styles.tableCellHeader, { width: columnWidths[1] }]}>Department</Text>
+          <Text style={[styles.tableCellHeader, styles.tableCellNumber, { width: columnWidths[2] }]}>Annual Impact</Text>
+          <Text style={[styles.tableCellHeader, styles.tableCellNumber, { width: columnWidths[3] }]}>ROI</Text>
+          <Text style={[styles.tableCellHeader, { width: columnWidths[4] }]}>Priority</Text>
+        </View>
+        
+        {/* Rows */}
+        {useCases.map((uc, idx) => (
+          <View 
+            key={idx} 
+            style={[styles.tableRow, idx % 2 === 1 && styles.tableRowAlt]}
+          >
+            <Text style={[styles.tableCell, { width: columnWidths[0] }]}>{uc.name}</Text>
+            <Text style={[styles.tableCell, { width: columnWidths[1] }]}>{uc.department}</Text>
+            <Text style={[styles.tableCell, styles.tableCellNumber, { width: columnWidths[2] }]}>
+              {format.currency(uc.annualImpact)}
+            </Text>
+            <Text style={[styles.tableCell, styles.tableCellNumber, { width: columnWidths[3] }]}>
+              {format.percent(uc.roi)}
+            </Text>
+            <Text style={[styles.tableCell, { width: columnWidths[4] }]}>{uc.tier}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
+
+// Main Document
+export function AssessmentPDF({ data, logoUrl }: { data: ReportData; logoUrl: string }) {
+  return (
+    <Document
+      title={`AI Assessment - ${data.company.name}`}
+      author="BlueAlly AI Consulting"
+      subject="AI Opportunity Assessment"
+      creator="BlueAlly Smart Report AI"
+    >
+      {/* Cover */}
+      <CoverPage data={data} logoUrl={logoUrl} />
+      
+      {/* Executive Summary */}
+      <ContentPage 
+        logoUrl={logoUrl} 
+        pageNum={1} 
+        totalPages={5}
+        companyName={data.company.name}
+      >
+        <ExecutiveSummary data={data} />
+      </ContentPage>
+      
+      {/* Use Cases */}
+      <ContentPage 
+        logoUrl={logoUrl} 
+        pageNum={2} 
+        totalPages={5}
+        companyName={data.company.name}
+      >
+        <UseCasesTable useCases={data.sections.useCases} />
+      </ContentPage>
+      
+      {/* Additional sections... */}
+    </Document>
+  );
+}
+```
+
+═══════════════════════════════════════════════════════════════════════════════
+PART C: PDF GENERATION SERVICE
+═══════════════════════════════════════════════════════════════════════════════
+
+Create `client/src/lib/pdf/generator.ts`:
+```typescript
+import { pdf } from '@react-pdf/renderer';
+import { AssessmentPDF } from './document';
+
+export async function generatePDF(reportData: any): Promise<Blob> {
+  // Get logo as data URL for PDF embedding
+  const logoUrl = await fetch('/assets/logos/blueally-logo-dark.svg')
+    .then(r => r.blob())
+    .then(blob => new Promise<string>((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.readAsDataURL(blob);
+    }));
+
+  const doc = <AssessmentPDF data={reportData} logoUrl={logoUrl} />;
+  const blob = await pdf(doc).toBlob();
+  
+  return blob;
+}
+
+export function downloadPDF(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+export async function generateAndDownloadPDF(reportData: any) {
+  const companySlug = reportData.company.name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+  
+  const dateStr = new Date().toISOString().split('T')[0];
+  const filename = `ai-assessment-${companySlug}-${dateStr}.pdf`;
+  
+  const blob = await generatePDF(reportData);
+  downloadPDF(blob, filename);
+}
+```
+
+═══════════════════════════════════════════════════════════════════════════════
+PART D: EXPORT BUTTON INTEGRATION
+═══════════════════════════════════════════════════════════════════════════════
+
+Update the export button to use the new PDF system:
+```typescript
+import { useState } from 'react';
+import { generateAndDownloadPDF } from '@/lib/pdf/generator';
+import { Button } from '@/components/ui/button';
+import { Download, Loader2 } from 'lucide-react';
+import { copy } from '@/lib/copy';
+
+interface ExportPDFButtonProps {
+  reportData: any;
+  disabled?: boolean;
+}
+
+export function ExportPDFButton({ reportData, disabled }: ExportPDFButtonProps) {
+  const [isGenerating, setIsGenerating] = useState(false);
+
+  async function handleExport() {
+    setIsGenerating(true);
+    try {
+      await generateAndDownloadPDF(reportData);
+    } catch (error) {
+      console.error('PDF generation failed:', error);
+      // Show error toast
+    } finally {
+      setIsGenerating(false);
+    }
+  }
+
+  return (
+    <Button 
+      onClick={handleExport} 
+      disabled={disabled || isGenerating}
+      variant="outline"
+    >
+      {isGenerating ? (
+        <>
+          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          {copy.status.loading.exporting}
+        </>
+      ) : (
+        <>
+          <Download className="w-4 h-4 mr-2" />
+          {copy.actions.exportPdf}
+        </>
+      )}
+    </Button>
+  );
+}
+```
+
+═══════════════════════════════════════════════════════════════════════════════
+PART E: TESTING & VALIDATION
+═══════════════════════════════════════════════════════════════════════════════
+
+Test the PDF export with these scenarios:
+
+1. Minimum content (1 use case, minimal text)
+2. Maximum content (20+ use cases, full descriptions)
+3. Long company names and text that needs wrapping
+4. Edge cases: zero values, null values, very large numbers
+5. All priority tiers represented
+6. Special characters in text
+
+Verify:
+- [ ] All text is readable and doesn't overflow
+- [ ] Tables fit within page margins
+- [ ] Page breaks occur at logical points
+- [ ] Logo renders correctly
+- [ ] Numbers are formatted consistently
+- [ ] Colors match brand guidelines
+- [ ] File downloads with correct name
+- [ ] PDF opens in multiple readers (Preview, Chrome, Adobe)
