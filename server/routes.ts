@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import { generateCompanyAnalysis, generateWhatIfSuggestion, checkProductionConfig } from "./ai-service";
 import * as formulaService from "./formula-service";
 import { insertReportSchema } from "@shared/schema";
+import { nanoid } from "nanoid";
 
 // Store active SSE connections for progress updates
 const progressConnections = new Map<string, any>();
@@ -1732,6 +1733,68 @@ Return ONLY valid JSON with this structure:
     } catch (error) {
       console.error("Error fetching available inputs:", error);
       return res.status(500).json({ error: "Failed to fetch available inputs" });
+    }
+  });
+
+  // Create share link for dashboard
+  app.post("/api/share", async (req, res) => {
+    try {
+      const { reportData } = req.body;
+      
+      if (!reportData) {
+        return res.status(400).json({ error: "Report data required" });
+      }
+      
+      const shareId = nanoid(12);
+      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      
+      await storage.createSharedDashboard({
+        id: shareId,
+        data: JSON.stringify(reportData),
+        expiresAt,
+        viewCount: 0,
+      });
+      
+      const baseUrl = process.env.APP_URL || `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`;
+      const shareUrl = `${baseUrl}/shared/${shareId}`;
+      
+      return res.json({ 
+        shareId,
+        shareUrl,
+        expiresAt: expiresAt.toISOString(),
+      });
+    } catch (error) {
+      console.error("Share creation failed:", error);
+      return res.status(500).json({ error: "Failed to create share link" });
+    }
+  });
+
+  // Get shared dashboard
+  app.get("/api/share/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      const dashboard = await storage.getSharedDashboard(id);
+      
+      if (!dashboard) {
+        return res.status(404).json({ error: "Dashboard not found" });
+      }
+      
+      if (new Date(dashboard.expiresAt) < new Date()) {
+        return res.status(410).json({ error: "Dashboard link has expired" });
+      }
+      
+      await storage.incrementSharedDashboardViewCount(id);
+      
+      return res.json({
+        data: JSON.parse(dashboard.data),
+        createdAt: dashboard.createdAt,
+        expiresAt: dashboard.expiresAt,
+        viewCount: dashboard.viewCount + 1,
+      });
+    } catch (error) {
+      console.error("Share retrieval failed:", error);
+      return res.status(500).json({ error: "Failed to load dashboard" });
     }
   });
 

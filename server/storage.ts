@@ -4,6 +4,7 @@ import {
   assumptionSets,
   assumptionFields,
   formulaConfigs,
+  sharedDashboards,
   type Report, 
   type InsertReport,
   type AssumptionSet,
@@ -12,13 +13,15 @@ import {
   type InsertAssumptionField,
   type FormulaConfig,
   type InsertFormulaConfig,
+  type SharedDashboard,
+  type InsertSharedDashboard,
   DEFAULT_ASSUMPTIONS,
   DEFAULT_FORMULAS,
   ASSUMPTION_CATEGORIES,
   type AssumptionCategory,
   type CalculatedFieldKey
 } from "@shared/schema";
-import { eq, desc, and, like, sql, isNull } from "drizzle-orm";
+import { eq, desc, and, like, sql, isNull, lt } from "drizzle-orm";
 
 export interface IStorage {
   // Report operations
@@ -56,6 +59,12 @@ export interface IStorage {
   activateFormula(id: string): Promise<FormulaConfig | undefined>;
   getFormulaById(id: string): Promise<FormulaConfig | undefined>;
   initializeDefaultFormulas(reportId: string): Promise<FormulaConfig[]>;
+  
+  // Shared Dashboard operations
+  createSharedDashboard(dashboard: InsertSharedDashboard): Promise<SharedDashboard>;
+  getSharedDashboard(id: string): Promise<SharedDashboard | undefined>;
+  incrementSharedDashboardViewCount(id: string): Promise<void>;
+  cleanupExpiredSharedDashboards(): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -533,6 +542,38 @@ export class DatabaseStorage implements IStorage {
     }
 
     return createdFormulas;
+  }
+
+  async createSharedDashboard(dashboard: InsertSharedDashboard): Promise<SharedDashboard> {
+    const [newDashboard] = await db
+      .insert(sharedDashboards)
+      .values(dashboard)
+      .returning();
+    return newDashboard;
+  }
+
+  async getSharedDashboard(id: string): Promise<SharedDashboard | undefined> {
+    const [dashboard] = await db
+      .select()
+      .from(sharedDashboards)
+      .where(eq(sharedDashboards.id, id))
+      .limit(1);
+    return dashboard;
+  }
+
+  async incrementSharedDashboardViewCount(id: string): Promise<void> {
+    await db
+      .update(sharedDashboards)
+      .set({ viewCount: sql`${sharedDashboards.viewCount} + 1` })
+      .where(eq(sharedDashboards.id, id));
+  }
+
+  async cleanupExpiredSharedDashboards(): Promise<number> {
+    const result = await db
+      .delete(sharedDashboards)
+      .where(lt(sharedDashboards.expiresAt, new Date()))
+      .returning();
+    return result.length;
   }
 }
 

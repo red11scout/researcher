@@ -23,6 +23,21 @@ export const insertReportSchema = createInsertSchema(reports).omit({
 export type InsertReport = z.infer<typeof insertReportSchema>;
 export type Report = typeof reports.$inferSelect;
 
+export const sharedDashboards = pgTable("shared_dashboards", {
+  id: text("id").primaryKey(),
+  data: text("data").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  viewCount: integer("view_count").default(0).notNull(),
+});
+
+export const insertSharedDashboardSchema = createInsertSchema(sharedDashboards).omit({
+  createdAt: true,
+});
+
+export type InsertSharedDashboard = z.infer<typeof insertSharedDashboardSchema>;
+export type SharedDashboard = typeof sharedDashboards.$inferSelect;
+
 // Parent categories for hierarchical organization (per document Section 3)
 export const PARENT_CATEGORIES = [
   "financial_operational",   // Company financial & operational assumptions

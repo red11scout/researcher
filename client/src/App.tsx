@@ -13,12 +13,14 @@ import Benchmarks from "@/pages/Benchmarks";
 import WhatIfAnalysis from "@/pages/WhatIfAnalysis";
 import AssumptionPanel from "@/pages/AssumptionPanel";
 import DashboardPage from "@/pages/DashboardPage";
+import SharedDashboard from "@/pages/SharedDashboard";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/dashboard/:reportId" component={DashboardPage} />
+      <Route path="/shared/:shareId" component={SharedDashboard} />
       <Route path="/report" component={Report} />
       <Route path="/reports/:id/html" component={HTMLReportViewer} />
       <Route path="/reports/:id" component={ReportViewer} />

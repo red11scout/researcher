@@ -56,6 +56,23 @@ export const copy = {
     },
   },
 
+  dashboard: {
+    share: {
+      title: 'Share Dashboard',
+      subtitle: 'Create a shareable link to this dashboard. Links expire after 30 days.',
+      copied: 'Link copied to clipboard!',
+      expires: 'Expires',
+      createLink: 'Create Share Link',
+      creating: 'Creating link...',
+    },
+    cta: {
+      title: 'Ready to Transform Your Operations with AI?',
+      subtitle: 'Our team of AI strategists can help you prioritize these opportunities and build a roadmap for implementation.',
+      scheduleCall: 'Schedule Strategy Call',
+      downloadReport: 'Download Full Report',
+    },
+  },
+
   actions: {
     generate: 'Generate Assessment',
     regenerate: 'Regenerate',

@@ -1,0 +1,235 @@
+Execute a rigorous quality assurance pass that would satisfy the most demanding enterprise client. Test everything. Optimize everything. Document everything.
+
+═══════════════════════════════════════════════════════════════════════════════
+PART A: FUNCTIONAL TESTING CHECKLIST
+═══════════════════════════════════════════════════════════════════════════════
+
+**Number Formatting (Every single number in the app)**
+
+□ Currency values show $ and commas, no decimals
+□ Percentages show % sign, rounded appropriately
+□ Large numbers use commas (1,234,567)
+□ Compact numbers use K/M/B when appropriate
+□ Token counts are whole numbers
+□ Null/undefined displays as "—" (em-dash)
+□ Negative values display correctly
+□ Zero values display appropriately (not as "—")
+□ Numbers align properly in tables (right-aligned, tabular-nums)
+
+Test locations:
+- [ ] Company overview metrics
+- [ ] KPI baseline values
+- [ ] Use case impact projections
+- [ ] Benefits quantification tables
+- [ ] Token modeling estimates
+- [ ] Priority scores
+- [ ] What-if analysis results
+- [ ] Dashboard metrics
+- [ ] PDF export
+- [ ] Excel export
+
+**Typography**
+
+□ Inter font loads on all pages
+□ Font loads quickly (no flash of unstyled text)
+□ Heading hierarchy is consistent (h1 > h2 > h3)
+□ Body text is readable (16px+, 1.5+ line height)
+□ Labels use consistent sizing and weight
+□ No orphaned words on headlines
+□ Text wraps properly at all screen sizes
+□ Code/numbers use tabular-nums
+
+**Branding**
+
+□ BlueAlly logo in header
+□ BlueAlly logo in PDF header
+□ BlueAlly logo in PDF footer
+□ BlueAlly logo on dashboard
+□ Brand colors used consistently
+□ Favicon displays correctly
+□ OG image meta tag set
+
+**PDF Export**
+
+□ Cover page renders correctly
+□ Logo appears at correct size
+□ All text is readable
+□ No text overflow or truncation
+□ Tables fit within margins
+□ Page breaks occur at logical points
+□ Numbers formatted correctly
+□ Colors match brand (not overwhelming)
+□ Footer appears on all pages
+□ Page numbers are correct
+□ File downloads with correct filename
+□ PDF opens in Preview, Chrome, Adobe Reader
+
+**Dashboard**
+
+□ Share button creates working URL
+□ Share URL loads dashboard correctly
+□ Expired shares show appropriate message
+□ Copy link button works
+□ All charts render
+□ Chart legends match chart colors
+□ Tooltips display correctly
+□ Responsive at all breakpoints
+□ CTA buttons have hover states
+□ Export buttons work
+
+**Forms & Inputs**
+
+□ Validation messages appear
+□ Required fields are enforced
+□ Error states are clear
+□ Success states are clear
+□ Loading states show progress
+
+═══════════════════════════════════════════════════════════════════════════════
+PART B: PERFORMANCE TESTING
+═══════════════════════════════════════════════════════════════════════════════
+
+Run Lighthouse audit and achieve:
+- Performance: 90+
+- Accessibility: 95+
+- Best Practices: 95+
+- SEO: 90+
+
+**Specific optimizations:**
+
+1. **Font Loading**
+```html
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="fonts.googleapis.com/..." rel="stylesheet" media="print" onload="this.media='all'">
+```
+
+2. **Image Optimization**
+- Convert logos to optimized SVGs
+- Lazy load any images below the fold
+- Use appropriate srcset for responsive images
+
+3. **Bundle Optimization**
+- Code split by route
+- Lazy load dashboard components
+- Tree shake unused code
+
+4. **Caching**
+- Set appropriate cache headers for static assets
+- Use content hashing for cache busting
+
+═══════════════════════════════════════════════════════════════════════════════
+PART C: ACCESSIBILITY TESTING
+═══════════════════════════════════════════════════════════════════════════════
+
+□ All interactive elements have focus states
+□ Focus order is logical
+□ Color contrast meets WCAG AA (4.5:1 for text)
+□ All images have alt text
+□ Form inputs have associated labels
+□ Error messages are announced to screen readers
+□ Buttons have accessible names
+□ Links are distinguishable
+□ Motion respects prefers-reduced-motion
+□ Text can be resized to 200% without breaking layout
+
+**Tools to run:**
+- axe DevTools
+- WAVE
+- Chrome Accessibility audit
+
+═══════════════════════════════════════════════════════════════════════════════
+PART D: CROSS-BROWSER TESTING
+═══════════════════════════════════════════════════════════════════════════════
+
+Test on:
+□ Chrome (latest)
+□ Firefox (latest)
+□ Safari (latest)
+□ Edge (latest)
+□ iOS Safari
+□ Chrome Android
+
+Issues to watch for:
+- CSS Grid/Flexbox rendering differences
+- Font rendering differences
+- SVG rendering issues
+- PDF download behavior
+- Clipboard API support
+
+═══════════════════════════════════════════════════════════════════════════════
+PART E: ERROR HANDLING VERIFICATION
+═══════════════════════════════════════════════════════════════════════════════
+
+Test error scenarios:
+□ Network timeout during AI generation
+□ Invalid API response
+□ Empty report data
+□ Missing company information
+□ PDF generation failure
+□ Share creation failure
+□ Expired share link access
+□ Invalid share ID
+
+Each error should:
+- Show clear message (using copy.status.error.*)
+- Suggest next action
+- Not crash the application
+- Log to console (in development)
+
+═══════════════════════════════════════════════════════════════════════════════
+PART F: SECURITY REVIEW
+═══════════════════════════════════════════════════════════════════════════════
+
+□ API keys not exposed in client code
+□ User input is sanitized
+□ XSS prevention in rendered content
+□ CSRF protection on POST endpoints
+□ Rate limiting on API endpoints
+□ Secure headers set (CSP, X-Frame-Options, etc.)
+□ Share IDs are not predictable (use nanoid)
+□ Sensitive data not logged
+
+═══════════════════════════════════════════════════════════════════════════════
+PART G: DOCUMENTATION
+═══════════════════════════════════════════════════════════════════════════════
+
+Update README.md with:
+- Clear setup instructions
+- Environment variables required
+- Development commands
+- Deployment instructions
+- Architecture overview
+- API documentation
+
+Create CHANGELOG.md documenting all improvements.
+
+═══════════════════════════════════════════════════════════════════════════════
+PART H: FINAL POLISH
+═══════════════════════════════════════════════════════════════════════════════
+
+Small details that matter:
+□ Loading skeleton matches actual content layout
+□ Hover states on all interactive elements
+□ Transitions are smooth (200-300ms)
+□ No layout shifts during loading
+□ Scroll position preserved on navigation
+□ Print stylesheet for dashboard
+□ Keyboard shortcuts for power users (optional)
+□ Confetti or subtle animation on generation complete (optional)
+
+═══════════════════════════════════════════════════════════════════════════════
+PART I: PRE-LAUNCH CHECKLIST
+═══════════════════════════════════════════════════════════════════════════════
+
+□ All tests passing
+□ No console errors in production
+□ Analytics tracking implemented
+□ Error tracking implemented (Sentry)
+□ Environment variables documented
+□ Database migrations run
+□ SSL certificate valid
+□ Domain configured correctly
+□ 404 page exists
+□ Robots.txt appropriate
+□ Sitemap generated (if public)
