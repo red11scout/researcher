@@ -928,13 +928,18 @@ export default function Report() {
       
       if (step.data && step.data.length > 0) {
         const isBenefitsStep = step.step === 5;
+        const isNarrativeStep = step.step === 1 || step.step === 2 || step.step === 3; // Strategic Anchoring, Business Functions, Friction Points
         const allColumns = Object.keys(step.data[0]);
         const formulaColumns = allColumns.filter(k => k.includes('Formula'));
         const displayColumns = allColumns.filter(k => !k.includes('Formula'));
         
-        // Limit columns for board readability - max 6 columns
-        const maxCols = 6;
+        // Limit columns for board readability - fewer columns for narrative steps
+        const maxCols = isNarrativeStep ? 4 : 6;
         const limitedColumns = displayColumns.slice(0, maxCols);
+        
+        // Character limits based on step type - narrative steps get more room
+        const cellCharLimit = isNarrativeStep ? 120 : 60;
+        const truncationLimit = isNarrativeStep ? 100 : 45;
         
         const rows = step.data.map((row: any) => 
           limitedColumns.map(col => {
@@ -945,62 +950,78 @@ export default function Report() {
             if (typeof val === 'number' && val > 1000) {
               return formatNumber(val);
             }
-            return String(val || '').substring(0, 60);
+            return String(val || '').substring(0, cellCharLimit);
           })
         );
         
         yPos = ensureSpace(40, yPos);
         
-        // Strictly calculate column widths to fit within contentWidth (~170mm)
+        // Calculate column widths based on step type
         const colCount = limitedColumns.length;
-        const fixedColWidth = Math.floor(contentWidth / colCount);
         const strictColStyles: any = {};
         
-        limitedColumns.forEach((col: string, idx: number) => {
-          if (idx === 0) {
-            strictColStyles[idx] = { cellWidth: 12, halign: 'center' };
-          } else if (col.toLowerCase().includes('use case') || col.toLowerCase().includes('description')) {
-            strictColStyles[idx] = { cellWidth: Math.min(fixedColWidth * 1.8, 60), halign: 'left' };
-          } else {
-            strictColStyles[idx] = { cellWidth: fixedColWidth - 3, halign: 'center' };
-          }
-        });
+        if (isNarrativeStep) {
+          // Narrative steps: wider columns for text-heavy content
+          const textColWidth = Math.floor((contentWidth - 15) / Math.max(colCount - 1, 1));
+          limitedColumns.forEach((col: string, idx: number) => {
+            if (idx === 0) {
+              strictColStyles[idx] = { cellWidth: 35, halign: 'left', overflow: 'linebreak' };
+            } else if (col.toLowerCase().includes('description') || col.toLowerCase().includes('pain') || col.toLowerCase().includes('insight')) {
+              strictColStyles[idx] = { cellWidth: Math.min(textColWidth, 70), halign: 'left', overflow: 'linebreak' };
+            } else {
+              strictColStyles[idx] = { cellWidth: Math.min(textColWidth, 50), halign: 'left', overflow: 'linebreak' };
+            }
+          });
+        } else {
+          // Numeric/structured steps: balanced columns
+          const fixedColWidth = Math.floor(contentWidth / colCount);
+          limitedColumns.forEach((col: string, idx: number) => {
+            if (idx === 0) {
+              strictColStyles[idx] = { cellWidth: 15, halign: 'center' };
+            } else if (col.toLowerCase().includes('use case') || col.toLowerCase().includes('description')) {
+              strictColStyles[idx] = { cellWidth: Math.min(fixedColWidth * 1.8, 60), halign: 'left' };
+            } else {
+              strictColStyles[idx] = { cellWidth: fixedColWidth - 3, halign: 'center' };
+            }
+          });
+        }
         
-        // Truncate cell values to prevent overflow
+        // Apply truncation - less aggressive for narrative steps
         const truncatedRows = rows.map((row: string[]) => 
-          row.map((cell: string) => String(cell).substring(0, 45))
+          row.map((cell: string) => String(cell).substring(0, truncationLimit))
         );
-        const truncatedHeaders = limitedColumns.map((h: string) => String(h).substring(0, 20));
+        const truncatedHeaders = limitedColumns.map((h: string) => String(h).substring(0, 25));
         
         // Board-level table - strictly fits page width
         autoTable(doc, {
           startY: yPos,
           head: [truncatedHeaders],
-          body: truncatedRows,
+          body: isNarrativeStep ? rows : truncatedRows, // Use full rows for narrative steps
           theme: 'plain',
           headStyles: { 
             fillColor: BRAND.primaryBlue,
             textColor: BRAND.white,
             fontStyle: 'bold',
-            fontSize: 9,
-            cellPadding: 2,
-            halign: 'center'
+            fontSize: isNarrativeStep ? 10 : 9,
+            cellPadding: isNarrativeStep ? 4 : 2,
+            halign: isNarrativeStep ? 'left' : 'center'
           },
           bodyStyles: { 
-            fontSize: 9, 
-            cellPadding: 2,
+            fontSize: isNarrativeStep ? 9 : 9, 
+            cellPadding: isNarrativeStep ? 4 : 2,
             textColor: BRAND.darkNavy,
-            halign: 'center'
+            halign: isNarrativeStep ? 'left' : 'center'
           },
           alternateRowStyles: { fillColor: [248, 250, 255] },
           styles: { 
             overflow: 'linebreak', 
             lineColor: [220, 225, 235],
-            lineWidth: 0.5
+            lineWidth: 0.5,
+            minCellHeight: isNarrativeStep ? 12 : 8
           },
           columnStyles: strictColStyles,
           tableWidth: contentWidth,
-          margin: { left: margin, right: margin },
+          margin: { left: margin - 2, right: margin - 2 },
           didDrawPage: () => {
             currentPage = doc.getNumberOfPages();
             // Re-add header/footer on new pages
