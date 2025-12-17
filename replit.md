@@ -8,6 +8,15 @@ The platform features a modern, professional interface with interactive data vis
 
 ## Recent Changes (December 2025)
 
+**Shareable Dashboard Links (Complete)**:
+- Public shareable dashboard URLs with nanoid(12) IDs (e.g., /shared/abc123xyz789)
+- 30-day expiration with automatic cleanup via cleanupExpiredSharedDashboards
+- View count tracking for shared dashboards
+- ShareModal component for creating and copying share links
+- SharedDashboard page with full BlueAlly branding, charts, and CTA section
+- Database table: sharedDashboards (id, data, createdAt, expiresAt, viewCount)
+- API endpoints: POST /api/share, GET /api/share/:id
+
 **Apple-Grade Typography System (Complete)**:
 - Inter font loaded with optimized preconnect and display swap for fast rendering
 - Comprehensive typography scale with display, heading, body, and utility sizes
