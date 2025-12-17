@@ -13,9 +13,10 @@ The platform features a modern, professional interface with interactive data vis
 - 30-day expiration with automatic cleanup via cleanupExpiredSharedDashboards
 - View count tracking for shared dashboards
 - ShareModal component for creating and copying share links
-- SharedDashboard page with full BlueAlly branding, charts, and CTA section
+- SharedDashboard page uses the same Dashboard component as DashboardPage for consistent UI
 - Database table: sharedDashboards (id, data, createdAt, expiresAt, viewCount)
 - API endpoints: POST /api/share, GET /api/share/:id
+- Data structure: Stored data is {companyName, analysisData: {...}}, extracted correctly for dashboardMapper
 
 **Apple-Grade Typography System (Complete)**:
 - Inter font loaded with optimized preconnect and display swap for fast rendering

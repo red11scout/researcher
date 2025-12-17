@@ -1,78 +1,250 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useRoute, useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
+import Dashboard from '@/components/Dashboard';
+import { mapReportToDashboardData } from '@/lib/dashboardMapper';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Share2, Download, TrendingUp, DollarSign, Target, Zap, AlertCircle, Clock } from 'lucide-react';
-import { format } from '@/lib/formatters';
-import { 
-  BenefitsChart, 
-  PriorityMatrix, 
-  TimelineChart, 
-  UseCasesTable,
-  ShareModal,
-  CTASection 
-} from '@/components/dashboard';
+import { ArrowLeft, Clock, AlertCircle } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import workshopPdfUrl from '@assets/BlueAlly_AI_Workshop_Preview_1765480873162.pdf';
+import { format, parseFormattedValue } from '@/lib/formatters';
 import { Logo } from '@/components/brand/logo';
 
-interface DashboardData {
-  company?: { name: string; industry?: string };
-  companyName?: string;
-  totals?: {
-    annualImpact: number;
-    avgRoi: number;
-    useCaseCount: number;
-    criticalCount: number;
-  };
-  executiveDashboard?: {
-    totalAnnualValue: number;
-    totalRevenueBenefit: number;
-    totalCostBenefit: number;
-    totalCashFlowBenefit: number;
-    totalRiskBenefit: number;
-    topUseCases: any[];
-  };
-  useCases?: any[];
-  steps?: any[];
+const formatCurrency = (value: number | string): string => {
+  if (typeof value === 'string') {
+    if (value.startsWith('$')) return value;
+    const num = parseFormattedValue(value);
+    if (num === 0 && value !== '0' && value !== '$0') return value;
+    return format.currencyAuto(num);
+  }
+  return format.currencyAuto(value);
+};
+
+interface SharedDashboardResponse {
+  data: any;
+  createdAt: string;
+  expiresAt: string;
+  viewCount: number;
 }
 
 export default function SharedDashboard() {
   const [, params] = useRoute('/shared/:shareId');
   const [, setLocation] = useLocation();
   const shareId = params?.shareId;
-  const [showShareModal, setShowShareModal] = useState(false);
+  const { toast } = useToast();
 
-  const { data, isLoading, error } = useQuery<{
-    data: DashboardData;
-    createdAt: string;
-    expiresAt: string;
-    viewCount: number;
-  }>({
+  const { data, isLoading, error } = useQuery<SharedDashboardResponse>({
     queryKey: [`/api/share/${shareId}`],
     enabled: !!shareId,
     retry: false,
   });
 
+  const handleDownloadWorkshop = () => {
+    const link = document.createElement('a');
+    link.href = workshopPdfUrl;
+    link.download = 'BlueAlly_AI_Workshop_Preview.pdf';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast({
+      title: "Downloading Workshop Details",
+      description: "The AI Workshop preview PDF is being downloaded.",
+    });
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!data?.data) return;
+    
+    const reportData = data.data;
+    const companyName = reportData.companyName || reportData.company?.name || 'Company';
+    // Extract analysisData - handle both nested and flat structures
+    const analysisData = reportData.analysisData || reportData;
+    
+    try {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 20;
+      let yPos = margin;
+
+      const brandBlue = [3, 57, 175] as [number, number, number];
+      const darkGray = [51, 51, 51] as [number, number, number];
+      const lightGray = [128, 128, 128] as [number, number, number];
+
+      doc.setFillColor(...brandBlue);
+      doc.rect(0, 0, pageWidth, 35, 'F');
+      
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(24);
+      doc.setFont('helvetica', 'bold');
+      doc.text('BlueAlly', margin, 20);
+      
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'normal');
+      doc.text('AI Strategic Assessment', margin, 28);
+
+      yPos = 50;
+
+      doc.setTextColor(...darkGray);
+      doc.setFontSize(22);
+      doc.setFont('helvetica', 'bold');
+      doc.text(companyName, margin, yPos);
+      yPos += 10;
+
+      doc.setFontSize(10);
+      doc.setTextColor(...lightGray);
+      doc.setFont('helvetica', 'normal');
+      const date = new Date(data.createdAt).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+      doc.text(`Generated: ${date}`, margin, yPos);
+      yPos += 20;
+
+      const dashboard = analysisData.executiveDashboard;
+      if (dashboard) {
+        doc.setFontSize(16);
+        doc.setTextColor(...brandBlue);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Executive Dashboard', margin, yPos);
+        yPos += 10;
+
+        doc.setFontSize(28);
+        doc.setTextColor(...darkGray);
+        doc.text(`Total Value: ${formatCurrency(dashboard.totalAnnualValue || 0)}`, margin, yPos);
+        yPos += 15;
+
+        const valueData = [
+          ['Revenue Growth', formatCurrency(dashboard.totalRevenueBenefit || 0)],
+          ['Cost Reduction', formatCurrency(dashboard.totalCostBenefit || 0)],
+          ['Cash Flow', formatCurrency(dashboard.totalCashFlowBenefit || 0)],
+          ['Risk Mitigation', formatCurrency(dashboard.totalRiskBenefit || 0)],
+        ];
+
+        autoTable(doc, {
+          startY: yPos,
+          head: [['Value Driver', 'Annual Benefit']],
+          body: valueData,
+          theme: 'striped',
+          headStyles: { fillColor: brandBlue, fontSize: 10 },
+          bodyStyles: { fontSize: 10 },
+          margin: { left: margin, right: margin },
+        });
+
+        yPos = (doc as any).lastAutoTable.finalY + 15;
+      }
+
+      if (dashboard?.topUseCases?.length > 0) {
+        if (yPos > pageHeight - 80) {
+          doc.addPage();
+          yPos = margin;
+        }
+
+        doc.setFontSize(16);
+        doc.setTextColor(...brandBlue);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Top Use Cases', margin, yPos);
+        yPos += 10;
+
+        const useCaseData = dashboard.topUseCases.map((uc: any) => [
+          uc.useCase,
+          formatCurrency(uc.annualValue || 0),
+          uc.priorityScore?.toString() || 'N/A',
+        ]);
+
+        autoTable(doc, {
+          startY: yPos,
+          head: [['Use Case', 'Annual Value', 'Priority Score']],
+          body: useCaseData,
+          theme: 'striped',
+          headStyles: { fillColor: brandBlue, fontSize: 10 },
+          bodyStyles: { fontSize: 9 },
+          columnStyles: {
+            0: { cellWidth: 100 },
+            1: { cellWidth: 35 },
+            2: { cellWidth: 30 },
+          },
+          margin: { left: margin, right: margin },
+        });
+
+        yPos = (doc as any).lastAutoTable.finalY + 15;
+      }
+
+      if (analysisData.summary) {
+        if (yPos > pageHeight - 60) {
+          doc.addPage();
+          yPos = margin;
+        }
+
+        doc.setFontSize(16);
+        doc.setTextColor(...brandBlue);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Executive Summary', margin, yPos);
+        yPos += 10;
+
+        doc.setFontSize(10);
+        doc.setTextColor(...darkGray);
+        doc.setFont('helvetica', 'normal');
+        
+        const summaryLines = doc.splitTextToSize(analysisData.summary, pageWidth - 2 * margin);
+        doc.text(summaryLines, margin, yPos);
+      }
+
+      const addFooter = () => {
+        const totalPages = doc.getNumberOfPages();
+        for (let i = 1; i <= totalPages; i++) {
+          doc.setPage(i);
+          doc.setFontSize(8);
+          doc.setTextColor(...lightGray);
+          doc.text(
+            `© 2025 BlueAlly. Confidential & Proprietary. Page ${i} of ${totalPages}`,
+            pageWidth / 2,
+            pageHeight - 10,
+            { align: 'center' }
+          );
+        }
+      };
+      addFooter();
+
+      const filename = `${companyName.replace(/[^a-zA-Z0-9]/g, '_')}_AI_Assessment.pdf`;
+      doc.save(filename);
+
+      toast({
+        title: "PDF Downloaded",
+        description: `${companyName} AI Assessment has been downloaded.`,
+      });
+    } catch (err) {
+      console.error('PDF generation error:', err);
+      toast({
+        title: "Download Failed",
+        description: "There was an error generating the PDF. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-        <header className="bg-white border-b border-slate-200 py-4 px-6">
-          <Logo variant="dark" className="h-8" />
-        </header>
-        <div className="max-w-7xl mx-auto p-6 space-y-6">
-          <Skeleton className="h-12 w-1/3" />
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[1,2,3,4].map(i => <Skeleton key={i} className="h-32" />)}
-          </div>
-          <Skeleton className="h-96" />
+      <div className="min-h-screen bg-slate-50 p-8 space-y-8">
+        <div className="max-w-7xl mx-auto space-y-4">
+          <Skeleton className="h-16 w-1/3 bg-gray-200" />
+          <Skeleton className="h-96 w-full bg-gray-200" />
+          <Skeleton className="h-64 w-full bg-gray-200" />
         </div>
       </div>
     );
   }
 
   if (error || !data) {
-    const isExpired = (error as any)?.message?.includes('expired');
+    const errorMessage = (error as any)?.message || '';
+    const isExpired = errorMessage.includes('expired');
+    
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-4">
         <Card className="max-w-md w-full">
@@ -108,148 +280,28 @@ export default function SharedDashboard() {
     );
   }
 
-  const dashboardData = data.data;
-  const companyName = dashboardData.company?.name || dashboardData.companyName || 'Company';
-  const industry = dashboardData.company?.industry || '';
+  const reportData = data.data;
+  const companyName = reportData.companyName || reportData.company?.name || 'Company';
   
-  const dashboard = dashboardData.executiveDashboard;
-  const useCases = dashboard?.topUseCases || dashboardData.useCases || [];
+  // The stored data has structure: {companyName, analysisData: {...}}
+  // We need to extract the analysisData property for the mapper
+  const analysisData = reportData.analysisData || reportData;
   
-  const totals = dashboardData.totals || {
-    annualImpact: dashboard?.totalAnnualValue || 0,
-    avgRoi: 0,
-    useCaseCount: useCases.length,
-    criticalCount: useCases.filter((uc: any) => uc.tier === 'Critical' || uc.priority === 'Critical').length,
+  const report = {
+    id: shareId || '',
+    companyName: companyName,
+    analysisData: analysisData,
+    createdAt: data.createdAt,
+    updatedAt: data.createdAt,
   };
 
-  const benefits = {
-    revenue: dashboard?.totalRevenueBenefit || 0,
-    cost: dashboard?.totalCostBenefit || 0,
-    cash: dashboard?.totalCashFlowBenefit || 0,
-    risk: dashboard?.totalRiskBenefit || 0,
-  };
+  const dashboardData = mapReportToDashboardData(report);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-      <header className="bg-white border-b border-slate-200 py-4 px-6 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Logo variant="dark" className="h-8" />
-          <div className="flex items-center gap-3">
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => setShowShareModal(true)}
-              data-testid="button-share"
-            >
-              <Share2 className="w-4 h-4 mr-2" />
-              Share
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      <section className="bg-gradient-to-r from-brand-navy to-brand-blue text-white py-12">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="mb-8">
-            <p className="text-white/70 text-sm font-medium uppercase tracking-wide mb-2">
-              AI Opportunity Assessment
-            </p>
-            <h1 className="text-3xl font-bold" data-testid="text-company-name">{companyName}</h1>
-            {industry && <p className="text-white/70 mt-1">{industry}</p>}
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <DollarSign className="w-5 h-5 text-white/70" />
-                <span className="text-white/70 text-sm">Total Annual Impact</span>
-              </div>
-              <p className="text-2xl font-bold" data-testid="text-annual-impact">
-                {format.currencyAuto(totals.annualImpact)}
-              </p>
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <TrendingUp className="w-5 h-5 text-white/70" />
-                <span className="text-white/70 text-sm">Average ROI</span>
-              </div>
-              <p className="text-2xl font-bold" data-testid="text-avg-roi">
-                {totals.avgRoi > 0 ? `${Math.round(totals.avgRoi)}%` : 'N/A'}
-              </p>
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Target className="w-5 h-5 text-white/70" />
-                <span className="text-white/70 text-sm">Use Cases</span>
-              </div>
-              <p className="text-2xl font-bold" data-testid="text-usecase-count">
-                {totals.useCaseCount}
-              </p>
-            </div>
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Zap className="w-5 h-5 text-white/70" />
-                <span className="text-white/70 text-sm">Critical Priority</span>
-              </div>
-              <p className="text-2xl font-bold" data-testid="text-critical-count">
-                {totals.criticalCount}
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="max-w-7xl mx-auto px-6 py-12">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-            <h2 className="text-lg font-semibold text-slate-800 mb-6">
-              Benefits by Category
-            </h2>
-            <BenefitsChart data={benefits} />
-          </div>
-
-          <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
-            <h2 className="text-lg font-semibold text-slate-800 mb-6">
-              Priority Distribution
-            </h2>
-            <PriorityMatrix useCases={useCases} />
-          </div>
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mt-6">
-          <h2 className="text-lg font-semibold text-slate-800 mb-6">
-            Use Cases by Priority
-          </h2>
-          <UseCasesTable useCases={useCases} />
-        </div>
-
-        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mt-6">
-          <h2 className="text-lg font-semibold text-slate-800 mb-6">
-            Implementation Roadmap
-          </h2>
-          <TimelineChart useCases={useCases} />
-        </div>
-      </section>
-
-      <CTASection companyName={companyName} />
-
-      <footer className="bg-slate-900 text-white py-8">
-        <div className="max-w-7xl mx-auto px-6 text-center">
-          <Logo variant="white" className="h-6 mx-auto mb-4" />
-          <p className="text-slate-400 text-sm">
-            © 2024 BlueAlly AI Consulting. All rights reserved.
-          </p>
-          <p className="text-slate-500 text-xs mt-2">
-            Views: {data.viewCount} | Created: {new Date(data.createdAt).toLocaleDateString()}
-          </p>
-        </div>
-      </footer>
-
-      <ShareModal 
-        open={showShareModal}
-        onClose={() => setShowShareModal(false)}
-        reportData={dashboardData}
-      />
-    </div>
+    <Dashboard 
+      data={dashboardData}
+      onDownloadPDF={handleDownloadPDF}
+      onDownloadWorkshop={handleDownloadWorkshop}
+    />
   );
 }
