@@ -9,6 +9,7 @@ import {
   Info,
   CheckCircle
 } from 'lucide-react';
+import { format } from '@/lib/formatters';
 
 export interface TableColumn<T> {
   key: keyof T | string;
@@ -118,13 +119,25 @@ export function ValueCell({
   align = 'right',
   highlight = false 
 }: ValueCellProps) {
-  const formattedValue = typeof value === 'number'
-    ? value >= 1000000
-      ? `${prefix}${(value / 1000000).toFixed(1)}M${suffix}`
-      : value >= 1000
-      ? `${prefix}${(value / 1000).toFixed(0)}K${suffix}`
-      : `${prefix}${value.toLocaleString()}${suffix}`
-    : value;
+  let formattedValue: string;
+  if (typeof value === 'number') {
+    // Use centralized formatter, but handle custom prefix/suffix
+    if (prefix === '$' && suffix === '') {
+      formattedValue = format.currencyAuto(value);
+    } else {
+      // Custom prefix/suffix handling
+      const absValue = Math.abs(value);
+      if (absValue >= 1000000) {
+        formattedValue = `${prefix}${(absValue / 1000000).toFixed(1)}M${suffix}`;
+      } else if (absValue >= 1000) {
+        formattedValue = `${prefix}${(absValue / 1000).toFixed(0)}K${suffix}`;
+      } else {
+        formattedValue = `${prefix}${absValue.toLocaleString()}${suffix}`;
+      }
+    }
+  } else {
+    formattedValue = value == null ? '—' : String(value);
+  }
 
   return (
     <span 
@@ -135,7 +148,15 @@ export function ValueCell({
   );
 }
 
-export function NumberCell({ value, decimals = 0 }: { value: number; decimals?: number }) {
+export function NumberCell({ value, decimals = 0 }: { value: number | null | undefined; decimals?: number }) {
+  if (value == null || !isFinite(value)) {
+    return (
+      <span className="font-medium tabular-nums text-right block text-blueally-slate">
+        —
+      </span>
+    );
+  }
+  
   const formatted = value.toLocaleString(undefined, {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
@@ -148,9 +169,17 @@ export function NumberCell({ value, decimals = 0 }: { value: number; decimals?: 
   );
 }
 
-export function PercentCell({ value, showSign = false }: { value: number; showSign?: boolean }) {
+export function PercentCell({ value, showSign = false }: { value: number | null | undefined; showSign?: boolean }) {
+  if (value == null || !isFinite(value)) {
+    return (
+      <span className="font-medium tabular-nums text-right block text-slate-400">
+        —
+      </span>
+    );
+  }
+  
+  const formatted = format.percent(value, { showSign });
   const isPositive = value >= 0;
-  const formatted = `${showSign && isPositive ? '+' : ''}${value.toFixed(1)}%`;
   
   return (
     <span className={`font-medium tabular-nums text-right block ${isPositive ? 'text-green-600' : 'text-red-600'}`}>

@@ -11,6 +11,7 @@ import {
   Cell,
   LabelList,
 } from 'recharts';
+import { format } from '@/lib/formatters';
 
 export interface ValueBreakdownItem {
   name: string;
@@ -32,21 +33,11 @@ const defaultColors = {
   Risk: '#D97706',
 };
 
-const defaultFormatValue = (value: number): string => {
-  if (value >= 1000000) {
-    return `$${(value / 1000000).toFixed(1)}M`;
-  }
-  if (value >= 1000) {
-    return `$${(value / 1000).toFixed(0)}K`;
-  }
-  return `$${value.toFixed(0)}`;
-};
-
 export function ValueBreakdownChart({
   data,
   title,
   height = 300,
-  formatValue = defaultFormatValue,
+  formatValue = (v: number) => format.currencyAuto(v),
 }: ValueBreakdownChartProps) {
   const chartData = data.map((item) => ({
     ...item,

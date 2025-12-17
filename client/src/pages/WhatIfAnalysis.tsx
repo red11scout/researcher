@@ -39,6 +39,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { FormulaExplorer } from "@/components/FormulaExplorer";
+import { format, parseFormattedValue } from '@/lib/formatters';
 import { 
   ArrowLeft, 
   Plus, 
@@ -145,29 +146,9 @@ const STEP_FIELD_DEFINITIONS: Record<number, { key: string; label: string; type:
   ],
 };
 
-const parseFormattedValue = (value: string | number | undefined): number => {
-  if (value === undefined || value === null || value === '') return 0;
-  if (typeof value === 'number') return value;
-  const match = String(value).match(/^[\$]?([\d.]+)\s*([KkMmBb])?/);
-  if (!match) return 0;
-  const num = parseFloat(match[1]);
-  const suffix = match[2]?.toUpperCase();
-  if (suffix === 'K') return num * 1000;
-  if (suffix === 'M') return num * 1000000;
-  if (suffix === 'B') return num * 1000000000;
-  return num;
-};
-
 // Format currency with $ symbol and commas for readability
 const formatCurrency = (value: number): string => {
-  const isNegative = value < 0;
-  const absValue = Math.abs(value);
-  const prefix = isNegative ? '-$' : '$';
-  
-  if (absValue >= 1000000000) return `${prefix}${(absValue / 1000000000).toFixed(1)}B`;
-  if (absValue >= 1000000) return `${prefix}${(absValue / 1000000).toFixed(1)}M`;
-  if (absValue >= 1000) return `${prefix}${absValue.toLocaleString('en-US')}`;
-  return `${prefix}${Math.round(absValue)}`;
+  return format.currencyAuto(value);
 };
 
 const CALCULATED_FIELDS: Record<string, { fieldKey: string; fieldLabel: string; step: number }> = {

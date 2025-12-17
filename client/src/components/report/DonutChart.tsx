@@ -8,6 +8,7 @@ import {
   Legend,
   Tooltip,
 } from 'recharts';
+import { format } from '@/lib/formatters';
 
 export interface DonutChartItem {
   name: string;
@@ -33,23 +34,13 @@ const defaultColors = [
   '#A3C585', // Light Green
 ];
 
-const defaultFormatValue = (value: number): string => {
-  if (value >= 1000000) {
-    return `$${(value / 1000000).toFixed(1)}M`;
-  }
-  if (value >= 1000) {
-    return `$${(value / 1000).toFixed(0)}K`;
-  }
-  return `$${value.toFixed(0)}`;
-};
-
 export function DonutChart({
   data,
   total,
   totalLabel = 'Total Value',
   title,
   height = 320,
-  formatValue = defaultFormatValue,
+  formatValue = (v: number) => format.currencyAuto(v),
 }: DonutChartProps) {
   const chartData = data.map((item, index) => ({
     ...item,

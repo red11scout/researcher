@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation, useParams } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { format as numberFormat } from '@/lib/formatters';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -529,10 +530,15 @@ export default function AssumptionPanel() {
     if (valueType === "currency") {
       const num = parseFloat(value);
       if (!isNaN(num)) {
-        return `$${num.toLocaleString()}${unit && unit !== "$" ? ` ${unit}` : ""}`;
+        const formatted = numberFormat.currency(num);
+        return unit && unit !== "$" ? `${formatted} ${unit}` : formatted;
       }
     }
     if (valueType === "percentage") {
+      const num = parseFloat(value);
+      if (!isNaN(num)) {
+        return numberFormat.percent(num);
+      }
       return `${value}%`;
     }
     if (unit) {

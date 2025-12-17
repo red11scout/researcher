@@ -10,30 +10,16 @@ import { useToast } from "@/hooks/use-toast";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import workshopPdfUrl from '@assets/BlueAlly_AI_Workshop_Preview_1765480873162.pdf';
+import { format, parseFormattedValue } from '@/lib/formatters';
 
 const formatCurrency = (value: number | string): string => {
   if (typeof value === 'string') {
     if (value.startsWith('$')) return value;
-    const num = parseFloat(value.replace(/[,$]/g, ''));
-    if (isNaN(num)) return value;
-    value = num;
+    const num = parseFormattedValue(value);
+    if (num === 0 && value !== '0' && value !== '$0') return value;
+    return format.currencyAuto(num);
   }
-  if (typeof value !== 'number' || isNaN(value)) return '$0';
-  
-  const isNegative = value < 0;
-  const absValue = Math.abs(value);
-  const prefix = isNegative ? '-$' : '$';
-  
-  if (absValue >= 1000000000) {
-    return `${prefix}${(absValue / 1000000000).toFixed(1)}B`;
-  } else if (absValue >= 1000000) {
-    return `${prefix}${(absValue / 1000000).toFixed(1)}M`;
-  } else if (absValue >= 1000) {
-    return `${prefix}${absValue.toLocaleString('en-US')}`;
-  } else if (absValue > 0) {
-    return `${prefix}${absValue.toFixed(0)}`;
-  }
-  return '$0';
+  return format.currencyAuto(value);
 };
 
 export default function DashboardPage() {

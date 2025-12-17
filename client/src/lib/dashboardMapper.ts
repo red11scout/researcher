@@ -1,4 +1,5 @@
 import type { DashboardData, KPI, MatrixDataPoint, UseCase } from "@/components/Dashboard";
+import { format } from "@/lib/formatters";
 
 const BRAND = {
   primary: '#0339AF',
@@ -41,21 +42,11 @@ interface Report {
 }
 
 function formatValue(value: number): string {
-  if (value >= 1000000) {
-    return `$${(value / 1000000).toFixed(1)}M`;
-  } else if (value >= 1000) {
-    return `$${(value / 1000).toFixed(0)}K`;
-  }
-  return `$${value.toFixed(0)}`;
+  return format.currencyAuto(value);
 }
 
 function formatTokens(tokens: number): string {
-  if (tokens >= 1000000) {
-    return `${(tokens / 1000000).toFixed(1)}M / mo`;
-  } else if (tokens >= 1000) {
-    return `${(tokens / 1000).toFixed(1)}K / mo`;
-  }
-  return `${tokens} / mo`;
+  return format.tokensPerMonth(tokens);
 }
 
 function calculateGrowthPercent(value: number, total: number): string {
