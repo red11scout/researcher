@@ -3099,7 +3099,10 @@ function StepCard({ step }: { step: any }) {
                   {step.data.map((row: any, i: number) => (
                     <TableRow key={i} className="hover:bg-muted/20 transition-colors">
                       {Object.entries(row).map(([key, value]: [string, any], j: number) => (
-                        <TableCell key={j} className={j === 0 ? "font-medium" : ""}>
+                        <TableCell 
+                          key={j} 
+                          className={`${j === 0 ? "font-medium" : ""} ${key.toLowerCase() === "description" ? "min-w-[300px] max-w-[400px] whitespace-normal" : ""}`}
+                        >
                           {renderCellValue(key, value)}
                         </TableCell>
                       ))}
