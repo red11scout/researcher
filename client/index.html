@@ -1,23 +1,42 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+  <title>BlueAlly AI Assessment</title>
+  
+  <meta property="og:title" content="Insight AI - Enterprise Research" />
+  <meta property="og:description" content="Comprehensive automated company research and reporting powered by advanced AI." />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Insight AI - Enterprise Research" />
+  <meta name="twitter:description" content="Comprehensive automated company research and reporting powered by advanced AI." />
 
-    <meta property="og:title" content="Insight AI - Enterprise Research" />
-    <meta property="og:description" content="Comprehensive automated company research and reporting powered by advanced AI." />
-    <meta property="og:type" content="website" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Insight AI - Enterprise Research" />
-    <meta name="twitter:description" content="Comprehensive automated company research and reporting powered by advanced AI." />
-
-    <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  
+  <!-- Preconnect for performance -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  
+  <!-- Inter font with display=swap for optimal loading -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;450;500;600;700&display=swap" rel="stylesheet" />
+  
+  <!-- Font loading optimization -->
+  <style>
+    /* Prevent FOUT (Flash of Unstyled Text) */
+    html {
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+    
+    /* Critical font-display rules */
+    @font-face {
+      font-family: 'Inter';
+      font-display: swap;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
 </html>
