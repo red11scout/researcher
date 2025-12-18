@@ -442,7 +442,7 @@ export async function generateBoardPresentationPDF(data: any, companyName: strin
         if (line.startsWith('|')) {
           if (line.includes('---')) continue; // Skip separator row
           
-          const cells = line.split('|').filter(c => c.trim()).map(c => c.trim());
+          const cells = line.split('|').filter((c: string) => c.trim()).map((c: string) => c.trim());
           if (cells.length >= 2) {
             tableRows.push(cells);
             inTable = true;
@@ -595,7 +595,7 @@ export async function generateBoardPresentationPDF(data: any, companyName: strin
           if (line.startsWith('|')) {
             if (line.includes('---')) continue; // Skip separator row
             
-            const cells = line.split('|').filter(c => c.trim()).map(c => c.trim());
+            const cells = line.split('|').filter((c: string) => c.trim()).map((c: string) => c.trim());
             if (cells.length >= 2) {
               tableRows.push(cells);
               inTable = true;

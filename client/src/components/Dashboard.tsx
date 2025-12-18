@@ -10,6 +10,32 @@ import {
 } from 'lucide-react';
 import { format } from '@/lib/formatters';
 
+// Sanitize text to remove markdown artifacts for professional prose display
+function sanitizeForProse(text: string): string {
+  if (!text) return '';
+  return text
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '$1')
+    .replace(/_([^_]+)_/g, '$1')
+    .replace(/^[-_*]{3,}\s*$/gm, '')
+    .replace(/^\s*[-*]\s+/gm, '')
+    .replace(/^\s*\d+\.\s+/gm, '')
+    .replace(/\|\s*[-:]+\s*\|/g, '')
+    .replace(/^\|(.+)\|$/gm, (_, content) => {
+      const cells = content.split('|').map((c: string) => c.trim()).filter((c: string) => c);
+      return cells.join(', ');
+    })
+    .replace(/\|/g, ' ')
+    .replace(/⚠️?/g, '')
+    .replace(/[\u2600-\u26FF\u2700-\u27BF]/g, '')
+    .replace(/[→←↑↓↗↘]/g, '')
+    .replace(/\[(HIGH|MEDIUM|LOW|ASSUMPTION|ESTIMATED|DATED)[^\]]*\]/gi, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
 const BRAND = {
   primary: '#0339AF',
   accent: '#4C73E9',
@@ -350,7 +376,7 @@ const HeroSection = ({ data, clientName }: HeroSectionProps) => {
           
           <div className="text-left max-w-xs">
             <p className="text-lg text-gray-600 leading-relaxed">
-              {data.description}
+              {sanitizeForProse(data.description)}
             </p>
           </div>
         </div>
@@ -379,7 +405,7 @@ const ExecutiveSummary = ({ data }: ExecutiveSummaryProps) => {
         <div className="mb-16">
           <h2 className="text-3xl font-bold text-[#0F172A] mb-4">{data.title}</h2>
           <p className="text-gray-600 max-w-2xl">
-            {data.description}
+            {sanitizeForProse(data.description)}
           </p>
         </div>
 
@@ -438,7 +464,7 @@ const PriorityMatrix = ({ data }: PriorityMatrixProps) => {
           <div>
             <h2 className="text-3xl font-bold mb-4 text-white">{data.title}</h2>
             <p className="text-slate-400 max-w-xl whitespace-pre-line">
-              {data.description}
+              {sanitizeForProse(data.description)}
             </p>
           </div>
           <div className="flex gap-4 mt-6 md:mt-0">
@@ -512,7 +538,7 @@ const UseCaseCarousel = ({ data, clientName }: UseCaseCarouselProps) => {
         <div className="flex justify-between items-center mb-12">
           <div>
             <h2 className="text-3xl font-bold text-[#0F172A]">{data.title}</h2>
-            <p className="text-gray-600 mt-2">{data.description.replace('Synovus', clientName)}</p>
+            <p className="text-gray-600 mt-2">{sanitizeForProse(data.description.replace('Synovus', clientName))}</p>
           </div>
           <div className="flex gap-2">
             <button className="p-2 rounded-full border border-gray-300 hover:bg-white transition-colors"><ChevronRight className="rotate-180 w-5 h-5 text-gray-600" /></button>
