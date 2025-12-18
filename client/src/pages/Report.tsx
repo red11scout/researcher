@@ -84,6 +84,32 @@ const sanitizeForPDF = (text: string): string => {
     .trim();
 };
 
+// Sanitize text for UI display - remove markdown artifacts for professional prose
+const sanitizeForProse = (text: string): string => {
+  if (!text) return '';
+  return text
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '$1')
+    .replace(/_([^_]+)_/g, '$1')
+    .replace(/^[-_*]{3,}\s*$/gm, '')
+    .replace(/^\s*[-*]\s+/gm, '')
+    .replace(/^\s*\d+\.\s+/gm, '')
+    .replace(/\|\s*[-:]+\s*\|/g, '')
+    .replace(/^\|(.+)\|$/gm, (_, content) => {
+      const cells = content.split('|').map((c: string) => c.trim()).filter((c: string) => c);
+      return cells.join(', ');
+    })
+    .replace(/\|/g, ' ')
+    .replace(/⚠️?/g, '')
+    .replace(/[\u2600-\u26FF\u2700-\u27BF]/g, '')
+    .replace(/[→←↑↓↗↘]/g, '')
+    .replace(/\[(HIGH|MEDIUM|LOW|ASSUMPTION|ESTIMATED|DATED)[^\]]*\]/gi, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+};
+
 const loadImageAsBase64 = (url: string): Promise<string> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -1460,7 +1486,7 @@ export default function Report() {
         
         // Add header rows
         ws.addRow([`STEP ${step.step}: ${step.title.toUpperCase()}`]);
-        ws.addRow([step.content || '']);
+        ws.addRow([sanitizeForProse(step.content || '')]);
         ws.addRow(['']);
         
         // Get all unique column keys from all data rows to handle varying structures
@@ -1681,7 +1707,7 @@ export default function Report() {
           spacing: { before: 400, after: 200 },
         }),
         new Paragraph({
-          text: data.summary,
+          text: sanitizeForProse(data.summary),
           alignment: AlignmentType.CENTER,
           spacing: { after: 300 },
         })
@@ -1702,7 +1728,7 @@ export default function Report() {
       if (step.content) {
         children.push(
           new Paragraph({
-            text: step.content,
+            text: sanitizeForProse(step.content),
             alignment: AlignmentType.CENTER,
             spacing: { after: 200 },
           })
@@ -1789,7 +1815,7 @@ export default function Report() {
     if (data.summary) {
       mdContent += `---\n\n`;
       mdContent += `## EXECUTIVE SUMMARY\n\n`;
-      mdContent += `${data.summary}\n\n`;
+      mdContent += `${sanitizeForProse(data.summary)}\n\n`;
     }
 
     // Analysis Steps
@@ -1798,7 +1824,7 @@ export default function Report() {
       mdContent += `## STEP ${step.step}: ${step.title.toUpperCase()}\n\n`;
       
       if (step.content) {
-        mdContent += `${step.content}\n\n`;
+        mdContent += `${sanitizeForProse(step.content)}\n\n`;
       }
 
       if (step.data && step.data.length > 0) {
@@ -1966,7 +1992,7 @@ export default function Report() {
     <div class="card">
       <div class="card-header"><h2>Executive Summary</h2></div>
       <div class="card-content">
-        <div class="summary-text">${data.summary}</div>
+        <div class="summary-text">${sanitizeForProse(data.summary)}</div>
       </div>
     </div>
 `;
@@ -1985,7 +2011,7 @@ export default function Report() {
 `;
 
       if (step.content) {
-        html += `        <p style="margin-bottom: 16px; color: #64748b;">${step.content}</p>\n`;
+        html += `        <p style="margin-bottom: 16px; color: #64748b;">${sanitizeForProse(step.content)}</p>\n`;
       }
 
       if (step.data && step.data.length > 0) {
@@ -2860,7 +2886,7 @@ export default function Report() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-muted-foreground leading-relaxed text-xs md:text-sm">{data.summary}</p>
+                  <p className="text-muted-foreground leading-relaxed text-xs md:text-sm">{sanitizeForProse(data.summary)}</p>
                 </CardContent>
               </Card>
             )}
@@ -3088,7 +3114,7 @@ function StepCard({ step }: { step: any }) {
       <CardContent className="pt-0 md:pt-0">
         {step.content && (
           <div className="prose prose-sm max-w-none mb-4 md:mb-6 text-muted-foreground">
-            <p className="text-xs md:text-sm">{step.content}</p>
+            <p className="text-xs md:text-sm">{sanitizeForProse(step.content)}</p>
           </div>
         )}
         

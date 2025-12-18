@@ -61,9 +61,68 @@ const formatTableValue = (value: any, columnName?: string): string => {
   return strValue;
 };
 
-// Parse executive transformation markdown format to structured HTML
+// Sanitize text to remove any remaining markdown artifacts
+const sanitizeForProse = (text: string): string => {
+  if (!text) return '';
+  return text
+    .replace(/^#{1,6}\s+/gm, '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '$1')
+    .replace(/_([^_]+)_/g, '$1')
+    .replace(/^[-_*]{3,}\s*$/gm, '')
+    .replace(/^\s*[-*]\s+/gm, '') // Remove bullet list markers
+    .replace(/^\s*\d+\.\s+/gm, '') // Remove numbered list markers
+    .replace(/\|\s*[-:]+\s*\|/g, '')
+    .replace(/^\|(.+)\|$/gm, (_, content) => {
+      const cells = content.split('|').map((c: string) => c.trim()).filter((c: string) => c);
+      return cells.join(', ');
+    })
+    .replace(/\|/g, ' ')
+    .replace(/⚠️?/g, '')
+    .replace(/[\u2600-\u26FF\u2700-\u27BF]/g, '')
+    .replace(/[→←↑↓↗↘]/g, '')
+    .replace(/\[(HIGH|MEDIUM|LOW|ASSUMPTION|ESTIMATED|DATED)[^\]]*\]/gi, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+};
+
+// Render professional prose as formatted paragraphs
+const renderProseContent = (content: string): React.ReactNode => {
+  if (!content) return null;
+  
+  // Sanitize any remaining markdown artifacts
+  const cleanContent = sanitizeForProse(content);
+  
+  // Split into paragraphs
+  const paragraphs = cleanContent.split(/\n\n+/).filter(p => p.trim());
+  
+  return (
+    <div>
+      {paragraphs.map((para, idx) => (
+        <p key={idx} style={{ 
+          fontSize: 15, 
+          color: '#374151',
+          lineHeight: 1.8,
+          marginBottom: 16,
+          textAlign: 'justify'
+        }}>
+          {para.trim()}
+        </p>
+      ))}
+    </div>
+  );
+};
+
+// Parse executive transformation markdown format to structured HTML (legacy support)
 const renderExecutiveContent = (content: string): React.ReactNode => {
   if (!content) return null;
+  
+  // Check if content is plain prose (no markdown indicators)
+  const hasMarkdown = content.includes('###') || content.includes('**') || content.includes('|');
+  if (!hasMarkdown) {
+    return renderProseContent(content);
+  }
   
   const elements: React.ReactNode[] = [];
   
@@ -401,13 +460,19 @@ const renderExecutiveContent = (content: string): React.ReactNode => {
   return <div>{elements}</div>;
 };
 
-// Parse Value Drivers markdown format to structured HTML
+// Parse Value Drivers - use prose rendering for clean content
 const renderValueDriversContent = (content: string): React.ReactNode => {
   if (!content) return null;
   
+  // Check if content is plain prose (no markdown indicators)
+  const hasMarkdown = content.includes('###') || content.includes('**') || content.includes('|');
+  if (!hasMarkdown) {
+    return renderProseContent(content);
+  }
+  
   const elements: React.ReactNode[] = [];
   
-  // Split by horizontal rules to separate sections
+  // Split by horizontal rules to separate sections (legacy markdown support)
   const sections = content.split(/\n---\n|\n-{3,}\n/);
   
   sections.forEach((section, sectionIdx) => {

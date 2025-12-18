@@ -1,6 +1,45 @@
 import type { DashboardData, KPI, MatrixDataPoint, UseCase } from "@/components/Dashboard";
 import { format } from "@/lib/formatters";
 
+// Sanitize text to remove markdown artifacts and ensure professional prose
+function sanitizeForProse(text: string): string {
+  if (!text) return '';
+  return text
+    // Remove markdown headers (###, ##, #)
+    .replace(/^#{1,6}\s+/gm, '')
+    // Remove bold markers (**text**)
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    // Remove italic markers (*text* or _text_)
+    .replace(/(?<!\*)\*([^*]+)\*(?!\*)/g, '$1')
+    .replace(/_([^_]+)_/g, '$1')
+    // Remove horizontal rules (---, ___, ***)
+    .replace(/^[-_*]{3,}\s*$/gm, '')
+    // Remove bullet list markers (- item, * item)
+    .replace(/^\s*[-*]\s+/gm, '')
+    // Remove numbered list markers (1. item, 2. item)
+    .replace(/^\s*\d+\.\s+/gm, '')
+    // Remove table pipe characters and convert to prose
+    .replace(/\|\s*[-:]+\s*\|/g, '') // Remove separator rows like |---|---|
+    .replace(/^\|(.+)\|$/gm, (match, content) => {
+      // Convert table row to comma-separated values
+      const cells = content.split('|').map((c: string) => c.trim()).filter((c: string) => c);
+      return cells.join(', ');
+    })
+    // Remove remaining pipe characters
+    .replace(/\|/g, ' ')
+    // Remove emoji and warning symbols
+    .replace(/⚠️?/g, '')
+    .replace(/[\u2600-\u26FF\u2700-\u27BF]/g, '')
+    // Remove arrow symbols
+    .replace(/[→←↑↓↗↘]/g, '')
+    // Remove confidence tags [HIGH CONFIDENCE], [MEDIUM], etc.
+    .replace(/\[(HIGH|MEDIUM|LOW|ASSUMPTION|ESTIMATED|DATED)[^\]]*\]/gi, '')
+    // Clean up excessive whitespace
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
 const BRAND = {
   primary: '#0339AF',
   accent: '#4C73E9',
@@ -284,7 +323,7 @@ export function mapReportToDashboardData(report: Report): DashboardData {
     },
     executiveSummary: {
       title: "Value Drivers",
-      description: analysis.summary || `Our analysis projects ${formatValue(totalValue)} in annual value across four strategic pillars.`,
+      description: sanitizeForProse(analysis.summary) || `Our analysis projects ${formatValue(totalValue)} in annual value across four strategic pillars.`,
       kpis
     },
     priorityMatrix: {
