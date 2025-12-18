@@ -27,6 +27,40 @@ const formatNumber = (value: number | string): string => {
   return format.number(value, { compact: true });
 };
 
+// Format table cell values with commas for large numbers
+const formatTableValue = (value: any, columnName?: string): string => {
+  if (value === null || value === undefined) return '';
+  
+  const strValue = String(value);
+  
+  // If it already has formatting ($ or %), return as is but ensure commas
+  if (strValue.startsWith('$')) {
+    // Format currency values with commas
+    const numStr = strValue.replace(/[$,]/g, '');
+    const num = parseFloat(numStr);
+    if (!isNaN(num)) {
+      return '$' + num.toLocaleString('en-US');
+    }
+    return strValue;
+  }
+  
+  // Check if it's a pure number (no letters except for common suffixes)
+  const numericValue = strValue.replace(/,/g, '');
+  const num = parseFloat(numericValue);
+  
+  // If it's a valid number and looks like a large numeric value
+  if (!isNaN(num) && /^-?\d+\.?\d*$/.test(numericValue)) {
+    // For very large numbers (tokens, runs), use commas
+    if (Math.abs(num) >= 1000) {
+      return num.toLocaleString('en-US');
+    }
+    return strValue;
+  }
+  
+  // Return original value if not a number
+  return strValue;
+};
+
 // Parse executive transformation markdown format to structured HTML
 const renderExecutiveContent = (content: string): React.ReactNode => {
   if (!content) return null;
@@ -494,7 +528,7 @@ export default function HTMLReportViewer() {
                           <tr key={rowIdx} style={styles.tr}>
                             {columns.map((col, colIdx) => (
                               <td key={colIdx} style={styles.td}>
-                                {String(row[col] || '').substring(0, 60)}
+                                {formatTableValue(row[col], col).substring(0, 60)}
                               </td>
                             ))}
                           </tr>
@@ -506,7 +540,7 @@ export default function HTMLReportViewer() {
                                     <div style={styles.benefitHeader}>
                                       <span style={styles.benefitLabel}>Grow Revenue</span>
                                       <span style={{ ...styles.benefitValue, background: '#a7f3d0', color: '#166534' }}>
-                                        {row['Revenue Benefit ($)'] || '$0'}
+                                        {formatTableValue(row['Revenue Benefit ($)']) || '$0'}
                                       </span>
                                     </div>
                                     {row['Revenue Formula'] ? (
@@ -519,7 +553,7 @@ export default function HTMLReportViewer() {
                                     <div style={styles.benefitHeader}>
                                       <span style={styles.benefitLabel}>Reduce Cost</span>
                                       <span style={{ ...styles.benefitValue, background: '#bfdbfe', color: '#1e40af' }}>
-                                        {row['Cost Benefit ($)'] || '$0'}
+                                        {formatTableValue(row['Cost Benefit ($)']) || '$0'}
                                       </span>
                                     </div>
                                     {row['Cost Formula'] ? (
@@ -532,7 +566,7 @@ export default function HTMLReportViewer() {
                                     <div style={styles.benefitHeader}>
                                       <span style={styles.benefitLabel}>Cash Flow</span>
                                       <span style={{ ...styles.benefitValue, background: '#e9d5ff', color: '#7c3aed' }}>
-                                        {row['Cash Flow Benefit ($)'] || '$0'}
+                                        {formatTableValue(row['Cash Flow Benefit ($)']) || '$0'}
                                       </span>
                                     </div>
                                     {row['Cash Flow Formula'] ? (
@@ -545,7 +579,7 @@ export default function HTMLReportViewer() {
                                     <div style={styles.benefitHeader}>
                                       <span style={styles.benefitLabel}>Reduce Risk</span>
                                       <span style={{ ...styles.benefitValue, background: '#fed7aa', color: '#c2410c' }}>
-                                        {row['Risk Benefit ($)'] || '$0'}
+                                        {formatTableValue(row['Risk Benefit ($)']) || '$0'}
                                       </span>
                                     </div>
                                     {row['Risk Formula'] ? (
