@@ -401,6 +401,265 @@ const renderExecutiveContent = (content: string): React.ReactNode => {
   return <div>{elements}</div>;
 };
 
+// Parse Value Drivers markdown format to structured HTML
+const renderValueDriversContent = (content: string): React.ReactNode => {
+  if (!content) return null;
+  
+  const elements: React.ReactNode[] = [];
+  
+  // Split by horizontal rules to separate sections
+  const sections = content.split(/\n---\n|\n-{3,}\n/);
+  
+  sections.forEach((section, sectionIdx) => {
+    const trimmedSection = section.trim();
+    if (!trimmedSection) return;
+    
+    const lines = trimmedSection.split('\n');
+    let inTable = false;
+    const tableRows: string[][] = [];
+    let headerRow: string[] = [];
+    
+    lines.forEach((line, lineIdx) => {
+      const trimmedLine = line.trim();
+      if (!trimmedLine) return;
+      
+      // Handle ### headers
+      const h3Match = trimmedLine.match(/^###\s*(.+)$/);
+      if (h3Match) {
+        // Flush any pending table
+        if (tableRows.length > 0 || headerRow.length > 0) {
+          elements.push(
+            <table key={`table-vd-${sectionIdx}-${lineIdx}`} style={{ 
+              width: '100%', 
+              borderCollapse: 'collapse',
+              marginBottom: 20,
+              fontSize: 14
+            }}>
+              {headerRow.length > 0 && (
+                <thead>
+                  <tr style={{ background: '#001278' }}>
+                    {headerRow.map((cell, cellIdx) => (
+                      <th key={cellIdx} style={{ 
+                        padding: '10px 12px',
+                        color: 'white',
+                        fontWeight: 600,
+                        textAlign: 'left',
+                        fontSize: 13
+                      }}>
+                        {cell}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+              )}
+              <tbody>
+                {tableRows.map((row, rowIdx) => (
+                  <tr key={rowIdx} style={{ borderBottom: '1px solid #e2e8f0', background: rowIdx % 2 === 0 ? '#f8fafc' : 'white' }}>
+                    {row.map((cell, cellIdx) => (
+                      <td key={cellIdx} style={{ 
+                        padding: '10px 12px',
+                        color: '#1e293b'
+                      }}>
+                        {cell}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          );
+          tableRows.length = 0;
+          headerRow = [];
+          inTable = false;
+        }
+        
+        const headerText = h3Match[1].replace(/[⚠️]/g, '').trim();
+        const isRisk = trimmedLine.includes('Portfolio Risk') || trimmedLine.includes('Critical');
+        elements.push(
+          <h3 key={`h3-vd-${sectionIdx}-${lineIdx}`} style={{ 
+            fontSize: 18, 
+            fontWeight: 700, 
+            color: isRisk ? '#c45500' : '#001278',
+            marginTop: 24,
+            marginBottom: 12,
+            borderBottom: isRisk ? '2px solid #f59e0b' : '2px solid #02a2fa',
+            paddingBottom: 8
+          }}>
+            {isRisk ? '⚠️ ' : ''}{headerText}
+          </h3>
+        );
+        return;
+      }
+      
+      // Handle markdown tables
+      if (trimmedLine.startsWith('|')) {
+        if (trimmedLine.includes('---')) return; // Skip separator row
+        
+        const cells = trimmedLine.split('|').filter(c => c.trim()).map(c => c.trim());
+        if (cells.length >= 2) {
+          if (!inTable) {
+            headerRow = cells;
+            inTable = true;
+          } else {
+            tableRows.push(cells);
+          }
+        }
+        return;
+      } else if (inTable && (tableRows.length > 0 || headerRow.length > 0)) {
+        // End of table - render it
+        elements.push(
+          <table key={`table-vd-end-${sectionIdx}-${lineIdx}`} style={{ 
+            width: '100%', 
+            borderCollapse: 'collapse',
+            marginBottom: 20,
+            fontSize: 14
+          }}>
+            {headerRow.length > 0 && (
+              <thead>
+                <tr style={{ background: '#001278' }}>
+                  {headerRow.map((cell, cellIdx) => (
+                    <th key={cellIdx} style={{ 
+                      padding: '10px 12px',
+                      color: 'white',
+                      fontWeight: 600,
+                      textAlign: 'left',
+                      fontSize: 13
+                    }}>
+                      {cell}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+            )}
+            <tbody>
+              {tableRows.map((row, rowIdx) => (
+                <tr key={rowIdx} style={{ borderBottom: '1px solid #e2e8f0', background: rowIdx % 2 === 0 ? '#f8fafc' : 'white' }}>
+                  {row.map((cell, cellIdx) => (
+                    <td key={cellIdx} style={{ 
+                      padding: '10px 12px',
+                      color: '#1e293b'
+                    }}>
+                      {cell}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        );
+        tableRows.length = 0;
+        headerRow = [];
+        inTable = false;
+      }
+      
+      // Handle big headline numbers like **$52.4M** in annual value
+      if (trimmedLine.startsWith('**') && trimmedLine.includes('annual value')) {
+        const formattedLine = trimmedLine.split('**').map((part, i) => 
+          i % 2 === 1 ? <strong key={i} style={{ fontSize: 28, color: '#001278' }}>{part}</strong> : part
+        );
+        elements.push(
+          <p key={`headline-${sectionIdx}-${lineIdx}`} style={{ 
+            fontSize: 18, 
+            color: '#374151',
+            marginBottom: 20,
+            lineHeight: 1.6
+          }}>
+            {formattedLine}
+          </p>
+        );
+        return;
+      }
+      
+      // Handle use case headers **[Name]** — $X.XM
+      const useCaseMatch = trimmedLine.match(/^\*\*([^*]+)\*\*\s*[—–-]\s*\$?([\d.,]+[MKB]?)/);
+      if (useCaseMatch) {
+        elements.push(
+          <div key={`usecase-${sectionIdx}-${lineIdx}`} style={{ 
+            marginTop: 16,
+            marginBottom: 8
+          }}>
+            <strong style={{ fontSize: 15, color: '#1e293b' }}>{useCaseMatch[1]}</strong>
+            <span style={{ color: '#001278', fontWeight: 600, marginLeft: 8 }}>— ${useCaseMatch[2]}</span>
+          </div>
+        );
+        return;
+      }
+      
+      // Handle bold headers like **If it fails:** or **Mitigation:** or **Strategic tilt:**
+      const boldMatch = trimmedLine.match(/^\*\*([^*]+)\*\*:?\s*(.*)/);
+      if (boldMatch) {
+        elements.push(
+          <div key={`bold-${sectionIdx}-${lineIdx}`} style={{ marginTop: 12, marginBottom: 8 }}>
+            <strong style={{ fontSize: 14, color: '#1e293b' }}>{boldMatch[1]}:</strong>
+            {boldMatch[2] && (
+              <span style={{ fontSize: 14, color: '#4b5563', marginLeft: 6 }}>{boldMatch[2]}</span>
+            )}
+          </div>
+        );
+        return;
+      }
+      
+      // Regular paragraph text
+      elements.push(
+        <p key={`para-vd-${sectionIdx}-${lineIdx}`} style={{ 
+          fontSize: 14, 
+          color: '#4b5563',
+          lineHeight: 1.7,
+          marginBottom: 8
+        }}>
+          {trimmedLine}
+        </p>
+      );
+    });
+    
+    // Render any remaining table at end of section
+    if (tableRows.length > 0 || headerRow.length > 0) {
+      elements.push(
+        <table key={`table-vd-final-${sectionIdx}`} style={{ 
+          width: '100%', 
+          borderCollapse: 'collapse',
+          marginBottom: 20,
+          fontSize: 14
+        }}>
+          {headerRow.length > 0 && (
+            <thead>
+              <tr style={{ background: '#001278' }}>
+                {headerRow.map((cell, cellIdx) => (
+                  <th key={cellIdx} style={{ 
+                    padding: '10px 12px',
+                    color: 'white',
+                    fontWeight: 600,
+                    textAlign: 'left',
+                    fontSize: 13
+                  }}>
+                    {cell}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+          )}
+          <tbody>
+            {tableRows.map((row, rowIdx) => (
+              <tr key={rowIdx} style={{ borderBottom: '1px solid #e2e8f0', background: rowIdx % 2 === 0 ? '#f8fafc' : 'white' }}>
+                {row.map((cell, cellIdx) => (
+                  <td key={cellIdx} style={{ 
+                    padding: '10px 12px',
+                    color: '#1e293b'
+                  }}>
+                    {cell}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      );
+    }
+  });
+  
+  return <div>{elements}</div>;
+};
+
 export default function HTMLReportViewer() {
   const [, params] = useRoute("/reports/:id/html");
   const [, setLocation] = useLocation();
@@ -596,14 +855,14 @@ export default function HTMLReportViewer() {
           </div>
         )}
 
-        {/* Executive Summary */}
+        {/* Executive Summary / Value Drivers */}
         {analysis.summary && (
           <div style={styles.card}>
             <div style={styles.cardHeader}>
-              <h2 style={styles.cardHeaderTitle}>Executive Summary</h2>
+              <h2 style={styles.cardHeaderTitle}>Value Drivers</h2>
             </div>
             <div style={styles.cardContent}>
-              <div style={styles.summaryText}>{analysis.summary}</div>
+              {renderValueDriversContent(analysis.summary)}
             </div>
           </div>
         )}

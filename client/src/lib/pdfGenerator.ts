@@ -422,21 +422,149 @@ export async function generateBoardPresentationPDF(data: any, companyName: strin
   if (data.summary) {
     yPos = ensureSpace(60, yPos);
     
-    doc.setFillColor(...BRAND.lightBlueBg);
-    doc.roundedRect(margin, yPos, contentWidth, 8, 3, 3, 'F');
-    yPos += 18;
+    // Parse Value Drivers summary with new markdown structure
+    // Note: Don't sanitize before parsing - sanitize individual text when writing
+    const summaryContent = data.summary;
+    const summarySections = summaryContent.split(/\n---\n|\n-{3,}\n/);
     
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(12);
-    doc.setTextColor(...BRAND.darkNavy);
-    const summaryLines = doc.splitTextToSize(sanitizeForPDF(data.summary), contentWidth - 10);
-    
-    for (const line of summaryLines) {
-      yPos = ensureSpace(8, yPos);
-      doc.text(line, centerX, yPos, { align: 'center', maxWidth: contentWidth - 10 });
-      yPos += 7;
+    for (const section of summarySections) {
+      if (!section.trim()) continue;
+      
+      const lines = section.trim().split('\n');
+      let inTable = false;
+      const tableRows: string[][] = [];
+      
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (!line) continue;
+        
+        // Handle markdown tables
+        if (line.startsWith('|')) {
+          if (line.includes('---')) continue; // Skip separator row
+          
+          const cells = line.split('|').filter(c => c.trim()).map(c => c.trim());
+          if (cells.length >= 2) {
+            tableRows.push(cells);
+            inTable = true;
+            continue;
+          }
+        } else if (inTable && tableRows.length > 0) {
+          // End of table - render it
+          yPos = ensureSpace(tableRows.length * 12 + 10, yPos);
+          autoTable(doc, {
+            startY: yPos,
+            head: tableRows.length > 1 ? [tableRows[0]] : undefined,
+            body: tableRows.length > 1 ? tableRows.slice(1) : tableRows,
+            theme: 'striped',
+            styles: { fontSize: 9, cellPadding: 4 },
+            headStyles: { fillColor: BRAND.primaryBlue, textColor: BRAND.white },
+            tableWidth: contentWidth,
+            margin: { left: margin, right: margin }
+          });
+          yPos = (doc as any).lastAutoTable.finalY + 10;
+          tableRows.length = 0;
+          inTable = false;
+        }
+        
+        // Handle ### headers
+        const h3Match = line.match(/^###\s*(.+)$/);
+        if (h3Match) {
+          yPos = ensureSpace(25, yPos);
+          const headerText = h3Match[1].replace(/[⚠️]/g, '').trim();
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(13);
+          // Use orange for Portfolio Risk, blue for others
+          if (line.includes('Portfolio Risk') || line.includes('Critical')) {
+            doc.setTextColor(220, 120, 0);
+          } else {
+            doc.setTextColor(...BRAND.primaryBlue);
+          }
+          doc.text(headerText, margin, yPos);
+          doc.setDrawColor(...BRAND.lightBlue);
+          doc.setLineWidth(0.5);
+          doc.line(margin, yPos + 3, margin + doc.getTextWidth(headerText), yPos + 3);
+          yPos += 15;
+          continue;
+        }
+        
+        // Handle big headline numbers like **$52.4M** in annual value
+        if (line.startsWith('**') && line.includes('annual value')) {
+          yPos = ensureSpace(20, yPos);
+          const cleanLine = line.replace(/\*\*/g, '');
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(18);
+          doc.setTextColor(...BRAND.primaryBlue);
+          doc.text(cleanLine, margin, yPos);
+          yPos += 14;
+          continue;
+        }
+        
+        // Handle use case headers **[Name]** — $X.XM
+        const useCaseMatch = line.match(/^\*\*([^*]+)\*\*\s*[—–-]\s*\$?([\d.,]+[MKB]?)/);
+        if (useCaseMatch) {
+          yPos = ensureSpace(16, yPos);
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(11);
+          doc.setTextColor(...BRAND.darkNavy);
+          doc.text(`${useCaseMatch[1]} — $${useCaseMatch[2]}`, margin, yPos);
+          yPos += 10;
+          continue;
+        }
+        
+        // Handle bold headers like **If it fails:** or **Mitigation:**
+        const boldMatch = line.match(/^\*\*([^*]+)\*\*:?\s*(.*)/);
+        if (boldMatch) {
+          yPos = ensureSpace(14, yPos);
+          doc.setFont('helvetica', 'bold');
+          doc.setFontSize(10);
+          doc.setTextColor(...BRAND.darkNavy);
+          doc.text(boldMatch[1] + ':', margin, yPos);
+          yPos += 8;
+          
+          if (boldMatch[2]) {
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(10);
+            const bodyLines = doc.splitTextToSize(boldMatch[2], contentWidth - 10);
+            for (const bodyLine of bodyLines) {
+              yPos = ensureSpace(8, yPos);
+              doc.text(bodyLine, margin, yPos);
+              yPos += 6;
+            }
+          }
+          continue;
+        }
+        
+        // Regular paragraph text
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10);
+        doc.setTextColor(...BRAND.darkNavy);
+        const paraLines = doc.splitTextToSize(line, contentWidth - 10);
+        for (const paraLine of paraLines) {
+          yPos = ensureSpace(8, yPos);
+          doc.text(paraLine, margin, yPos);
+          yPos += 6;
+        }
+      }
+      
+      // Render any remaining table at end of section
+      if (tableRows.length > 0) {
+        yPos = ensureSpace(tableRows.length * 12 + 10, yPos);
+        autoTable(doc, {
+          startY: yPos,
+          head: tableRows.length > 1 ? [tableRows[0]] : undefined,
+          body: tableRows.length > 1 ? tableRows.slice(1) : tableRows,
+          theme: 'striped',
+          styles: { fontSize: 9, cellPadding: 4 },
+          headStyles: { fillColor: BRAND.primaryBlue, textColor: BRAND.white },
+          tableWidth: contentWidth,
+          margin: { left: margin, right: margin }
+        });
+        yPos = (doc as any).lastAutoTable.finalY + 10;
+      }
+      
+      yPos += 8;
     }
-    yPos += 15;
+    yPos += 12;
   }
   
   for (const step of data.steps) {
