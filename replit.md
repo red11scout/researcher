@@ -26,6 +26,18 @@ The platform features a modern, professional interface with interactive data vis
 - Global base styles for h1-h6, p, a elements with proper hierarchy
 - text-gradient, text-balance, text-pretty utility classes
 
+**Executive Report Transformation (Complete)**:
+- Value Drivers narrative follows McKinsey/Hemingway executive communication standards
+- AI prompt generates 4-5 sentence executive briefs with: total value lead, top 3 opportunities, strategic focus, CRITICAL RISK callout with ⚠️ marker, and token economics insight
+- Short sentences, active voice, no jargon, numbers with white space
+- Risks stand alone and are never buried in paragraphs
+
+**Shared PDF Generator Utility (Complete)**:
+- Extracted board-presentation PDF logic to `client/src/lib/pdfGenerator.ts` (800+ lines)
+- `generateBoardPresentationPDF(data, companyName)` function used by Report, DashboardPage, and SharedDashboard
+- Dashboard "Download Full PDF Report" button now generates the same high-quality PDF as the Export tab
+- Dashboard "Workshop Details" renamed to "Detailed HTML Report" - links to HTML report viewer
+
 **Phase 2 - Interactive Report Shell (Complete)**:
 - Embedded Assumption Panel drawer with inline editing and live recalculation
 - Persistent sidebar navigation (desktop-only) with section anchors for all 8 report steps

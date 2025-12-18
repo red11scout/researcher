@@ -455,7 +455,7 @@ JSON structure:
     {"step": 6, "title": "Effort & Token Modeling", "content": "...", "data": [{"ID": "UC-01", "Use Case": "...", "Data Readiness (1-5)": 3, "Integration Complexity (1-5)": 3, "Change Mgmt (1-5)": 3, "Effort Score (1-5)": 3, "Time-to-Value (months)": 6, "Input Tokens/Run": 800, "Output Tokens/Run": 800, "Runs/Month": 1000, "Monthly Tokens": 1600000, "Annual Token Cost ($)": "$..."}]},
     {"step": 7, "title": "Priority Scoring & Roadmap", "content": "...", "data": [{"ID": "UC-01", "Use Case": "...", "Value Score (0-40)": 35, "TTV Score (0-30)": 25, "Effort Score (0-30)": 24, "Priority Score (0-100)": 84, "Priority Tier": "Critical", "Recommended Phase": "Q1"}]}
   ],
-  "summary": "3-4 sentence executive summary including: total value, top 3 priorities, focus area, and CRITICAL RISK callout",
+  "summary": "EXECUTIVE BRIEF (4-5 sentences max, McKinsey clarity): Sentence 1: Lead with the big number—total annualized value, number of use cases, and Critical-priority count. Sentence 2: Name the top 3 opportunities with dollar values in parentheses. Sentence 3: State the strategic focus—operational vs customer-facing, with percentage breakdown by driver. Sentence 4: ⚠️ CRITICAL RISK callout—identify the highest-value/highest-complexity use case, its share of total value, effort score, and timeline; state consequence of failure. Sentence 5 (optional): Token economics insight—which use cases favor efficiency over volume. Style: Short sentences. Active voice. No jargon. Numbers get white space. Risks stand alone with ⚠️ marker.",
   "executiveDashboard": {
     "totalRevenueBenefit": 0,
     "totalCostBenefit": 0,
