@@ -250,10 +250,10 @@ const FlywheelBackground = () => (
 interface StickyHeaderProps {
   clientName: string;
   onShareUrl?: () => void;
-  onDownloadWorkshop?: () => void;
+  onViewHTMLReport?: () => void;
 }
 
-const StickyHeader = ({ clientName, onShareUrl, onDownloadWorkshop }: StickyHeaderProps) => {
+const StickyHeader = ({ clientName, onShareUrl, onViewHTMLReport }: StickyHeaderProps) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [copied, setCopied] = useState(false);
 
@@ -297,11 +297,11 @@ const StickyHeader = ({ clientName, onShareUrl, onDownloadWorkshop }: StickyHead
             <span className="hidden md:inline text-sm text-gray-600">{copied ? 'Copied!' : 'Share'}</span>
           </button>
           <button 
-            onClick={onDownloadWorkshop}
+            onClick={onViewHTMLReport}
             className="bg-[#0339AF] hover:bg-[#4C73E9] text-white px-6 py-2 rounded-full font-semibold text-sm transition-colors shadow-lg flex items-center gap-2 group"
-            data-testid="button-workshop-details"
+            data-testid="button-html-report"
           >
-            Workshop Details
+            Detailed HTML Report
             <FileText className="w-4 h-4" />
           </button>
         </div>
@@ -560,11 +560,11 @@ const UseCaseCarousel = ({ data, clientName }: UseCaseCarouselProps) => {
 interface CTASectionProps {
   totalValue: string;
   valueSuffix: string;
-  onDownloadWorkshop?: () => void;
+  onViewHTMLReport?: () => void;
   onDownloadPDF?: () => void;
 }
 
-const CTASection = ({ totalValue, valueSuffix, onDownloadWorkshop, onDownloadPDF }: CTASectionProps) => {
+const CTASection = ({ totalValue, valueSuffix, onViewHTMLReport, onDownloadPDF }: CTASectionProps) => {
   return (
     <section className="py-32 bg-[#0339AF] text-white relative overflow-hidden">
       <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent"></div>
@@ -577,11 +577,11 @@ const CTASection = ({ totalValue, valueSuffix, onDownloadWorkshop, onDownloadPDF
         
         <div className="flex flex-col md:flex-row justify-center items-center gap-4">
           <button 
-            onClick={onDownloadWorkshop}
+            onClick={onViewHTMLReport}
             className="bg-white text-[#0339AF] px-8 py-4 rounded-full font-bold text-lg hover:shadow-2xl hover:scale-105 transition-all flex items-center gap-2"
-            data-testid="button-workshop-details-cta"
+            data-testid="button-html-report-cta"
           >
-            Workshop Details
+            Detailed HTML Report
             <FileText className="w-5 h-5" />
           </button>
           <button 
@@ -614,13 +614,13 @@ interface DashboardProps {
   data?: DashboardData;
   onShareUrl?: () => void;
   onDownloadPDF?: () => void;
-  onDownloadWorkshop?: () => void;
+  onViewHTMLReport?: () => void;
 }
 
-export default function Dashboard({ data = DEFAULT_DATA, onShareUrl, onDownloadPDF, onDownloadWorkshop }: DashboardProps) {
+export default function Dashboard({ data = DEFAULT_DATA, onShareUrl, onDownloadPDF, onViewHTMLReport }: DashboardProps) {
   return (
     <div className="min-h-screen bg-slate-50 font-sans selection:bg-blue-200">
-      <StickyHeader clientName={data.clientName} onShareUrl={onShareUrl} onDownloadWorkshop={onDownloadWorkshop} />
+      <StickyHeader clientName={data.clientName} onShareUrl={onShareUrl} onViewHTMLReport={onViewHTMLReport} />
       <HeroSection data={data.hero} clientName={data.clientName} />
       <ExecutiveSummary data={data.executiveSummary} />
       <PriorityMatrix data={data.priorityMatrix} />
@@ -628,7 +628,7 @@ export default function Dashboard({ data = DEFAULT_DATA, onShareUrl, onDownloadP
       <CTASection 
         totalValue={data.hero.totalValue} 
         valueSuffix={data.hero.valueSuffix} 
-        onDownloadWorkshop={onDownloadWorkshop}
+        onViewHTMLReport={onViewHTMLReport}
         onDownloadPDF={onDownloadPDF}
       />
       

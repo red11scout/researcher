@@ -59,6 +59,7 @@ import { Document, Packer, Paragraph, TextRun, Table as DocxTable, TableRow as D
 import blueAllyLogoUrl from '@assets/image_1764369352062.png';
 import blueAllyLogoWhiteUrl from '@assets/blueally-logo-white.png';
 import { WorkflowExportPanel } from "@/components/report/WorkflowExportPanel";
+import { generateBoardPresentationPDF } from "@/lib/pdfGenerator";
 
 // Sanitize text for PDF - remove emojis and fix encoding issues
 const sanitizeForPDF = (text: string): string => {
@@ -2101,7 +2102,7 @@ export default function Report() {
 
     try {
       switch (format) {
-        case "PDF": await generatePDF(); break;
+        case "PDF": await generateBoardPresentationPDF(data, companyName); break;
         case "Excel": await generateExcel(); break;
         case "Word": generateWord(); break;
         case "Markdown": generateMarkdown(); break;

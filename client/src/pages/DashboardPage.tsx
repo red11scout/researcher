@@ -8,21 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import jsPDF from 'jspdf';
-import autoTable from 'jspdf-autotable';
-import workshopPdfUrl from '@assets/BlueAlly_AI_Workshop_Preview_1765480873162.pdf';
-import { format, parseFormattedValue } from '@/lib/formatters';
 import { ShareModal } from "@/components/dashboard";
-
-const formatCurrency = (value: number | string): string => {
-  if (typeof value === 'string') {
-    if (value.startsWith('$')) return value;
-    const num = parseFormattedValue(value);
-    if (num === 0 && value !== '0' && value !== '$0') return value;
-    return format.currencyAuto(num);
-  }
-  return format.currencyAuto(value);
-};
+import { generateBoardPresentationPDF } from "@/lib/pdfGenerator";
 
 export default function DashboardPage() {
   const [, params] = useRoute("/dashboard/:reportId");
@@ -40,185 +27,28 @@ export default function DashboardPage() {
     setShowShareModal(true);
   };
 
-  const handleDownloadWorkshop = () => {
-    const link = document.createElement('a');
-    link.href = workshopPdfUrl;
-    link.download = 'BlueAlly_AI_Workshop_Preview.pdf';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
+  const handleViewHTMLReport = () => {
+    if (!reportId) return;
+    window.open(`/reports/${reportId}/html`, '_blank');
     toast({
-      title: "Downloading Workshop Details",
-      description: "The AI Workshop preview PDF is being downloaded.",
+      title: "Opening HTML Report",
+      description: "The detailed HTML report is opening in a new tab.",
     });
   };
 
   const handleDownloadPDF = async () => {
     if (!report) return;
     
+    toast({
+      title: "Download Started",
+      description: "Generating board-presentation quality PDF...",
+    });
+    
     try {
-      const doc = new jsPDF();
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const pageHeight = doc.internal.pageSize.getHeight();
-      const margin = 20;
-      let yPos = margin;
-
-      // Brand colors
-      const brandBlue = [3, 57, 175] as [number, number, number];
-      const darkGray = [51, 51, 51] as [number, number, number];
-      const lightGray = [128, 128, 128] as [number, number, number];
-
-      // Header
-      doc.setFillColor(...brandBlue);
-      doc.rect(0, 0, pageWidth, 35, 'F');
-      
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(24);
-      doc.setFont('helvetica', 'bold');
-      doc.text('BlueAlly', margin, 20);
-      
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'normal');
-      doc.text('AI Strategic Assessment', margin, 28);
-
-      yPos = 50;
-
-      // Company name and date
-      doc.setTextColor(...darkGray);
-      doc.setFontSize(22);
-      doc.setFont('helvetica', 'bold');
-      doc.text(report.companyName, margin, yPos);
-      yPos += 10;
-
-      doc.setFontSize(10);
-      doc.setTextColor(...lightGray);
-      doc.setFont('helvetica', 'normal');
-      const date = new Date(report.createdAt).toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
-      doc.text(`Generated: ${date}`, margin, yPos);
-      yPos += 20;
-
-      // Executive Dashboard section
-      const dashboard = report.analysisData?.executiveDashboard;
-      if (dashboard) {
-        doc.setFontSize(16);
-        doc.setTextColor(...brandBlue);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Executive Dashboard', margin, yPos);
-        yPos += 10;
-
-        doc.setFontSize(28);
-        doc.setTextColor(...darkGray);
-        doc.text(`Total Value: ${formatCurrency(dashboard.totalAnnualValue || 0)}`, margin, yPos);
-        yPos += 15;
-
-        // Value breakdown
-        const valueData = [
-          ['Revenue Growth', formatCurrency(dashboard.totalRevenueBenefit || 0)],
-          ['Cost Reduction', formatCurrency(dashboard.totalCostBenefit || 0)],
-          ['Cash Flow', formatCurrency(dashboard.totalCashFlowBenefit || 0)],
-          ['Risk Mitigation', formatCurrency(dashboard.totalRiskBenefit || 0)],
-        ];
-
-        autoTable(doc, {
-          startY: yPos,
-          head: [['Value Driver', 'Annual Benefit']],
-          body: valueData,
-          theme: 'striped',
-          headStyles: { fillColor: brandBlue, fontSize: 10 },
-          bodyStyles: { fontSize: 10 },
-          margin: { left: margin, right: margin },
-        });
-
-        yPos = (doc as any).lastAutoTable.finalY + 15;
-      }
-
-      // Top Use Cases
-      if (dashboard?.topUseCases?.length > 0) {
-        if (yPos > pageHeight - 80) {
-          doc.addPage();
-          yPos = margin;
-        }
-
-        doc.setFontSize(16);
-        doc.setTextColor(...brandBlue);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Top Use Cases', margin, yPos);
-        yPos += 10;
-
-        const useCaseData = dashboard.topUseCases.map((uc: any) => [
-          uc.useCase,
-          formatCurrency(uc.annualValue || 0),
-          uc.priorityScore?.toString() || 'N/A',
-        ]);
-
-        autoTable(doc, {
-          startY: yPos,
-          head: [['Use Case', 'Annual Value', 'Priority Score']],
-          body: useCaseData,
-          theme: 'striped',
-          headStyles: { fillColor: brandBlue, fontSize: 10 },
-          bodyStyles: { fontSize: 9 },
-          columnStyles: {
-            0: { cellWidth: 100 },
-            1: { cellWidth: 35 },
-            2: { cellWidth: 30 },
-          },
-          margin: { left: margin, right: margin },
-        });
-
-        yPos = (doc as any).lastAutoTable.finalY + 15;
-      }
-
-      // Summary
-      if (report.analysisData?.summary) {
-        if (yPos > pageHeight - 60) {
-          doc.addPage();
-          yPos = margin;
-        }
-
-        doc.setFontSize(16);
-        doc.setTextColor(...brandBlue);
-        doc.setFont('helvetica', 'bold');
-        doc.text('Executive Summary', margin, yPos);
-        yPos += 10;
-
-        doc.setFontSize(10);
-        doc.setTextColor(...darkGray);
-        doc.setFont('helvetica', 'normal');
-        
-        const summaryLines = doc.splitTextToSize(report.analysisData.summary, pageWidth - 2 * margin);
-        doc.text(summaryLines, margin, yPos);
-      }
-
-      // Footer
-      const addFooter = () => {
-        const totalPages = doc.getNumberOfPages();
-        for (let i = 1; i <= totalPages; i++) {
-          doc.setPage(i);
-          doc.setFontSize(8);
-          doc.setTextColor(...lightGray);
-          doc.text(
-            `© 2025 BlueAlly. Confidential & Proprietary. Page ${i} of ${totalPages}`,
-            pageWidth / 2,
-            pageHeight - 10,
-            { align: 'center' }
-          );
-        }
-      };
-      addFooter();
-
-      // Save
-      const filename = `${report.companyName.replace(/[^a-zA-Z0-9]/g, '_')}_AI_Assessment.pdf`;
-      doc.save(filename);
-
+      await generateBoardPresentationPDF(report.analysisData, report.companyName);
       toast({
         title: "PDF Downloaded",
-        description: `${report.companyName} AI Assessment has been downloaded.`,
+        description: `${report.companyName} AI Assessment PDF has been downloaded.`,
       });
     } catch (err) {
       console.error('PDF generation error:', err);
@@ -275,7 +105,7 @@ export default function DashboardPage() {
         data={dashboardData}
         onShareUrl={handleShareUrl}
         onDownloadPDF={handleDownloadPDF}
-        onDownloadWorkshop={handleDownloadWorkshop}
+        onViewHTMLReport={handleViewHTMLReport}
       />
       <ShareModal
         open={showShareModal}
