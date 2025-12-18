@@ -561,10 +561,10 @@ interface CTASectionProps {
   totalValue: string;
   valueSuffix: string;
   onViewHTMLReport?: () => void;
-  onDownloadPDF?: () => void;
+  onDownloadWorkshopPDF?: () => void;
 }
 
-const CTASection = ({ totalValue, valueSuffix, onViewHTMLReport, onDownloadPDF }: CTASectionProps) => {
+const CTASection = ({ totalValue, valueSuffix, onViewHTMLReport, onDownloadWorkshopPDF }: CTASectionProps) => {
   return (
     <section className="py-32 bg-[#0339AF] text-white relative overflow-hidden">
       <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent"></div>
@@ -585,12 +585,12 @@ const CTASection = ({ totalValue, valueSuffix, onViewHTMLReport, onDownloadPDF }
             <FileText className="w-5 h-5" />
           </button>
           <button 
-            onClick={onDownloadPDF}
+            onClick={onDownloadWorkshopPDF}
             className="px-8 py-4 rounded-full font-semibold text-white border border-white/30 hover:bg-white/10 transition-all flex items-center gap-2"
-            data-testid="button-download-pdf"
+            data-testid="button-workshop-details"
           >
             <Download className="w-5 h-5" />
-            Download Full PDF Report
+            Workshop Details
           </button>
         </div>
         
@@ -613,11 +613,11 @@ const CTASection = ({ totalValue, valueSuffix, onViewHTMLReport, onDownloadPDF }
 interface DashboardProps {
   data?: DashboardData;
   onShareUrl?: () => void;
-  onDownloadPDF?: () => void;
+  onDownloadWorkshopPDF?: () => void;
   onViewHTMLReport?: () => void;
 }
 
-export default function Dashboard({ data = DEFAULT_DATA, onShareUrl, onDownloadPDF, onViewHTMLReport }: DashboardProps) {
+export default function Dashboard({ data = DEFAULT_DATA, onShareUrl, onDownloadWorkshopPDF, onViewHTMLReport }: DashboardProps) {
   return (
     <div className="min-h-screen bg-slate-50 font-sans selection:bg-blue-200">
       <StickyHeader clientName={data.clientName} onShareUrl={onShareUrl} onViewHTMLReport={onViewHTMLReport} />
@@ -629,7 +629,7 @@ export default function Dashboard({ data = DEFAULT_DATA, onShareUrl, onDownloadP
         totalValue={data.hero.totalValue} 
         valueSuffix={data.hero.valueSuffix} 
         onViewHTMLReport={onViewHTMLReport}
-        onDownloadPDF={onDownloadPDF}
+        onDownloadWorkshopPDF={onDownloadWorkshopPDF}
       />
       
       <footer className="bg-slate-900 text-slate-500 py-12 border-t border-slate-800">

@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { ShareModal } from "@/components/dashboard";
-import { generateBoardPresentationPDF } from "@/lib/pdfGenerator";
 
 export default function DashboardPage() {
   const [, params] = useRoute("/dashboard/:reportId");
@@ -36,28 +35,19 @@ export default function DashboardPage() {
     });
   };
 
-  const handleDownloadPDF = async () => {
-    if (!report) return;
+  const handleDownloadWorkshopPDF = () => {
+    // Download the BlueAlly AI Workshop Preview PDF
+    const link = document.createElement('a');
+    link.href = '/attached_assets/BlueAlly_AI_Workshop_Preview_1766077586339.pdf';
+    link.download = 'BlueAlly_AI_Workshop_Preview.pdf';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
     
     toast({
-      title: "Download Started",
-      description: "Generating board-presentation quality PDF...",
+      title: "Workshop Details Downloaded",
+      description: "BlueAlly AI Workshop Preview PDF has been downloaded.",
     });
-    
-    try {
-      await generateBoardPresentationPDF(report.analysisData, report.companyName);
-      toast({
-        title: "PDF Downloaded",
-        description: `${report.companyName} AI Assessment PDF has been downloaded.`,
-      });
-    } catch (err) {
-      console.error('PDF generation error:', err);
-      toast({
-        title: "Download Failed",
-        description: "There was an error generating the PDF. Please try again.",
-        variant: "destructive",
-      });
-    }
   };
 
   if (isLoading) {
@@ -104,7 +94,7 @@ export default function DashboardPage() {
       <Dashboard 
         data={dashboardData}
         onShareUrl={handleShareUrl}
-        onDownloadPDF={handleDownloadPDF}
+        onDownloadWorkshopPDF={handleDownloadWorkshopPDF}
         onViewHTMLReport={handleViewHTMLReport}
       />
       <ShareModal
