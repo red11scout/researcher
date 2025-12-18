@@ -69,6 +69,15 @@ const sanitizeForPDF = (text: string): string => {
     // Remove warning emoji
     .replace(/⚠️/g, '')
     .replace(/⚠/g, '')
+    // Replace arrow symbols with text equivalents (fixing PDF encoding issues)
+    .replace(/↑/g, 'Up')
+    .replace(/↓/g, 'Down')
+    .replace(/[\u2191\u2197]/g, 'Up')  // Unicode up arrows (↑ ↗)
+    .replace(/[\u2193\u2198]/g, 'Down') // Unicode down arrows (↓ ↘)
+    .replace(/→/g, '->')
+    .replace(/←/g, '<-')
+    .replace(/[\u2192]/g, '->')  // Unicode right arrow
+    .replace(/[\u2190]/g, '<-')  // Unicode left arrow
     // Clean up multiple spaces
     .replace(/\s+/g, ' ')
     .trim();
@@ -897,6 +906,7 @@ export default function Report() {
             formatNumber(uc.monthlyTokens),
           ]),
           theme: 'plain',
+          showHead: 'everyPage',
           headStyles: { 
             fillColor: BRAND.primaryBlue,
             textColor: BRAND.white,
@@ -954,14 +964,115 @@ export default function Report() {
     
     // ===== ANALYSIS STEPS - Board Presentation Standard =====
     for (const step of data.steps) {
+      // Check if this step has meaningful content before creating a new page
+      const hasContent = step.content || (step.data && step.data.length > 0);
+      if (!hasContent) continue; // Skip empty steps to prevent blank pages
+      
       // Start each major step on a new page
       yPos = addPageWithBranding();
       yPos = drawSectionHeading(`Step ${step.step}: ${step.title}`, yPos);
       
-      // Centered content description with larger font
-      if (step.content) {
+      // Special handling for Step 0 (Company Overview) - format as clean, readable paragraphs
+      if (step.step === 0 && step.content) {
+        const content = sanitizeForPDF(step.content);
+        
+        // Known section headers (case-insensitive check without stateful regex)
+        const knownHeaders = [
+          'COMPANY PROFILE',
+          'KEY BUSINESS CHALLENGES',
+          'STRATEGIC PRIORITIES',
+          'EXECUTIVE SUMMARY',
+          'OVERVIEW',
+          'BUSINESS CONTEXT',
+          'INDUSTRY CONTEXT',
+          'MARKET POSITION'
+        ];
+        
+        // Check if text starts with a known header
+        const isKnownHeader = (text: string): string | null => {
+          const upperText = text.toUpperCase().trim();
+          for (const header of knownHeaders) {
+            if (upperText.startsWith(header)) {
+              return header;
+            }
+          }
+          return null;
+        };
+        
+        // Split content by double asterisks (markdown bold) or numbered items
+        const sections = content.split(/(?=\*\*[A-Z]|\d+\.\s\*\*)/);
+        
+        for (const section of sections) {
+          if (!section.trim()) continue;
+          
+          const trimmedSection = section.trim();
+          
+          // Check for markdown bold headers like **COMPANY PROFILE**
+          const boldMatch = trimmedSection.match(/^\*\*([^*]+)\*\*:?\s*/);
+          
+          if (boldMatch) {
+            // This is a section header
+            yPos = ensureSpace(20, yPos);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(11);
+            doc.setTextColor(...BRAND.primaryBlue);
+            doc.text(boldMatch[1].trim(), centerX, yPos, { align: 'center' });
+            yPos += 12;
+            
+            // Rest of the section as body text
+            const bodyText = trimmedSection.substring(boldMatch[0].length).trim();
+            if (bodyText) {
+              doc.setFont('helvetica', 'normal');
+              doc.setFontSize(10);
+              doc.setTextColor(...BRAND.darkNavy);
+              const bodyLines = doc.splitTextToSize(bodyText, contentWidth - 20);
+              for (const line of bodyLines) {
+                yPos = ensureSpace(8, yPos);
+                doc.text(line, centerX, yPos, { align: 'center', maxWidth: contentWidth - 20 });
+                yPos += 6;
+              }
+              yPos += 8;
+            }
+          } else if (/^\d+\.\s/.test(trimmedSection)) {
+            // Numbered item
+            yPos = ensureSpace(15, yPos);
+            
+            const numMatch = trimmedSection.match(/^(\d+\.)\s*/);
+            if (numMatch) {
+              // Format number and text together
+              doc.setFont('helvetica', 'normal');
+              doc.setFontSize(10);
+              doc.setTextColor(...BRAND.darkNavy);
+              
+              const itemText = trimmedSection.trim();
+              const itemLines = doc.splitTextToSize(itemText, contentWidth - 30);
+              for (const line of itemLines) {
+                yPos = ensureSpace(8, yPos);
+                doc.text(line, margin + 15, yPos);
+                yPos += 6;
+              }
+              yPos += 4;
+            }
+          } else {
+            // Regular paragraph - centered like other content
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(10);
+            doc.setTextColor(...BRAND.darkNavy);
+            const paraLines = doc.splitTextToSize(trimmedSection, contentWidth - 20);
+            for (const line of paraLines) {
+              yPos = ensureSpace(8, yPos);
+              doc.text(line, centerX, yPos, { align: 'center', maxWidth: contentWidth - 20 });
+              yPos += 6;
+            }
+            yPos += 6;
+          }
+        }
+        yPos += 12;
+      }
+      // Standard content handling for other steps
+      else if (step.content) {
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(12);
+        doc.setFontSize(step.step === 1 ? 11 : 12); // Consistent font size for Step 1
         doc.setTextColor(...BRAND.gray);
         const sanitizedContent = sanitizeForPDF(step.content);
         const contentLines = doc.splitTextToSize(sanitizedContent, contentWidth - 20);
@@ -1045,6 +1156,7 @@ export default function Report() {
           head: [truncatedHeaders],
           body: isNarrativeStep ? rows : truncatedRows, // Use full rows for narrative steps
           theme: 'plain',
+          showHead: 'everyPage',
           headStyles: { 
             fillColor: BRAND.primaryBlue,
             textColor: BRAND.white,
@@ -1099,45 +1211,47 @@ export default function Report() {
           doc.rect(centerX - headingWidth/2, yPos + 14, headingWidth, 2, 'F');
           yPos += 30;
           
-          // Formulas table - strict widths to fit page
+          // Formulas table - strict widths to fit page with better text wrapping
           const formulaTableColumns = ['ID', 'Use Case', ...formulaColumns.slice(0, 2)]; // Limit to 4 columns max
           const formulaRows = step.data.map((row: any) => 
             [
               row['ID'] || '', 
-              String(row['Use Case'] || '').substring(0, 35),
-              ...formulaColumns.slice(0, 2).map(col => String(row[col] || 'N/A').substring(0, 40))
+              String(row['Use Case'] || '').substring(0, 40),
+              ...formulaColumns.slice(0, 2).map(col => sanitizeForPDF(String(row[col] || 'N/A')).substring(0, 80))
             ]
           );
           
-          // Fixed widths: ID=10, UseCase=50, Formula cols share remaining
+          // Fixed widths: ID=12, UseCase=45, Formula cols get more space for text
           const fColCount = formulaTableColumns.length;
           const fColStyles: any = {
-            0: { cellWidth: 10, halign: 'center' },
-            1: { cellWidth: 50, halign: 'left' }
+            0: { cellWidth: 12, halign: 'center', overflow: 'linebreak' },
+            1: { cellWidth: 45, halign: 'left', overflow: 'linebreak' }
           };
-          const fRemainingWidth = contentWidth - 60;
-          const fColWidth = Math.floor(fRemainingWidth / (fColCount - 2));
+          const fRemainingWidth = contentWidth - 57;
+          const fColWidth = Math.floor(fRemainingWidth / Math.max(fColCount - 2, 1));
           for (let i = 2; i < fColCount; i++) {
-            fColStyles[i] = { cellWidth: fColWidth, halign: 'left' };
+            fColStyles[i] = { cellWidth: fColWidth, halign: 'left', overflow: 'linebreak' };
           }
           
           autoTable(doc, {
             startY: yPos,
-            head: [formulaTableColumns.map(h => String(h).substring(0, 18))],
+            head: [formulaTableColumns.map(h => String(h).substring(0, 22))],
             body: formulaRows,
             theme: 'plain',
+            showHead: 'everyPage',
             headStyles: { 
               fillColor: BRAND.primaryBlue,
               textColor: BRAND.white,
               fontStyle: 'bold',
               fontSize: 8,
-              cellPadding: 2,
+              cellPadding: 3,
               halign: 'center'
             },
             bodyStyles: { 
               fontSize: 8, 
-              cellPadding: 2,
-              textColor: BRAND.darkNavy
+              cellPadding: 3,
+              textColor: BRAND.darkNavy,
+              minCellHeight: 10
             },
             alternateRowStyles: { fillColor: [248, 250, 255] },
             styles: { 
