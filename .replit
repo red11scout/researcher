@@ -50,6 +50,8 @@ integrations = ["javascript_anthropic_ai_integrations:1.0.0", "github:1.0.0"]
 [userenv]
 
 [userenv.shared]
+VITE_POSTHOG_KEY = "phc_8bh0KonHnnFW4nXk4YdzmadXeJj2Mi8QJOzFft4X0oD"
+VITE_POSTHOG_HOST = "https://us.i.posthog.com"
 
 [userenv.production]
 NO_PROXY = "api.anthropic.com"
