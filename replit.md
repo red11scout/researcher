@@ -32,6 +32,14 @@ The platform features a modern, professional interface with interactive data vis
 - Short sentences, active voice, no jargon, numbers with white space
 - Risks stand alone and are never buried in paragraphs
 
+**Company Overview Executive Transformation (Complete)**:
+- Step 0 content now uses executive transformation format with structured sections
+- Company Profile section: ticker/HQ header, big revenue/earnings numbers on own lines, Scale table with key metrics
+- Key Business Challenges section: consequence-led headers ("The $3B Problem: Shrink"), 2-3 sentence paragraphs each
+- Both HTML and PDF exports render markdown tables, bold headers, and horizontal rules properly
+- HTMLReportViewer.tsx: `renderExecutiveContent()` helper parses markdown to styled React components
+- pdfGenerator.ts: Step 0 handler processes tables, big numbers, challenge headers with proper styling
+
 **Shared PDF Generator Utility (Complete)**:
 - Extracted board-presentation PDF logic to `client/src/lib/pdfGenerator.ts` (800+ lines)
 - `generateBoardPresentationPDF(data, companyName)` function used by Report, DashboardPage, and SharedDashboard

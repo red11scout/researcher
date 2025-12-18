@@ -317,13 +317,48 @@ Mark ALL non-verified information:
 <output_methodology>
 Execute this 8-step framework. Do NOT skip or combine steps.
 
-STEP 0: COMPANY OVERVIEW
-- Company profile synthesis with headquarters, size, revenue, industry
-- Identify 4-6 key business challenges with evidence
-- List strategic priorities from latest filings
+STEP 0: COMPANY OVERVIEW (Executive Transformation Format)
+Generate content in this EXACT structure for maximum executive impact:
+
+**Company Profile**
+{Company Name} | {TICKER} | {Headquarters City, State}
+
+**{REVENUE}** revenue. **{EARNINGS}** net earnings. {One-line company descriptor}.
+
+| Scale | |
+|-------|---------|
+| {Metric 1} | {Value} |
+| {Metric 2} | {Value} |
+| {Metric 3} | {Value} |
+| {Metric 4} | {Value} |
+
+---
+
+**Key Business Challenges**
+
+**The {DOLLAR_IMPACT} Problem: {Challenge Name}**
+{2-3 punchy sentences. Lead with consequence. End with implication. No jargon.}
+
+**{Challenge 2 Title}**
+{2-3 sentences. Numbers get white space. Active voice.}
+
+**{Challenge 3 Title}**
+{2-3 sentences. One paragraph, one job.}
+
+**{Challenge 4 Title}**
+{2-3 sentences. Translate jargon into consequence.}
+
+---
+
+TRANSFORMATION RULES:
+- Lead with consequence, not category name ("The $3B Problem" not "Shrink and Loss Prevention")
+- Each challenge is self-contained in 2-3 sentences max
+- Big numbers get their own line with bold formatting
+- Use tables for scannable data (scale metrics, benchmarks)
+- Plain-language caveats where needed (not [CONFIDENCE] markers in prose)
+- End with implication ("unsustainable at scale") not restating the problem
 - Apply 5% reduction to reported financials
-- FLAG all assumptions with confidence levels
-- Include ⚠️ CRITICAL ASSUMPTION callout
+- Include ⚠️ CRITICAL ASSUMPTION callout for any major extrapolation
 
 STEP 1: STRATEGIC ANCHORING & BUSINESS DRIVERS
 - Map 5 strategic themes to business drivers
@@ -446,7 +481,7 @@ IMPORTANT: Return ONLY valid JSON. No markdown, no code blocks, no explanatory t
 JSON structure:
 {
   "steps": [
-    {"step": 0, "title": "Company Overview", "content": "prose description with [CONFIDENCE] flags and ⚠️ CRITICAL ASSUMPTION callout", "data": null},
+    {"step": 0, "title": "Company Overview", "content": "Executive transformation format: **Company Profile** header with ticker/HQ, big revenue/earnings numbers on own line, Scale table (markdown), --- divider, **Key Business Challenges** with consequence-led headers (e.g. 'The $3B Problem: Shrink'), 2-3 sentence paragraphs each, ⚠️ CRITICAL ASSUMPTION callout", "data": null},
     {"step": 1, "title": "Strategic Anchoring & Business Drivers", "content": "brief intro", "data": [{"Strategic Theme": "...", "Primary Driver": "...", "Secondary Driver": "...", "Current State": "...", "Target State": "..."}]},
     {"step": 2, "title": "Business Function Inventory & KPI Baselines", "content": "...", "data": [{"Function": "...", "Sub-Function": "...", "KPI Name": "...", "Baseline Value": "...", "Industry Benchmark": "...", "Target Value": "...", "Direction": "↑/↓", "Timeframe": "...", "Measurement Method": "..."}]},
     {"step": 3, "title": "Friction Point Mapping", "content": "...", "data": [{"Function": "...", "Sub-Function": "...", "Friction Point": "...", "Severity": "Critical/High/Medium", "Primary Driver Impact": "...", "Estimated Annual Cost ($)": "..."}]},

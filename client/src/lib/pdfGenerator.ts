@@ -449,77 +449,156 @@ export async function generateBoardPresentationPDF(data: any, companyName: strin
     if (step.step === 0 && step.content) {
       const content = sanitizeForPDF(step.content);
       
-      const knownHeaders = [
-        'COMPANY PROFILE',
-        'KEY BUSINESS CHALLENGES',
-        'STRATEGIC PRIORITIES',
-        'EXECUTIVE SUMMARY',
-        'OVERVIEW',
-        'BUSINESS CONTEXT',
-        'INDUSTRY CONTEXT',
-        'MARKET POSITION'
-      ];
+      // Split by horizontal rules to separate major sections
+      const majorSections = content.split(/\n---\n|\n-{3,}\n/);
       
-      const sections = content.split(/(?=\*\*[A-Z]|\d+\.\s\*\*)/);
-      
-      for (const section of sections) {
-        if (!section.trim()) continue;
+      for (const majorSection of majorSections) {
+        if (!majorSection.trim()) continue;
         
-        const trimmedSection = section.trim();
+        const lines = majorSection.trim().split('\n');
+        let inTable = false;
+        const tableRows: string[][] = [];
         
-        const boldMatch = trimmedSection.match(/^\*\*([^*]+)\*\*:?\s*/);
-        
-        if (boldMatch) {
-          yPos = ensureSpace(20, yPos);
-          doc.setFont('helvetica', 'bold');
-          doc.setFontSize(11);
-          doc.setTextColor(...BRAND.primaryBlue);
-          doc.text(boldMatch[1].trim(), centerX, yPos, { align: 'center' });
-          yPos += 12;
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (!line) continue;
           
-          const bodyText = trimmedSection.substring(boldMatch[0].length).trim();
-          if (bodyText) {
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(10);
-            doc.setTextColor(...BRAND.darkNavy);
-            const bodyLines = doc.splitTextToSize(bodyText, contentWidth - 20);
-            for (const line of bodyLines) {
-              yPos = ensureSpace(8, yPos);
-              doc.text(line, centerX, yPos, { align: 'center', maxWidth: contentWidth - 20 });
-              yPos += 6;
-            }
-            yPos += 8;
-          }
-        } else if (/^\d+\.\s/.test(trimmedSection)) {
-          yPos = ensureSpace(15, yPos);
-          
-          const numMatch = trimmedSection.match(/^(\d+\.)\s*/);
-          if (numMatch) {
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(10);
-            doc.setTextColor(...BRAND.darkNavy);
+          // Handle markdown tables
+          if (line.startsWith('|')) {
+            if (line.includes('---')) continue; // Skip separator row
             
-            const itemText = trimmedSection.trim();
-            const itemLines = doc.splitTextToSize(itemText, contentWidth - 30);
-            for (const line of itemLines) {
-              yPos = ensureSpace(8, yPos);
-              doc.text(line, margin + 15, yPos);
-              yPos += 6;
+            const cells = line.split('|').filter(c => c.trim()).map(c => c.trim());
+            if (cells.length >= 2) {
+              tableRows.push(cells);
+              inTable = true;
+              continue;
             }
-            yPos += 4;
+          } else if (inTable && tableRows.length > 0) {
+            // End of table - render it
+            yPos = ensureSpace(tableRows.length * 12 + 10, yPos);
+            autoTable(doc, {
+              startY: yPos,
+              body: tableRows,
+              theme: 'plain',
+              styles: { fontSize: 10, cellPadding: 4 },
+              columnStyles: {
+                0: { textColor: BRAND.gray, fontStyle: 'normal', cellWidth: 50 },
+                1: { textColor: BRAND.darkNavy, fontStyle: 'bold', cellWidth: contentWidth - 50 }
+              },
+              tableWidth: contentWidth,
+              margin: { left: margin, right: margin }
+            });
+            yPos = (doc as any).lastAutoTable.finalY + 10;
+            tableRows.length = 0;
+            inTable = false;
           }
-        } else {
+          
+          // Handle main section headers like **Company Profile** or **Key Business Challenges**
+          const mainHeaderMatch = line.match(/^\*\*(Company Profile|Key Business Challenges)\*\*$/);
+          if (mainHeaderMatch) {
+            yPos = ensureSpace(25, yPos);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(14);
+            doc.setTextColor(...BRAND.primaryBlue);
+            doc.text(mainHeaderMatch[1], margin, yPos);
+            // Underline
+            doc.setDrawColor(...BRAND.lightBlue);
+            doc.setLineWidth(0.5);
+            doc.line(margin, yPos + 3, margin + doc.getTextWidth(mainHeaderMatch[1]), yPos + 3);
+            yPos += 15;
+            continue;
+          }
+          
+          // Handle ticker/HQ line (Company | TICKER | City, State)
+          if (!line.startsWith('**') && line.includes(' | ') && !line.startsWith('|')) {
+            yPos = ensureSpace(12, yPos);
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(10);
+            doc.setTextColor(...BRAND.gray);
+            doc.text(line, margin, yPos);
+            yPos += 8;
+            continue;
+          }
+          
+          // Handle big numbers line like **$152.7B** revenue. **$15.0B** earnings.
+          if (line.includes('**') && (line.includes('revenue') || line.includes('earnings') || line.includes('Revenue') || line.includes('Earnings'))) {
+            yPos = ensureSpace(20, yPos);
+            const cleanLine = line.replace(/\*\*/g, '');
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(16);
+            doc.setTextColor(...BRAND.primaryBlue);
+            doc.text(cleanLine, margin, yPos);
+            yPos += 12;
+            continue;
+          }
+          
+          // Handle challenge headers like **The $3B Problem: Shrink**
+          const challengeMatch = line.match(/^\*\*([^*]+)\*\*$/);
+          if (challengeMatch) {
+            yPos = ensureSpace(18, yPos);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(11);
+            doc.setTextColor(...BRAND.darkNavy);
+            doc.text(challengeMatch[1], margin, yPos);
+            yPos += 10;
+            continue;
+          }
+          
+          // Handle any remaining bold text patterns
+          const boldMatch = line.match(/^\*\*([^*]+)\*\*:?\s*(.*)/);
+          if (boldMatch) {
+            yPos = ensureSpace(16, yPos);
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(11);
+            doc.setTextColor(...BRAND.primaryBlue);
+            doc.text(boldMatch[1], margin, yPos);
+            yPos += 10;
+            
+            if (boldMatch[2]) {
+              doc.setFont('helvetica', 'normal');
+              doc.setFontSize(10);
+              doc.setTextColor(...BRAND.darkNavy);
+              const bodyLines = doc.splitTextToSize(boldMatch[2], contentWidth - 10);
+              for (const bodyLine of bodyLines) {
+                yPos = ensureSpace(8, yPos);
+                doc.text(bodyLine, margin, yPos);
+                yPos += 6;
+              }
+            }
+            continue;
+          }
+          
+          // Regular paragraph text
           doc.setFont('helvetica', 'normal');
           doc.setFontSize(10);
           doc.setTextColor(...BRAND.darkNavy);
-          const paraLines = doc.splitTextToSize(trimmedSection, contentWidth - 20);
-          for (const line of paraLines) {
+          const paraLines = doc.splitTextToSize(line, contentWidth - 10);
+          for (const paraLine of paraLines) {
             yPos = ensureSpace(8, yPos);
-            doc.text(line, centerX, yPos, { align: 'center', maxWidth: contentWidth - 20 });
+            doc.text(paraLine, margin, yPos);
             yPos += 6;
           }
-          yPos += 6;
         }
+        
+        // Render any remaining table at end of section
+        if (tableRows.length > 0) {
+          yPos = ensureSpace(tableRows.length * 12 + 10, yPos);
+          autoTable(doc, {
+            startY: yPos,
+            body: tableRows,
+            theme: 'plain',
+            styles: { fontSize: 10, cellPadding: 4 },
+            columnStyles: {
+              0: { textColor: BRAND.gray, fontStyle: 'normal', cellWidth: 50 },
+              1: { textColor: BRAND.darkNavy, fontStyle: 'bold', cellWidth: contentWidth - 50 }
+            },
+            tableWidth: contentWidth,
+            margin: { left: margin, right: margin }
+          });
+          yPos = (doc as any).lastAutoTable.finalY + 10;
+        }
+        
+        yPos += 8;
       }
       yPos += 12;
     }

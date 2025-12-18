@@ -27,6 +27,229 @@ const formatNumber = (value: number | string): string => {
   return format.number(value, { compact: true });
 };
 
+// Parse executive transformation markdown format to structured HTML
+const renderExecutiveContent = (content: string): React.ReactNode => {
+  if (!content) return null;
+  
+  const elements: React.ReactNode[] = [];
+  
+  // Split by horizontal rule to separate Company Profile from Key Business Challenges
+  const sections = content.split(/\n---\n|\n-{3,}\n/);
+  
+  sections.forEach((section, sectionIdx) => {
+    const trimmedSection = section.trim();
+    if (!trimmedSection) return;
+    
+    // Check for markdown table (| ... |)
+    if (trimmedSection.includes('|') && trimmedSection.split('\n').some(line => line.trim().startsWith('|'))) {
+      const lines = trimmedSection.split('\n');
+      const tableRows: string[][] = [];
+      let headerRow: string[] = [];
+      let inTable = false;
+      
+      lines.forEach((line, lineIdx) => {
+        const trimmedLine = line.trim();
+        
+        // Handle bold headers before tables
+        if (trimmedLine.startsWith('**') && trimmedLine.endsWith('**') && !trimmedLine.includes('|')) {
+          const headerText = trimmedLine.replace(/\*\*/g, '');
+          elements.push(
+            <h3 key={`header-${sectionIdx}-${lineIdx}`} style={{ 
+              fontSize: 18, 
+              fontWeight: 700, 
+              color: '#001278',
+              marginTop: 24,
+              marginBottom: 8
+            }}>
+              {headerText}
+            </h3>
+          );
+          return;
+        }
+        
+        // Handle revenue/earnings line with bold numbers
+        if (trimmedLine.includes('**') && !trimmedLine.startsWith('|') && !trimmedLine.startsWith('**Company') && !trimmedLine.startsWith('**Key')) {
+          const formattedLine = trimmedLine.split('**').map((part, i) => 
+            i % 2 === 1 ? <strong key={i} style={{ fontSize: 24, color: '#001278' }}>{part}</strong> : part
+          );
+          elements.push(
+            <p key={`bignum-${sectionIdx}-${lineIdx}`} style={{ 
+              fontSize: 16, 
+              color: '#374151',
+              marginBottom: 16,
+              lineHeight: 1.6
+            }}>
+              {formattedLine}
+            </p>
+          );
+          return;
+        }
+        
+        // Handle ticker/HQ line
+        if (!trimmedLine.startsWith('|') && !trimmedLine.includes('**') && trimmedLine.includes(' | ')) {
+          elements.push(
+            <p key={`ticker-${sectionIdx}-${lineIdx}`} style={{ 
+              fontSize: 14, 
+              color: '#64748b',
+              marginBottom: 4,
+              fontWeight: 500
+            }}>
+              {trimmedLine}
+            </p>
+          );
+          return;
+        }
+        
+        // Parse table rows
+        if (trimmedLine.startsWith('|')) {
+          // Skip separator row (|---|---|)
+          if (trimmedLine.includes('---')) return;
+          
+          const cells = trimmedLine.split('|').filter(c => c.trim()).map(c => c.trim());
+          if (!inTable) {
+            headerRow = cells;
+            inTable = true;
+          } else {
+            tableRows.push(cells);
+          }
+        }
+      });
+      
+      // Render the table if we have rows
+      if (tableRows.length > 0 || headerRow.length > 0) {
+        elements.push(
+          <table key={`table-${sectionIdx}`} style={{ 
+            width: '100%', 
+            borderCollapse: 'collapse',
+            marginBottom: 20,
+            fontSize: 14
+          }}>
+            {headerRow.length > 0 && headerRow[0] && (
+              <thead>
+                <tr style={{ borderBottom: '2px solid #001278' }}>
+                  {headerRow.map((cell, cellIdx) => (
+                    <th key={cellIdx} style={{ 
+                      padding: '10px 12px',
+                      color: '#001278',
+                      fontWeight: 700,
+                      textAlign: 'left',
+                      fontSize: 13
+                    }}>
+                      {cell}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+            )}
+            <tbody>
+              {tableRows.map((row, rowIdx) => (
+                <tr key={rowIdx} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                  {row.map((cell, cellIdx) => (
+                    <td key={cellIdx} style={{ 
+                      padding: '10px 12px',
+                      color: cellIdx === 0 ? '#64748b' : '#1e293b',
+                      fontWeight: cellIdx === 0 ? 400 : 600
+                    }}>
+                      {cell}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        );
+      }
+      
+      return;
+    }
+    
+    // Parse bold section headers like **Key Business Challenges** or **The $3B Problem: Shrink**
+    const boldHeaderMatch = trimmedSection.match(/^\*\*([^*]+)\*\*\s*([\s\S]*)/);
+    if (boldHeaderMatch) {
+      const header = boldHeaderMatch[1];
+      const body = boldHeaderMatch[2].trim();
+      
+      // Check if this is a main section header or a challenge header
+      const isMainSection = header === 'Company Profile' || header === 'Key Business Challenges';
+      
+      elements.push(
+        <h3 key={`bold-header-${sectionIdx}`} style={{ 
+          fontSize: isMainSection ? 20 : 16, 
+          fontWeight: 700, 
+          color: isMainSection ? '#001278' : '#1e293b',
+          marginTop: isMainSection ? 24 : 16,
+          marginBottom: 8,
+          borderBottom: isMainSection ? '2px solid #02a2fa' : 'none',
+          paddingBottom: isMainSection ? 8 : 0
+        }}>
+          {header}
+        </h3>
+      );
+      
+      if (body) {
+        // Handle the body text - may contain nested bold sections for challenges
+        const challengeParts = body.split(/(?=\*\*[^*]+\*\*)/);
+        
+        challengeParts.forEach((part, partIdx) => {
+          const challengeMatch = part.match(/^\*\*([^*]+)\*\*\s*([\s\S]*)/);
+          if (challengeMatch) {
+            elements.push(
+              <h4 key={`challenge-${sectionIdx}-${partIdx}`} style={{ 
+                fontSize: 15, 
+                fontWeight: 600, 
+                color: '#1e293b',
+                marginTop: 16,
+                marginBottom: 6
+              }}>
+                {challengeMatch[1]}
+              </h4>
+            );
+            if (challengeMatch[2].trim()) {
+              elements.push(
+                <p key={`challenge-body-${sectionIdx}-${partIdx}`} style={{ 
+                  fontSize: 14, 
+                  color: '#4b5563',
+                  lineHeight: 1.7,
+                  marginBottom: 12
+                }}>
+                  {challengeMatch[2].trim()}
+                </p>
+              );
+            }
+          } else if (part.trim()) {
+            elements.push(
+              <p key={`part-${sectionIdx}-${partIdx}`} style={{ 
+                fontSize: 14, 
+                color: '#4b5563',
+                lineHeight: 1.7,
+                marginBottom: 12
+              }}>
+                {part.trim()}
+              </p>
+            );
+          }
+        });
+      }
+      
+      return;
+    }
+    
+    // Default paragraph rendering
+    elements.push(
+      <p key={`para-${sectionIdx}`} style={{ 
+        fontSize: 14, 
+        color: '#4b5563',
+        lineHeight: 1.7,
+        marginBottom: 12
+      }}>
+        {trimmedSection}
+      </p>
+    );
+  });
+  
+  return <div>{elements}</div>;
+};
+
 export default function HTMLReportViewer() {
   const [, params] = useRoute("/reports/:id/html");
   const [, setLocation] = useLocation();
@@ -250,7 +473,9 @@ export default function HTMLReportViewer() {
                 </h2>
               </div>
               <div style={styles.cardContent}>
-                {step.content && (
+                {step.step === 0 && step.content ? (
+                  renderExecutiveContent(step.content)
+                ) : step.content && (
                   <p style={styles.stepContent}>{step.content}</p>
                 )}
 
