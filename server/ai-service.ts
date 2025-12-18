@@ -319,50 +319,74 @@ Execute this 8-step framework. Do NOT skip or combine steps.
 
 STEP 0: COMPANY OVERVIEW (Executive Transformation Method)
 
-Apply the Executive Transformation Method. This is non-negotiable. Never produce walls of text, buried insights, or jargon-heavy prose.
+Apply the Executive Transformation Method with strict formatting. Never produce walls of text, buried insights, or jargon-heavy prose.
 
-STRUCTURE (follow exactly):
+### COMPANY PROFILE BLOCK (follow exactly):
 
-**Company Profile**
+**[Company Name]** | [Exchange: Ticker] | [HQ City, State]
 
-{Company Name} | {Exchange: TICKER} | {HQ City, State}
-
-**{$REVENUE}** revenue. **{$EARNINGS}** net earnings. {One-line positioning statement.}
+**$[X.X]B** revenue. **$[X]M** net earnings. [One positioning sentence—15 words max.]
 
 | Scale | |
 |-------|---------|
-| {Key Metric 1} | {Value} |
-| {Key Metric 2} | {Value} |
-| {Key Metric 3} | {Value} |
-| {Key Metric 4} | {Value} |
+| Total Assets | $XX.XB |
+| Total Deposits | $XX.XB |
+| Total Loans | $XX.XB |
+| Branches | XXX |
+| Employees | X,XXX |
+
+[BLANK LINE REQUIRED AFTER TABLE]
 
 ---
 
-**Key Business Challenges**
+### KEY BUSINESS CHALLENGES
 
-**The {$DOLLAR_IMPACT} Problem: {Name}**
+Order by dollar impact. One challenge per block. Never combine.
 
-{2-3 sentences max. Lead with consequence. End with implication. Example: "$3B problem. Shrink runs 1.5-2.0% of revenue across 2,335 stores. That's theft, damage, and administrative error—walking out the door."}
+**The $[X]M Problem: [Short Name]**
 
-**{Challenge 2 Name}**
+[2-3 sentences. First sentence: the metric. Second sentence: the consequence. No confidence tags inline.]
 
-{2-3 sentences. Same pattern. Translate jargon to consequence.}
+**[Challenge 2 Name]**
 
-**{Challenge 3 Name}**
+[Same pattern. Metric → Consequence.]
 
-{2-3 sentences. Numbers get white space. Bold key figures.}
+**[Challenge 3 Name]**
 
-**{Challenge 4 Name}**
+[Same pattern.]
 
-{2-3 sentences. End with implication, not summary.}
+**[Challenge 4 Name]**
+
+[Same pattern.]
+
+**[Challenge 5 Name]**
+
+[Same pattern. Maximum 5 challenges.]
 
 ---
 
-⚠️ **Critical Assumptions**
+### ⚠️ Critical Assumptions
 
-{Standalone risk/caveat callout. What data is estimated vs verified. One paragraph max.}
+[Plain prose. One paragraph. State data sources and estimation methods. No brackets, no ALL-CAPS labels.]
 
 ---
+
+FORMATTING RULES FOR THIS SECTION:
+
+1. TABLES: Use proper markdown with blank lines before and after
+2. NEVER render tables as inline text with pipes
+3. CHALLENGES: Each gets its own header and 2-3 sentence block
+4. CONFIDENCE MARKERS: Remove [HIGH CONFIDENCE], [MEDIUM CONFIDENCE], [ASSUMPTION] from body text
+5. DATA SOURCES: Consolidate all sourcing notes into the Critical Assumptions footer
+6. BLANK LINES: Required between every distinct element
+7. HORIZONTAL RULES (---): Use to separate Profile, Challenges, and Assumptions sections
+
+ANTI-PATTERNS TO AVOID:
+- Walls of text with no line breaks
+- Tables rendered as: "| Scale | |-------|---------||"
+- Inline confidence tags: "[HIGH CONFIDENCE - 10-Q filing]"
+- Multiple challenges in one paragraph
+- Metrics buried in prose instead of bold callouts
 
 EXECUTIVE TRANSFORMATION RULES:
 
@@ -371,7 +395,7 @@ STRUCTURE:
 - One paragraph = one job. If it does two things, split it.
 - Maximum 4 sentences per paragraph. Hard limit.
 - Risks stand alone with ⚠️ markers. Never bury mid-paragraph.
-- Order by impact, not logical sequence. $3B problem before $300K annoyance.
+- Order challenges by dollar impact, not logical sequence. $3B problem before $300K annoyance.
 
 STYLE:
 - Hemingway + McKinsey: Short sentences. Active voice. No filler.
@@ -390,18 +414,18 @@ RHYTHM:
 - End with implication, not summary. "The knowledge burden is unsustainable at scale" not "Associates face many challenges."
 
 CONFIDENCE:
-- Don't write: [HIGH CONFIDENCE - 10-K filing]
-- Write: "Per 2024 10-K" or use footnote style
-- Reserve inline caveats for genuinely uncertain claims: "Industry benchmark; company-specific data not disclosed."
+- Don't write inline tags like: [HIGH CONFIDENCE - 10-K filing]
+- Instead use: "Per 2024 10-K" in the Critical Assumptions section
+- Reserve all sourcing notes for the Critical Assumptions footer
 
 VALIDATION (verify before output):
 - First line has most important number or insight
 - No paragraph exceeds 4 sentences
-- Critical risks have standalone sections with ⚠️ markers
+- Critical Assumptions section has ⚠️ marker
 - Numbers have white space (bold callouts or line breaks)
 - Zero instances of forbidden words
-- Sections ordered by impact
-- Final line states implication, not summary
+- Challenges ordered by dollar impact
+- Tables have proper markdown formatting with blank lines
 
 STEP 1: STRATEGIC ANCHORING & BUSINESS DRIVERS
 - Map 5 strategic themes to business drivers

@@ -493,7 +493,29 @@ export async function generateBoardPresentationPDF(data: any, companyName: strin
             inTable = false;
           }
           
-          // Handle main section headers like **Company Profile** or **Key Business Challenges**
+          // Handle markdown ### headers (new format) or **Bold** headers (legacy format)
+          const markdownH3Match = line.match(/^###\s*(.+)$/);
+          if (markdownH3Match) {
+            yPos = ensureSpace(25, yPos);
+            const headerText = markdownH3Match[1].replace(/[⚠️]/g, '').trim();
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(14);
+            // Use orange for Critical Assumptions, blue for others
+            if (line.includes('Critical Assumptions')) {
+              doc.setTextColor(220, 120, 0); // Orange for warnings
+            } else {
+              doc.setTextColor(...BRAND.primaryBlue);
+            }
+            doc.text(headerText, margin, yPos);
+            // Underline
+            doc.setDrawColor(...BRAND.lightBlue);
+            doc.setLineWidth(0.5);
+            doc.line(margin, yPos + 3, margin + doc.getTextWidth(headerText), yPos + 3);
+            yPos += 15;
+            continue;
+          }
+          
+          // Handle main section headers like **Company Profile** or **Key Business Challenges** (legacy format)
           const mainHeaderMatch = line.match(/^\*\*(Company Profile|Key Business Challenges)\*\*$/);
           if (mainHeaderMatch) {
             yPos = ensureSpace(25, yPos);

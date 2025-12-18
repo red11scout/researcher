@@ -84,7 +84,28 @@ const renderExecutiveContent = (content: string): React.ReactNode => {
       lines.forEach((line, lineIdx) => {
         const trimmedLine = line.trim();
         
-        // Handle bold headers before tables
+        // Handle markdown ### headers (new format)
+        const h3Match = trimmedLine.match(/^###\s*(.+)$/);
+        if (h3Match) {
+          const headerText = h3Match[1].replace(/[⚠️]/g, '').trim();
+          const isCritical = trimmedLine.includes('Critical Assumptions');
+          elements.push(
+            <h3 key={`h3-${sectionIdx}-${lineIdx}`} style={{ 
+              fontSize: 20, 
+              fontWeight: 700, 
+              color: isCritical ? '#c45500' : '#001278',
+              marginTop: 28,
+              marginBottom: 12,
+              borderBottom: isCritical ? '2px solid #f59e0b' : '2px solid #02a2fa',
+              paddingBottom: 8
+            }}>
+              {isCritical ? '⚠️ ' : ''}{headerText}
+            </h3>
+          );
+          return;
+        }
+        
+        // Handle bold headers before tables (legacy format)
         if (trimmedLine.startsWith('**') && trimmedLine.endsWith('**') && !trimmedLine.includes('|')) {
           const headerText = trimmedLine.replace(/\*\*/g, '');
           elements.push(
@@ -197,7 +218,103 @@ const renderExecutiveContent = (content: string): React.ReactNode => {
       return;
     }
     
-    // Parse bold section headers like **Key Business Challenges** or **The $3B Problem: Shrink**
+    // Handle sections starting with ### headers (new format)
+    const h3SectionMatch = trimmedSection.match(/^###\s*(.+)$/m);
+    if (h3SectionMatch) {
+      const lines = trimmedSection.split('\n');
+      
+      lines.forEach((line, lineIdx) => {
+        const trimmedLine = line.trim();
+        if (!trimmedLine) return;
+        
+        // Handle ### header
+        const h3Match = trimmedLine.match(/^###\s*(.+)$/);
+        if (h3Match) {
+          const headerText = h3Match[1].replace(/[⚠️]/g, '').trim();
+          const isCritical = trimmedLine.includes('Critical Assumptions');
+          elements.push(
+            <h3 key={`h3-section-${sectionIdx}-${lineIdx}`} style={{ 
+              fontSize: 20, 
+              fontWeight: 700, 
+              color: isCritical ? '#c45500' : '#001278',
+              marginTop: 28,
+              marginBottom: 12,
+              borderBottom: isCritical ? '2px solid #f59e0b' : '2px solid #02a2fa',
+              paddingBottom: 8
+            }}>
+              {isCritical ? '⚠️ ' : ''}{headerText}
+            </h3>
+          );
+          return;
+        }
+        
+        // Handle challenge headers **The $XM Problem: Name**
+        const challengeMatch = trimmedLine.match(/^\*\*([^*]+)\*\*$/);
+        if (challengeMatch) {
+          elements.push(
+            <h4 key={`challenge-new-${sectionIdx}-${lineIdx}`} style={{ 
+              fontSize: 15, 
+              fontWeight: 600, 
+              color: '#1e293b',
+              marginTop: 16,
+              marginBottom: 6
+            }}>
+              {challengeMatch[1]}
+            </h4>
+          );
+          return;
+        }
+        
+        // Handle inline bold text (revenue/earnings)
+        if (trimmedLine.includes('**') && !trimmedLine.startsWith('|')) {
+          const formattedLine = trimmedLine.split('**').map((part, i) => 
+            i % 2 === 1 ? <strong key={i} style={{ fontSize: 24, color: '#001278' }}>{part}</strong> : part
+          );
+          elements.push(
+            <p key={`bignum-new-${sectionIdx}-${lineIdx}`} style={{ 
+              fontSize: 16, 
+              color: '#374151',
+              marginBottom: 16,
+              lineHeight: 1.6
+            }}>
+              {formattedLine}
+            </p>
+          );
+          return;
+        }
+        
+        // Handle ticker/HQ line
+        if (trimmedLine.includes(' | ') && !trimmedLine.startsWith('|')) {
+          elements.push(
+            <p key={`ticker-new-${sectionIdx}-${lineIdx}`} style={{ 
+              fontSize: 14, 
+              color: '#64748b',
+              marginBottom: 4,
+              fontWeight: 500
+            }}>
+              {trimmedLine}
+            </p>
+          );
+          return;
+        }
+        
+        // Regular paragraph text
+        elements.push(
+          <p key={`para-new-${sectionIdx}-${lineIdx}`} style={{ 
+            fontSize: 14, 
+            color: '#4b5563',
+            lineHeight: 1.7,
+            marginBottom: 12
+          }}>
+            {trimmedLine}
+          </p>
+        );
+      });
+      
+      return;
+    }
+    
+    // Parse bold section headers like **Key Business Challenges** or **The $3B Problem: Shrink** (legacy format)
     const boldHeaderMatch = trimmedSection.match(/^\*\*([^*]+)\*\*\s*([\s\S]*)/);
     if (boldHeaderMatch) {
       const header = boldHeaderMatch[1];

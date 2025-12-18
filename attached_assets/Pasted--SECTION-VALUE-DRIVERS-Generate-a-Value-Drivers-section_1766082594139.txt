@@ -1,0 +1,91 @@
+## SECTION: VALUE DRIVERS
+
+Generate a Value Drivers section with strict formatting. Follow this exact structure:
+
+### HEADLINE BLOCK
+
+**$[XX.X]M** in annual value. [X] use cases. [Y] Critical-priority for Q1.
+
+[BLANK LINE REQUIRED]
+
+---
+
+### VALUE COMPOSITION
+
+| Category | Value | Share |
+|----------|-------|-------|
+| Cost Reduction | $XX.XM | XX% |
+| Cash Flow | $XX.XM | XX% |
+| Revenue | $XX.XM | XX% |
+| Risk Mitigation | $XX.XM | XX% |
+
+**Strategic tilt:** [X]% operational efficiency vs [Y]% revenue/risk. Back-office dominates customer-facing [ratio].
+
+[BLANK LINE REQUIRED]
+
+---
+
+### TOP OPPORTUNITIES
+
+One block per use case. Order by value. Maximum 4.
+
+**[Use Case Name]** — $[X.X]M
+[One sentence: what it does → what value it unlocks. No jargon.]
+
+**[Use Case Name]** — $[X.X]M
+[Same pattern.]
+
+**[Use Case Name]** — $[X.X]M
+[Same pattern.]
+
+[BLANK LINE REQUIRED]
+
+---
+
+### ⚠️ Portfolio Risk
+
+**[Use Case ID]: [Name]** carries [X]% of total value.
+
+| Risk Factor | Detail |
+|-------------|--------|
+| Effort Score | [X]/5 |
+| Timeline | [X] months |
+| Dependencies | [Core system integration, model validation, etc.] |
+
+**If it fails:** [One sentence consequence—what breaks, what value is exposed]
+
+**Mitigation:** [Phased rollout requirement or parallel run mandate]
+
+[BLANK LINE REQUIRED]
+
+---
+
+### TOKEN ECONOMICS
+
+| Use Case | Annual Token Cost | Annual Value | Return per $1 |
+|----------|-------------------|--------------|---------------|
+| [UC-XX] [Name] | $XXK | $X.XM | $XXX |
+| [UC-XX] [Name] | $XXK | $X.XM | $XXX |
+| [UC-XX] [Name] | $XXK | $X.XM | $XXX |
+
+**Insight:** [One sentence—which pattern wins and why. "High-value, low-frequency workflows outperform high-volume operations by Xx."]
+
+---
+
+## FORMATTING RULES FOR THIS SECTION
+
+1. HEADLINE: Total value bold and alone on first line
+2. TABLES: Proper markdown with blank lines before and after—never inline
+3. USE CASES: Each gets its own bold header with value callout
+4. RISK SECTION: Must be standalone with ⚠️ marker—never buried in prose
+5. TOKEN ECONOMICS: Always a table, never prose
+6. BLANK LINES: Required between every distinct element
+7. HORIZONTAL RULES (---): Separate each major subsection
+
+## ANTI-PATTERNS TO AVOID
+
+❌ "**$52.4M** total annualized value across 10 AI use cases. Three Critical-priority initiatives capture $18.7M (36% of total value). Top opportunities: RM Productivity Accelerator delivers $9.5M..."
+❌ Token costs buried in prose: "burns $177K annually at 450M monthly tokens"
+❌ Critical risk starting mid-paragraph after ⚠️ emoji
+❌ Value breakdown as inline parentheticals: "37% ($19.2M), followed by cash flow at 21% ($11.2M)"
+❌ Asterisks showing instead of bold: **$52.4M**
