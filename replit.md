@@ -26,19 +26,15 @@ The platform features a modern, professional interface with interactive data vis
 - Global base styles for h1-h6, p, a elements with proper hierarchy
 - text-gradient, text-balance, text-pretty utility classes
 
-**Executive Report Transformation (Complete)**:
-- Value Drivers narrative follows McKinsey/Hemingway executive communication standards
-- AI prompt generates 4-5 sentence executive briefs with: total value lead, top 3 opportunities, strategic focus, CRITICAL RISK callout with ⚠️ marker, and token economics insight
-- Short sentences, active voice, no jargon, numbers with white space
-- Risks stand alone and are never buried in paragraphs
-
-**Company Overview Executive Transformation (Complete)**:
-- Step 0 content now uses executive transformation format with structured sections
-- Company Profile section: ticker/HQ header, big revenue/earnings numbers on own lines, Scale table with key metrics
-- Key Business Challenges section: consequence-led headers ("The $3B Problem: Shrink"), 2-3 sentence paragraphs each
-- Both HTML and PDF exports render markdown tables, bold headers, and horizontal rules properly
-- HTMLReportViewer.tsx: `renderExecutiveContent()` helper parses markdown to styled React components
-- pdfGenerator.ts: Step 0 handler processes tables, big numbers, challenge headers with proper styling
+**Amazonian Writing Method for All Reports (Complete)**:
+- Value Drivers summary uses professional Amazon 6-pager style narrative prose
+- Step 0 Company Overview follows the same Amazonian Writing Method
+- ALL AI-generated text content uses pure prose paragraphs with NO markdown
+- Key principles enforced: data-first sentences, one idea per paragraph, active voice, short sentences, no hedge words
+- Summary structure: Strategic Headline, Value Composition, Top Initiatives (3 paragraphs), Portfolio Dynamics, Implementation Economics, Risk/Mitigation
+- Company Overview structure: Company Identity, Scale and Market Position, Business Challenges (one paragraph each), Sourcing Note
+- Frontend sanitizers (sanitizeForProse) provide fallback cleanup for any residual markdown artifacts
+- HTMLReportViewer.tsx and pdfGenerator.ts handle both legacy markdown and new prose formats
 
 **Shared PDF Generator Utility (Complete)**:
 - Extracted board-presentation PDF logic to `client/src/lib/pdfGenerator.ts` (800+ lines)
