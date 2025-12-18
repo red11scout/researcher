@@ -100,7 +100,7 @@ export default function DashboardPage() {
       <ShareModal
         open={showShareModal}
         onClose={() => setShowShareModal(false)}
-        reportData={report.analysisData}
+        reportData={{ companyName: report.companyName, analysisData: report.analysisData }}
       />
     </>
   );
