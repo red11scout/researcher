@@ -5,9 +5,17 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import path from "path";
+import fs from "fs";
 
 const app = express();
 const httpServer = createServer(app);
+
+// Serve attached_assets folder for PDF downloads (before other routes)
+const attachedAssetsPath = path.resolve(process.cwd(), "attached_assets");
+if (fs.existsSync(attachedAssetsPath)) {
+  app.use("/attached_assets", express.static(attachedAssetsPath));
+}
 
 declare module "http" {
   interface IncomingMessage {

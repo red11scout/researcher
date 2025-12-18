@@ -10,6 +10,12 @@ export function serveStatic(app: Express) {
     );
   }
 
+  // Serve attached_assets folder for PDF downloads
+  const attachedAssetsPath = path.resolve(process.cwd(), "attached_assets");
+  if (fs.existsSync(attachedAssetsPath)) {
+    app.use("/attached_assets", express.static(attachedAssetsPath));
+  }
+
   app.use(express.static(distPath));
 
   // fall through to index.html if the file doesn't exist
