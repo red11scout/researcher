@@ -38,7 +38,7 @@ export default function DashboardPage() {
   const handleDownloadWorkshopPDF = () => {
     // Download the BlueAlly AI Workshop Preview PDF
     const link = document.createElement('a');
-    link.href = '/attached_assets/BlueAlly_AI_Workshop_Preview_1766077586339.pdf';
+    link.href = '/attached_assets/BlueAlly_AI_Workshop_Preview_1766077840782.pdf';
     link.download = 'BlueAlly_AI_Workshop_Preview.pdf';
     document.body.appendChild(link);
     link.click();

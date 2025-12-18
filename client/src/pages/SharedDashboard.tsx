@@ -10,7 +10,6 @@ import { ArrowLeft, Clock, AlertCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { format, parseFormattedValue } from '@/lib/formatters';
 import { Logo } from '@/components/brand/logo';
-import { generateBoardPresentationPDF } from '@/lib/pdfGenerator';
 
 const formatCurrency = (value: number | string): string => {
   if (typeof value === 'string') {
@@ -139,32 +138,19 @@ export default function SharedDashboard() {
     });
   };
 
-  const handleDownloadPDF = async () => {
-    if (!data?.data) return;
-    
-    const reportData = data.data;
-    const companyName = reportData.companyName || reportData.company?.name || 'Company';
-    const analysisData = reportData.analysisData || reportData;
+  const handleDownloadWorkshopPDF = () => {
+    // Download the BlueAlly AI Workshop Preview PDF
+    const link = document.createElement('a');
+    link.href = '/attached_assets/BlueAlly_AI_Workshop_Preview_1766077840782.pdf';
+    link.download = 'BlueAlly_AI_Workshop_Preview.pdf';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
     
     toast({
-      title: "Download Started",
-      description: "Generating board-presentation quality PDF...",
+      title: "Workshop Details Downloaded",
+      description: "BlueAlly AI Workshop Preview PDF has been downloaded.",
     });
-    
-    try {
-      await generateBoardPresentationPDF(analysisData, companyName);
-      toast({
-        title: "PDF Downloaded",
-        description: `${companyName} AI Assessment has been downloaded.`,
-      });
-    } catch (err) {
-      console.error('PDF generation error:', err);
-      toast({
-        title: "Download Failed",
-        description: "There was an error generating the PDF. Please try again.",
-        variant: "destructive",
-      });
-    }
   };
 
   if (isLoading) {
@@ -238,7 +224,7 @@ export default function SharedDashboard() {
   return (
     <Dashboard 
       data={dashboardData}
-      onDownloadPDF={handleDownloadPDF}
+      onDownloadWorkshopPDF={handleDownloadWorkshopPDF}
       onViewHTMLReport={handleViewHTMLReport}
     />
   );
