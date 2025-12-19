@@ -27,19 +27,27 @@ const formatNumber = (value: number | string): string => {
   return format.number(value, { compact: true });
 };
 
-// Format table cell values with commas for large numbers
+// Format table cell values with commas for large numbers (no decimals)
 const formatTableValue = (value: any, columnName?: string): string => {
   if (value === null || value === undefined) return '';
   
   const strValue = String(value);
   
-  // If it already has formatting ($ or %), return as is but ensure commas
+  // Columns that should always be formatted as integers with commas
+  const integerColumns = [
+    'Runs/Month', 'Monthly Tokens', 'Input Tokens/Run', 'Output Tokens/Run',
+    'Annual Token Cost ($)', 'Annual Token Cost', 'Token Cost'
+  ];
+  const shouldFormatAsInteger = columnName && integerColumns.some(col => 
+    columnName.toLowerCase().includes(col.toLowerCase()) || col.toLowerCase().includes(columnName.toLowerCase())
+  );
+  
+  // If it already has formatting ($ or %), return as is but ensure commas and no decimals
   if (strValue.startsWith('$')) {
-    // Format currency values with commas
     const numStr = strValue.replace(/[$,]/g, '');
     const num = parseFloat(numStr);
     if (!isNaN(num)) {
-      return '$' + num.toLocaleString('en-US');
+      return '$' + Math.round(num).toLocaleString('en-US', { maximumFractionDigits: 0 });
     }
     return strValue;
   }
@@ -48,11 +56,11 @@ const formatTableValue = (value: any, columnName?: string): string => {
   const numericValue = strValue.replace(/,/g, '');
   const num = parseFloat(numericValue);
   
-  // If it's a valid number and looks like a large numeric value
+  // If it's a valid number and looks like a numeric value
   if (!isNaN(num) && /^-?\d+\.?\d*$/.test(numericValue)) {
-    // For very large numbers (tokens, runs), use commas
-    if (Math.abs(num) >= 1000) {
-      return num.toLocaleString('en-US');
+    // Always format with commas and no decimals for integer columns or large numbers
+    if (shouldFormatAsInteger || Math.abs(num) >= 1000) {
+      return Math.round(num).toLocaleString('en-US', { maximumFractionDigits: 0 });
     }
     return strValue;
   }
