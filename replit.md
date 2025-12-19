@@ -26,13 +26,14 @@ The platform features a modern, professional interface with interactive data vis
 - Global base styles for h1-h6, p, a elements with proper hierarchy
 - text-gradient, text-balance, text-pretty utility classes
 
-**Amazonian Writing Method for All Reports (Complete)**:
-- Value Drivers summary uses professional Amazon 6-pager style narrative prose
-- Step 0 Company Overview follows the same Amazonian Writing Method
-- ALL AI-generated text content uses pure prose paragraphs with NO markdown
-- Key principles enforced: data-first sentences, one idea per paragraph, active voice, short sentences, no hedge words
-- Summary structure: Strategic Headline, Value Composition, Top Initiatives (3 paragraphs), Portfolio Dynamics, Implementation Economics, Risk/Mitigation
-- Company Overview structure: Company Identity, Scale and Market Position, Business Challenges (one paragraph each), Sourcing Note
+**Executive Intelligence Report Editor System (Complete)**:
+- Board-ready prose that a CFO can read in 8 minutes and a CEO can scan in 90 seconds
+- Editorial Philosophy: Analytical Rigor (every claim traceable), Strategic Clarity (lead with what matters), Prose Discipline (paragraphs over bullets)
+- Non-Negotiable Data Lock: All numbers, KPIs, and quantitative data preserved exactly
+- Executive Style Rules: Lead with insight, active voice default, concrete over abstract, calibrated confidence, eliminate throat-clearing
+- Quality Gates: Top 3 priorities identifiable in 30 seconds, every paragraph has one clear point, all numbers contextualized
+- Company Overview structure: Company Identity (2-3 sentences), Business Composition (1 paragraph), Operational Pain Points (1 per category), Sources & Assumptions
+- Executive Summary structure: Strategic Synthesis, Value Composition, Priority Initiatives (max 3), Portfolio Dynamics, Critical Dependencies
 - Frontend sanitizers (sanitizeForProse) provide fallback cleanup for any residual markdown artifacts
 - HTMLReportViewer.tsx and pdfGenerator.ts handle both legacy markdown and new prose formats
 
