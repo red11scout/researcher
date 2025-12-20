@@ -43,6 +43,13 @@ The platform features a modern, professional interface with interactive data vis
 - Dashboard "Download Full PDF Report" button now generates the same high-quality PDF as the Export tab
 - Dashboard "Workshop Details" renamed to "Detailed HTML Report" - links to HTML report viewer
 
+**HyperFormula Calculation Engine (Complete)**:
+- Integrated HyperFormula spreadsheet calculation engine for What-If Analysis
+- Created `client/src/lib/calculationEngine.ts` with comprehensive utilities
+- Features: Excel-like formula syntax (=SUM, =IF, =NPV, =PMT, =IRR), cell references, named expressions
+- Helper functions: quickCalculate, calculateBenefitTotals, calculatePriorityScore, calculateTokenCosts
+- Replaces manual JavaScript calculations with validated spreadsheet engine
+
 **Phase 2 - Interactive Report Shell (Complete)**:
 - Embedded Assumption Panel drawer with inline editing and live recalculation
 - Persistent sidebar navigation (desktop-only) with section anchors for all 8 report steps
