@@ -29,6 +29,8 @@ export const sharedDashboards = pgTable("shared_dashboards", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   expiresAt: timestamp("expires_at").notNull(),
   viewCount: integer("view_count").default(0).notNull(),
+  dubLinkId: text("dub_link_id"),
+  shortUrl: text("short_url"),
 });
 
 export const insertSharedDashboardSchema = createInsertSchema(sharedDashboards).omit({

@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { generateCompanyAnalysis, generateWhatIfSuggestion, checkProductionConfig } from "./ai-service";
 import * as formulaService from "./formula-service";
+import { dubService } from "./dub-service";
 import { insertReportSchema } from "@shared/schema";
 import { nanoid } from "nanoid";
 
@@ -1736,7 +1737,7 @@ Return ONLY valid JSON with this structure:
     }
   });
 
-  // Create share link for dashboard
+  // Create share link for dashboard with Dub.co URL shortening
   app.post("/api/share", async (req, res) => {
     try {
       const { reportData } = req.body;
@@ -1748,22 +1749,42 @@ Return ONLY valid JSON with this structure:
       const shareId = nanoid(12);
       const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
       
-      await storage.createSharedDashboard({
-        id: shareId,
-        data: JSON.stringify(reportData),
-        expiresAt,
-        viewCount: 0,
-      });
-      
       // Get base URL from request origin or construct from host header
       const protocol = req.headers['x-forwarded-proto'] || 'https';
       const host = req.headers['x-forwarded-host'] || req.headers.host || 'localhost:5000';
       const baseUrl = process.env.APP_URL || `${protocol}://${host}`;
       const shareUrl = `${baseUrl}/shared/${shareId}`;
       
+      // Try to create Dub.co short link if API key is configured
+      let dubLinkId: string | undefined;
+      let shortUrl: string | undefined;
+      
+      if (dubService.isConfigured()) {
+        try {
+          const companyName = reportData.companyName || "Company";
+          const dubLink = await dubService.createReportLink(shareUrl, shareId, companyName);
+          dubLinkId = dubLink.id;
+          shortUrl = dubLink.shortLink;
+          console.log(`Created Dub.co short link: ${shortUrl} for share ${shareId}`);
+        } catch (dubError) {
+          console.warn("Dub.co link creation failed, using direct link:", dubError);
+        }
+      }
+      
+      await storage.createSharedDashboard({
+        id: shareId,
+        data: JSON.stringify(reportData),
+        expiresAt,
+        viewCount: 0,
+        dubLinkId,
+        shortUrl,
+      });
+      
       return res.json({ 
         shareId,
-        shareUrl,
+        shareUrl: shortUrl || shareUrl,
+        originalUrl: shareUrl,
+        shortUrl,
         expiresAt: expiresAt.toISOString(),
       });
     } catch (error) {
@@ -1794,6 +1815,7 @@ Return ONLY valid JSON with this structure:
         createdAt: dashboard.createdAt,
         expiresAt: dashboard.expiresAt,
         viewCount: dashboard.viewCount + 1,
+        shortUrl: dashboard.shortUrl,
       });
     } catch (error) {
       console.error("Share retrieval failed:", error);
