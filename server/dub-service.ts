@@ -48,7 +48,6 @@ class DubService {
         title: options.metadata?.title,
         description: options.metadata?.description,
         proxy: options.metadata ? true : false,
-        trackConversion: true
       });
 
       return {

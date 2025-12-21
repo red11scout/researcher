@@ -1737,6 +1737,43 @@ Return ONLY valid JSON with this structure:
     }
   });
 
+  // Create a short URL using Dub.co
+  app.post("/api/shorten", async (req, res) => {
+    try {
+      const { url, title } = req.body;
+      
+      if (!url) {
+        return res.status(400).json({ error: "URL required" });
+      }
+      
+      if (!dubService.isConfigured()) {
+        return res.json({ shortUrl: url, isShortened: false });
+      }
+      
+      try {
+        const externalId = `url-${nanoid(8)}`;
+        const dubLink = await dubService.createLink({
+          url,
+          externalId,
+          metadata: { title: title || "BlueAlly Report" }
+        });
+        console.log(`Created Dub.co short link: ${dubLink.shortLink}`);
+        return res.json({ 
+          shortUrl: dubLink.shortLink, 
+          originalUrl: url,
+          isShortened: true,
+          linkId: dubLink.id,
+        });
+      } catch (dubError) {
+        console.warn("Dub.co shortening failed:", dubError);
+        return res.json({ shortUrl: url, isShortened: false });
+      }
+    } catch (error) {
+      console.error("URL shortening error:", error);
+      return res.status(500).json({ error: "Failed to shorten URL" });
+    }
+  });
+
   // Create share link for dashboard with Dub.co URL shortening
   app.post("/api/share", async (req, res) => {
     try {

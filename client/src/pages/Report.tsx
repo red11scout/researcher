@@ -2160,19 +2160,38 @@ export default function Report() {
       return;
     }
 
-    const shareUrl = `${window.location.origin}/reports/${reportId}/html`;
+    const originalUrl = `${window.location.origin}/reports/${reportId}/html`;
     
+    toast({
+      title: "Creating Short Link",
+      description: "Generating shareable URL...",
+    });
+
     try {
+      const response = await fetch('/api/shorten', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          url: originalUrl,
+          title: `${companyName || 'Company'} AI Assessment Report`,
+        }),
+      });
+      
+      const result = await response.json();
+      const shareUrl = result.shortUrl || originalUrl;
+      
       await navigator.clipboard.writeText(shareUrl);
       toast({
         title: "Link Copied",
-        description: "Shareable HTML report URL copied to clipboard.",
+        description: result.isShortened 
+          ? "Short link copied to clipboard." 
+          : "Report URL copied to clipboard.",
       });
     } catch {
+      await navigator.clipboard.writeText(originalUrl);
       toast({
-        title: "Copy Failed",
-        description: "Unable to copy link. URL: " + shareUrl,
-        variant: "destructive",
+        title: "Link Copied",
+        description: "Report URL copied to clipboard.",
       });
     }
   };

@@ -10,13 +10,14 @@ The platform features a modern, professional interface with interactive data vis
 
 **Shareable Dashboard Links with Dub.co (Complete)**:
 - Public shareable dashboard URLs with nanoid(12) IDs (e.g., /shared/abc123xyz789)
-- Dub.co URL shortening integration for professional short links (e.g., dub.sh/report-abc123)
+- Dub.co URL shortening integration for professional short links
+- Both "Share HTML Report" and "Share Dashboard" buttons create short links via Dub.co
 - 30-day expiration with automatic cleanup via cleanupExpiredSharedDashboards
 - View count tracking for shared dashboards
 - ShareModal component for creating and copying share links
 - SharedDashboard page uses the same Dashboard component as DashboardPage for consistent UI
 - Database table: sharedDashboards (id, data, createdAt, expiresAt, viewCount, dubLinkId, shortUrl)
-- API endpoints: POST /api/share, GET /api/share/:id
+- API endpoints: POST /api/share, GET /api/share/:id, POST /api/shorten
 - Dub.co service module: server/dub-service.ts with retry logic and error handling
 - Data structure: Stored data is {companyName, analysisData: {...}}, extracted correctly for dashboardMapper
 - Required secret: DUB_API_KEY for Dub.co API authentication
