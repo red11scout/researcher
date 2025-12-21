@@ -8,6 +8,15 @@ The platform features a modern, professional interface with interactive data vis
 
 ## Recent Changes (December 2025)
 
+**Concise Executive Summary Format (Complete)**:
+- Maximum 250 words for rapid executive comprehension (30 seconds max reading time)
+- Structured sections: HEADLINE INSIGHT, VALUE BREAKDOWN, TOP 3 PRIORITIES, EXECUTION REALITY, BOTTOM LINE
+- VALUE BREAKDOWN uses 4-line format: Cost Reduction, Revenue Growth, Cash Flow Acceleration, Risk Mitigation
+- TOP 3 PRIORITIES: One line each with initiative name, annual value, and key differentiator
+- EXECUTION REALITY: Two sentences max on data readiness and critical dependencies
+- BOTTOM LINE: Single sentence recommended action and expected outcome
+- Uses numerals for all figures, bold section headers, white space between sections
+
 **Shareable Dashboard Links with Dub.co (Complete)**:
 - Public shareable dashboard URLs with nanoid(12) IDs (e.g., /shared/abc123xyz789)
 - Dub.co URL shortening integration for professional short links
