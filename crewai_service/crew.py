@@ -21,8 +21,9 @@ def load_yaml_config(filename: str) -> Dict:
 class AgenticCrew:
     """Flexible CrewAI implementation for various use cases."""
     
-    def __init__(self, llm_model: str = "gpt-4o-mini"):
+    def __init__(self, llm_model: str = "gpt-4o-mini", document_context: str = None):
         self.llm_model = llm_model
+        self.document_context = document_context
         self.agents_config = load_yaml_config("agents.yaml")
         self.tasks_config = load_yaml_config("tasks.yaml")
         self.custom_tools = [format_data, generate_summary, extract_bullet_points, score_priority]
@@ -55,6 +56,18 @@ class AgenticCrew:
         
         description = config['description'].replace('{topic}', topic)
         expected_output = config['expected_output'].replace('{topic}', topic)
+        
+        # Incorporate document context into task description if available
+        if self.document_context:
+            description = f"""{description}
+
+IMPORTANT: You have been provided with the following reference documents that contain critical information about the topic. You MUST carefully analyze and incorporate insights from these documents into your work. Base your findings on the specific data, facts, and context provided in these documents:
+
+--- REFERENCE DOCUMENTS ---
+{self.document_context}
+--- END REFERENCE DOCUMENTS ---
+
+Use the information from these documents as your primary source of truth. Extract relevant facts, figures, and insights to support your analysis."""
         
         return Task(
             description=description,

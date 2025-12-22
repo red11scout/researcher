@@ -114,6 +114,7 @@ def run_crew():
         model = data.get('model', 'gpt-4o-mini')
         custom_agents = data.get('agents', [])
         custom_tasks = data.get('tasks', [])
+        documents = data.get('documents', [])
         
         if not topic:
             return jsonify({
@@ -123,7 +124,20 @@ def run_crew():
         
         execution_id = f"exec_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
         
-        agentic_crew = AgenticCrew(llm_model=model)
+        # Build document context string from uploaded documents
+        document_context = None
+        if documents:
+            doc_parts = []
+            for doc in documents:
+                doc_name = doc.get('name', 'Unknown')
+                doc_content = doc.get('content', '')
+                if doc_content:
+                    doc_parts.append(f"=== Document: {doc_name} ===\n{doc_content[:30000]}")
+            if doc_parts:
+                document_context = "\n\n".join(doc_parts)
+                print(f"Including {len(documents)} document(s) with {len(document_context)} chars of context")
+        
+        agentic_crew = AgenticCrew(llm_model=model, document_context=document_context)
         
         if crew_type == 'research':
             crew = agentic_crew.create_research_crew(topic)

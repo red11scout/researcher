@@ -214,6 +214,23 @@ export default function CrewAI() {
       payload.tasks = selectedTasks;
     }
 
+    // Include uploaded documents from sessionStorage if available
+    try {
+      const storedDocs = sessionStorage.getItem("uploadedDocuments");
+      if (storedDocs) {
+        const documents = JSON.parse(storedDocs);
+        if (documents && documents.length > 0) {
+          payload.documents = documents;
+          toast({
+            title: "Documents Included",
+            description: `Including ${documents.length} uploaded document(s) for analysis`,
+          });
+        }
+      }
+    } catch (e) {
+      console.error("Failed to parse stored documents:", e);
+    }
+
     runCrewMutation.mutate(payload);
   };
 
