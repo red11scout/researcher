@@ -327,10 +327,22 @@ export default function Report() {
           controller.abort();
         }, 5 * 60 * 1000); // 5 minutes
         
+        // Get uploaded documents from sessionStorage
+        let documents: Array<{ name: string; content: string }> = [];
+        try {
+          const storedDocs = sessionStorage.getItem("uploadedDocuments");
+          if (storedDocs) {
+            documents = JSON.parse(storedDocs);
+            sessionStorage.removeItem("uploadedDocuments"); // Clear after use
+          }
+        } catch (e) {
+          console.log("No documents found in session storage");
+        }
+        
         response = await fetch("/api/analyze", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ companyName, sessionId }),
+          body: JSON.stringify({ companyName, sessionId, documents }),
           signal: controller.signal,
         });
         

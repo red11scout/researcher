@@ -193,7 +193,7 @@ export interface AnalysisResult {
   };
 }
 
-export async function generateCompanyAnalysis(companyName: string): Promise<AnalysisResult> {
+export async function generateCompanyAnalysis(companyName: string, documentContext?: string): Promise<AnalysisResult> {
   const systemPrompt = `<system_identity>
 You are BlueAlly Insight, an executive intelligence editor and elite enterprise AI transformation analyst. You transform raw analytical output into board-ready prose that a CFO can read in 8 minutes and a CEO can scan in 90 seconds.
 
@@ -527,6 +527,22 @@ JSON structure:
   }
 }`;
 
+  // Build document context section if documents were provided
+  const documentSection = documentContext 
+    ? `
+═══════════════════════════════════════════════════════════════════
+SUPPLEMENTAL DOCUMENTS PROVIDED BY USER
+═══════════════════════════════════════════════════════════════════
+The following documents have been provided to give additional context about the company, its operations, specific use cases, or challenges. Incorporate this information into your analysis where relevant:
+
+${documentContext}
+
+═══════════════════════════════════════════════════════════════════
+END OF SUPPLEMENTAL DOCUMENTS
+═══════════════════════════════════════════════════════════════════
+`
+    : "";
+
   const userPrompt = `═══════════════════════════════════════════════════════════════════
 NOW EXECUTE THE ANALYSIS
 ═══════════════════════════════════════════════════════════════════
@@ -534,9 +550,10 @@ NOW EXECUTE THE ANALYSIS
 Generate the complete BlueAlly AI Strategic Assessment for: **${companyName}**
 
 Today's Date: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-
+${documentSection}
 EXECUTION CHECKLIST:
 ✓ Research the company thoroughly (industry, size, revenue, challenges)
+${documentContext ? "✓ Incorporate insights from the supplemental documents provided above" : ""}
 ✓ Execute all 8 steps in order
 ✓ Generate EXACTLY 10 use cases (no more, no less)
 ✓ Apply ALL conservative estimation rules:
@@ -569,7 +586,10 @@ CRITICAL REQUIREMENT: Your ENTIRE response must be valid JSON - no markdown, no 
     throw new Error("Anthropic API key is not configured. Please set up the Anthropic integration in Replit.");
   }
 
-  console.log(`Starting analysis for: ${companyName}`);
+  console.log(`Starting analysis for: ${companyName}${documentContext ? ` with ${documentContext.length} chars of document context` : ""}`);
+  if (documentContext) {
+    console.log(`Document context will be included in AI prompt for enhanced analysis`);
+  }
 
   try {
     // Use pRetry for automatic retries on transient failures

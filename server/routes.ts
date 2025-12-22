@@ -551,11 +551,23 @@ Return ONLY valid JSON with this structure:
   app.post("/api/analyze", async (req, res) => {
     try {
       console.log("Analyze endpoint called with body:", JSON.stringify(req.body));
-      const { companyName, sessionId } = req.body;
+      const { companyName, sessionId, documents } = req.body;
       
       if (!companyName || typeof companyName !== "string") {
         console.log("Invalid company name:", companyName);
         return res.status(400).json({ error: "Company name is required" });
+      }
+      
+      // Process uploaded documents into context string
+      let documentContext = "";
+      if (documents && Array.isArray(documents) && documents.length > 0) {
+        console.log(`Processing ${documents.length} uploaded documents`);
+        documentContext = documents
+          .map((doc: { name: string; content: string }) => 
+            `--- Document: ${doc.name} ---\n${doc.content.slice(0, 50000)}\n--- End of ${doc.name} ---`
+          )
+          .join("\n\n");
+        console.log(`Document context length: ${documentContext.length} characters`);
       }
 
       // Check if production is properly configured before proceeding
@@ -611,7 +623,7 @@ Return ONLY valid JSON with this structure:
       }
 
       // Generate new analysis using AI
-      const analysis = await generateCompanyAnalysis(companyName);
+      const analysis = await generateCompanyAnalysis(companyName, documentContext);
       
       if (sessionId) {
         sendProgress(sessionId, 9, "Saving Report", "Storing analysis in database...");

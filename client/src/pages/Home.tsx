@@ -1,20 +1,144 @@
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useLocation } from "wouter";
 import Layout from "@/components/Layout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Sparkles, ArrowRight, Building2, TrendingUp, ShieldCheck } from "lucide-react";
-import { motion } from "framer-motion";
+import { Search, Sparkles, Building2, TrendingUp, ShieldCheck, FileText, Upload, X, ChevronDown, ChevronUp } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { useToast } from "@/hooks/use-toast";
 import heroBg from "@assets/generated_images/clean_white_and_blue_abstract_enterprise_background.png";
 import blueAllyLogo from "@assets/image_1764371505115.png";
+
+interface UploadedDocument {
+  name: string;
+  content: string;
+  size: number;
+  type: string;
+}
+
+const MAX_FILE_SIZE = 500 * 1024; // 500KB per file (text files are typically small)
+const MAX_TOTAL_SIZE = 2 * 1024 * 1024; // 2MB total (to stay under sessionStorage limits)
+const ALLOWED_EXTENSIONS = [".txt", ".md", ".csv", ".json"]; // Text-only formats that can be read as text
 
 export default function Home() {
   const [query, setQuery] = useState("");
   const [_, setLocation] = useLocation();
+  const [documents, setDocuments] = useState<UploadedDocument[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
+  const [showDocuments, setShowDocuments] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
+
+  const readFileContent = async (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => resolve(e.target?.result as string || "");
+      reader.onerror = reject;
+      reader.readAsText(file);
+    });
+  };
+
+  const handleFiles = useCallback(async (files: FileList | null) => {
+    if (!files) return;
+    
+    let runningTotal = documents.reduce((sum, doc) => sum + doc.size, 0);
+    const newDocuments: UploadedDocument[] = [];
+    
+    for (const file of Array.from(files)) {
+      // Check file extension
+      const extension = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
+      if (!ALLOWED_EXTENSIONS.includes(extension)) {
+        toast({
+          title: "Unsupported file type",
+          description: `${file.name} - Only text files are supported (TXT, MD, CSV, JSON)`,
+          variant: "destructive",
+        });
+        continue;
+      }
+      
+      if (file.size > MAX_FILE_SIZE) {
+        toast({
+          title: "File too large",
+          description: `${file.name} exceeds 500KB limit for text files`,
+          variant: "destructive",
+        });
+        continue;
+      }
+
+      if (runningTotal + file.size > MAX_TOTAL_SIZE) {
+        toast({
+          title: "Total size exceeded",
+          description: `Cannot add ${file.name}. Combined documents would exceed 2MB limit.`,
+          variant: "destructive",
+        });
+        continue;
+      }
+
+      try {
+        const content = await readFileContent(file);
+        const newDoc = {
+          name: file.name,
+          content,
+          size: file.size,
+          type: file.type || "text/plain",
+        };
+        newDocuments.push(newDoc);
+        runningTotal += file.size;
+      } catch {
+        toast({
+          title: "Failed to read file",
+          description: `Could not read ${file.name}`,
+          variant: "destructive",
+        });
+      }
+    }
+    
+    if (newDocuments.length > 0) {
+      setDocuments(prev => [...prev, ...newDocuments]);
+      setShowDocuments(true);
+    }
+  }, [toast, documents]);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    handleFiles(e.dataTransfer.files);
+  }, [handleFiles]);
+
+  const removeDocument = (index: number) => {
+    setDocuments(prev => prev.filter((_, i) => i !== index));
+  };
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim()) {
+      // Store documents in sessionStorage to pass to report page
+      if (documents.length > 0) {
+        try {
+          sessionStorage.setItem("uploadedDocuments", JSON.stringify(documents));
+        } catch (storageError) {
+          // If storage fails, proceed without documents but notify user
+          console.error("Failed to store documents:", storageError);
+          toast({
+            title: "Document upload issue",
+            description: "Documents couldn't be saved. Analysis will proceed without uploaded files.",
+            variant: "destructive",
+          });
+          sessionStorage.removeItem("uploadedDocuments");
+        }
+      } else {
+        sessionStorage.removeItem("uploadedDocuments");
+      }
       setLocation(`/report?company=${encodeURIComponent(query)}`);
     }
   };
@@ -74,13 +198,118 @@ export default function Home() {
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     autoFocus
+                    data-testid="input-company-name"
                   />
                 </div>
-                <Button size="lg" type="submit" className="h-11 md:h-12 px-6 md:px-8 rounded-lg text-sm md:text-base font-medium shadow-none w-full sm:w-auto">
+                <Button size="lg" type="submit" className="h-11 md:h-12 px-6 md:px-8 rounded-lg text-sm md:text-base font-medium shadow-none w-full sm:w-auto" data-testid="button-research">
                   Research
                 </Button>
               </div>
             </form>
+
+            {/* Document Upload Section */}
+            <div className="mt-4 w-full">
+              <button
+                type="button"
+                onClick={() => setShowDocuments(!showDocuments)}
+                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mx-auto"
+                data-testid="button-toggle-documents"
+              >
+                <FileText className="h-4 w-4" />
+                <span>Add documents for context</span>
+                {showDocuments ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                {documents.length > 0 && (
+                  <span className="bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full">
+                    {documents.length}
+                  </span>
+                )}
+              </button>
+
+              <AnimatePresence>
+                {showDocuments && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="mt-4"
+                  >
+                    <div
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onDrop={handleDrop}
+                      className={`border-2 border-dashed rounded-lg p-6 transition-colors ${
+                        isDragging 
+                          ? "border-primary bg-primary/5" 
+                          : "border-muted-foreground/25 hover:border-muted-foreground/50"
+                      }`}
+                    >
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        multiple
+                        accept=".txt,.md,.csv,.json"
+                        onChange={(e) => handleFiles(e.target.files)}
+                        className="hidden"
+                        data-testid="input-file-upload"
+                      />
+                      
+                      <div className="flex flex-col items-center gap-3">
+                        <Upload className="h-8 w-8 text-muted-foreground" />
+                        <div className="text-center">
+                          <p className="text-sm text-muted-foreground">
+                            Drag & drop files here or{" "}
+                            <button
+                              type="button"
+                              onClick={() => fileInputRef.current?.click()}
+                              className="text-primary hover:underline"
+                              data-testid="button-browse-files"
+                            >
+                              browse
+                            </button>
+                          </p>
+                          <p className="text-xs text-muted-foreground/70 mt-1">
+                            Supports TXT, MD, CSV, JSON (max 500KB each, 2MB total)
+                          </p>
+                        </div>
+                      </div>
+
+                      {documents.length > 0 && (
+                        <div className="mt-4 space-y-2">
+                          {documents.map((doc, index) => (
+                            <div
+                              key={`${doc.name}-${index}`}
+                              className="flex items-center justify-between bg-muted/50 rounded-lg px-3 py-2"
+                              data-testid={`document-item-${index}`}
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <FileText className="h-4 w-4 text-primary flex-shrink-0" />
+                                <span className="text-sm truncate">{doc.name}</span>
+                                <span className="text-xs text-muted-foreground flex-shrink-0">
+                                  ({(doc.size / 1024).toFixed(1)} KB)
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => removeDocument(index)}
+                                className="p-1 hover:bg-destructive/10 rounded transition-colors flex-shrink-0"
+                                data-testid={`button-remove-document-${index}`}
+                              >
+                                <X className="h-4 w-4 text-destructive" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <p className="text-xs text-muted-foreground/70 text-center mt-3">
+                      Upload company reports, use case descriptions, or any relevant documents to enhance the AI analysis
+                    </p>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </motion.div>
 
           <motion.div
