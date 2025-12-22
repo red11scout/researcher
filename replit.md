@@ -29,6 +29,8 @@ The platform features a modern, professional interface with interactive data vis
 - Node.js API bridge: /api/crewai/* endpoints proxy to Python service
 - Frontend UI: /crewai route with Run, Agents, Tasks, History tabs
 - Custom tools for data formatting, summarization, and priority scoring
+- Document integration: CrewAI reads uploaded documents from sessionStorage and injects them into task descriptions as reference context (30K char limit per document)
+- AgenticCrew accepts document_context parameter, injected into all task descriptions with clear instructions for agents to use documents as primary source
 - To start: `cd crewai_service && python api.py`
 - Environment variables: CREWAI_PORT (default 5001), CREWAI_SERVICE_URL
 
