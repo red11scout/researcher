@@ -1,6 +1,6 @@
 """Custom tools for CrewAI agents."""
 
-from crewai_tools import tool
+from crewai.tools import tool
 from typing import Optional
 import json
 

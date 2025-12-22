@@ -8,6 +8,18 @@ The platform features a modern, professional interface with interactive data vis
 
 ## Recent Changes (December 2025)
 
+**CrewAI Agentic Framework (Complete)**:
+- Python-based CrewAI framework for orchestrating autonomous AI agents
+- Location: `crewai_service/` directory with Flask API on port 5001
+- Configurable agents: Researcher, Writer, Analyst, Coordinator (config/agents.yaml)
+- Configurable tasks: Research, Writing, Analysis, Synthesis (config/tasks.yaml)
+- Pre-built crews: Research (2 agents), Analysis (2 agents), Full (4 agents), Custom
+- Node.js API bridge: /api/crewai/* endpoints proxy to Python service
+- Frontend UI: /crewai route with Run, Agents, Tasks, History tabs
+- Custom tools for data formatting, summarization, and priority scoring
+- To start: `cd crewai_service && python api.py`
+- Environment variables: CREWAI_PORT (default 5001), CREWAI_SERVICE_URL
+
 **Concise Executive Summary Format (Complete)**:
 - Maximum 250 words for rapid executive comprehension (30 seconds max reading time)
 - Structured sections: HEADLINE INSIGHT, VALUE BREAKDOWN, TOP 3 PRIORITIES, EXECUTION REALITY, BOTTOM LINE

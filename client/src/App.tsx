@@ -14,11 +14,13 @@ import WhatIfAnalysis from "@/pages/WhatIfAnalysis";
 import AssumptionPanel from "@/pages/AssumptionPanel";
 import DashboardPage from "@/pages/DashboardPage";
 import SharedDashboard from "@/pages/SharedDashboard";
+import CrewAI from "@/pages/CrewAI";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
+      <Route path="/crewai" component={CrewAI} />
       <Route path="/dashboard/:reportId" component={DashboardPage} />
       <Route path="/shared/:shareId" component={SharedDashboard} />
       <Route path="/report" component={Report} />

@@ -50,6 +50,8 @@ integrations = ["javascript_anthropic_ai_integrations:1.0.0", "github:1.0.0"]
 [userenv]
 
 [userenv.shared]
+CREWAI_SERVICE_URL = "http://localhost:5001"
+CREWAI_PORT = "5001"
 
 [userenv.production]
 NO_PROXY = "api.anthropic.com"

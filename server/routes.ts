@@ -1866,6 +1866,27 @@ Return ONLY valid JSON with this structure:
   
   const CREWAI_SERVICE_URL = process.env.CREWAI_SERVICE_URL || 'http://localhost:5001';
   
+  // Import CrewAI service manager
+  const { startCrewAIService, stopCrewAIService, getServiceStatus } = await import("./crewai-manager");
+  
+  // Start CrewAI service
+  app.post("/api/crewai/start", async (req, res) => {
+    const result = await startCrewAIService();
+    return res.json(result);
+  });
+  
+  // Stop CrewAI service
+  app.post("/api/crewai/stop", async (req, res) => {
+    const result = stopCrewAIService();
+    return res.json(result);
+  });
+  
+  // Get service status
+  app.get("/api/crewai/status", async (req, res) => {
+    const status = getServiceStatus();
+    return res.json(status);
+  });
+  
   // CrewAI health check
   app.get("/api/crewai/health", async (req, res) => {
     try {
@@ -1881,100 +1902,77 @@ Return ONLY valid JSON with this structure:
     }
   });
   
+  // Helper function to proxy requests with proper error handling
+  async function proxyCrewAIRequest(
+    url: string, 
+    options?: RequestInit
+  ): Promise<{ ok: boolean; status: number; data: any }> {
+    try {
+      const response = await fetch(url, {
+        ...options,
+        signal: AbortSignal.timeout(30000),
+      });
+      const data = await response.json();
+      return { ok: response.ok, status: response.status, data };
+    } catch (error: any) {
+      const isConnectionError = error.code === "ECONNREFUSED" || 
+        error.message?.includes("fetch failed") ||
+        error.message?.includes("ECONNREFUSED");
+      
+      return {
+        ok: false,
+        status: isConnectionError ? 503 : 500,
+        data: {
+          success: false,
+          error: isConnectionError 
+            ? "CrewAI service is not running. Click 'Start Service' to begin."
+            : `Service error: ${error.message}`,
+          code: isConnectionError ? "SERVICE_UNAVAILABLE" : "SERVICE_ERROR",
+        },
+      };
+    }
+  }
+
   // List available agents
   app.get("/api/crewai/agents", async (req, res) => {
-    try {
-      const response = await fetch(`${CREWAI_SERVICE_URL}/agents`);
-      const data = await response.json();
-      return res.json(data);
-    } catch (error: any) {
-      return res.status(500).json({
-        success: false,
-        error: "CrewAI service unavailable",
-        details: error.message,
-      });
-    }
+    const result = await proxyCrewAIRequest(`${CREWAI_SERVICE_URL}/agents`);
+    return res.status(result.status).json(result.data);
   });
   
   // List available tasks
   app.get("/api/crewai/tasks", async (req, res) => {
-    try {
-      const response = await fetch(`${CREWAI_SERVICE_URL}/tasks`);
-      const data = await response.json();
-      return res.json(data);
-    } catch (error: any) {
-      return res.status(500).json({
-        success: false,
-        error: "CrewAI service unavailable",
-        details: error.message,
-      });
-    }
+    const result = await proxyCrewAIRequest(`${CREWAI_SERVICE_URL}/tasks`);
+    return res.status(result.status).json(result.data);
   });
   
   // List available crews
   app.get("/api/crewai/crews", async (req, res) => {
-    try {
-      const response = await fetch(`${CREWAI_SERVICE_URL}/crews`);
-      const data = await response.json();
-      return res.json(data);
-    } catch (error: any) {
-      return res.status(500).json({
-        success: false,
-        error: "CrewAI service unavailable",
-        details: error.message,
-      });
-    }
+    const result = await proxyCrewAIRequest(`${CREWAI_SERVICE_URL}/crews`);
+    return res.status(result.status).json(result.data);
   });
   
   // Run a crew
   app.post("/api/crewai/run", async (req, res) => {
-    try {
-      const response = await fetch(`${CREWAI_SERVICE_URL}/run`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(req.body),
-      });
-      const data = await response.json();
-      return res.status(response.status).json(data);
-    } catch (error: any) {
-      return res.status(500).json({
-        success: false,
-        error: "CrewAI service unavailable",
-        details: error.message,
-      });
-    }
+    const result = await proxyCrewAIRequest(`${CREWAI_SERVICE_URL}/run`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(req.body),
+    });
+    return res.status(result.status).json(result.data);
   });
   
   // Get execution history
   app.get("/api/crewai/history", async (req, res) => {
-    try {
-      const limit = req.query.limit || 10;
-      const response = await fetch(`${CREWAI_SERVICE_URL}/history?limit=${limit}`);
-      const data = await response.json();
-      return res.json(data);
-    } catch (error: any) {
-      return res.status(500).json({
-        success: false,
-        error: "CrewAI service unavailable",
-        details: error.message,
-      });
-    }
+    const limit = req.query.limit || 10;
+    const result = await proxyCrewAIRequest(`${CREWAI_SERVICE_URL}/history?limit=${limit}`);
+    return res.status(result.status).json(result.data);
   });
   
   // Get specific execution
   app.get("/api/crewai/history/:executionId", async (req, res) => {
-    try {
-      const { executionId } = req.params;
-      const response = await fetch(`${CREWAI_SERVICE_URL}/history/${executionId}`);
-      const data = await response.json();
-      return res.status(response.status).json(data);
-    } catch (error: any) {
-      return res.status(500).json({
-        success: false,
-        error: "CrewAI service unavailable",
-        details: error.message,
-      });
-    }
+    const { executionId } = req.params;
+    const result = await proxyCrewAIRequest(`${CREWAI_SERVICE_URL}/history/${executionId}`);
+    return res.status(result.status).json(result.data);
   });
 
   return httpServer;
