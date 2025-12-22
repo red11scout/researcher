@@ -17,7 +17,6 @@ interface UploadedDocument {
 }
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB per file (for PDFs)
-const MAX_TOTAL_SIZE = 2 * 1024 * 1024; // 2MB total for extracted text in sessionStorage
 const ALLOWED_EXTENSIONS = [".txt", ".md", ".csv", ".json", ".pdf"]; // Supported formats
 
 export default function Home() {
@@ -80,11 +79,16 @@ export default function Home() {
 
       const result = await response.json();
       
-      // Check if extracted text would exceed storage limits
-      const currentTextSize = documents.reduce((sum, doc) => sum + doc.content.length, 0);
-      const newTextSize = result.documents.reduce((sum: number, doc: UploadedDocument) => sum + doc.content.length, 0);
+      // Check if serialized documents would exceed sessionStorage limits
+      // sessionStorage uses UTF-16 encoding, so each character takes 2 bytes
+      const combinedDocs = [...documents, ...result.documents];
+      const jsonString = JSON.stringify(combinedDocs);
+      const storageBytes = jsonString.length * 2; // UTF-16 encoding
       
-      if (currentTextSize + newTextSize > MAX_TOTAL_SIZE) {
+      // sessionStorage limit is typically 5MB, use 4MB as safe limit
+      const SAFE_STORAGE_LIMIT = 4 * 1024 * 1024;
+      
+      if (storageBytes > SAFE_STORAGE_LIMIT) {
         toast({
           title: "Text content too large",
           description: "Extracted text exceeds storage limit. Try uploading fewer or smaller documents.",
