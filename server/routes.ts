@@ -9,7 +9,7 @@ import { nanoid } from "nanoid";
 import multer from "multer";
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
-const pdfParse = require("pdf-parse");
+const { PDFParse } = require("pdf-parse");
 
 // Configure multer for file uploads (memory storage for immediate processing)
 const upload = multer({
@@ -68,9 +68,11 @@ export async function registerRoutes(
           const ext = file.originalname.toLowerCase().substring(file.originalname.lastIndexOf("."));
           
           if (ext === ".pdf" || file.mimetype === "application/pdf") {
-            // Parse PDF and extract text
-            const pdfData = await pdfParse(file.buffer);
+            // Parse PDF and extract text using PDFParse class
+            const parser = new PDFParse({ data: file.buffer });
+            const pdfData = await parser.getText();
             content = pdfData.text;
+            await parser.destroy();
             
             // Clean up extracted text (remove excessive whitespace)
             content = content
