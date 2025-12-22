@@ -1860,5 +1860,122 @@ Return ONLY valid JSON with this structure:
     }
   });
 
+  // ============================================
+  // CrewAI Agentic Framework API Endpoints
+  // ============================================
+  
+  const CREWAI_SERVICE_URL = process.env.CREWAI_SERVICE_URL || 'http://localhost:5001';
+  
+  // CrewAI health check
+  app.get("/api/crewai/health", async (req, res) => {
+    try {
+      const response = await fetch(`${CREWAI_SERVICE_URL}/health`);
+      const data = await response.json();
+      return res.json(data);
+    } catch (error: any) {
+      return res.json({
+        status: "unavailable",
+        error: error.message,
+        serviceUrl: CREWAI_SERVICE_URL,
+      });
+    }
+  });
+  
+  // List available agents
+  app.get("/api/crewai/agents", async (req, res) => {
+    try {
+      const response = await fetch(`${CREWAI_SERVICE_URL}/agents`);
+      const data = await response.json();
+      return res.json(data);
+    } catch (error: any) {
+      return res.status(500).json({
+        success: false,
+        error: "CrewAI service unavailable",
+        details: error.message,
+      });
+    }
+  });
+  
+  // List available tasks
+  app.get("/api/crewai/tasks", async (req, res) => {
+    try {
+      const response = await fetch(`${CREWAI_SERVICE_URL}/tasks`);
+      const data = await response.json();
+      return res.json(data);
+    } catch (error: any) {
+      return res.status(500).json({
+        success: false,
+        error: "CrewAI service unavailable",
+        details: error.message,
+      });
+    }
+  });
+  
+  // List available crews
+  app.get("/api/crewai/crews", async (req, res) => {
+    try {
+      const response = await fetch(`${CREWAI_SERVICE_URL}/crews`);
+      const data = await response.json();
+      return res.json(data);
+    } catch (error: any) {
+      return res.status(500).json({
+        success: false,
+        error: "CrewAI service unavailable",
+        details: error.message,
+      });
+    }
+  });
+  
+  // Run a crew
+  app.post("/api/crewai/run", async (req, res) => {
+    try {
+      const response = await fetch(`${CREWAI_SERVICE_URL}/run`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(req.body),
+      });
+      const data = await response.json();
+      return res.status(response.status).json(data);
+    } catch (error: any) {
+      return res.status(500).json({
+        success: false,
+        error: "CrewAI service unavailable",
+        details: error.message,
+      });
+    }
+  });
+  
+  // Get execution history
+  app.get("/api/crewai/history", async (req, res) => {
+    try {
+      const limit = req.query.limit || 10;
+      const response = await fetch(`${CREWAI_SERVICE_URL}/history?limit=${limit}`);
+      const data = await response.json();
+      return res.json(data);
+    } catch (error: any) {
+      return res.status(500).json({
+        success: false,
+        error: "CrewAI service unavailable",
+        details: error.message,
+      });
+    }
+  });
+  
+  // Get specific execution
+  app.get("/api/crewai/history/:executionId", async (req, res) => {
+    try {
+      const { executionId } = req.params;
+      const response = await fetch(`${CREWAI_SERVICE_URL}/history/${executionId}`);
+      const data = await response.json();
+      return res.status(response.status).json(data);
+    } catch (error: any) {
+      return res.status(500).json({
+        success: false,
+        error: "CrewAI service unavailable",
+        details: error.message,
+      });
+    }
+  });
+
   return httpServer;
 }
