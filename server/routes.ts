@@ -6,6 +6,36 @@ import * as formulaService from "./formula-service";
 import { dubService } from "./dub-service";
 import { insertReportSchema } from "@shared/schema";
 import { nanoid } from "nanoid";
+import multer from "multer";
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+const pdfParse = require("pdf-parse");
+
+// Configure multer for file uploads (memory storage for immediate processing)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB max for PDF files
+    files: 10, // Max 10 files at once
+  },
+  fileFilter: (req, file, cb) => {
+    const allowedTypes = [
+      "application/pdf",
+      "text/plain",
+      "text/markdown",
+      "text/csv",
+      "application/json",
+    ];
+    const allowedExtensions = [".pdf", ".txt", ".md", ".csv", ".json"];
+    const ext = file.originalname.toLowerCase().substring(file.originalname.lastIndexOf("."));
+    
+    if (allowedTypes.includes(file.mimetype) || allowedExtensions.includes(ext)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`Unsupported file type: ${file.originalname}`));
+    }
+  },
+});
 
 // Store active SSE connections for progress updates
 const progressConnections = new Map<string, any>();
@@ -18,6 +48,73 @@ export async function registerRoutes(
   // Version check
   app.get("/api/version", (req, res) => {
     res.json({ version: "2.5.0", buildTime: "2025-11-30T03:10:00Z" });
+  });
+
+  // Document upload endpoint - extracts text from PDFs and text files
+  app.post("/api/upload", upload.array("files", 10), async (req, res) => {
+    try {
+      const files = req.files as Express.Multer.File[];
+      
+      if (!files || files.length === 0) {
+        return res.status(400).json({ error: "No files uploaded" });
+      }
+
+      const results: Array<{ name: string; content: string; size: number; type: string }> = [];
+      const errors: Array<{ name: string; error: string }> = [];
+
+      for (const file of files) {
+        try {
+          let content: string;
+          const ext = file.originalname.toLowerCase().substring(file.originalname.lastIndexOf("."));
+          
+          if (ext === ".pdf" || file.mimetype === "application/pdf") {
+            // Parse PDF and extract text
+            const pdfData = await pdfParse(file.buffer);
+            content = pdfData.text;
+            
+            // Clean up extracted text (remove excessive whitespace)
+            content = content
+              .replace(/\r\n/g, "\n")
+              .replace(/\n{3,}/g, "\n\n")
+              .replace(/[ \t]+/g, " ")
+              .trim();
+          } else {
+            // Text-based files - read directly as UTF-8
+            content = file.buffer.toString("utf-8");
+          }
+
+          // Enforce character limit per document
+          const MAX_CHARS = 50000;
+          if (content.length > MAX_CHARS) {
+            content = content.substring(0, MAX_CHARS) + "\n... [truncated]";
+          }
+
+          results.push({
+            name: file.originalname,
+            content,
+            size: file.size,
+            type: file.mimetype || "text/plain",
+          });
+        } catch (fileError: any) {
+          console.error(`Error processing file ${file.originalname}:`, fileError);
+          errors.push({
+            name: file.originalname,
+            error: fileError.message || "Failed to process file",
+          });
+        }
+      }
+
+      res.json({
+        success: true,
+        documents: results,
+        errors: errors.length > 0 ? errors : undefined,
+      });
+    } catch (error: any) {
+      console.error("Upload error:", error);
+      res.status(500).json({
+        error: error.message || "Failed to process uploaded files",
+      });
+    }
   });
 
   // Shareable link endpoint - Get report by ID

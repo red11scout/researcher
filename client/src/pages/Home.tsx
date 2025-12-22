@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import Layout from "@/components/Layout";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Sparkles, Building2, TrendingUp, ShieldCheck, FileText, Upload, X, ChevronDown, ChevronUp } from "lucide-react";
+import { Search, Sparkles, Building2, TrendingUp, ShieldCheck, FileText, Upload, X, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 import heroBg from "@assets/generated_images/clean_white_and_blue_abstract_enterprise_background.png";
@@ -16,9 +16,9 @@ interface UploadedDocument {
   type: string;
 }
 
-const MAX_FILE_SIZE = 500 * 1024; // 500KB per file (text files are typically small)
-const MAX_TOTAL_SIZE = 2 * 1024 * 1024; // 2MB total (to stay under sessionStorage limits)
-const ALLOWED_EXTENSIONS = [".txt", ".md", ".csv", ".json"]; // Text-only formats that can be read as text
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB per file (for PDFs)
+const MAX_TOTAL_SIZE = 2 * 1024 * 1024; // 2MB total for extracted text in sessionStorage
+const ALLOWED_EXTENSIONS = [".txt", ".md", ".csv", ".json", ".pdf"]; // Supported formats
 
 export default function Home() {
   const [query, setQuery] = useState("");
@@ -26,31 +26,21 @@ export default function Home() {
   const [documents, setDocuments] = useState<UploadedDocument[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [showDocuments, setShowDocuments] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  const readFileContent = async (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => resolve(e.target?.result as string || "");
-      reader.onerror = reject;
-      reader.readAsText(file);
-    });
-  };
-
   const handleFiles = useCallback(async (files: FileList | null) => {
-    if (!files) return;
+    if (!files || files.length === 0) return;
     
-    let runningTotal = documents.reduce((sum, doc) => sum + doc.size, 0);
-    const newDocuments: UploadedDocument[] = [];
-    
+    // Validate files before upload
+    const validFiles: File[] = [];
     for (const file of Array.from(files)) {
-      // Check file extension
       const extension = file.name.substring(file.name.lastIndexOf(".")).toLowerCase();
       if (!ALLOWED_EXTENSIONS.includes(extension)) {
         toast({
           title: "Unsupported file type",
-          description: `${file.name} - Only text files are supported (TXT, MD, CSV, JSON)`,
+          description: `${file.name} - Supported formats: PDF, TXT, MD, CSV, JSON`,
           variant: "destructive",
         });
         continue;
@@ -59,43 +49,79 @@ export default function Home() {
       if (file.size > MAX_FILE_SIZE) {
         toast({
           title: "File too large",
-          description: `${file.name} exceeds 500KB limit for text files`,
+          description: `${file.name} exceeds 10MB limit`,
           variant: "destructive",
         });
         continue;
       }
-
-      if (runningTotal + file.size > MAX_TOTAL_SIZE) {
-        toast({
-          title: "Total size exceeded",
-          description: `Cannot add ${file.name}. Combined documents would exceed 2MB limit.`,
-          variant: "destructive",
-        });
-        continue;
-      }
-
-      try {
-        const content = await readFileContent(file);
-        const newDoc = {
-          name: file.name,
-          content,
-          size: file.size,
-          type: file.type || "text/plain",
-        };
-        newDocuments.push(newDoc);
-        runningTotal += file.size;
-      } catch {
-        toast({
-          title: "Failed to read file",
-          description: `Could not read ${file.name}`,
-          variant: "destructive",
-        });
-      }
+      
+      validFiles.push(file);
     }
-    
-    if (newDocuments.length > 0) {
-      setDocuments(prev => [...prev, ...newDocuments]);
+
+    if (validFiles.length === 0) return;
+
+    setIsUploading(true);
+    try {
+      // Upload files to server for processing (especially PDFs)
+      const formData = new FormData();
+      for (const file of validFiles) {
+        formData.append("files", file);
+      }
+
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Upload failed");
+      }
+
+      const result = await response.json();
+      
+      // Check if extracted text would exceed storage limits
+      const currentTextSize = documents.reduce((sum, doc) => sum + doc.content.length, 0);
+      const newTextSize = result.documents.reduce((sum: number, doc: UploadedDocument) => sum + doc.content.length, 0);
+      
+      if (currentTextSize + newTextSize > MAX_TOTAL_SIZE) {
+        toast({
+          title: "Text content too large",
+          description: "Extracted text exceeds storage limit. Try uploading fewer or smaller documents.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Add processed documents
+      setDocuments(prev => [...prev, ...result.documents]);
       setShowDocuments(true);
+
+      // Show any processing errors
+      if (result.errors && result.errors.length > 0) {
+        for (const err of result.errors) {
+          toast({
+            title: "File processing error",
+            description: `${err.name}: ${err.error}`,
+            variant: "destructive",
+          });
+        }
+      }
+
+      if (result.documents.length > 0) {
+        toast({
+          title: "Files uploaded",
+          description: `${result.documents.length} document(s) processed successfully`,
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Upload failed",
+        description: error.message || "Failed to upload files",
+        variant: "destructive",
+      });
+    } finally {
+      setIsUploading(false);
     }
   }, [toast, documents]);
 
@@ -248,30 +274,40 @@ export default function Home() {
                         ref={fileInputRef}
                         type="file"
                         multiple
-                        accept=".txt,.md,.csv,.json"
+                        accept=".txt,.md,.csv,.json,.pdf"
                         onChange={(e) => handleFiles(e.target.files)}
                         className="hidden"
+                        disabled={isUploading}
                         data-testid="input-file-upload"
                       />
                       
                       <div className="flex flex-col items-center gap-3">
-                        <Upload className="h-8 w-8 text-muted-foreground" />
-                        <div className="text-center">
-                          <p className="text-sm text-muted-foreground">
-                            Drag & drop files here or{" "}
-                            <button
-                              type="button"
-                              onClick={() => fileInputRef.current?.click()}
-                              className="text-primary hover:underline"
-                              data-testid="button-browse-files"
-                            >
-                              browse
-                            </button>
-                          </p>
-                          <p className="text-xs text-muted-foreground/70 mt-1">
-                            Supports TXT, MD, CSV, JSON (max 500KB each, 2MB total)
-                          </p>
-                        </div>
+                        {isUploading ? (
+                          <>
+                            <Loader2 className="h-8 w-8 text-primary animate-spin" />
+                            <p className="text-sm text-muted-foreground">Processing files...</p>
+                          </>
+                        ) : (
+                          <>
+                            <Upload className="h-8 w-8 text-muted-foreground" />
+                            <div className="text-center">
+                              <p className="text-sm text-muted-foreground">
+                                Drag & drop files here or{" "}
+                                <button
+                                  type="button"
+                                  onClick={() => fileInputRef.current?.click()}
+                                  className="text-primary hover:underline"
+                                  data-testid="button-browse-files"
+                                >
+                                  browse
+                                </button>
+                              </p>
+                              <p className="text-xs text-muted-foreground/70 mt-1">
+                                Supports PDF, TXT, MD, CSV, JSON (max 10MB each)
+                              </p>
+                            </div>
+                          </>
+                        )}
                       </div>
 
                       {documents.length > 0 && (
