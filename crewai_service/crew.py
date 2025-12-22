@@ -38,6 +38,11 @@ class AgenticCrew:
         goal = config['goal'].replace('{topic}', topic)
         backstory = config['backstory'].replace('{topic}', topic)
         
+        # Enhance agent goal and backstory when documents are provided
+        if self.document_context:
+            goal = f"{goal} You have been given specific documentation that MUST be deeply analyzed and heavily weighted in all your outputs. Your primary responsibility is to extract, reference, and build upon the content from these provided documents."
+            backstory = f"{backstory} You are currently working with user-provided documentation that contains critical information. You must treat these documents as your authoritative source, citing specific details and ensuring your analysis directly reflects their content."
+        
         return Agent(
             role=role,
             goal=goal,
@@ -59,15 +64,34 @@ class AgenticCrew:
         
         # Incorporate document context into task description if available
         if self.document_context:
-            description = f"""{description}
+            description = f"""CRITICAL PRIORITY - DOCUMENT-DRIVEN ANALYSIS REQUIRED
 
-IMPORTANT: You have been provided with the following reference documents that contain critical information about the topic. You MUST carefully analyze and incorporate insights from these documents into your work. Base your findings on the specific data, facts, and context provided in these documents:
+The user has provided specific documentation that MUST be the foundation of your entire analysis. Your output quality will be judged primarily on how thoroughly you incorporate, reference, and reflect the content from these documents.
 
---- REFERENCE DOCUMENTS ---
+=== MANDATORY REQUIREMENTS ===
+1. DEEP ANALYSIS: Read every section of the provided documents carefully. Extract specific facts, figures, quotes, and data points.
+2. HEAVY WEIGHTING: The documents are your PRIMARY source - weight their content 5x more heavily than any general knowledge.
+3. DIRECT REFERENCES: Your output MUST explicitly cite and reference specific information from the documents (e.g., "According to the provided documentation...", "The uploaded materials indicate...", "As stated in [document name]...").
+4. COMPREHENSIVE COVERAGE: Address ALL relevant topics, data, and insights found in the documents - do not cherry-pick.
+5. ACCURACY CHECK: Never contradict or ignore information in the provided documents. If there's ambiguity, note it and explain.
+
+--- PROVIDED DOCUMENTS (ANALYZE THOROUGHLY) ---
 {self.document_context}
---- END REFERENCE DOCUMENTS ---
+--- END DOCUMENTS ---
 
-Use the information from these documents as your primary source of truth. Extract relevant facts, figures, and insights to support your analysis."""
+ORIGINAL TASK:
+{description}
+
+FINAL REMINDER: Your analysis MUST demonstrate deep engagement with the uploaded documents. Generic responses that ignore the specific content provided will be considered failures. Quote, reference, and build upon the document content extensively."""
+            
+            # Also enhance expected output to emphasize document integration
+            expected_output = f"""{expected_output}
+
+CRITICAL: Your output must include:
+- Direct quotes or specific data points from the provided documents
+- Clear references to document sources (e.g., "As detailed in the uploaded documentation...")
+- Analysis that builds upon and extends the information in the documents
+- No generic statements that could apply without having read the documents"""
         
         return Task(
             description=description,

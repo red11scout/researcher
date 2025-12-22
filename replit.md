@@ -30,7 +30,10 @@ The platform features a modern, professional interface with interactive data vis
 - Frontend UI: /crewai route with Run, Agents, Tasks, History tabs
 - Custom tools for data formatting, summarization, and priority scoring
 - Document integration: CrewAI reads uploaded documents from sessionStorage and injects them into task descriptions as reference context (30K char limit per document)
-- AgenticCrew accepts document_context parameter, injected into all task descriptions with clear instructions for agents to use documents as primary source
+- AgenticCrew accepts document_context parameter, injected into all task descriptions with mandatory requirements for deep analysis
+- Document-driven analysis: Agents receive enhanced goals/backstories emphasizing documents as authoritative source
+- Mandatory requirements: Deep analysis, 5x heavy weighting, direct references with citations, comprehensive coverage, accuracy checks
+- Expected outputs require: direct quotes, source references, analysis building on documents, no generic statements
 - To start: `cd crewai_service && python api.py`
 - Environment variables: CREWAI_PORT (default 5001), CREWAI_SERVICE_URL
 
