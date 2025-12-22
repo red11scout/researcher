@@ -1,0 +1,62 @@
+research_task:
+  description: >
+    Conduct thorough research about {topic}.
+    
+    Your research should cover:
+    1. Current state and latest developments
+    2. Key players, companies, and thought leaders
+    3. Technical innovations and breakthroughs
+    4. Challenges, limitations, and opportunities
+    5. Future trends and predictions
+    
+    Be thorough and cite credible sources where possible.
+  expected_output: >
+    A comprehensive research report with at least 10 key findings,
+    organized by category. Each finding should include supporting
+    details and implications.
+  agent: researcher
+
+writing_task:
+  description: >
+    Using the research findings, create a well-structured document about {topic}.
+    
+    The document should:
+    1. Have a compelling executive summary
+    2. Organize information logically with clear sections
+    3. Use accessible language while maintaining technical accuracy
+    4. Include actionable insights and recommendations
+    5. End with clear conclusions and next steps
+  expected_output: >
+    A polished, professional document in markdown format with
+    clear headings, bullet points, and structured sections.
+  agent: writer
+
+analysis_task:
+  description: >
+    Analyze the research and content about {topic} to provide strategic recommendations.
+    
+    Your analysis should include:
+    1. SWOT analysis (Strengths, Weaknesses, Opportunities, Threats)
+    2. Key metrics and KPIs to track
+    3. Risk assessment and mitigation strategies
+    4. Prioritized action items with timelines
+    5. Resource requirements and ROI projections
+  expected_output: >
+    A strategic analysis report with clear recommendations,
+    prioritized by impact and feasibility.
+  agent: analyst
+
+synthesis_task:
+  description: >
+    Synthesize all outputs from the team into a cohesive final deliverable about {topic}.
+    
+    Ensure the final output:
+    1. Integrates all research, content, and analysis seamlessly
+    2. Eliminates redundancy while preserving key insights
+    3. Presents a unified narrative and recommendation set
+    4. Includes an executive summary suitable for leadership
+    5. Provides clear next steps and action items
+  expected_output: >
+    A comprehensive final report that synthesizes all team outputs
+    into a cohesive, actionable document ready for stakeholder review.
+  agent: coordinator
