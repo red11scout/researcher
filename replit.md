@@ -8,6 +8,16 @@ The platform features a modern, professional interface with interactive data vis
 
 ## Recent Changes (December 2025)
 
+**Document Upload for Enhanced Analysis (Complete)**:
+- Users can upload text-based documents (TXT, MD, CSV, JSON) to provide additional context for AI analysis
+- Drag & drop or click to browse file upload interface on the Home page
+- File validation: 500KB per file limit, 2MB total limit, text-only formats
+- Documents stored temporarily in sessionStorage and passed to /api/analyze endpoint
+- Backend processes documents into context string (50K char limit per document)
+- AI service incorporates document content into prompts for more tailored company analysis
+- Proper error handling with user feedback for storage quota issues
+- Files: Home.tsx (upload UI), Report.tsx (sends to API), routes.ts (processes), ai-service.ts (uses in prompts)
+
 **CrewAI Agentic Framework (Complete)**:
 - Python-based CrewAI framework for orchestrating autonomous AI agents
 - Location: `crewai_service/` directory with Flask API on port 5001
