@@ -1,0 +1,385 @@
+{
+  "successful": [
+    {
+      "companyName": "Bespoke Partners",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 8354,
+      "attempts": 1
+    },
+    {
+      "companyName": "EZ Texting",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 8401,
+      "attempts": 1
+    },
+    {
+      "companyName": "Scan Global Logistics",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 10215,
+      "attempts": 1
+    },
+    {
+      "companyName": "American Oncology Network",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 14404,
+      "attempts": 1
+    },
+    {
+      "companyName": "Redwood Logistics",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 14442,
+      "attempts": 1
+    },
+    {
+      "companyName": "ROI CX Solutions",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 267,
+      "attempts": 1
+    },
+    {
+      "companyName": "The Lifetime Value Co",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 278,
+      "attempts": 1
+    },
+    {
+      "companyName": "Montway",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 281,
+      "attempts": 1
+    },
+    {
+      "companyName": "Cenegenics",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 296,
+      "attempts": 1
+    },
+    {
+      "companyName": "Huge",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 317,
+      "attempts": 1
+    },
+    {
+      "companyName": "Ascential Technologies",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 252,
+      "attempts": 1
+    },
+    {
+      "companyName": "AmeriVet Partners",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 258,
+      "attempts": 1
+    },
+    {
+      "companyName": "Polygon Group",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 276,
+      "attempts": 1
+    },
+    {
+      "companyName": "Excelitas Technologies",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 278,
+      "attempts": 1
+    },
+    {
+      "companyName": "NES Fircroft",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 280,
+      "attempts": 1
+    },
+    {
+      "companyName": "SitelogIQ",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 229,
+      "attempts": 1
+    },
+    {
+      "companyName": "Traeger Pellet Grills",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 238,
+      "attempts": 1
+    },
+    {
+      "companyName": "SCIO Automation",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 261,
+      "attempts": 1
+    },
+    {
+      "companyName": "TricorBraun",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 271,
+      "attempts": 1
+    },
+    {
+      "companyName": "BMS Enterprises",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 273,
+      "attempts": 1
+    },
+    {
+      "companyName": "Verdesian Life Sciences",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 237,
+      "attempts": 1
+    },
+    {
+      "companyName": "Mark Spain Real Estate",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 245,
+      "attempts": 1
+    },
+    {
+      "companyName": "Commonwealth Pain",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 261,
+      "attempts": 1
+    },
+    {
+      "companyName": "Veseris",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 273,
+      "attempts": 1
+    },
+    {
+      "companyName": "Numotion",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 303,
+      "attempts": 1
+    },
+    {
+      "companyName": "American Expediting",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 249,
+      "attempts": 1
+    },
+    {
+      "companyName": "Cimsense",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 254,
+      "attempts": 1
+    },
+    {
+      "companyName": "AS Software",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 278,
+      "attempts": 1
+    },
+    {
+      "companyName": "Spectrum Control",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 280,
+      "attempts": 1
+    },
+    {
+      "companyName": "Rees Scientific",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 281,
+      "attempts": 1
+    },
+    {
+      "companyName": "ThreeSixty Group",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 301,
+      "attempts": 1
+    },
+    {
+      "companyName": "Nations Roof",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 304,
+      "attempts": 1
+    },
+    {
+      "companyName": "Chemical Guys",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 307,
+      "attempts": 1
+    },
+    {
+      "companyName": "Jack's Family Restaurants",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 310,
+      "attempts": 1
+    },
+    {
+      "companyName": "Hero Digital",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 309,
+      "attempts": 1
+    },
+    {
+      "companyName": "Singer Industrial",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 236,
+      "attempts": 1
+    },
+    {
+      "companyName": "Visual Comfort",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 244,
+      "attempts": 1
+    },
+    {
+      "companyName": "American Dental",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 254,
+      "attempts": 1
+    },
+    {
+      "companyName": "Pave America",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 265,
+      "attempts": 1
+    },
+    {
+      "companyName": "Window Nation",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 272,
+      "attempts": 1
+    },
+    {
+      "companyName": "50 Floor",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 249,
+      "attempts": 1
+    },
+    {
+      "companyName": "Barnet Products",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 250,
+      "attempts": 1
+    },
+    {
+      "companyName": "TileBar",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 258,
+      "attempts": 1
+    },
+    {
+      "companyName": "Splash Car Wash",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 266,
+      "attempts": 1
+    },
+    {
+      "companyName": "Monroe Engineering",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 280,
+      "attempts": 1
+    },
+    {
+      "companyName": "Dana Safety Supply",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 241,
+      "attempts": 1
+    },
+    {
+      "companyName": "Crane Engineering",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 257,
+      "attempts": 1
+    },
+    {
+      "companyName": "WorldWide Electric",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 260,
+      "attempts": 1
+    },
+    {
+      "companyName": "P&B Intermodal",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 262,
+      "attempts": 1
+    },
+    {
+      "companyName": "Meritus Gas Partners",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 369,
+      "attempts": 1
+    },
+    {
+      "companyName": "RED Global",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 249,
+      "attempts": 1
+    },
+    {
+      "companyName": "Impetus Wellness",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 290,
+      "attempts": 1
+    },
+    {
+      "companyName": "Unisyn Precision",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 291,
+      "attempts": 1
+    },
+    {
+      "companyName": "Chemtron RiverBend",
+      "totalValue": 0,
+      "useCaseCount": 0,
+      "duration": 292,
+      "attempts": 1
+    }
+  ],
+  "failed": [],
+  "startTime": 1768402163510,
+  "endTime": 1768402481206
+}
