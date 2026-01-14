@@ -1,0 +1,228 @@
+/**
+ * AEA Portfolio Batch Report Generator
+ * 
+ * Generates AI assessment reports for all 54 portfolio companies.
+ * Run from Replit shell: node batch-generate-reports.js
+ * 
+ * Estimated runtime: ~60 minutes (1 min per company)
+ */
+
+const companies = [
+  "Redwood Logistics",
+  "American Oncology Network",
+  "Scan Global Logistics",
+  "Bespoke Partners",
+  "EZ Texting",
+  "Huge",
+  "Cenegenics",
+  "The Lifetime Value Co",
+  "Montway",
+  "ROI CX Solutions",
+  "NES Fircroft",
+  "Excelitas Technologies",
+  "Polygon Group",
+  "AmeriVet Partners",
+  "Ascential Technologies",
+  "TricorBraun",
+  "Traeger Pellet Grills",
+  "BMS Enterprises",
+  "SitelogIQ",
+  "SCIO Automation",
+  "Numotion",
+  "Verdesian Life Sciences",
+  "Commonwealth Pain",
+  "Mark Spain Real Estate",
+  "Veseris",
+  "Spectrum Control",
+  "American Expediting",
+  "Rees Scientific",
+  "Cimsense",
+  "AS Software",
+  "Jack's Family Restaurants",
+  "Nations Roof",
+  "ThreeSixty Group",
+  "Chemical Guys",
+  "Hero Digital",
+  "Pave America",
+  "Singer Industrial",
+  "American Dental",
+  "Window Nation",
+  "Visual Comfort",
+  "50 Floor",
+  "TileBar",
+  "Splash Car Wash",
+  "Barnet Products",
+  "Monroe Engineering",
+  "WorldWide Electric",
+  "Crane Engineering",
+  "Meritus Gas Partners",
+  "Dana Safety Supply",
+  "P&B Intermodal",
+  "RED Global",
+  "Impetus Wellness",
+  "Chemtron RiverBend",
+  "Unisyn Precision"
+];
+
+// Configuration
+const API_URL = process.env.API_URL || 'https://reports.aiplatformsforscale.com/api/analyze';
+const DELAY_BETWEEN_REQUESTS = 65000; // 65 seconds (buffer for 1-min processing)
+const MAX_RETRIES = 3;
+
+// Track progress
+const results = {
+  successful: [],
+  failed: [],
+  skipped: []
+};
+
+// Utility: wait function
+const wait = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Utility: format duration
+const formatDuration = (ms) => {
+  const mins = Math.floor(ms / 60000);
+  const secs = Math.floor((ms % 60000) / 1000);
+  return `${mins}m ${secs}s`;
+};
+
+// Generate report for a single company
+async function generateReport(company, index, total) {
+  const startTime = Date.now();
+  
+  console.log(`\n${'='.repeat(60)}`);
+  console.log(`[${index + 1}/${total}] Processing: ${company}`);
+  console.log(`${'='.repeat(60)}`);
+  
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      console.log(`  Attempt ${attempt}/${MAX_RETRIES}...`);
+      
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ 
+          companyName: company
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      
+      // Extract key metrics for logging
+      const totalValue = data.analysis?.executiveDashboard?.totalAnnualValue || 0;
+      const useCaseCount = data.analysis?.steps?.find(s => s.step === 4)?.data?.length || 0;
+      
+      const duration = Date.now() - startTime;
+      
+      console.log(`  ✓ SUCCESS in ${formatDuration(duration)}`);
+      console.log(`    Total AI Value: $${(totalValue / 1e6).toFixed(1)}M`);
+      console.log(`    Use Cases: ${useCaseCount}`);
+      
+      results.successful.push({
+        company,
+        totalValue,
+        useCaseCount,
+        duration
+      });
+      
+      return true;
+      
+    } catch (error) {
+      console.log(`  ✗ Attempt ${attempt} failed: ${error.message}`);
+      
+      if (attempt < MAX_RETRIES) {
+        console.log(`  Waiting 10 seconds before retry...`);
+        await wait(10000);
+      }
+    }
+  }
+  
+  // All retries failed
+  console.log(`  ✗ FAILED after ${MAX_RETRIES} attempts`);
+  results.failed.push({ company, error: 'Max retries exceeded' });
+  return false;
+}
+
+// Main batch process
+async function main() {
+  console.log('\n');
+  console.log('╔════════════════════════════════════════════════════════════╗');
+  console.log('║       AEA PORTFOLIO BATCH REPORT GENERATOR                 ║');
+  console.log('║       BlueAlly AI Assessment Platform                      ║');
+  console.log('╠════════════════════════════════════════════════════════════╣');
+  console.log(`║  Companies to process: ${companies.length.toString().padEnd(34)}║`);
+  console.log(`║  Estimated runtime: ~${Math.ceil(companies.length * 1.1)} minutes${' '.repeat(24)}║`);
+  console.log(`║  Started at: ${new Date().toLocaleString().padEnd(36)}║`);
+  console.log('╚════════════════════════════════════════════════════════════╝');
+  
+  const batchStartTime = Date.now();
+  
+  for (let i = 0; i < companies.length; i++) {
+    const company = companies[i];
+    
+    await generateReport(company, i, companies.length);
+    
+    // Progress update
+    const elapsed = Date.now() - batchStartTime;
+    const avgTime = elapsed / (i + 1);
+    const remaining = avgTime * (companies.length - i - 1);
+    
+    console.log(`\n  Progress: ${i + 1}/${companies.length} (${Math.round((i + 1) / companies.length * 100)}%)`);
+    console.log(`  Elapsed: ${formatDuration(elapsed)} | Est. remaining: ${formatDuration(remaining)}`);
+    
+    // Wait between requests (except for last one)
+    if (i < companies.length - 1) {
+      console.log(`  Waiting ${DELAY_BETWEEN_REQUESTS / 1000}s before next company...`);
+      await wait(DELAY_BETWEEN_REQUESTS);
+    }
+  }
+  
+  // Final summary
+  const totalDuration = Date.now() - batchStartTime;
+  
+  console.log('\n');
+  console.log('╔════════════════════════════════════════════════════════════╗');
+  console.log('║                    BATCH COMPLETE                          ║');
+  console.log('╠════════════════════════════════════════════════════════════╣');
+  console.log(`║  Total duration: ${formatDuration(totalDuration).padEnd(40)}║`);
+  console.log(`║  Successful: ${results.successful.length.toString().padEnd(45)}║`);
+  console.log(`║  Failed: ${results.failed.length.toString().padEnd(48)}║`);
+  console.log('╚════════════════════════════════════════════════════════════╝');
+  
+  // Summary of values
+  if (results.successful.length > 0) {
+    const totalPortfolioValue = results.successful.reduce((sum, r) => sum + r.totalValue, 0);
+    console.log(`\n  Total Portfolio AI Value: $${(totalPortfolioValue / 1e6).toFixed(1)}M`);
+    
+    console.log('\n  Top 10 by AI Value:');
+    results.successful
+      .sort((a, b) => b.totalValue - a.totalValue)
+      .slice(0, 10)
+      .forEach((r, i) => {
+        console.log(`    ${i + 1}. ${r.company}: $${(r.totalValue / 1e6).toFixed(1)}M`);
+      });
+  }
+  
+  // List failures
+  if (results.failed.length > 0) {
+    console.log('\n  Failed companies (re-run manually):');
+    results.failed.forEach(r => {
+      console.log(`    - ${r.company}: ${r.error}`);
+    });
+  }
+  
+  // Write results to file
+  const resultsFile = `batch-results-${Date.now()}.json`;
+  const fs = await import('fs');
+  fs.writeFileSync(resultsFile, JSON.stringify(results, null, 2));
+  console.log(`\n  Results saved to: ${resultsFile}`);
+}
+
+// Run
+main().catch(console.error);
