@@ -40,6 +40,27 @@ const upload = multer({
 // Store active SSE connections for progress updates
 const progressConnections = new Map<string, any>();
 
+// Store background job status and results
+interface JobStatus {
+  status: 'pending' | 'processing' | 'complete' | 'error';
+  companyName: string;
+  result?: any;
+  error?: string;
+  startedAt: number;
+}
+const backgroundJobs = new Map<string, JobStatus>();
+
+// Cleanup old jobs after 30 minutes
+setInterval(() => {
+  const now = Date.now();
+  const entries = Array.from(backgroundJobs.entries());
+  for (const [jobId, job] of entries) {
+    if (now - job.startedAt > 30 * 60 * 1000) {
+      backgroundJobs.delete(jobId);
+    }
+  }
+}, 5 * 60 * 1000); // Check every 5 minutes
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
@@ -647,6 +668,33 @@ Return ONLY valid JSON with this structure:
   };
 
   // Generate or retrieve analysis for a company with progress updates
+  // Check job status endpoint
+  app.get("/api/analyze/status/:jobId", (req, res) => {
+    const { jobId } = req.params;
+    const job = backgroundJobs.get(jobId);
+    
+    if (!job) {
+      return res.status(404).json({ error: "Job not found" });
+    }
+    
+    if (job.status === 'complete') {
+      return res.json({
+        status: 'complete',
+        result: job.result
+      });
+    } else if (job.status === 'error') {
+      return res.json({
+        status: 'error',
+        error: job.error
+      });
+    } else {
+      return res.json({
+        status: job.status,
+        companyName: job.companyName
+      });
+    }
+  });
+
   app.post("/api/analyze", async (req, res) => {
     try {
       console.log("Analyze endpoint called with body:", JSON.stringify(req.body));
@@ -708,6 +756,16 @@ Return ONLY valid JSON with this structure:
         });
       }
 
+      // Create a job ID for background processing
+      const jobId = sessionId || nanoid();
+      
+      // Store job status
+      backgroundJobs.set(jobId, {
+        status: 'processing',
+        companyName,
+        startedAt: Date.now()
+      });
+
       // Send progress updates during generation
       if (sessionId) {
         sendProgress(sessionId, 1, "Step 0: Company Overview", "Gathering company information...");
@@ -721,30 +779,64 @@ Return ONLY valid JSON with this structure:
         setTimeout(() => sendProgress(sessionId, 8, "Step 7: Priority Scoring", "Computing weighted priority scores..."), 24000);
       }
 
-      // Generate new analysis using AI
-      const analysis = await generateCompanyAnalysis(companyName, documentContext);
-      
-      if (sessionId) {
-        sendProgress(sessionId, 9, "Saving Report", "Storing analysis in database...");
-      }
+      // Start background processing and return immediately
+      // Use setImmediate to ensure response is sent before processing starts
+      setImmediate(async () => {
+        try {
+          // Generate new analysis using AI
+          const analysis = await generateCompanyAnalysis(companyName, documentContext);
+          
+          if (sessionId) {
+            sendProgress(sessionId, 9, "Saving Report", "Storing analysis in database...");
+          }
 
-      // Save to database
-      const report = await storage.createReport({
-        companyName,
-        analysisData: analysis,
+          // Save to database
+          const report = await storage.createReport({
+            companyName,
+            analysisData: analysis,
+          });
+
+          // Update job status with result
+          backgroundJobs.set(jobId, {
+            status: 'complete',
+            companyName,
+            startedAt: backgroundJobs.get(jobId)?.startedAt || Date.now(),
+            result: {
+              id: report.id,
+              companyName: report.companyName,
+              data: report.analysisData,
+              createdAt: report.createdAt,
+              updatedAt: report.updatedAt,
+              isNew: true,
+            }
+          });
+
+          if (sessionId) {
+            sendProgress(sessionId, 100, "Complete", "Report generated successfully!");
+          }
+        } catch (error: any) {
+          console.error("Background analysis error:", error);
+          const errorMessage = error instanceof Error ? error.message : String(error);
+          
+          backgroundJobs.set(jobId, {
+            status: 'error',
+            companyName,
+            startedAt: backgroundJobs.get(jobId)?.startedAt || Date.now(),
+            error: errorMessage
+          });
+
+          if (sessionId) {
+            sendProgress(sessionId, -1, "Error", errorMessage);
+          }
+        }
       });
 
-      if (sessionId) {
-        sendProgress(sessionId, 100, "Complete", "Report generated successfully!");
-      }
-
+      // Return immediately with job ID - client will poll for results
       return res.json({
-        id: report.id,
-        companyName: report.companyName,
-        data: report.analysisData,
-        createdAt: report.createdAt,
-        updatedAt: report.updatedAt,
-        isNew: true,
+        status: 'processing',
+        jobId,
+        companyName,
+        message: 'Analysis started. Poll /api/analyze/status/:jobId for results.'
       });
       
     } catch (error: any) {

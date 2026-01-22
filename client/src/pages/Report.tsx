@@ -321,12 +321,6 @@ export default function Report() {
 
       let response: Response;
       try {
-        // Use AbortController with 5-minute timeout for long-running analysis
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => {
-          controller.abort();
-        }, 5 * 60 * 1000); // 5 minutes
-        
         // Get uploaded documents from sessionStorage
         let documents: Array<{ name: string; content: string }> = [];
         try {
@@ -343,21 +337,14 @@ export default function Report() {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ companyName, sessionId, documents }),
-          signal: controller.signal,
         });
-        
-        clearTimeout(timeoutId);
       } catch (fetchError: any) {
         eventSource.close();
-        if (fetchError?.name === 'AbortError') {
-          throw new Error('Analysis timed out after 5 minutes. Please try again.');
-        }
         throw new Error(`Network error: ${fetchError?.message || 'Failed to connect to server'}`);
       }
 
-      eventSource.close();
-
       if (!response.ok) {
+        eventSource.close();
         let errorMessage = "Failed to generate analysis";
         try {
           const errorData = await response.json();
@@ -368,27 +355,93 @@ export default function Report() {
         throw new Error(errorMessage);
       }
 
-      let result;
+      let initialResult;
       try {
-        result = await response.json();
+        initialResult = await response.json();
       } catch (parseError: any) {
+        eventSource.close();
         throw new Error(`Failed to parse response: ${parseError?.message || 'Invalid JSON'}`);
       }
       
-      setReportId(result.id);
-      setData(result.data);
-      setStatus("complete");
-      setCompletedSteps([0, 1, 2, 3, 4, 5, 6, 7, 8]);
-
-      if (result.isNew) {
+      // If we got an existing report directly, use it
+      if (initialResult.id && initialResult.data) {
+        eventSource.close();
+        setReportId(initialResult.id);
+        setData(initialResult.data);
+        setStatus("complete");
+        setCompletedSteps([0, 1, 2, 3, 4, 5, 6, 7, 8]);
+        
+        if (initialResult.isNew === false) {
+          toast({
+            title: "Report Retrieved",
+            description: "Loaded existing analysis for this company.",
+          });
+        }
+        return;
+      }
+      
+      // If processing in background, poll for results
+      if (initialResult.status === 'processing' && initialResult.jobId) {
+        const jobId = initialResult.jobId;
+        const maxPolls = 180; // 3 minutes at 1 second intervals
+        let pollCount = 0;
+        
+        const pollForResult = async (): Promise<void> => {
+          while (pollCount < maxPolls) {
+            pollCount++;
+            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+            
+            try {
+              const statusResponse = await fetch(`/api/analyze/status/${jobId}`);
+              if (!statusResponse.ok) {
+                if (statusResponse.status === 404) {
+                  throw new Error('Analysis job not found - please try again');
+                }
+                continue; // Retry on other errors
+              }
+              
+              const statusData = await statusResponse.json();
+              
+              if (statusData.status === 'complete' && statusData.result) {
+                eventSource.close();
+                setReportId(statusData.result.id);
+                setData(statusData.result.data);
+                setStatus("complete");
+                setCompletedSteps([0, 1, 2, 3, 4, 5, 6, 7, 8]);
+                toast({
+                  title: "Analysis Complete",
+                  description: "Your strategic analysis has been generated and saved.",
+                });
+                return;
+              } else if (statusData.status === 'error') {
+                throw new Error(statusData.error || 'Analysis failed');
+              }
+              // Continue polling if still processing
+            } catch (pollError: any) {
+              if (pollError.message.includes('job not found') || pollError.message.includes('Analysis failed')) {
+                throw pollError;
+              }
+              // Continue polling on network errors
+            }
+          }
+          
+          throw new Error('Analysis timed out after 3 minutes. Please try again.');
+        };
+        
+        await pollForResult();
+        return;
+      }
+      
+      // Fallback for direct result (shouldn't happen with new pattern)
+      eventSource.close();
+      if (initialResult.id) {
+        setReportId(initialResult.id);
+        setData(initialResult.data);
+        setStatus("complete");
+        setCompletedSteps([0, 1, 2, 3, 4, 5, 6, 7, 8]);
         toast({
           title: "Analysis Complete",
           description: "Your strategic analysis has been generated and saved.",
-        });
-      } else {
-        toast({
-          title: "Report Retrieved",
-          description: "Loaded existing analysis for this company.",
         });
       }
     } catch (err: any) {
