@@ -172,9 +172,47 @@ export interface AnalysisStep {
   data?: any[];
 }
 
+export interface ExecutiveSummaryFinding {
+  title: string;
+  body: string;
+  value: string;
+}
+
+export interface ExecutiveSummary {
+  headline: string;
+  context: string;
+  opportunityTable: {
+    rows: Array<{
+      metric: string;
+      value: string;
+    }>;
+  };
+  findings: ExecutiveSummaryFinding[];
+  criticalPath: string;
+  recommendedAction: string;
+}
+
+export interface CompanyOverview {
+  position: string;
+  frictionTable: {
+    rows: Array<{
+      domain: string;
+      annualBurden: string;
+      strategicImpact: string;
+    }>;
+  };
+  dataReadiness: {
+    currentState: string;
+    keyGaps: string;
+  };
+  whyNow: string;
+}
+
 export interface AnalysisResult {
   steps: AnalysisStep[];
   summary: string;
+  executiveSummary: ExecutiveSummary;
+  companyOverview: CompanyOverview;
   executiveDashboard: {
     totalRevenueBenefit: number;
     totalCostBenefit: number;
@@ -195,14 +233,29 @@ export interface AnalysisResult {
 
 export async function generateCompanyAnalysis(companyName: string, documentContext?: string): Promise<AnalysisResult> {
   const systemPrompt = `<system_identity>
-You are BlueAlly Insight, an executive intelligence editor and elite enterprise AI transformation analyst. You transform raw analytical output into board-ready prose that a CFO can read in 8 minutes and a CEO can scan in 90 seconds.
+You are a synthesis of the most brilliant minds in business and AI:
 
-You specialize in identifying, quantifying, and prioritizing AI use cases for Fortune 500 companies. You operate with the rigor of a Big Four consulting partner and the technical precision of an AI architect.
+STRATEGIC BUSINESS MINDS:
+- Michael Porter (Harvard) - Competitive strategy and value chain analysis
+- Clayton Christensen (Harvard) - Disruptive innovation frameworks
+- Rita McGrath (Columbia) - Strategic inflection points
+- The analytical rigor of McKinsey, BCG, and Bain senior partners
 
-EDITORIAL PHILOSOPHY:
-1. ANALYTICAL RIGOR: Every claim traceable to evidence. Uncertainty explicitly calibrated. Causation distinguished from correlation.
-2. STRATEGIC CLARITY: Lead with what matters. Show expected value of action versus inaction. Respect the reader's time.
-3. PROSE DISCIPLINE: Paragraphs over bullets. Complete thoughts over fragments. Concrete nouns, active verbs, short sentences for emphasis.
+AI RESEARCH LEADERS:
+- Stuart Russell (Berkeley) - AI foundations and rational agents
+- Geoffrey Hinton (Toronto/Google) - Deep learning architecture
+- Max Tegmark (MIT) - AI safety and future implications
+- Dario Amodei (Anthropic) - Practical AI deployment
+
+WRITING VOICE:
+Write in the style of Ernest Hemingway—direct, muscular prose that respects the reader's intelligence. Every word earns its place. No decoration. No throat-clearing. The dignity of your writing comes from what remains unsaid, supported by the depth of analysis beneath.
+
+TONE REQUIREMENTS:
+- Professional yet warm
+- Confident without arrogance
+- Direct without being curt
+- Polite without being obsequious
+- Executive-appropriate at all times
 
 CORE PRINCIPLES:
 1. RESHAPE, DON'T ACCELERATE: Every use case must fundamentally change HOW work is performed. A 10x improvement in a bad process is still a bad process.
@@ -213,7 +266,6 @@ CORE PRINCIPLES:
 
 NON-NEGOTIABLE DATA LOCK:
 PRESERVE EXACTLY: All numbers, percentages, currency values, time horizons, calculated outputs, KPI baselines, targets, deltas, quantitative relationships and formulas, table values and structures, directional conclusions, material caveats affecting interpretation.
-YOU MAY: Restructure information hierarchy, rephrase for clarity while preserving quantitative meaning, calibrate uncertainty language, add brief connective sentences introducing no new claims, convert run-on data sequences into structured paragraphs, remove redundant restatements.
 </system_identity>
 
 <voice_and_tone>
@@ -505,7 +557,7 @@ IMPORTANT: Return ONLY valid JSON. No markdown, no code blocks, no explanatory t
 JSON structure:
 {
   "steps": [
-    {"step": 0, "title": "Company Overview", "content": "EXECUTIVE INTELLIGENCE EDITOR FORMAT - Write board-ready prose. NO markdown.\n\nParagraph 1 - Company Identity (2-3 sentences): Revenue scale, core business model, geographic and operational footprint. Lead with the defining fact. Example: 'Acme Corporation generates $4.2B in annual revenue from enterprise software solutions. The company operates from Austin, Texas with 8,500 employees across 12 global offices.'\n\nParagraph 2 - Business Composition (1 paragraph): Segment breakdown with revenue attribution. Key operational metrics (transaction volume, retention rates, processing spreads). Example: 'The company serves 2,400 enterprise clients across financial services (48% of revenue), healthcare (31%), and manufacturing (21%) sectors. Customer retention stands at 94% over the past three fiscal years. Average contract value reaches $175K with 2.3-year average duration.'\n\nParagraphs 3-5 - Operational Pain Points (1 paragraph per category, max 3-4): Group related challenges logically. For each: Quantified annual burden (dollars and hours), root cause mechanism, business impact (delays, competitive disadvantage, opportunity cost). Example: 'The company faces a $47M annual burden from manual compliance documentation. Legal teams spend 34,000 hours per year reviewing and updating regulatory filings across 47 jurisdictions. This workload creates a 23-day backlog on routine inquiries and diverts senior attorneys from strategic advisory work.'\n\nFinal Paragraph - Sources & Assumptions (1 brief paragraph): Data origins (10-K filings, earnings releases, industry benchmarks). Labor rate assumptions. Data maturity assessment basis. Example: 'Financial figures derive from 2024 10-K filings and Q3 earnings releases. Operational burden estimates apply industry-standard $150/hour fully-loaded rates for professional staff. Data maturity assessed at Level 2 based on disclosed technology investments and governance statements.'", "data": null},
+    {"step": 0, "title": "Company Overview", "content": "Brief 2-3 sentence company overview. The structured companyOverview object contains authoritative company data: position, friction table, data readiness, and why now sections.", "data": null},
     {"step": 1, "title": "Strategic Anchoring & Business Drivers", "content": "brief intro", "data": [{"Strategic Theme": "...", "Primary Driver": "...", "Secondary Driver": "...", "Current State": "...", "Target State": "..."}]},
     {"step": 2, "title": "Business Function Inventory & KPI Baselines", "content": "...", "data": [{"Function": "...", "Sub-Function": "...", "KPI Name": "...", "Baseline Value": "...", "Industry Benchmark": "...", "Target Value": "...", "Direction": "↑/↓", "Timeframe": "...", "Measurement Method": "..."}]},
     {"step": 3, "title": "Friction Point Mapping", "content": "...", "data": [{"Function": "...", "Sub-Function": "...", "Friction Point": "...", "Severity": "Critical/High/Medium", "Primary Driver Impact": "...", "Estimated Annual Cost ($)": "..."}]},
@@ -514,7 +566,53 @@ JSON structure:
     {"step": 6, "title": "Effort & Token Modeling", "content": "...", "data": [{"ID": "UC-01", "Use Case": "...", "Data Readiness (1-5)": 3, "Integration Complexity (1-5)": 3, "Change Mgmt (1-5)": 3, "Effort Score (1-5)": 3, "Time-to-Value (months)": 6, "Input Tokens/Run": 800, "Output Tokens/Run": 800, "Runs/Month": 1000, "Monthly Tokens": 1600000, "Annual Token Cost ($)": "$..."}]},
     {"step": 7, "title": "Priority Scoring & Roadmap", "content": "...", "data": [{"ID": "UC-01", "Use Case": "...", "Value Score (0-40)": 35, "TTV Score (0-30)": 25, "Effort Score (0-30)": 24, "Priority Score (0-100)": 84, "Priority Tier": "Critical", "Recommended Phase": "Q1"}]}
   ],
-  "summary": "Generate a concise executive summary (maximum 250 words) formatted for rapid comprehension by senior executives. Structure as follows:\n\n**HEADLINE INSIGHT**\nOne sentence capturing the single most important finding. Lead with the total value opportunity and number of initiatives identified.\n\n**VALUE BREAKDOWN** (use 4-line format)\n- Cost Reduction: $X (X%)\n- Revenue Growth: $X (X%)\n- Cash Flow Acceleration: $X (X%)\n- Risk Mitigation: $X (X%)\n\n**TOP 3 PRIORITIES**\nFor each critical initiative, provide exactly one line:\n1. [Initiative Name] — $XM annual value | [Key differentiator in <10 words]\n2. [Initiative Name] — $XM annual value | [Key differentiator in <10 words]\n3. [Initiative Name] — $XM annual value | [Key differentiator in <10 words]\n\n**EXECUTION REALITY**\nTwo sentences maximum addressing: data readiness, critical dependencies, or timeline considerations that executives must understand before approving investment.\n\n**BOTTOM LINE**\nOne sentence stating the recommended action and expected outcome.\n\nFormatting rules:\n- No paragraphs longer than two sentences\n- Use numerals for all figures ($X.XM, X%, X months)\n- Bold section headers using ** markdown\n- White space between sections\n- Avoid jargon; assume reader has 30 seconds maximum",
+  "summary": "Plain text fallback summary (250-350 words). First sentence states the recommendation with total value. Use the executiveSummary object for the primary structured output.",
+  "executiveSummary": {
+    "headline": "[Company] should execute [X] Critical-priority AI initiatives in Q1-Q2 to capture $[Y]M in first-year value from a $[Z]M total opportunity.",
+    "context": "2-4 sentences providing situation (what reader already knows) and complication (why now, what changed or what tension exists requiring action)",
+    "opportunityTable": {
+      "rows": [
+        { "metric": "Total Annual Value", "value": "$XX.XM" },
+        { "metric": "Critical-Priority Initiatives", "value": "X" },
+        { "metric": "First-Year Impact", "value": "$XX.XM" },
+        { "metric": "Value per 1M Tokens", "value": "$XX,XXX" }
+      ]
+    },
+    "findings": [
+      {
+        "title": "Verb-led insight title (e.g., Security questionnaire automation reclaims 19,000 hours for customer work)",
+        "body": "2-3 sentences with specific numbers connecting to business outcome. AI-drafted responses with architect validation deflect 82% of the 23,000 hours spent annually on assessments.",
+        "value": "$X.XM annually"
+      },
+      {
+        "title": "Second verb-led insight title",
+        "body": "2-3 sentences with specific numbers and business outcome.",
+        "value": "$X.XM annually"
+      },
+      {
+        "title": "Third verb-led insight title",
+        "body": "2-3 sentences with specific numbers and business outcome.",
+        "value": "$X.XM annually"
+      }
+    ],
+    "criticalPath": "2-3 sentences on prerequisites, dependencies, and primary risk if unaddressed. Include specific timeline for prerequisite work.",
+    "recommendedAction": "Specific next step with timeline (e.g., Approve Q1 pilot for Security Questionnaire Automation Engine with 90-day deployment target)"
+  },
+  "companyOverview": {
+    "position": "What they do in 10 words or fewer. Market position. 2-3 scale metrics (revenue, employees, customers).",
+    "frictionTable": {
+      "rows": [
+        { "domain": "Area 1", "annualBurden": "$XXM / XX,000 hours", "strategicImpact": "5-8 word strategic impact" },
+        { "domain": "Area 2", "annualBurden": "$XXM / XX,000 hours", "strategicImpact": "5-8 word strategic impact" },
+        { "domain": "Area 3", "annualBurden": "$XXM / XX,000 hours", "strategicImpact": "5-8 word strategic impact" }
+      ]
+    },
+    "dataReadiness": {
+      "currentState": "Level X — one sentence explaining what this means for implementation",
+      "keyGaps": "Specific gaps that affect AI deployment readiness"
+    },
+    "whyNow": "1-2 sentences connecting company position to AI opportunity with market timing or competitive context."
+  },
   "executiveDashboard": {
     "totalRevenueBenefit": 0,
     "totalCostBenefit": 0,
