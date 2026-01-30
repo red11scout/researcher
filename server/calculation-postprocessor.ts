@@ -13,8 +13,23 @@ import {
   getPriorityTier,
   getRecommendedPhase,
   formatMoney,
+  formatHours,
+  calculateFrictionCost,
+  calculateFrictionSeverity,
   DEFAULT_MULTIPLIERS,
 } from "../src/calc/formulas";
+
+interface Step3Record {
+  Function: string;
+  "Sub-Function": string;
+  "Friction Point": string;
+  Severity?: string;
+  "Primary Driver Impact"?: string;
+  "Estimated Annual Cost ($)"?: string;
+  "Annual Hours"?: number | string;
+  "Hourly Rate"?: number | string;
+  "Cost Formula"?: string;
+}
 
 interface Step5Record {
   ID: string;
@@ -433,6 +448,112 @@ function recalculateRiskBenefit(formula: string): { value: number; formulaText: 
   return { value: result.value, formulaText: newFormula };
 }
 
+// Parse friction point cost from AI-generated text
+function parseFrictionCostInputs(costText: string): { annualHours: number; loadedHourlyRate: number } | null {
+  if (!costText || costText.toLowerCase().includes("no ") || costText === "$0") {
+    return null;
+  }
+  
+  // Try to parse from formula format: "X hours × $Y/hr"
+  const hoursMatch = costText.match(/([\d,]+(?:\.\d+)?)\s*(?:hours|hrs)/i);
+  const rateMatch = costText.match(/\$([\d,]+(?:\.\d+)?)\/(?:hr|hour)/i);
+  
+  if (hoursMatch && rateMatch) {
+    const annualHours = parseFloat(hoursMatch[1].replace(/,/g, ""));
+    const loadedHourlyRate = parseFloat(rateMatch[1].replace(/,/g, ""));
+    return { annualHours, loadedHourlyRate };
+  }
+  
+  // Try to extract hours and infer rate from $X format
+  if (hoursMatch) {
+    const annualHours = parseFloat(hoursMatch[1].replace(/,/g, ""));
+    return { annualHours, loadedHourlyRate: DEFAULT_MULTIPLIERS.loadedHourlyRate };
+  }
+  
+  // Try to parse from total cost and infer hours
+  const costMatch = costText.match(/\$([\d,]+(?:\.\d+)?)(M|K)?/i);
+  if (costMatch) {
+    let totalCost = parseFloat(costMatch[1].replace(/,/g, ""));
+    if (costMatch[2]?.toUpperCase() === "M") totalCost *= 1_000_000;
+    if (costMatch[2]?.toUpperCase() === "K") totalCost *= 1_000;
+    
+    // Infer hours from cost at default rate
+    const annualHours = totalCost / DEFAULT_MULTIPLIERS.loadedHourlyRate;
+    return { annualHours, loadedHourlyRate: DEFAULT_MULTIPLIERS.loadedHourlyRate };
+  }
+  
+  return null;
+}
+
+// Recalculate friction point cost using deterministic formula
+function recalculateFrictionCost(record: Step3Record): { 
+  value: number; 
+  formulaText: string; 
+  annualHours: number; 
+  loadedHourlyRate: number;
+  severity: string;
+} {
+  const costText = record["Estimated Annual Cost ($)"] || "";
+  const existingHours = record["Annual Hours"];
+  const existingRate = record["Hourly Rate"];
+  
+  let annualHours: number = 0;
+  let loadedHourlyRate: number = DEFAULT_MULTIPLIERS.loadedHourlyRate;
+  
+  // Try to use explicit inputs if available
+  if (existingHours !== undefined) {
+    annualHours = typeof existingHours === "number" ? existingHours : parseFloat(String(existingHours).replace(/,/g, "")) || 0;
+  }
+  if (existingRate !== undefined) {
+    loadedHourlyRate = typeof existingRate === "number" ? existingRate : parseFloat(String(existingRate).replace(/[$,]/g, "")) || DEFAULT_MULTIPLIERS.loadedHourlyRate;
+  }
+  
+  // If no explicit inputs, try to parse from the cost text
+  if (annualHours === 0) {
+    const parsed = parseFrictionCostInputs(costText);
+    if (parsed) {
+      annualHours = parsed.annualHours;
+      loadedHourlyRate = parsed.loadedHourlyRate;
+    }
+  }
+  
+  if (annualHours === 0) {
+    console.warn(`[recalculateFrictionCost] Could not parse inputs from: ${costText}`);
+    return { 
+      value: 0, 
+      formulaText: costText + " (could not validate)", 
+      annualHours: 0, 
+      loadedHourlyRate,
+      severity: "Low"
+    };
+  }
+  
+  // Use the deterministic friction cost formula
+  const result = calculateFrictionCost({
+    annualHours,
+    loadedHourlyRate,
+  });
+  
+  // Calculate severity based on the cost
+  const driverImpact = record["Primary Driver Impact"]?.toLowerCase() || "";
+  const severity = calculateFrictionSeverity({
+    annualCost: result.value,
+    affectsRevenue: driverImpact.includes("revenue") || driverImpact.includes("sales"),
+    affectsCompliance: driverImpact.includes("compliance") || driverImpact.includes("regulatory") || driverImpact.includes("legal"),
+    affectsCustomer: driverImpact.includes("customer") || driverImpact.includes("client"),
+  });
+  
+  const formulaText = `${annualHours.toLocaleString()} hours × $${loadedHourlyRate}/hr = ${formatMoney(result.trace.output)} → ${formatMoney(result.value)}`;
+  
+  return { 
+    value: result.value, 
+    formulaText, 
+    annualHours, 
+    loadedHourlyRate,
+    severity
+  };
+}
+
 // Calculate token cost from Step 6 data
 function calculateTokenCostFromStep6(record: Step6Record): { monthlyTokens: number; annualCost: number } {
   const runsPerMonth = record["Runs/Month"] || 0;
@@ -458,11 +579,45 @@ export function postProcessAnalysis(analysisResult: any): any {
   
   const steps = [...analysisResult.steps];
   
-  // Find Step 5 (Benefits Quantification) and Step 6 (Effort & Token Modeling)
+  // Find all steps
+  const step3 = steps.find((s: any) => s.step === 3);
   const step5 = steps.find((s: any) => s.step === 5);
   const step6 = steps.find((s: any) => s.step === 6);
   const step7 = steps.find((s: any) => s.step === 7);
   
+  // ============================================
+  // STEP 3: FRICTION POINT PROCESSING
+  // ============================================
+  let totalFrictionCost = 0;
+  
+  if (step3?.data && Array.isArray(step3.data)) {
+    console.log("[postProcessAnalysis] Processing", step3.data.length, "friction points with deterministic formulas");
+    
+    const correctedStep3Data: Step3Record[] = [];
+    
+    for (const record of step3.data as Step3Record[]) {
+      const frictionResult = recalculateFrictionCost(record);
+      totalFrictionCost += frictionResult.value;
+      
+      correctedStep3Data.push({
+        ...record,
+        "Estimated Annual Cost ($)": formatMoney(frictionResult.value),
+        "Cost Formula": frictionResult.formulaText,
+        "Annual Hours": frictionResult.annualHours,
+        "Hourly Rate": frictionResult.loadedHourlyRate,
+        Severity: frictionResult.severity,
+      });
+      
+      console.log(`[postProcessAnalysis] Friction: ${record["Friction Point"]?.substring(0, 30)}... = ${formatMoney(frictionResult.value)} (${frictionResult.severity})`);
+    }
+    
+    step3.data = correctedStep3Data;
+    console.log(`[postProcessAnalysis] Total Friction Cost: ${formatMoney(totalFrictionCost)}`);
+  }
+  
+  // ============================================
+  // STEP 5: BENEFITS QUANTIFICATION PROCESSING
+  // ============================================
   if (!step5?.data || !Array.isArray(step5.data)) {
     console.log("[postProcessAnalysis] Step 5 data not found or invalid");
     return analysisResult;

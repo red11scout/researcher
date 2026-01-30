@@ -415,3 +415,116 @@ export function roundTimelineUp(months: number): number {
 export function roundBenefitDown(value: number): number {
   return Math.floor(value / 100000) * 100000;
 }
+
+/**
+ * Friction Point Cost Calculation
+ * SPEC FORMULA: FrictionCost = AnnualHours × LoadedHourlyRate
+ * 
+ * This calculates the annual cost burden of a friction point based on
+ * the hours spent dealing with it and the fully-loaded labor rate.
+ * 
+ * @param annualHours - Hours spent annually on this friction point
+ * @param loadedHourlyRate - Fully burdened hourly cost (wages + benefits + overhead)
+ * @param headcount - Number of FTEs affected (optional, for alternative calculation)
+ * @param hoursPerFTE - Annual hours per FTE (default 2080 = 40hr/week × 52 weeks)
+ */
+export function calculateFrictionCost(inputs: {
+  annualHours?: number;
+  loadedHourlyRate: number;
+  headcount?: number;
+  hoursPerFTE?: number;
+  frictionPercentage?: number; // Percentage of time spent on friction (0-1)
+}): CalculationResult {
+  const {
+    annualHours,
+    loadedHourlyRate,
+    headcount,
+    hoursPerFTE = 2080,
+    frictionPercentage,
+  } = inputs;
+
+  let calculatedHours: number;
+  let formulaDescription: string;
+
+  if (annualHours !== undefined && annualHours > 0) {
+    // Direct hours input
+    calculatedHours = annualHours;
+    formulaDescription = 'AnnualHours × LoadedHourlyRate';
+  } else if (headcount !== undefined && frictionPercentage !== undefined) {
+    // Calculate from headcount and friction percentage
+    calculatedHours = headcount * hoursPerFTE * frictionPercentage;
+    formulaDescription = 'Headcount × HoursPerFTE × FrictionPercentage × LoadedHourlyRate';
+  } else if (headcount !== undefined) {
+    // Headcount only - assume full FTE hours
+    calculatedHours = headcount * hoursPerFTE;
+    formulaDescription = 'Headcount × HoursPerFTE × LoadedHourlyRate';
+  } else {
+    return {
+      value: 0,
+      trace: {
+        formula: 'Unable to calculate - missing hours or headcount',
+        inputs: { annualHours: annualHours || 0, loadedHourlyRate, headcount: headcount || 0, hoursPerFTE, frictionPercentage: frictionPercentage || 0 },
+        output: 0,
+      },
+    };
+  }
+
+  const rawValue = calculatedHours * loadedHourlyRate;
+  const roundedValue = Math.floor(rawValue / 10000) * 10000; // Round DOWN to nearest $10K for friction costs
+
+  return {
+    value: roundedValue,
+    trace: {
+      formula: formulaDescription,
+      inputs: { annualHours: calculatedHours, loadedHourlyRate, headcount: headcount || 0, hoursPerFTE, frictionPercentage: frictionPercentage || 0 },
+      intermediates: { calculatedHours, rawValue },
+      output: rawValue,
+    },
+  };
+}
+
+/**
+ * Friction Point Severity Score Calculation
+ * Determines severity based on annual cost and strategic impact
+ * 
+ * SCORING:
+ * - Critical: >= $5M annual cost OR affects revenue/compliance directly
+ * - High: >= $1M annual cost
+ * - Medium: >= $250K annual cost
+ * - Low: < $250K annual cost
+ */
+export function calculateFrictionSeverity(inputs: {
+  annualCost: number;
+  affectsRevenue?: boolean;
+  affectsCompliance?: boolean;
+  affectsCustomer?: boolean;
+}): 'Critical' | 'High' | 'Medium' | 'Low' {
+  const { annualCost, affectsRevenue, affectsCompliance, affectsCustomer } = inputs;
+
+  // Critical if affects revenue/compliance or very high cost
+  if (affectsRevenue || affectsCompliance || annualCost >= 5_000_000) {
+    return 'Critical';
+  }
+  
+  // High if significant cost or customer-facing
+  if (annualCost >= 1_000_000 || affectsCustomer) {
+    return 'High';
+  }
+  
+  // Medium for moderate costs
+  if (annualCost >= 250_000) {
+    return 'Medium';
+  }
+  
+  return 'Low';
+}
+
+/**
+ * Format hours with appropriate suffix
+ */
+export function formatHours(hours: number): string {
+  if (hours >= 1000) {
+    return `${(hours / 1000).toFixed(1)}K hours`;
+  }
+  return `${hours.toLocaleString()} hours`;
+}

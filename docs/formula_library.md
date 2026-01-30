@@ -175,6 +175,44 @@ PriorityScore = 0.4 × ValueScore + 0.3 × TTVScore + 0.3 × EffortScore
 3. **Percentages:** Display with appropriate decimal places
 4. **Token costs:** Round to 2 decimal places
 
+## Friction Point Cost (Step 3)
+
+**SPEC FORMULA:**
+```
+FrictionCost = AnnualHours × LoadedHourlyRate
+```
+
+**Alternative calculation (from headcount):**
+```
+FrictionCost = Headcount × HoursPerFTE × FrictionPercentage × LoadedHourlyRate
+```
+
+**Inputs:**
+- `AnnualHours` - Hours spent annually dealing with this friction point
+- `LoadedHourlyRate` - Fully burdened hourly cost (default $150)
+- `Headcount` - Number of FTEs affected (alternative input)
+- `HoursPerFTE` - Annual hours per FTE (default 2080)
+- `FrictionPercentage` - Percentage of time spent on friction (0-1)
+
+**Rounding:** DOWN to nearest $10K
+
+**Severity Thresholds:**
+| Annual Cost | Severity |
+|-------------|----------|
+| >= $5M or affects revenue/compliance | Critical |
+| >= $1M or customer-facing | High |
+| >= $250K | Medium |
+| < $250K | Low |
+
+**Display Format:**
+Each friction point should show:
+- Annual Hours (labeled)
+- Hourly Rate (labeled)
+- Formula with × symbols
+- Calculated annual cost
+
+Example: `12,500 hours × $150/hr = $1,875,000 → $1.8M`
+
 ## Traceability Requirements
 
 For every computed number, store:
