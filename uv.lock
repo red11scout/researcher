@@ -578,6 +578,11 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/a1/de/0efab3b6798476f9d59919465000e529b8c1b13b142d16e6c1ed7e5186c4/crewai-1.9.2-py3-none-any.whl", hash = "sha256:1320f2eadb3b00aa34f728c1c74bd2029a1053a4320cfb7f10cecafe26cfd9cc", size = 769805, upload-time = "2026-01-29T01:22:09.569Z" },
 ]
 
+[package.optional-dependencies]
+tools = [
+    { name = "crewai-tools" },
+]
+
 [[package]]
 name = "crewai-tools"
 version = "1.9.2"
@@ -3071,8 +3076,7 @@ version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
     { name = "aiohttp" },
-    { name = "crewai" },
-    { name = "crewai-tools" },
+    { name = "crewai", extra = ["tools"] },
     { name = "flask" },
     { name = "flask-cors" },
     { name = "mcp" },
@@ -3085,8 +3089,7 @@ dependencies = [
 [package.metadata]
 requires-dist = [
     { name = "aiohttp", specifier = ">=3.13.3" },
-    { name = "crewai", specifier = ">=1.7.2" },
-    { name = "crewai-tools", specifier = ">=1.7.2" },
+    { name = "crewai", extras = ["tools"], specifier = ">=1.9.2" },
     { name = "flask", specifier = ">=3.1.2" },
     { name = "flask-cors", specifier = ">=6.0.2" },
     { name = "mcp", specifier = ">=1.23.0" },
