@@ -2178,5 +2178,312 @@ Return ONLY valid JSON with this structure:
     return res.status(result.status).json(result.data);
   });
 
+  // ==========================================
+  // ASSUMPTIONS MANAGEMENT ENDPOINTS
+  // ==========================================
+
+  // GET /api/assumptions/:reportId - Get all assumptions for a report
+  app.get("/api/assumptions/:reportId", async (req, res) => {
+    try {
+      const { reportId } = req.params;
+
+      // Verify report exists
+      const report = await storage.getReportById(reportId);
+      if (!report) {
+        return res.status(404).json({ error: "Report not found" });
+      }
+
+      // Get all assumption sets for this report
+      const assumptionSets = await storage.getAssumptionSetsByReport(reportId);
+
+      // Get the active assumption set
+      const activeSet = await storage.getActiveAssumptionSet(reportId);
+
+      // Get all fields for each set
+      const setsWithFields = await Promise.all(
+        assumptionSets.map(async (set) => {
+          const fields = await storage.getAssumptionFieldsBySet(set.id);
+          return {
+            ...set,
+            fields,
+          };
+        })
+      );
+
+      res.json({
+        reportId,
+        companyName: report.companyName,
+        activeSetId: activeSet?.id || null,
+        assumptionSets: setsWithFields,
+        totalSets: assumptionSets.length,
+        totalFields: setsWithFields.reduce((acc, set) => acc + set.fields.length, 0),
+      });
+    } catch (error: any) {
+      console.error("Error fetching assumptions:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch assumptions" });
+    }
+  });
+
+  // PUT /api/assumptions/:assumptionId - Update a single assumption value
+  app.put("/api/assumptions/:assumptionId", async (req, res) => {
+    try {
+      const { assumptionId } = req.params;
+      const { value, source, sourceUrl, description, isLocked } = req.body;
+
+      // Validate that at least one field is being updated
+      if (value === undefined && source === undefined && sourceUrl === undefined && 
+          description === undefined && isLocked === undefined) {
+        return res.status(400).json({ 
+          error: "At least one field must be provided for update (value, source, sourceUrl, description, isLocked)" 
+        });
+      }
+
+      // Build update object with only provided fields
+      const updateData: Record<string, any> = {};
+      if (value !== undefined) updateData.value = String(value);
+      if (source !== undefined) updateData.source = source;
+      if (sourceUrl !== undefined) updateData.sourceUrl = sourceUrl;
+      if (description !== undefined) updateData.description = description;
+      if (isLocked !== undefined) updateData.isLocked = isLocked;
+
+      const updatedField = await storage.updateAssumptionField(assumptionId, updateData);
+
+      if (!updatedField) {
+        return res.status(404).json({ error: "Assumption field not found" });
+      }
+
+      res.json({
+        success: true,
+        field: updatedField,
+        message: "Assumption updated successfully",
+      });
+    } catch (error: any) {
+      console.error("Error updating assumption:", error);
+      res.status(500).json({ error: error.message || "Failed to update assumption" });
+    }
+  });
+
+  // POST /api/reports/:id/recalculate - Recalculate all derived values using the formula registry
+  app.post("/api/reports/:id/recalculate", async (req, res) => {
+    try {
+      const { id: reportId } = req.params;
+
+      // Load the report
+      const report = await storage.getReportById(reportId);
+      if (!report) {
+        return res.status(404).json({ error: "Report not found" });
+      }
+
+      // Get the active assumption set
+      const activeSet = await storage.getActiveAssumptionSet(reportId);
+      if (!activeSet) {
+        return res.status(400).json({ 
+          error: "No active assumption set found for this report. Please create or activate an assumption set first." 
+        });
+      }
+
+      // Get all assumption fields for the active set
+      const assumptionFields = await storage.getAssumptionFieldsBySet(activeSet.id);
+
+      // Build a lookup map for assumption values
+      const assumptions: Record<string, number | string> = {};
+      for (const field of assumptionFields) {
+        // Try to parse as number, fallback to string
+        const numValue = parseFloat(field.value);
+        assumptions[field.fieldName] = isNaN(numValue) ? field.value : numValue;
+      }
+
+      // Import formula functions dynamically
+      const formulas = await import("../src/calc/formulas");
+
+      // Extract key values from assumptions with defaults
+      const getNum = (key: string, defaultVal: number = 0): number => {
+        const val = assumptions[key];
+        return typeof val === "number" ? val : defaultVal;
+      };
+
+      // Calculate benefits using the formula registry
+      const calculationResults: Record<string, any> = {};
+      const traces: Record<string, any> = {};
+
+      // Calculate cost benefit
+      const hoursSaved = getNum("hours_saved_annually", 10000);
+      const loadedHourlyRate = getNum("loaded_hourly_rate", formulas.DEFAULT_MULTIPLIERS.loadedHourlyRate);
+      const costRealization = getNum("cost_realization", formulas.DEFAULT_MULTIPLIERS.costRealization);
+      const dataMaturity = getNum("data_maturity", formulas.DEFAULT_MULTIPLIERS.dataMaturity);
+
+      const costBenefitResult = formulas.calculateCostBenefit({
+        hoursSaved,
+        loadedHourlyRate,
+        costRealization,
+        dataMaturity,
+      });
+      calculationResults.costBenefit = costBenefitResult.value;
+      traces.costBenefit = costBenefitResult.trace;
+
+      // Calculate revenue benefit
+      const upliftPct = getNum("revenue_uplift_pct", 0.05);
+      const baselineRevenue = getNum("annual_revenue", 100000000);
+      const marginPct = getNum("gross_margin_pct", 1.0);
+      const revenueRealization = getNum("revenue_realization", formulas.DEFAULT_MULTIPLIERS.revenueRealization);
+
+      const revenueBenefitResult = formulas.calculateRevenueBenefit({
+        upliftPct,
+        baselineRevenue,
+        marginPct,
+        revenueRealization,
+        dataMaturity,
+      });
+      calculationResults.revenueBenefit = revenueBenefitResult.value;
+      traces.revenueBenefit = revenueBenefitResult.trace;
+
+      // Calculate cash flow benefit
+      const daysImprovement = getNum("dso_improvement_days", 5);
+      const dailyRevenue = baselineRevenue / 365;
+      const workingCapitalPct = getNum("working_capital_pct", 1.0);
+      const cashFlowRealization = getNum("cashflow_realization", formulas.DEFAULT_MULTIPLIERS.cashFlowRealization);
+
+      const cashFlowBenefitResult = formulas.calculateCashFlowBenefit({
+        daysImprovement,
+        dailyRevenue,
+        workingCapitalPct,
+        cashFlowRealization,
+        dataMaturity,
+      });
+      calculationResults.cashFlowBenefit = cashFlowBenefitResult.value;
+      traces.cashFlowBenefit = cashFlowBenefitResult.trace;
+
+      // Calculate risk benefit
+      const probBefore = getNum("risk_prob_before", 0.15);
+      const impactBefore = getNum("risk_impact_before", 5000000);
+      const probAfter = getNum("risk_prob_after", 0.05);
+      const impactAfter = getNum("risk_impact_after", 2000000);
+      const riskRealization = getNum("risk_realization", formulas.DEFAULT_MULTIPLIERS.riskRealization);
+
+      const riskBenefitResult = formulas.calculateRiskBenefit({
+        probBefore,
+        impactBefore,
+        probAfter,
+        impactAfter,
+        riskRealization,
+        dataMaturity,
+      });
+      calculationResults.riskBenefit = riskBenefitResult.value;
+      traces.riskBenefit = riskBenefitResult.trace;
+
+      // Calculate total annual value
+      const probabilityOfSuccess = getNum("probability_of_success", formulas.DEFAULT_MULTIPLIERS.probabilityOfSuccess);
+
+      const totalAnnualValueResult = formulas.calculateTotalAnnualValue({
+        costBenefit: calculationResults.costBenefit,
+        revenueBenefit: calculationResults.revenueBenefit,
+        cashFlowBenefit: calculationResults.cashFlowBenefit,
+        riskBenefit: calculationResults.riskBenefit,
+        probabilityOfSuccess,
+      });
+      calculationResults.totalAnnualValue = totalAnnualValueResult.value;
+      traces.totalAnnualValue = totalAnnualValueResult.trace;
+
+      // Calculate token costs (if applicable)
+      const runsPerMonth = getNum("runs_per_month", 1000);
+      const inputTokensPerRun = getNum("input_tokens_per_run", 2000);
+      const outputTokensPerRun = getNum("output_tokens_per_run", 500);
+      const inputTokenPricePerM = getNum("input_token_price_per_m", formulas.DEFAULT_MULTIPLIERS.inputTokenPricePerM);
+      const outputTokenPricePerM = getNum("output_token_price_per_m", formulas.DEFAULT_MULTIPLIERS.outputTokenPricePerM);
+
+      const tokenCostResult = formulas.calculateTokenCost({
+        runsPerMonth,
+        inputTokensPerRun,
+        outputTokensPerRun,
+        inputTokenPricePerM,
+        outputTokenPricePerM,
+      });
+      calculationResults.annualTokenCost = tokenCostResult.value;
+      traces.annualTokenCost = tokenCostResult.trace;
+
+      // Calculate net value
+      calculationResults.netAnnualValue = calculationResults.totalAnnualValue - calculationResults.annualTokenCost;
+
+      // Calculate priority score
+      const timeToValueMonths = getNum("time_to_value_months", 6);
+      const dataReadiness = getNum("data_readiness", 3);
+      const integrationComplexity = getNum("integration_complexity", 3);
+      const changeMgmt = getNum("change_mgmt_complexity", 3);
+
+      const priorityScoreResult = formulas.calculatePriorityScore({
+        totalAnnualValue: calculationResults.totalAnnualValue,
+        timeToValueMonths,
+        dataReadiness,
+        integrationComplexity,
+        changeMgmt,
+      });
+      calculationResults.priorityScore = priorityScoreResult.value;
+      calculationResults.priorityTier = formulas.getPriorityTier(priorityScoreResult.value);
+      calculationResults.recommendedPhase = formulas.getRecommendedPhase(priorityScoreResult.value, timeToValueMonths);
+      traces.priorityScore = priorityScoreResult.trace;
+
+      // Update the report's analysisData with calculated values
+      const analysisData = report.analysisData as any || {};
+      
+      // Merge calculated results into analysisData
+      const updatedAnalysisData = {
+        ...analysisData,
+        calculatedAt: new Date().toISOString(),
+        assumptionSetId: activeSet.id,
+        assumptionSetName: activeSet.name,
+        calculations: calculationResults,
+        formulaTraces: traces,
+        summary: {
+          ...analysisData.summary,
+          totalAnnualValue: calculationResults.totalAnnualValue,
+          netAnnualValue: calculationResults.netAnnualValue,
+          costBenefit: calculationResults.costBenefit,
+          revenueBenefit: calculationResults.revenueBenefit,
+          cashFlowBenefit: calculationResults.cashFlowBenefit,
+          riskBenefit: calculationResults.riskBenefit,
+          priorityScore: calculationResults.priorityScore,
+          priorityTier: calculationResults.priorityTier,
+          recommendedPhase: calculationResults.recommendedPhase,
+        },
+      };
+
+      // Update the report in the database
+      const updatedReport = await storage.updateReport(reportId, {
+        analysisData: updatedAnalysisData,
+      });
+
+      res.json({
+        success: true,
+        reportId,
+        companyName: report.companyName,
+        assumptionSetUsed: {
+          id: activeSet.id,
+          name: activeSet.name,
+        },
+        calculations: calculationResults,
+        formulaTraces: traces,
+        formattedSummary: {
+          totalAnnualValue: formulas.formatMoney(calculationResults.totalAnnualValue),
+          netAnnualValue: formulas.formatMoney(calculationResults.netAnnualValue),
+          costBenefit: formulas.formatMoney(calculationResults.costBenefit),
+          revenueBenefit: formulas.formatMoney(calculationResults.revenueBenefit),
+          cashFlowBenefit: formulas.formatMoney(calculationResults.cashFlowBenefit),
+          riskBenefit: formulas.formatMoney(calculationResults.riskBenefit),
+          annualTokenCost: formulas.formatMoney(calculationResults.annualTokenCost),
+          priorityScore: calculationResults.priorityScore,
+          priorityTier: calculationResults.priorityTier,
+          recommendedPhase: calculationResults.recommendedPhase,
+        },
+        message: "Recalculation completed successfully",
+      });
+    } catch (error: any) {
+      console.error("Error recalculating report:", error);
+      res.status(500).json({ 
+        error: error.message || "Failed to recalculate report",
+        stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
+      });
+    }
+  });
+
   return httpServer;
 }

@@ -12,6 +12,7 @@ import SavedReports from "@/pages/SavedReports";
 import Benchmarks from "@/pages/Benchmarks";
 import WhatIfAnalysis from "@/pages/WhatIfAnalysis";
 import AssumptionPanel from "@/pages/AssumptionPanel";
+import Assumptions from "@/pages/Assumptions";
 import DashboardPage from "@/pages/DashboardPage";
 import SharedDashboard from "@/pages/SharedDashboard";
 import CrewAI from "@/pages/CrewAI";
@@ -29,6 +30,7 @@ function Router() {
       <Route path="/saved" component={SavedReports} />
       <Route path="/benchmarks" component={Benchmarks} />
       <Route path="/whatif/:reportId" component={WhatIfAnalysis} />
+      <Route path="/assumptions" component={Assumptions} />
       <Route path="/assumptions/:reportId" component={AssumptionPanel} />
       <Route component={NotFound} />
     </Switch>
