@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { generateCompanyAnalysis, generateWhatIfSuggestion, checkProductionConfig } from "./ai-service";
 import * as formulaService from "./formula-service";
+import { registerCalcGraphRoutes } from "./calcgraph/routes";
 import { dubService } from "./dub-service";
 import { insertReportSchema } from "@shared/schema";
 import { nanoid } from "nanoid";
@@ -66,9 +67,12 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   
+  // Register CalcGraph routes for deterministic calculations
+  registerCalcGraphRoutes(app);
+
   // Version check
   app.get("/api/version", (req, res) => {
-    res.json({ version: "2.5.0", buildTime: "2025-11-30T03:10:00Z" });
+    res.json({ version: "2.6.0", buildTime: "2025-01-30T12:00:00Z", calcGraphVersion: "2.0.0" });
   });
 
   // Document upload endpoint - extracts text from PDFs and text files
