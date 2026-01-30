@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Lock, Shield } from "lucide-react";
 
 const AUTH_KEY = "blueally_auth";
+const CORRECT_PASSWORD = "RED11scout";
 
 interface PasswordProtectionProps {
   children: ReactNode;
@@ -15,7 +16,6 @@ export function PasswordProtection({ children }: PasswordProtectionProps) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const authToken = sessionStorage.getItem(AUTH_KEY);
@@ -25,34 +25,16 @@ export function PasswordProtection({ children }: PasswordProtectionProps) {
     setIsLoading(false);
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    setIsSubmitting(true);
 
-    try {
-      const response = await fetch("/api/auth/verify", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ password }),
-      });
-
-      const data = await response.json();
-
-      if (data.authenticated) {
-        sessionStorage.setItem(AUTH_KEY, "authenticated");
-        setIsAuthenticated(true);
-      } else {
-        setError("Incorrect password. Please try again.");
-        setPassword("");
-      }
-    } catch (err) {
-      setError("Connection error. Please try again.");
-      console.error("Auth error:", err);
-    } finally {
-      setIsSubmitting(false);
+    if (password === CORRECT_PASSWORD) {
+      sessionStorage.setItem(AUTH_KEY, "authenticated");
+      setIsAuthenticated(true);
+    } else {
+      setError("Incorrect password. Please try again.");
+      setPassword("");
     }
   };
 
@@ -103,9 +85,8 @@ export function PasswordProtection({ children }: PasswordProtectionProps) {
                 type="submit" 
                 className="w-full bg-blue-600 hover:bg-blue-700"
                 data-testid="button-login"
-                disabled={isSubmitting}
               >
-                {isSubmitting ? "Verifying..." : "Access Platform"}
+                Access Platform
               </Button>
             </form>
           </CardContent>

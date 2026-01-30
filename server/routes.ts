@@ -71,22 +71,6 @@ export async function registerRoutes(
     res.json({ version: "2.5.0", buildTime: "2025-11-30T03:10:00Z" });
   });
 
-  // Password verification endpoint
-  app.post("/api/auth/verify", (req, res) => {
-    const { password } = req.body;
-    const correctPassword = process.env.APP_PASSWORD;
-
-    if (!correctPassword) {
-      return res.status(500).json({ error: "Server configuration error" });
-    }
-
-    if (password === correctPassword) {
-      res.json({ authenticated: true });
-    } else {
-      res.json({ authenticated: false });
-    }
-  });
-
   // Document upload endpoint - extracts text from PDFs and text files
   app.post("/api/upload", upload.array("files", 10), async (req, res) => {
     try {
