@@ -1,0 +1,201 @@
+{
+  "company": {
+    "name": "OneTrust",
+    "industry": "Privacy & Compliance SaaS"
+  },
+  "report": {
+    "title": "BlueAlly AI Strategic Assessment — OneTrust",
+    "reportType": "full",
+    "templateVersion": "v2"
+  },
+  "assumptions": [
+    {
+      "scope": "global",
+      "key": "loadedHourlyRate",
+      "label": "Loaded Hourly Rate",
+      "unit": "USD/hour",
+      "valueNumber": 150,
+      "defaultValueNumber": 150,
+      "category": "Cost"
+    },
+    {
+      "scope": "global",
+      "key": "costRealization",
+      "label": "Cost Realization",
+      "unit": "multiplier",
+      "valueNumber": 0.9,
+      "defaultValueNumber": 0.9,
+      "category": "Cost"
+    },
+    {
+      "scope": "global",
+      "key": "revenueRealization",
+      "label": "Revenue Realization",
+      "unit": "multiplier",
+      "valueNumber": 0.95,
+      "defaultValueNumber": 0.95,
+      "category": "Revenue"
+    },
+    {
+      "scope": "global",
+      "key": "cashFlowRealization",
+      "label": "Cash Flow Realization",
+      "unit": "multiplier",
+      "valueNumber": 0.85,
+      "defaultValueNumber": 0.85,
+      "category": "Cash Flow"
+    },
+    {
+      "scope": "global",
+      "key": "riskRealization",
+      "label": "Risk Realization",
+      "unit": "multiplier",
+      "valueNumber": 0.8,
+      "defaultValueNumber": 0.8,
+      "category": "Risk"
+    },
+    {
+      "scope": "global",
+      "key": "dataMaturity",
+      "label": "Data Maturity",
+      "unit": "multiplier",
+      "valueNumber": 0.75,
+      "defaultValueNumber": 0.75,
+      "category": "Global"
+    },
+    {
+      "scope": "global",
+      "key": "inputTokenPricePerM",
+      "label": "Input Token Price",
+      "unit": "USD per 1M",
+      "valueNumber": 3,
+      "defaultValueNumber": 3,
+      "category": "Tokens"
+    },
+    {
+      "scope": "global",
+      "key": "outputTokenPricePerM",
+      "label": "Output Token Price",
+      "unit": "USD per 1M",
+      "valueNumber": 15,
+      "defaultValueNumber": 15,
+      "category": "Tokens"
+    }
+  ],
+  "kpis": [
+    {
+      "function": "Customer Success",
+      "subFunction": "Account Management",
+      "name": "Gross Retention Rate",
+      "direction": "up",
+      "timeframe": "12 months",
+      "baselineValue": "89%",
+      "targetValue": "95%",
+      "benchmarkValue": "92%",
+      "measurementMethod": "ARR retained excluding expansion"
+    },
+    {
+      "function": "Sales Engineering",
+      "subFunction": "Presales Support",
+      "name": "Demo Preparation Time",
+      "direction": "down",
+      "timeframe": "9 months",
+      "baselineValue": "40 hours",
+      "targetValue": "4 hours",
+      "benchmarkValue": "12 hours",
+      "measurementMethod": "Hours from assignment to demo delivery"
+    }
+  ],
+  "frictionPoints": [
+    {
+      "function": "Customer Success",
+      "subFunction": "Account Management",
+      "severity": "Critical",
+      "primaryDriver": "ReduceCost",
+      "descriptionMd": "Manual health score calculation requires review of 47 usage metrics per account across 14,000 customers.",
+      "annualHours": 34000
+    }
+  ],
+  "useCases": [
+    {
+      "code": "UC-01",
+      "function": "Customer Success",
+      "subFunction": "Account Management",
+      "name": "Predictive Customer Health Engine",
+      "descriptionMd": "AI analyzes usage metrics to generate health scores and flag renewal risk with playbooks.",
+      "aiPrimitives": "Data Analysis, Retrieval",
+      "runsPerMonth": 14000,
+      "inputTokensPerRun": 12000,
+      "outputTokensPerRun": 3000,
+      "dataReadiness": 4,
+      "integrationComplexity": 3,
+      "changeMgmt": 3,
+      "assumptions": [
+        {
+          "scope": "usecase",
+          "key": "UC-01.hoursSaved",
+          "label": "Hours Saved",
+          "unit": "hours/year",
+          "valueNumber": 34000,
+          "category": "Cost"
+        },
+        {
+          "scope": "usecase",
+          "key": "UC-01.revenueUpliftPct",
+          "label": "Retention Lift",
+          "unit": "pct",
+          "valueNumber": 0.06,
+          "category": "Revenue"
+        },
+        {
+          "scope": "usecase",
+          "key": "UC-01.baselineRevenueAtRisk",
+          "label": "Churn Risk Baseline",
+          "unit": "USD/year",
+          "valueNumber": 89000000,
+          "category": "Revenue"
+        },
+        {
+          "scope": "usecase",
+          "key": "UC-01.marginPct",
+          "label": "Margin %",
+          "unit": "pct",
+          "valueNumber": 1.0,
+          "category": "Revenue"
+        },
+        {
+          "scope": "usecase",
+          "key": "UC-01.daysImprovement",
+          "label": "Days Improvement",
+          "unit": "days",
+          "valueNumber": 15,
+          "category": "Cash Flow"
+        },
+        {
+          "scope": "usecase",
+          "key": "UC-01.dailyRevenue",
+          "label": "Daily Revenue",
+          "unit": "USD/day",
+          "valueNumber": 200000,
+          "category": "Cash Flow"
+        },
+        {
+          "scope": "usecase",
+          "key": "UC-01.workingCapitalPct",
+          "label": "Working Capital %",
+          "unit": "pct",
+          "valueNumber": 1.0,
+          "category": "Cash Flow"
+        },
+        {
+          "scope": "usecase",
+          "key": "UC-01.probabilityOfSuccess",
+          "label": "Probability of Success",
+          "unit": "pct",
+          "valueNumber": 0.85,
+          "category": "Global"
+        }
+      ]
+    }
+  ]
+}
