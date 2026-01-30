@@ -60,12 +60,10 @@ interface Step7Record {
 // Parse a number from a string that may contain currency symbols, commas, M/K suffixes
 function parseNumber(str: string | number | undefined): number {
   if (typeof str === "number") return str;
-  if (!str || str === "$0" || str === "N/A" || str === "No direct" || str.includes("No ")) return 0;
+  if (!str) return 0;
   
-  // Remove currency symbols and commas
-  let cleaned = str.replace(/[$,]/g, "").trim();
+  const cleaned = str.replace(/[$,]/g, "").trim();
   
-  // Handle M (millions) and K (thousands) suffixes
   if (cleaned.endsWith("M")) {
     return parseFloat(cleaned.slice(0, -1)) * 1_000_000;
   }
@@ -79,43 +77,47 @@ function parseNumber(str: string | number | undefined): number {
   return parseFloat(cleaned) || 0;
 }
 
-// Extract numerical values from a formula string
-// e.g., "23,000 hours × $100/hr × 0.85 savings × 0.90 × 0.75 = $13,253,250"
-function extractFormulaInputs(formula: string): number[] {
-  if (!formula || formula.includes("No direct") || formula.includes("No quantifiable")) {
-    return [];
-  }
+// Check if a formula indicates no benefit
+function isNoValue(formula: string | undefined): boolean {
+  if (!formula) return true;
+  const lower = formula.toLowerCase();
+  return (
+    lower.includes("no direct") ||
+    lower.includes("no quantifiable") ||
+    lower.includes("no additional") ||
+    lower.includes("n/a") ||
+    lower.includes("not applicable") ||
+    lower === "$0" ||
+    lower === "0"
+  );
+}
+
+// Extract numbers from a formula string, taking ONLY the left side of =
+function extractInputNumbers(formula: string): number[] {
+  if (!formula || isNoValue(formula)) return [];
   
-  // Split by = and take the left side (the formula part, not the result)
+  // Take only the left side of = (the inputs, not the AI's calculated result)
   const formulaPart = formula.split("=")[0] || formula;
   
-  // Extract all numbers (including decimals and percentages)
   const numbers: number[] = [];
   
-  // Match patterns like: 23,000 or 100 or 0.85 or 15% or $100 or $2.1M
+  // Match patterns: 23,000 or 23000 or 100 or 0.85 or 15% or $100 or $2.1M
   const patterns = formulaPart.match(/[\d,]+\.?\d*[%MKB]?|\d+\.?\d*[%MKB]?/g) || [];
   
   for (const match of patterns) {
     let value = parseFloat(match.replace(/,/g, ""));
     
-    // Handle percentage
     if (match.endsWith("%")) {
       value = parseFloat(match.slice(0, -1)) / 100;
-    }
-    // Handle M suffix
-    else if (match.endsWith("M")) {
+    } else if (match.endsWith("M")) {
       value = parseFloat(match.slice(0, -1)) * 1_000_000;
-    }
-    // Handle K suffix
-    else if (match.endsWith("K")) {
+    } else if (match.endsWith("K")) {
       value = parseFloat(match.slice(0, -1)) * 1_000;
-    }
-    // Handle B suffix
-    else if (match.endsWith("B")) {
+    } else if (match.endsWith("B")) {
       value = parseFloat(match.slice(0, -1)) * 1_000_000_000;
     }
     
-    if (!isNaN(value)) {
+    if (!isNaN(value) && value > 0) {
       numbers.push(value);
     }
   }
@@ -123,166 +125,312 @@ function extractFormulaInputs(formula: string): number[] {
   return numbers;
 }
 
-// Parse cost formula and recalculate
-// Expected format: "23,000 hours × $100/hr × 0.85 savings × 0.90 × 0.75"
+// Categorize numbers into formula inputs based on typical ranges
+interface CostInputs {
+  hoursSaved: number;
+  loadedHourlyRate: number;
+  efficiencyMultiplier: number;
+  adoptionMultiplier: number;
+  dataMaturityMultiplier: number;
+}
+
+function parseCostFormulaInputs(formula: string): CostInputs | null {
+  const numbers = extractInputNumbers(formula);
+  if (numbers.length < 2) return null;
+  
+  // Default multipliers from spec
+  let hoursSaved = 0;
+  let loadedHourlyRate = DEFAULT_MULTIPLIERS.loadedHourlyRate;
+  let efficiencyMultiplier = DEFAULT_MULTIPLIERS.efficiencyMultiplier;
+  let adoptionMultiplier = DEFAULT_MULTIPLIERS.adoptionMultiplier;
+  let dataMaturityMultiplier = DEFAULT_MULTIPLIERS.dataMaturityMultiplier;
+  
+  const decimals: number[] = [];
+  const largeNumbers: number[] = [];
+  
+  for (const num of numbers) {
+    if (num > 0 && num <= 1) {
+      decimals.push(num);
+    } else if (num >= 1000) {
+      largeNumbers.push(num);
+    } else if (num >= 50 && num <= 500) {
+      // Likely hourly rate
+      loadedHourlyRate = num;
+    }
+  }
+  
+  // First large number is typically hours saved
+  if (largeNumbers.length > 0) {
+    hoursSaved = largeNumbers[0];
+  }
+  
+  // Assign decimals to multipliers in order (efficiency, realization/adoption, data maturity)
+  // The formula shows: hours × rate × savings% × 0.90 × 0.75
+  // Where savings% is the efficiency, 0.90 is cost realization, 0.75 is data maturity
+  if (decimals.length >= 1) efficiencyMultiplier = decimals[0];
+  if (decimals.length >= 2) adoptionMultiplier = decimals[1]; // This is actually cost realization (0.90)
+  if (decimals.length >= 3) dataMaturityMultiplier = decimals[2];
+  
+  if (hoursSaved === 0) return null;
+  
+  return {
+    hoursSaved,
+    loadedHourlyRate,
+    efficiencyMultiplier,
+    adoptionMultiplier,
+    dataMaturityMultiplier,
+  };
+}
+
+// Recalculate cost benefit using deterministic formula
 function recalculateCostBenefit(formula: string): { value: number; formulaText: string } {
-  if (!formula || formula.includes("No direct") || formula.includes("No quantifiable")) {
+  if (isNoValue(formula)) {
     return { value: 0, formulaText: "No direct cost reduction" };
   }
   
-  const numbers = extractFormulaInputs(formula);
+  const inputs = parseCostFormulaInputs(formula);
   
-  if (numbers.length < 2) {
+  if (!inputs) {
+    console.log(`[recalculateCostBenefit] Could not parse inputs from: ${formula}`);
     return { value: 0, formulaText: formula };
   }
   
-  // Try to identify hours and rate from the formula
-  // The first large number is typically hours, second is rate
-  let hoursSaved = 0;
-  let loadedHourlyRate = 0;
-  let efficiencyMultiplier = DEFAULT_MULTIPLIERS.efficiencyMultiplier;
-  let costRealization = DEFAULT_MULTIPLIERS.costRealizationMultiplier;
-  let dataMaturity = DEFAULT_MULTIPLIERS.dataMaturityMultiplier;
+  // Use the deterministic formula function
+  const result = calculateCostBenefit({
+    hoursSaved: inputs.hoursSaved,
+    loadedHourlyRate: inputs.loadedHourlyRate,
+    efficiencyMultiplier: inputs.efficiencyMultiplier,
+    adoptionMultiplier: inputs.adoptionMultiplier,
+    dataMaturityMultiplier: inputs.dataMaturityMultiplier,
+  });
   
-  // Parse formula to extract values
-  const lowerFormula = formula.toLowerCase();
+  // Generate formula text with correct result
+  const newFormula = `${inputs.hoursSaved.toLocaleString()} hours × $${inputs.loadedHourlyRate}/hr × ${inputs.efficiencyMultiplier.toFixed(2)} × ${inputs.adoptionMultiplier.toFixed(2)} × ${inputs.dataMaturityMultiplier.toFixed(2)} = ${formatMoney(result.trace.output)} → ${formatMoney(result.value)}`;
   
-  for (let i = 0; i < numbers.length; i++) {
-    const num = numbers[i];
-    
-    if (num >= 1000 && hoursSaved === 0) {
-      // First large number is likely hours
-      hoursSaved = num;
-    } else if (num >= 50 && num <= 500 && loadedHourlyRate === 0) {
-      // Reasonable hourly rate range
-      loadedHourlyRate = num;
-    } else if (num > 0 && num <= 1) {
-      // Multiplier (efficiency, adoption, etc.)
-      if (Math.abs(num - 0.85) < 0.01 || Math.abs(num - 0.50) < 0.01 || Math.abs(num - 0.55) < 0.01 || 
-          Math.abs(num - 0.60) < 0.01 || Math.abs(num - 0.40) < 0.01 || Math.abs(num - 0.75) < 0.01 ||
-          Math.abs(num - 0.80) < 0.01) {
-        if (i === numbers.indexOf(num)) {
-          // First decimal might be efficiency/savings rate
-          efficiencyMultiplier = num;
-        }
-      }
-      if (Math.abs(num - 0.90) < 0.01) {
-        costRealization = num;
-      }
-      if (Math.abs(num - 0.75) < 0.01) {
-        dataMaturity = num;
-      }
-    }
-  }
-  
-  // If we couldn't parse structured inputs, compute manually from all multipliers
-  if (hoursSaved > 0 && loadedHourlyRate > 0) {
-    // Find all decimals for multipliers
-    const decimals = numbers.filter(n => n > 0 && n <= 1);
-    
-    // Calculate: hours × rate × (all decimals multiplied together)
-    let multiplierProduct = 1;
-    for (const d of decimals) {
-      multiplierProduct *= d;
-    }
-    
-    const rawValue = hoursSaved * loadedHourlyRate * multiplierProduct;
-    const roundedValue = Math.floor(rawValue / 100000) * 100000;
-    
-    const newFormula = `${hoursSaved.toLocaleString()} hours × $${loadedHourlyRate}/hr × ${decimals.map(d => d.toFixed(2)).join(" × ")} = ${formatMoney(rawValue)} → ${formatMoney(roundedValue)}`;
-    
-    return { value: roundedValue, formulaText: newFormula };
-  }
-  
-  // Fallback: multiply all extracted numbers
-  let product = 1;
-  for (const num of numbers) {
-    product *= num;
-  }
-  const roundedValue = Math.floor(product / 100000) * 100000;
-  
-  return { value: roundedValue, formulaText: formula };
+  return { value: result.value, formulaText: newFormula };
 }
 
-// Parse revenue formula and recalculate
+// Parse revenue formula inputs
+interface RevenueInputs {
+  upliftPct: number;
+  baselineRevenueAtRisk: number;
+  marginPct: number;
+  revenueRealizationMultiplier: number;
+  dataMaturityMultiplier: number;
+}
+
+function parseRevenueFormulaInputs(formula: string): RevenueInputs | null {
+  const numbers = extractInputNumbers(formula);
+  if (numbers.length < 2) return null;
+  
+  let upliftPct = 0;
+  let baselineRevenueAtRisk = 0;
+  let marginPct = 1.0;
+  let revenueRealizationMultiplier = DEFAULT_MULTIPLIERS.revenueRealizationMultiplier;
+  let dataMaturityMultiplier = DEFAULT_MULTIPLIERS.dataMaturityMultiplier;
+  
+  const decimals: number[] = [];
+  const largeNumbers: number[] = [];
+  
+  for (const num of numbers) {
+    if (num > 0 && num < 1) {
+      decimals.push(num);
+    } else if (num >= 1_000_000) {
+      largeNumbers.push(num);
+    }
+  }
+  
+  // First decimal is likely the uplift percentage
+  if (decimals.length >= 1) upliftPct = decimals[0];
+  // Remaining decimals are multipliers
+  if (decimals.length >= 2) revenueRealizationMultiplier = decimals[1];
+  if (decimals.length >= 3) dataMaturityMultiplier = decimals[2];
+  
+  // Large number is the baseline revenue at risk
+  if (largeNumbers.length > 0) baselineRevenueAtRisk = largeNumbers[0];
+  
+  if (upliftPct === 0 || baselineRevenueAtRisk === 0) return null;
+  
+  return {
+    upliftPct,
+    baselineRevenueAtRisk,
+    marginPct,
+    revenueRealizationMultiplier,
+    dataMaturityMultiplier,
+  };
+}
+
 function recalculateRevenueBenefit(formula: string): { value: number; formulaText: string } {
-  if (!formula || formula.includes("No direct") || formula.includes("No quantifiable")) {
+  if (isNoValue(formula)) {
     return { value: 0, formulaText: "No direct revenue impact" };
   }
   
-  const numbers = extractFormulaInputs(formula);
+  const inputs = parseRevenueFormulaInputs(formula);
   
-  if (numbers.length < 2) {
-    return { value: 0, formulaText: formula };
+  if (!inputs) {
+    // Cannot parse - log warning and return 0 to avoid incorrect values
+    console.warn(`[recalculateRevenueBenefit] Could not parse formula, returning 0: ${formula}`);
+    return { value: 0, formulaText: formula + " (could not validate)" };
   }
   
-  // Multiply all the numbers in the formula
-  let product = 1;
-  for (const num of numbers) {
-    product *= num;
-  }
+  const result = calculateRevenueBenefit(inputs);
   
-  const roundedValue = Math.floor(product / 100000) * 100000;
+  const newFormula = `${(inputs.upliftPct * 100).toFixed(0)}% × ${formatMoney(inputs.baselineRevenueAtRisk)} × ${inputs.revenueRealizationMultiplier.toFixed(2)} × ${inputs.dataMaturityMultiplier.toFixed(2)} = ${formatMoney(result.trace.output)} → ${formatMoney(result.value)}`;
   
-  // Reconstruct formula with correct result
-  const formulaPart = formula.split("=")[0]?.trim() || formula;
-  const newFormula = `${formulaPart} = ${formatMoney(product)} → ${formatMoney(roundedValue)}`;
-  
-  return { value: roundedValue, formulaText: newFormula };
+  return { value: result.value, formulaText: newFormula };
 }
 
-// Parse cash flow formula and recalculate
+// Parse cash flow formula inputs
+interface CashFlowInputs {
+  daysImprovement: number;
+  dailyRevenue: number;
+  workingCapitalPct: number;
+  cashFlowRealizationMultiplier: number;
+  dataMaturityMultiplier: number;
+}
+
+function parseCashFlowFormulaInputs(formula: string): CashFlowInputs | null {
+  const numbers = extractInputNumbers(formula);
+  if (numbers.length < 2) return null;
+  
+  let daysImprovement = 0;
+  let dailyRevenue = 0;
+  let workingCapitalPct = 1.0;
+  let cashFlowRealizationMultiplier = DEFAULT_MULTIPLIERS.cashFlowRealizationMultiplier;
+  let dataMaturityMultiplier = DEFAULT_MULTIPLIERS.dataMaturityMultiplier;
+  
+  const decimals: number[] = [];
+  const smallNumbers: number[] = [];
+  const largeNumbers: number[] = [];
+  
+  for (const num of numbers) {
+    if (num > 0 && num < 1) {
+      decimals.push(num);
+    } else if (num >= 1 && num <= 365) {
+      smallNumbers.push(num);
+    } else if (num >= 1000) {
+      largeNumbers.push(num);
+    }
+  }
+  
+  // First small number is days improvement
+  if (smallNumbers.length > 0) daysImprovement = smallNumbers[0];
+  // Large number is daily revenue or total
+  if (largeNumbers.length > 0) dailyRevenue = largeNumbers[0];
+  // Decimals are multipliers
+  if (decimals.length >= 1) cashFlowRealizationMultiplier = decimals[0];
+  if (decimals.length >= 2) dataMaturityMultiplier = decimals[1];
+  
+  if (daysImprovement === 0 || dailyRevenue === 0) return null;
+  
+  return {
+    daysImprovement,
+    dailyRevenue,
+    workingCapitalPct,
+    cashFlowRealizationMultiplier,
+    dataMaturityMultiplier,
+  };
+}
+
 function recalculateCashFlowBenefit(formula: string): { value: number; formulaText: string } {
-  if (!formula || formula.includes("No direct") || formula.includes("No quantifiable")) {
+  if (isNoValue(formula)) {
     return { value: 0, formulaText: "No direct cash flow impact" };
   }
   
-  const numbers = extractFormulaInputs(formula);
+  const inputs = parseCashFlowFormulaInputs(formula);
   
-  if (numbers.length < 2) {
-    return { value: 0, formulaText: formula };
+  if (!inputs) {
+    // Cannot parse - log warning and return 0 to avoid incorrect values
+    console.warn(`[recalculateCashFlowBenefit] Could not parse formula, returning 0: ${formula}`);
+    return { value: 0, formulaText: formula + " (could not validate)" };
   }
   
-  // Multiply all the numbers in the formula
-  let product = 1;
-  for (const num of numbers) {
-    product *= num;
-  }
+  const result = calculateCashFlowBenefit(inputs);
   
-  const roundedValue = Math.floor(product / 100000) * 100000;
+  const newFormula = `${inputs.daysImprovement} days × ${formatMoney(inputs.dailyRevenue)}/day × ${inputs.cashFlowRealizationMultiplier.toFixed(2)} × ${inputs.dataMaturityMultiplier.toFixed(2)} = ${formatMoney(result.trace.output)} → ${formatMoney(result.value)}`;
   
-  // Reconstruct formula with correct result
-  const formulaPart = formula.split("=")[0]?.trim() || formula;
-  const newFormula = `${formulaPart} = ${formatMoney(product)} → ${formatMoney(roundedValue)}`;
-  
-  return { value: roundedValue, formulaText: newFormula };
+  return { value: result.value, formulaText: newFormula };
 }
 
-// Parse risk formula and recalculate
+// Parse risk formula inputs
+interface RiskInputs {
+  probBefore: number;
+  impactBefore: number;
+  probAfter: number;
+  impactAfter: number;
+  riskRealizationMultiplier: number;
+  dataMaturityMultiplier: number;
+}
+
+function parseRiskFormulaInputs(formula: string): RiskInputs | null {
+  const numbers = extractInputNumbers(formula);
+  if (numbers.length < 2) return null;
+  
+  // Risk formulas are more complex, often showing reduction %
+  // E.g., "15% reduction × $6M exposure × 0.80 × 0.75"
+  let reductionPct = 0;
+  let exposure = 0;
+  let riskRealizationMultiplier = DEFAULT_MULTIPLIERS.riskRealizationMultiplier;
+  let dataMaturityMultiplier = DEFAULT_MULTIPLIERS.dataMaturityMultiplier;
+  
+  const decimals: number[] = [];
+  const largeNumbers: number[] = [];
+  
+  for (const num of numbers) {
+    if (num > 0 && num < 1) {
+      decimals.push(num);
+    } else if (num >= 100000) {
+      largeNumbers.push(num);
+    }
+  }
+  
+  // First decimal is likely the reduction percentage
+  if (decimals.length >= 1) reductionPct = decimals[0];
+  if (decimals.length >= 2) riskRealizationMultiplier = decimals[1];
+  if (decimals.length >= 3) dataMaturityMultiplier = decimals[2];
+  
+  // Large number is the exposure
+  if (largeNumbers.length > 0) exposure = largeNumbers[0];
+  
+  if (reductionPct === 0 || exposure === 0) return null;
+  
+  // Convert to before/after format
+  return {
+    probBefore: reductionPct, // Treating reduction % as risk reduction
+    impactBefore: exposure,
+    probAfter: 0,
+    impactAfter: 0,
+    riskRealizationMultiplier,
+    dataMaturityMultiplier,
+  };
+}
+
 function recalculateRiskBenefit(formula: string): { value: number; formulaText: string } {
-  if (!formula || formula.includes("No quantifiable") || formula.includes("No additional")) {
+  if (isNoValue(formula)) {
     return { value: 0, formulaText: "No quantifiable risk reduction" };
   }
   
-  const numbers = extractFormulaInputs(formula);
+  const inputs = parseRiskFormulaInputs(formula);
   
-  if (numbers.length < 2) {
-    return { value: 0, formulaText: formula };
+  if (!inputs) {
+    // Cannot parse - log warning and return 0 to avoid incorrect values
+    console.warn(`[recalculateRiskBenefit] Could not parse formula, returning 0: ${formula}`);
+    return { value: 0, formulaText: formula + " (could not validate)" };
   }
   
-  // Multiply all the numbers in the formula
-  let product = 1;
-  for (const num of numbers) {
-    product *= num;
-  }
+  // Use the deterministic risk benefit calculation
+  const result = calculateRiskBenefit({
+    probBefore: inputs.probBefore,
+    impactBefore: inputs.impactBefore,
+    probAfter: inputs.probAfter,
+    impactAfter: inputs.impactAfter,
+    riskRealizationMultiplier: inputs.riskRealizationMultiplier,
+    dataMaturityMultiplier: inputs.dataMaturityMultiplier,
+  });
   
-  const roundedValue = Math.floor(product / 100000) * 100000;
+  const newFormula = `${(inputs.probBefore * 100).toFixed(0)}% × ${formatMoney(inputs.impactBefore)} × ${inputs.riskRealizationMultiplier.toFixed(2)} × ${inputs.dataMaturityMultiplier.toFixed(2)} = ${formatMoney(result.trace.output)} → ${formatMoney(result.value)}`;
   
-  // Reconstruct formula with correct result
-  const formulaPart = formula.split("=")[0]?.trim() || formula;
-  const newFormula = `${formulaPart} = ${formatMoney(product)} → ${formatMoney(roundedValue)}`;
-  
-  return { value: roundedValue, formulaText: newFormula };
+  return { value: result.value, formulaText: newFormula };
 }
 
 // Calculate token cost from Step 6 data
@@ -320,9 +468,9 @@ export function postProcessAnalysis(analysisResult: any): any {
     return analysisResult;
   }
   
-  console.log("[postProcessAnalysis] Processing", step5.data.length, "use cases");
+  console.log("[postProcessAnalysis] Processing", step5.data.length, "use cases with deterministic formulas");
   
-  // Recalculate all Step 5 benefits
+  // Recalculate all Step 5 benefits using deterministic formulas
   const correctedStep5Data: Step5Record[] = [];
   let totalCostBenefit = 0;
   let totalRevenueBenefit = 0;
@@ -335,9 +483,17 @@ export function postProcessAnalysis(analysisResult: any): any {
     const cashFlowResult = recalculateCashFlowBenefit(record["Cash Flow Formula"] || "");
     const riskResult = recalculateRiskBenefit(record["Risk Formula"] || "");
     
-    const totalValue = costResult.value + revenueResult.value + cashFlowResult.value + riskResult.value;
+    const totalBenefits = costResult.value + revenueResult.value + cashFlowResult.value + riskResult.value;
     const prob = record["Probability of Success"] || 0.75;
-    const adjustedTotal = Math.floor((totalValue * prob) / 100000) * 100000;
+    
+    // Use the deterministic total value calculation
+    const totalValueResult = calculateTotalAnnualValue({
+      costBenefit: costResult.value,
+      revenueBenefit: revenueResult.value,
+      cashFlowBenefit: cashFlowResult.value,
+      riskBenefit: riskResult.value,
+      probabilityOfSuccess: prob,
+    });
     
     totalCostBenefit += costResult.value;
     totalRevenueBenefit += revenueResult.value;
@@ -354,16 +510,16 @@ export function postProcessAnalysis(analysisResult: any): any {
       "Cash Flow Formula": cashFlowResult.formulaText,
       "Risk Benefit ($)": formatMoney(riskResult.value),
       "Risk Formula": riskResult.formulaText,
-      "Total Annual Value ($)": formatMoney(adjustedTotal),
+      "Total Annual Value ($)": formatMoney(totalValueResult.value),
     });
     
-    console.log(`[postProcessAnalysis] ${record.ID}: Cost=${formatMoney(costResult.value)}, Revenue=${formatMoney(revenueResult.value)}, CashFlow=${formatMoney(cashFlowResult.value)}, Risk=${formatMoney(riskResult.value)}, Total=${formatMoney(adjustedTotal)}`);
+    console.log(`[postProcessAnalysis] ${record.ID}: Cost=${formatMoney(costResult.value)}, Revenue=${formatMoney(revenueResult.value)}, CashFlow=${formatMoney(cashFlowResult.value)}, Risk=${formatMoney(riskResult.value)}, Total=${formatMoney(totalValueResult.value)}`);
   }
   
   // Update Step 5 data
   step5.data = correctedStep5Data;
   
-  // Recalculate Step 6 token costs
+  // Recalculate Step 6 token costs using deterministic formula
   let totalMonthlyTokens = 0;
   
   if (step6?.data && Array.isArray(step6.data)) {
@@ -383,7 +539,7 @@ export function postProcessAnalysis(analysisResult: any): any {
     step6.data = correctedStep6Data;
   }
   
-  // Recalculate Step 7 priority scores
+  // Recalculate Step 7 priority scores using deterministic formula
   if (step7?.data && Array.isArray(step7.data) && step6?.data) {
     const correctedStep7Data: Step7Record[] = [];
     
@@ -399,6 +555,7 @@ export function postProcessAnalysis(analysisResult: any): any {
         const integrationComplexity = step6Record["Integration Complexity (1-5)"];
         const changeMgmt = step6Record["Change Mgmt (1-5)"];
         
+        // Use the deterministic priority score function
         const priorityResult = calculatePriorityScore({
           totalAnnualValue: totalValue,
           timeToValueMonths: ttv,
@@ -427,8 +584,10 @@ export function postProcessAnalysis(analysisResult: any): any {
     step7.data = correctedStep7Data;
   }
   
-  // Update executive dashboard
+  // Update executive dashboard with deterministic calculations
   const totalAnnualValue = totalCostBenefit + totalRevenueBenefit + totalCashFlowBenefit + totalRiskBenefit;
+  
+  // Use the deterministic value per million tokens function
   const valuePerMillion = calculateValuePerMillionTokens({
     totalAnnualValue,
     totalMonthlyTokens,
@@ -465,7 +624,7 @@ export function postProcessAnalysis(analysisResult: any): any {
     },
   };
   
-  console.log(`[postProcessAnalysis] Dashboard: TotalValue=${formatMoney(totalAnnualValue)}, Cost=${formatMoney(totalCostBenefit)}, Revenue=${formatMoney(totalRevenueBenefit)}, CashFlow=${formatMoney(totalCashFlowBenefit)}, Risk=${formatMoney(totalRiskBenefit)}`);
+  console.log(`[postProcessAnalysis] Dashboard totals: TotalValue=${formatMoney(totalAnnualValue)}, Cost=${formatMoney(totalCostBenefit)}, Revenue=${formatMoney(totalRevenueBenefit)}, CashFlow=${formatMoney(totalCashFlowBenefit)}, Risk=${formatMoney(totalRiskBenefit)}`);
   
   return correctedResult;
 }
