@@ -131,8 +131,14 @@ export interface CalculatedReport {
     hitlCheckpoint: string;
     aiPrimitives: string[];
     
-    // Calculated benefits
+      // Calculated benefits
     benefits: {
+      revenueBenefit: CalculatedValue;
+      costBenefit: CalculatedValue;
+      cashFlowBenefit: CalculatedValue;
+      riskBenefit: CalculatedValue;
+      totalAnnualValue: CalculatedValue;
+      // Aliases for convenience
       revenue: CalculatedValue;
       cost: CalculatedValue;
       cashFlow: CalculatedValue;
@@ -280,7 +286,15 @@ export class CalcGraphService {
         targetFriction: uc.targetFriction,
         hitlCheckpoint: uc.hitlCheckpoint,
         aiPrimitives: uc.aiPrimitives,
-        benefits,
+        benefits: {
+          ...benefits,
+          // Add aliases for convenience
+          revenue: benefits.revenueBenefit,
+          cost: benefits.costBenefit,
+          cashFlow: benefits.cashFlowBenefit,
+          risk: benefits.riskBenefit,
+          totalAnnual: benefits.totalAnnualValue,
+        },
         tokenCosts,
         effortScore,
         effort: {

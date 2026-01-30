@@ -681,7 +681,7 @@ export class CalcGraphEngine {
 
   getAssumptionsByCategory(): Record<string, Assumption[]> {
     const grouped: Record<string, Assumption[]> = {};
-    for (const assumption of this.assumptions.values()) {
+    for (const assumption of Array.from(this.assumptions.values())) {
       if (!grouped[assumption.category]) {
         grouped[assumption.category] = [];
       }
@@ -729,7 +729,7 @@ export class CalcGraphEngine {
   }
 
   resetAllAssumptions(): void {
-    for (const assumption of this.assumptions.values()) {
+    for (const assumption of Array.from(this.assumptions.values())) {
       assumption.currentValue = assumption.defaultValue;
       assumption.isUserOverride = false;
     }
@@ -751,7 +751,7 @@ export class CalcGraphEngine {
 
     // Build full context with assumptions
     const fullContext: Record<string, number> = { ...context };
-    for (const assumption of this.assumptions.values()) {
+    for (const assumption of Array.from(this.assumptions.values())) {
       fullContext[assumption.id] = assumption.currentValue;
     }
 

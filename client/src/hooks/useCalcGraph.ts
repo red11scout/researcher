@@ -327,7 +327,7 @@ export function useScenarioBuilder(initialResearch?: any) {
   const [baseReport, setBaseReport] = useState<any>(null);
   const [customReport, setCustomReport] = useState<any>(null);
 
-  const { assumptions, isLoading: isLoadingAssumptions } = useAssumptions();
+  const { assumptions, assumptionsByCategory, isLoading: isLoadingAssumptions } = useAssumptions();
   const { recalculate, isRecalculating } = useRecalculation();
   const { runAnalysis, isRunning: isRunningAnalysis, analysis } = useUncertaintyAnalysis();
 
@@ -399,6 +399,7 @@ export function useScenarioBuilder(initialResearch?: any) {
     baseReport,
     customReport,
     assumptions,
+    assumptionsByCategory,
     analysis,
     
     // Loading states
