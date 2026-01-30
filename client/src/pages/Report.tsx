@@ -383,7 +383,7 @@ export default function Report() {
       // If processing in background, poll for results
       if (initialResult.status === 'processing' && initialResult.jobId) {
         const jobId = initialResult.jobId;
-        const maxPolls = 180; // 3 minutes at 1 second intervals
+        const maxPolls = 300; // 5 minutes at 1 second intervals
         let pollCount = 0;
         
         const pollForResult = async (): Promise<void> => {
@@ -425,7 +425,7 @@ export default function Report() {
             }
           }
           
-          throw new Error('Analysis timed out after 3 minutes. Please try again.');
+          throw new Error('Analysis timed out after 5 minutes. Please try again.');
         };
         
         await pollForResult();
