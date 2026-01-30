@@ -302,20 +302,20 @@ const StickyHeader = ({ clientName, onShareUrl, onViewHTMLReport }: StickyHeader
 
   return (
     <motion.header 
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-white/90 backdrop-blur-md shadow-sm py-3' : 'bg-transparent py-6'}`}
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-white/90 backdrop-blur-md shadow-sm py-2 md:py-3' : 'bg-transparent py-3 md:py-6'}`}
       initial={{ y: -100 }}
       animate={{ y: 0 }}
     >
-      <div className="max-w-7xl mx-auto px-6 flex justify-between items-center">
-        <div className="flex items-center gap-4">
-          <div className="font-bold text-2xl tracking-tighter text-[#0339AF]">BlueAlly</div>
+      <div className="max-w-7xl mx-auto px-3 md:px-6 flex justify-between items-center">
+        <div className="flex items-center gap-2 md:gap-4">
+          <div className="font-bold text-xl md:text-2xl tracking-tighter text-[#0339AF]">BlueAlly</div>
           <div className="h-6 w-px bg-gray-300 hidden md:block"></div>
           <div className="text-gray-500 font-medium hidden md:block">{clientName} Assessment</div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 md:gap-3">
           <button 
             onClick={handleShare}
-            className="p-2 rounded-full border border-gray-300 hover:bg-gray-100 transition-colors flex items-center gap-2"
+            className="p-2 rounded-full border border-gray-300 hover:bg-gray-100 transition-colors flex items-center gap-2 min-w-[40px] min-h-[40px] justify-center"
             data-testid="button-share-url"
             title="Copy shareable link"
           >
@@ -324,10 +324,11 @@ const StickyHeader = ({ clientName, onShareUrl, onViewHTMLReport }: StickyHeader
           </button>
           <button 
             onClick={onViewHTMLReport}
-            className="bg-[#0339AF] hover:bg-[#4C73E9] text-white px-6 py-2 rounded-full font-semibold text-sm transition-colors shadow-lg flex items-center gap-2 group"
+            className="bg-[#0339AF] hover:bg-[#4C73E9] text-white px-3 md:px-6 py-2 rounded-full font-semibold text-xs md:text-sm transition-colors shadow-lg flex items-center gap-1 md:gap-2 group min-h-[40px]"
             data-testid="button-html-report"
           >
-            Detailed HTML Report
+            <span className="hidden sm:inline">Detailed HTML Report</span>
+            <span className="sm:hidden">Report</span>
             <FileText className="w-4 h-4" />
           </button>
         </div>
@@ -343,7 +344,7 @@ interface HeroSectionProps {
 
 const HeroSection = ({ data, clientName }: HeroSectionProps) => {
   return (
-    <section className="relative h-screen flex flex-col justify-center items-center text-center px-6 overflow-hidden bg-gradient-to-b from-slate-50 to-white">
+    <section className="relative min-h-screen flex flex-col justify-center items-center text-center px-4 md:px-6 overflow-hidden bg-gradient-to-b from-slate-50 to-white pt-20 md:pt-0">
       <FlywheelBackground />
       
       <motion.div 
@@ -352,7 +353,7 @@ const HeroSection = ({ data, clientName }: HeroSectionProps) => {
         transition={{ duration: 0.8 }}
         className="z-10 max-w-4xl"
       >
-        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-sm font-semibold mb-6 border border-blue-100">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs md:text-sm font-semibold mb-4 md:mb-6 border border-blue-100">
           <span className="relative flex h-2 w-2">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
             <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
@@ -360,22 +361,22 @@ const HeroSection = ({ data, clientName }: HeroSectionProps) => {
           AI Strategic Assessment
         </div>
         
-        <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-[#0F172A] mb-8 leading-tight">
+        <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-7xl font-extrabold tracking-tight text-[#0F172A] mb-4 md:mb-8 leading-tight">
           {data.titlePrefix} <span className="text-[#0339AF]">{data.titleHighlight}</span> for <br/>{clientName}
         </h1>
         
-        <div className="flex flex-col md:flex-row items-center justify-center gap-12 mt-8">
-          <div className="text-left">
-            <p className="text-gray-500 text-sm font-semibold uppercase tracking-wider mb-1">Total Value Opportunity</p>
-            <div className="text-6xl md:text-8xl font-bold text-[#0339AF] tracking-tighter">
+        <div className="flex flex-col md:flex-row items-center justify-center gap-6 md:gap-12 mt-4 md:mt-8">
+          <div className="text-center md:text-left">
+            <p className="text-gray-500 text-xs md:text-sm font-semibold uppercase tracking-wider mb-1">Total Value Opportunity</p>
+            <div className="text-5xl sm:text-6xl md:text-8xl font-bold text-[#0339AF] tracking-tighter">
               <AnimatedCounter value={data.totalValue} prefix="$" suffix={data.valueSuffix} />
             </div>
           </div>
           
           <div className="hidden md:block h-24 w-px bg-gray-200"></div>
           
-          <div className="text-left max-w-xs">
-            <p className="text-lg text-gray-600 leading-relaxed">
+          <div className="text-center md:text-left max-w-xs px-4 md:px-0">
+            <p className="text-base md:text-lg text-gray-600 leading-relaxed">
               {sanitizeForProse(data.description)}
             </p>
           </div>
@@ -383,7 +384,7 @@ const HeroSection = ({ data, clientName }: HeroSectionProps) => {
       </motion.div>
 
       <motion.div 
-        className="absolute bottom-10 left-1/2 -translate-x-1/2 text-gray-400"
+        className="absolute bottom-6 md:bottom-10 left-1/2 -translate-x-1/2 text-gray-400"
         animate={{ y: [0, 10, 0] }}
         transition={{ repeat: Infinity, duration: 2 }}
       >
@@ -400,16 +401,16 @@ interface ExecutiveSummaryProps {
 
 const ExecutiveSummary = ({ data }: ExecutiveSummaryProps) => {
   return (
-    <section className="py-24 bg-white relative">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="mb-16">
-          <h2 className="text-3xl font-bold text-[#0F172A] mb-4">{data.title}</h2>
-          <p className="text-gray-600 max-w-2xl">
+    <section className="py-12 md:py-24 bg-white relative">
+      <div className="max-w-7xl mx-auto px-4 md:px-6">
+        <div className="mb-8 md:mb-16">
+          <h2 className="text-2xl md:text-3xl font-bold text-[#0F172A] mb-2 md:mb-4">{data.title}</h2>
+          <p className="text-gray-600 max-w-2xl text-sm md:text-base">
             {sanitizeForProse(data.description)}
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
           {data.kpis.map((kpi, idx) => {
             const IconComponent = ICON_MAP[kpi.iconName] || Activity;
             
@@ -420,16 +421,16 @@ const ExecutiveSummary = ({ data }: ExecutiveSummaryProps) => {
                 whileInView={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.1 }}
                 viewport={{ once: true }}
-                className="group p-8 rounded-2xl bg-slate-50 border border-slate-100 hover:border-blue-200 hover:shadow-xl hover:shadow-blue-900/5 transition-all duration-300 relative overflow-hidden"
+                className="group p-5 md:p-8 rounded-2xl bg-slate-50 border border-slate-100 hover:border-blue-200 hover:shadow-xl hover:shadow-blue-900/5 transition-all duration-300 relative overflow-hidden"
               >
                 <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                  <IconComponent className="w-24 h-24 text-[#0339AF]" />
+                  <IconComponent className="w-16 md:w-24 h-16 md:h-24 text-[#0339AF]" />
                 </div>
                 
                 <div className="relative z-10">
-                  <div className="flex items-center gap-3 mb-4">
-                    <div className={`p-3 rounded-lg ${kpi.label.includes('Risk') ? 'bg-indigo-100 text-indigo-700' : 'bg-blue-100 text-blue-700'}`}>
-                      <IconComponent className="w-6 h-6" />
+                  <div className="flex items-center gap-3 mb-3 md:mb-4">
+                    <div className={`p-2 md:p-3 rounded-lg ${kpi.label.includes('Risk') ? 'bg-indigo-100 text-indigo-700' : 'bg-blue-100 text-blue-700'}`}>
+                      <IconComponent className="w-5 h-5 md:w-6 md:h-6" />
                     </div>
                     <span className={`text-sm font-bold ${kpi.growth.startsWith('+') ? 'text-emerald-600' : 'text-blue-600'}`}>
                       {kpi.growth}
@@ -437,8 +438,8 @@ const ExecutiveSummary = ({ data }: ExecutiveSummaryProps) => {
                   </div>
                   
                   <h3 className="text-gray-500 font-medium text-sm mb-1">{kpi.label}</h3>
-                  <div className="text-4xl font-bold text-[#0F172A] mb-4">{kpi.value}</div>
-                  <div className="h-px w-full bg-slate-200 mb-4"></div>
+                  <div className="text-3xl md:text-4xl font-bold text-[#0F172A] mb-3 md:mb-4">{kpi.value}</div>
+                  <div className="h-px w-full bg-slate-200 mb-3 md:mb-4"></div>
                   <p className="text-sm text-gray-600">{kpi.desc}</p>
                 </div>
               </motion.div>
@@ -456,70 +457,74 @@ interface PriorityMatrixProps {
 
 const PriorityMatrix = ({ data }: PriorityMatrixProps) => {
   return (
-    <section className="py-24 bg-[#0F172A] text-white relative overflow-hidden">
+    <section className="py-12 md:py-24 bg-[#0F172A] text-white relative overflow-hidden">
       <div className="absolute inset-0 opacity-20" style={{ backgroundImage: "url('https://grainy-gradients.vercel.app/noise.svg')" }}></div>
       
-      <div className="max-w-7xl mx-auto px-6 relative z-10">
-        <div className="flex flex-col md:flex-row justify-between items-end mb-12">
+      <div className="max-w-7xl mx-auto px-4 md:px-6 relative z-10">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 md:mb-12">
           <div>
-            <h2 className="text-3xl font-bold mb-4 text-white">{data.title}</h2>
-            <p className="text-slate-400 max-w-xl whitespace-pre-line">
+            <h2 className="text-2xl md:text-3xl font-bold mb-2 md:mb-4 text-white">{data.title}</h2>
+            <p className="text-slate-400 max-w-xl whitespace-pre-line text-sm md:text-base">
               {sanitizeForProse(data.description)}
             </p>
           </div>
-          <div className="flex gap-4 mt-6 md:mt-0">
-            <div className="flex items-center gap-2 text-sm text-slate-400"><div className="w-3 h-3 rounded-full bg-[#0339AF]"></div>High Value</div>
-            <div className="flex items-center gap-2 text-sm text-slate-400"><div className="w-3 h-3 rounded-full bg-[#059669]"></div>Quick Win</div>
+          <div className="flex gap-4 mt-4 md:mt-0">
+            <div className="flex items-center gap-2 text-xs md:text-sm text-slate-400"><div className="w-3 h-3 rounded-full bg-[#0339AF]"></div>High Value</div>
+            <div className="flex items-center gap-2 text-xs md:text-sm text-slate-400"><div className="w-3 h-3 rounded-full bg-[#059669]"></div>Quick Win</div>
           </div>
         </div>
 
-        <div className="h-[500px] w-full bg-white/5 rounded-2xl p-6 border border-white/10 backdrop-blur-sm">
-          <ResponsiveContainer width="100%" height="100%">
-            <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-              <XAxis 
-                type="number" 
-                dataKey="x" 
-                name="Time to Value" 
-                unit=" mo" 
-                stroke="#94a3b8"
-                label={{ value: 'Time to Value (Months)', position: 'insideBottom', offset: -10, fill: '#94a3b8' }} 
-              />
-              <YAxis 
-                type="number" 
-                dataKey="y" 
-                name="Annual Value" 
-                unit="M" 
-                stroke="#94a3b8"
-                label={{ value: 'Annual Value ($M)', angle: -90, position: 'insideLeft', fill: '#94a3b8' }} 
-              />
-              <ZAxis type="number" dataKey="z" range={[100, 500]} />
-              <Tooltip 
-                cursor={{ strokeDasharray: '3 3' }}
-                content={({ active, payload }) => {
-                  if (active && payload && payload.length) {
-                    const point = payload[0].payload;
-                    return (
-                      <div className="bg-white p-4 rounded-lg shadow-xl border border-slate-200 text-slate-900">
-                        <p className="font-bold text-lg mb-1">{point.name}</p>
-                        <p className="text-sm text-blue-600 font-semibold">{point.type}</p>
-                        <div className="h-px bg-slate-100 my-2"></div>
-                        <p className="text-xs text-slate-500">Value: ${point.y}M</p>
-                        <p className="text-xs text-slate-500">Timeline: {point.x} Months</p>
-                        <p className="text-xs text-slate-500">Complexity Score: {point.z}/5</p>
-                      </div>
-                    );
-                  }
-                  return null;
-                }}
-              />
-              <Scatter name="Initiatives" data={data.data} fill="#8884d8">
-                {data.data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Scatter>
-            </ScatterChart>
-          </ResponsiveContainer>
+        <div className="overflow-x-auto -mx-4 md:mx-0 px-4 md:px-0">
+          <div className="h-48 md:h-64 lg:h-[500px] min-w-[500px] md:min-w-0 w-full bg-white/5 rounded-2xl p-3 md:p-6 border border-white/10 backdrop-blur-sm">
+            <ResponsiveContainer width="100%" height="100%">
+              <ScatterChart margin={{ top: 10, right: 10, bottom: 20, left: 10 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                <XAxis 
+                  type="number" 
+                  dataKey="x" 
+                  name="Time to Value" 
+                  unit=" mo" 
+                  stroke="#94a3b8"
+                  tick={{ fontSize: 10 }}
+                  label={{ value: 'Time to Value (Months)', position: 'insideBottom', offset: -10, fill: '#94a3b8', fontSize: 10 }} 
+                />
+                <YAxis 
+                  type="number" 
+                  dataKey="y" 
+                  name="Annual Value" 
+                  unit="M" 
+                  stroke="#94a3b8"
+                  tick={{ fontSize: 10 }}
+                  label={{ value: 'Annual Value ($M)', angle: -90, position: 'insideLeft', fill: '#94a3b8', fontSize: 10 }} 
+                />
+                <ZAxis type="number" dataKey="z" range={[60, 300]} />
+                <Tooltip 
+                  cursor={{ strokeDasharray: '3 3' }}
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const point = payload[0].payload;
+                      return (
+                        <div className="bg-white p-3 md:p-4 rounded-lg shadow-xl border border-slate-200 text-slate-900">
+                          <p className="font-bold text-sm md:text-lg mb-1">{point.name}</p>
+                          <p className="text-xs md:text-sm text-blue-600 font-semibold">{point.type}</p>
+                          <div className="h-px bg-slate-100 my-2"></div>
+                          <p className="text-xs text-slate-500">Value: ${point.y}M</p>
+                          <p className="text-xs text-slate-500">Timeline: {point.x} Months</p>
+                          <p className="text-xs text-slate-500">Complexity Score: {point.z}/5</p>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Scatter name="Initiatives" data={data.data} fill="#8884d8">
+                  {data.data.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Scatter>
+              </ScatterChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       </div>
     </section>
@@ -533,44 +538,44 @@ interface UseCaseCarouselProps {
 
 const UseCaseCarousel = ({ data, clientName }: UseCaseCarouselProps) => {
   return (
-    <section className="py-24 bg-slate-50">
-      <div className="max-w-7xl mx-auto px-6">
-        <div className="flex justify-between items-center mb-12">
+    <section className="py-12 md:py-24 bg-slate-50">
+      <div className="max-w-7xl mx-auto px-4 md:px-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 md:mb-12 gap-4">
           <div>
-            <h2 className="text-3xl font-bold text-[#0F172A]">{data.title}</h2>
-            <p className="text-gray-600 mt-2">{sanitizeForProse(data.description.replace('Synovus', clientName))}</p>
+            <h2 className="text-2xl md:text-3xl font-bold text-[#0F172A]">{data.title}</h2>
+            <p className="text-gray-600 mt-2 text-sm md:text-base">{sanitizeForProse(data.description.replace('Synovus', clientName))}</p>
           </div>
-          <div className="flex gap-2">
+          <div className="hidden sm:flex gap-2">
             <button className="p-2 rounded-full border border-gray-300 hover:bg-white transition-colors"><ChevronRight className="rotate-180 w-5 h-5 text-gray-600" /></button>
             <button className="p-2 rounded-full border border-gray-300 hover:bg-white transition-colors"><ChevronRight className="w-5 h-5 text-gray-600" /></button>
           </div>
         </div>
 
-        <div className="flex gap-6 overflow-x-auto pb-8 snap-x">
+        <div className="flex flex-col sm:flex-row gap-4 md:gap-6 sm:overflow-x-auto pb-4 md:pb-8 sm:snap-x">
           {data.items.map((uc) => (
-            <div key={uc.id} className="min-w-[350px] md:min-w-[400px] bg-white rounded-xl shadow-sm border border-slate-200 p-6 flex flex-col snap-center hover:shadow-lg transition-shadow">
-              <div className="flex justify-between items-start mb-4">
+            <div key={uc.id} className="w-full sm:min-w-[300px] md:min-w-[350px] lg:min-w-[400px] sm:w-auto bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6 flex flex-col snap-center hover:shadow-lg transition-shadow">
+              <div className="flex justify-between items-start mb-3 md:mb-4">
                 <span className="bg-blue-50 text-[#0339AF] text-xs font-bold px-2 py-1 rounded uppercase tracking-wide">{uc.id}</span>
                 <span className={`text-xs px-2 py-1 rounded-full border ${uc.complexity === 'Critical' ? 'border-red-200 text-red-600 bg-red-50' : 'border-slate-200 text-slate-500'}`}>
                   {uc.complexity}
                 </span>
               </div>
               
-              <h3 className="text-xl font-bold text-[#0F172A] mb-2">{uc.title}</h3>
-              <p className="text-gray-600 text-sm mb-6 flex-grow">{uc.impact}</p>
+              <h3 className="text-lg md:text-xl font-bold text-[#0F172A] mb-2">{uc.title}</h3>
+              <p className="text-gray-600 text-sm mb-4 md:mb-6 flex-grow">{uc.impact}</p>
               
-              <div className="bg-slate-50 rounded-lg p-4 mb-6">
+              <div className="bg-slate-50 rounded-lg p-3 md:p-4 mb-4 md:mb-6">
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-xs text-gray-500 uppercase font-semibold">Projected Value</span>
-                  <span className="text-lg font-bold text-[#0339AF]">{uc.value}</span>
+                  <span className="text-base md:text-lg font-bold text-[#0339AF]">{uc.value}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-xs text-gray-500 uppercase font-semibold">Est. Tokens</span>
-                  <span className="text-sm font-mono text-gray-700">{uc.tokens}</span>
+                  <span className="text-xs md:text-sm font-mono text-gray-700">{uc.tokens}</span>
                 </div>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 {uc.tags.map(tag => (
                   <span key={tag} className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">{tag}</span>
                 ))}
@@ -592,19 +597,19 @@ interface CTASectionProps {
 
 const CTASection = ({ totalValue, valueSuffix, onViewHTMLReport, onDownloadWorkshopPDF }: CTASectionProps) => {
   return (
-    <section className="py-32 bg-[#0339AF] text-white relative overflow-hidden">
+    <section className="py-16 md:py-32 bg-[#0339AF] text-white relative overflow-hidden">
       <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent"></div>
       
-      <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
-        <h2 className="text-4xl md:text-5xl font-bold mb-8 tracking-tight text-white">Ready to activate the Flywheel?</h2>
-        <p className="text-blue-100 text-lg md:text-xl mb-12 max-w-2xl mx-auto">
+      <div className="max-w-4xl mx-auto px-4 md:px-6 text-center relative z-10">
+        <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-4 md:mb-8 tracking-tight text-white">Ready to activate the Flywheel?</h2>
+        <p className="text-blue-100 text-base md:text-lg lg:text-xl mb-8 md:mb-12 max-w-2xl mx-auto">
           The ${totalValue}{valueSuffix} opportunity is real. The next step is a 3-Day Use Case Workshop to transform this assessment into pilot-ready roadmaps.
         </p>
         
-        <div className="flex flex-col md:flex-row justify-center items-center gap-4">
+        <div className="flex flex-col sm:flex-row justify-center items-center gap-3 md:gap-4">
           <button 
             onClick={onViewHTMLReport}
-            className="bg-white text-[#0339AF] px-8 py-4 rounded-full font-bold text-lg hover:shadow-2xl hover:scale-105 transition-all flex items-center gap-2"
+            className="w-full sm:w-auto bg-white text-[#0339AF] px-6 md:px-8 py-3 md:py-4 rounded-full font-bold text-base md:text-lg hover:shadow-2xl hover:scale-105 transition-all flex items-center justify-center gap-2 min-h-[48px]"
             data-testid="button-html-report-cta"
           >
             Detailed HTML Report
@@ -612,7 +617,7 @@ const CTASection = ({ totalValue, valueSuffix, onViewHTMLReport, onDownloadWorks
           </button>
           <button 
             onClick={onDownloadWorkshopPDF}
-            className="px-8 py-4 rounded-full font-semibold text-white border border-white/30 hover:bg-white/10 transition-all flex items-center gap-2"
+            className="w-full sm:w-auto px-6 md:px-8 py-3 md:py-4 rounded-full font-semibold text-white border border-white/30 hover:bg-white/10 transition-all flex items-center justify-center gap-2 min-h-[48px]"
             data-testid="button-workshop-details"
           >
             <Download className="w-5 h-5" />
@@ -620,14 +625,14 @@ const CTASection = ({ totalValue, valueSuffix, onViewHTMLReport, onDownloadWorks
           </button>
         </div>
         
-        <div className="mt-16 flex justify-center gap-8 text-blue-200 text-sm flex-wrap">
-          <div className="flex items-center gap-2">
+        <div className="mt-8 md:mt-16 flex flex-col sm:flex-row justify-center gap-4 md:gap-8 text-blue-200 text-sm">
+          <div className="flex items-center justify-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-400" /> Executive Alignment
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-400" /> 90-Day Pilot Cycle
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center justify-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-400" /> ROI-Focused
           </div>
         </div>
@@ -658,13 +663,13 @@ export default function Dashboard({ data = DEFAULT_DATA, onShareUrl, onDownloadW
         onDownloadWorkshopPDF={onDownloadWorkshopPDF}
       />
       
-      <footer className="bg-slate-900 text-slate-500 py-12 border-t border-slate-800">
-        <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="text-sm">© 2025 BlueAlly. Confidential & Proprietary.</div>
-          <div className="flex gap-6">
-            <a href="#" className="hover:text-white transition-colors">Privacy</a>
-            <a href="#" className="hover:text-white transition-colors">Terms</a>
-            <a href="#" className="hover:text-white transition-colors">Contact</a>
+      <footer className="bg-slate-900 text-slate-500 py-8 md:py-12 border-t border-slate-800">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 flex flex-col md:flex-row justify-between items-center gap-4">
+          <div className="text-xs md:text-sm text-center md:text-left">© 2025 BlueAlly. Confidential & Proprietary.</div>
+          <div className="flex gap-4 md:gap-6">
+            <a href="#" className="hover:text-white transition-colors text-sm">Privacy</a>
+            <a href="#" className="hover:text-white transition-colors text-sm">Terms</a>
+            <a href="#" className="hover:text-white transition-colors text-sm">Contact</a>
           </div>
         </div>
       </footer>

@@ -48,7 +48,8 @@ import {
   ArrowLeft, ArrowRight, Brain, Calculator, TrendingUp, TrendingDown, 
   DollarSign, ShieldCheck, Zap, Target, ChevronDown, ChevronRight,
   Settings2, HelpCircle, Info, Sliders, BarChart3, Building2,
-  Users, ClipboardList, Lightbulb, Scale, MapPin, Save, Layers, Share2, LayoutDashboard
+  Users, ClipboardList, Lightbulb, Scale, MapPin, Save, Layers, Share2, LayoutDashboard,
+  Menu, X
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import jsPDF from 'jspdf';
@@ -264,6 +265,7 @@ export default function Report() {
   
   // Assumption drawer state
   const [assumptionDrawerOpen, setAssumptionDrawerOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("dashboard");
   const [assumptionEdits, setAssumptionEdits] = useState<Record<string, string>>({});
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -2437,9 +2439,9 @@ export default function Report() {
                     variant="outline" 
                     size="sm" 
                     data-testid="button-assumptions"
-                    className="h-8 md:h-9 px-2 md:px-3 text-xs md:text-sm relative"
+                    className="h-10 md:h-9 min-w-[44px] px-2 md:px-3 text-xs md:text-sm relative"
                   >
-                    <Sliders className="h-3 w-3 md:h-4 md:w-4 md:mr-2" />
+                    <Sliders className="h-4 w-4 md:mr-2" />
                     <span className="hidden md:inline">Assumptions</span>
                     {hasUnsavedChanges && (
                       <span className="absolute -top-1 -right-1 h-2 w-2 bg-amber-500 rounded-full" />
@@ -2649,9 +2651,9 @@ export default function Report() {
                 onClick={regenerateAnalysis}
                 disabled={!reportId || status !== "complete"}
                 data-testid="button-refresh"
-                className="h-8 md:h-9 px-2 md:px-3 text-xs md:text-sm"
+                className="h-10 md:h-9 min-w-[44px] px-2 md:px-3 text-xs md:text-sm"
               >
-                <RefreshCw className="h-3 w-3 md:h-4 md:w-4 md:mr-2" />
+                <RefreshCw className="h-4 w-4 md:mr-2" />
                 <span className="hidden md:inline">Update</span>
               </Button>
               <Button 
@@ -2660,41 +2662,42 @@ export default function Report() {
                 onClick={handleShareDashboard}
                 disabled={!data || status !== "complete"}
                 data-testid="button-share"
-                className="h-8 md:h-9 px-2 md:px-3 text-xs md:text-sm"
+                className="h-10 md:h-9 min-w-[44px] px-2 md:px-3 text-xs md:text-sm"
               >
-                <Share2 className="h-3 w-3 md:h-4 md:w-4 md:mr-2" />
+                <Share2 className="h-4 w-4 md:mr-2" />
                 <span className="hidden sm:inline">Share</span>
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button size="sm" data-testid="button-export" className="h-8 md:h-9 px-2 md:px-3 text-xs md:text-sm">
-                    <Download className="h-3 w-3 md:h-4 md:w-4 md:mr-2" />
+                  <Button size="sm" data-testid="button-export" className="h-10 md:h-9 min-w-[44px] px-2 md:px-3 text-xs md:text-sm">
+                    <Download className="h-4 w-4 md:mr-2" />
                     <span className="hidden sm:inline">Export</span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => handleDownload("PDF")} data-testid="menu-pdf">
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem onClick={() => handleDownload("PDF")} data-testid="menu-pdf" className="min-h-[44px] text-sm">
                     <FileText className="mr-2 h-4 w-4" /> Download PDF
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleDownload("Excel")} data-testid="menu-excel">
+                  <DropdownMenuItem onClick={() => handleDownload("Excel")} data-testid="menu-excel" className="min-h-[44px] text-sm">
                     <FileSpreadsheet className="mr-2 h-4 w-4" /> Download Excel
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleDownload("Word")} data-testid="menu-word">
+                  <DropdownMenuItem onClick={() => handleDownload("Word")} data-testid="menu-word" className="min-h-[44px] text-sm">
                     <FileType className="mr-2 h-4 w-4" /> Download Word
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleDownload("Markdown")} data-testid="menu-md">
+                  <DropdownMenuItem onClick={() => handleDownload("Markdown")} data-testid="menu-md" className="min-h-[44px] text-sm">
                     <FileText className="mr-2 h-4 w-4" /> Download Markdown
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleDownload("JSON")} data-testid="menu-json">
+                  <DropdownMenuItem onClick={() => handleDownload("JSON")} data-testid="menu-json" className="min-h-[44px] text-sm">
                     <FileText className="mr-2 h-4 w-4" /> Download JSON
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleShareHTML} data-testid="menu-share-html">
+                  <DropdownMenuItem onClick={handleShareHTML} data-testid="menu-share-html" className="min-h-[44px] text-sm">
                     <Share2 className="mr-2 h-4 w-4" /> Share HTML Report
                   </DropdownMenuItem>
                   <DropdownMenuItem 
                     onClick={handleShareDashboard} 
                     data-testid="menu-view-dashboard"
                     disabled={!data}
+                    className="min-h-[44px] text-sm"
                   >
                     <LayoutDashboard className="mr-2 h-4 w-4" /> Share Dashboard
                   </DropdownMenuItem>
@@ -2769,6 +2772,79 @@ export default function Report() {
                 </div>
               </div>
             </aside>
+
+            {/* Mobile Navigation Sheet */}
+            <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+              <SheetContent side="left" className="w-[280px] p-0 lg:hidden">
+                <SheetHeader className="p-4 border-b">
+                  <SheetTitle className="text-left">Navigation</SheetTitle>
+                </SheetHeader>
+                <ScrollArea className="h-[calc(100vh-80px)]">
+                  <div className="p-4">
+                    <nav className="space-y-1">
+                      {navigationSections.map((section) => {
+                        const Icon = section.icon;
+                        const isActive = activeSection === section.id;
+                        return (
+                          <button
+                            key={section.id}
+                            onClick={() => {
+                              scrollToSection(section.id);
+                              setMobileNavOpen(false);
+                            }}
+                            className={`w-full flex items-center gap-3 px-3 py-3 text-sm rounded-md transition-colors min-h-[44px] ${
+                              isActive 
+                                ? 'bg-primary/10 text-primary font-medium' 
+                                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                            }`}
+                            data-testid={`mobile-nav-${section.id}`}
+                          >
+                            <Icon className="h-5 w-5 flex-shrink-0" />
+                            <span>{section.label}</span>
+                          </button>
+                        );
+                      })}
+                    </nav>
+                    
+                    <div className="mt-6 pt-4 border-t space-y-2">
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start min-h-[44px]"
+                        onClick={() => {
+                          setMobileNavOpen(false);
+                          setAssumptionDrawerOpen(true);
+                        }}
+                      >
+                        <Sliders className="h-4 w-4 mr-2" />
+                        Edit Assumptions
+                      </Button>
+                      {reportId && (
+                        <Link href={`/whatif/${reportId}`}>
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start min-h-[44px]"
+                            onClick={() => setMobileNavOpen(false)}
+                          >
+                            <BarChart3 className="h-4 w-4 mr-2" />
+                            What-If Analysis
+                          </Button>
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                </ScrollArea>
+              </SheetContent>
+            </Sheet>
+
+            {/* Mobile Floating Navigation Button */}
+            <button
+              onClick={() => setMobileNavOpen(true)}
+              className="lg:hidden fixed bottom-4 left-4 z-50 h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 transition-colors"
+              aria-label="Open navigation menu"
+              data-testid="button-mobile-nav"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
 
             {/* Main Content */}
             <div className="flex-1 p-3 md:p-6">
@@ -3167,19 +3243,19 @@ function StepCard({ step }: { step: any }) {
 
   return (
     <Card data-testid={`card-step-${step.step}`}>
-      <CardHeader className="pb-2 md:pb-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+      <CardHeader className="p-3 pb-2 md:p-6 md:pb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-1 md:mb-2">
           <div className="flex items-center gap-2 md:gap-3">
             <div className="h-6 w-6 md:h-8 md:w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs md:text-sm border border-primary/20 flex-shrink-0">
               {step.step}
             </div>
-            <CardTitle className="text-base md:text-xl leading-tight flex items-center gap-2">
+            <CardTitle className="text-sm md:text-xl leading-tight flex items-center gap-1.5 md:gap-2">
               {step.title}
               {stepInfo && (
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger>
-                      <Info className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors cursor-help" />
+                      <Info className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground hover:text-foreground transition-colors cursor-help" />
                     </TooltipTrigger>
                     <TooltipContent className="max-w-sm">
                       <p className="text-xs font-normal">{stepInfo.description}</p>
@@ -3192,11 +3268,11 @@ function StepCard({ step }: { step: any }) {
           <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
             {isExpandableStep && hasData && (
               <div className="flex gap-0.5 md:gap-1">
-                <Button variant="ghost" size="sm" onClick={expandAll} className="text-[10px] md:text-xs h-7 md:h-8 px-1.5 md:px-2">
+                <Button variant="ghost" size="sm" onClick={expandAll} className="text-[10px] md:text-xs h-8 md:h-8 min-w-[44px] md:min-w-0 px-2 md:px-2">
                   <span className="hidden sm:inline">Expand All</span>
                   <span className="sm:hidden">+</span>
                 </Button>
-                <Button variant="ghost" size="sm" onClick={collapseAll} className="text-[10px] md:text-xs h-7 md:h-8 px-1.5 md:px-2">
+                <Button variant="ghost" size="sm" onClick={collapseAll} className="text-[10px] md:text-xs h-8 md:h-8 min-w-[44px] md:min-w-0 px-2 md:px-2">
                   <span className="hidden sm:inline">Collapse All</span>
                   <span className="sm:hidden">-</span>
                 </Button>
@@ -3206,7 +3282,7 @@ function StepCard({ step }: { step: any }) {
           </div>
         </div>
       </CardHeader>
-      <CardContent className="pt-0 md:pt-0">
+      <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
         {step.content && (
           <div className="prose prose-sm max-w-none mb-4 md:mb-6 text-muted-foreground">
             <p className="text-xs md:text-sm">{sanitizeForProse(step.content)}</p>
@@ -3219,11 +3295,11 @@ function StepCard({ step }: { step: any }) {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/50">
-                    <TableHead className="w-8"></TableHead>
+                    <TableHead className="w-6 md:w-8 px-1 md:px-2"></TableHead>
                     {Object.keys(step.data[0]).filter((k: string) => 
                       !k.includes('Formula') && k !== 'Benefit Formula'
                     ).map((key: string, i: number) => (
-                      <TableHead key={i} className="font-semibold text-primary whitespace-nowrap">{key}</TableHead>
+                      <TableHead key={i} className="font-semibold text-primary whitespace-nowrap text-xs md:text-sm px-2 md:px-4 py-2 md:py-3">{key}</TableHead>
                     ))}
                   </TableRow>
                 </TableHeader>
@@ -3238,19 +3314,19 @@ function StepCard({ step }: { step: any }) {
                           className="hover:bg-muted/20 transition-colors cursor-pointer"
                           onClick={() => toggleRow(i)}
                         >
-                          <TableCell className="w-8 p-2">
+                          <TableCell className="w-6 md:w-8 p-1 md:p-2">
                             <div className="flex items-center justify-center">
                               {isExpanded ? (
-                                <ChevronDown className="h-4 w-4 text-primary" />
+                                <ChevronDown className="h-3.5 w-3.5 md:h-4 md:w-4 text-primary" />
                               ) : (
-                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                <ChevronRight className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground" />
                               )}
                             </div>
                           </TableCell>
                           {Object.entries(row).filter(([key]) => 
                             !key.includes('Formula') && key !== 'Benefit Formula'
                           ).map(([key, value]: [string, any], j: number) => (
-                            <TableCell key={j} className={j === 0 ? "font-medium" : ""}>
+                            <TableCell key={j} className={`text-xs md:text-sm px-2 md:px-4 py-1.5 md:py-2 ${j === 0 ? "font-medium" : ""}`}>
                               {renderCellValue(key, value)}
                             </TableCell>
                           ))}
@@ -3398,11 +3474,11 @@ function StepCard({ step }: { step: any }) {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/50">
-                    <TableHead className="w-8"></TableHead>
+                    <TableHead className="w-6 md:w-8 px-1 md:px-2"></TableHead>
                     {Object.keys(step.data[0]).filter((k: string) => 
                       !k.includes('Formula') && k !== 'Annual Hours' && k !== 'Hourly Rate'
                     ).map((key: string, i: number) => (
-                      <TableHead key={i} className="font-semibold text-primary whitespace-nowrap">{key}</TableHead>
+                      <TableHead key={i} className="font-semibold text-primary whitespace-nowrap text-xs md:text-sm px-2 md:px-4 py-2 md:py-3">{key}</TableHead>
                     ))}
                   </TableRow>
                 </TableHeader>
@@ -3418,21 +3494,21 @@ function StepCard({ step }: { step: any }) {
                           className="hover:bg-muted/20 transition-colors cursor-pointer"
                           onClick={() => toggleRow(i)}
                         >
-                          <TableCell className="w-8 p-2">
+                          <TableCell className="w-6 md:w-8 p-1 md:p-2">
                             <div className="flex items-center justify-center">
                               {isExpanded ? (
-                                <ChevronDown className="h-4 w-4 text-primary" />
+                                <ChevronDown className="h-3.5 w-3.5 md:h-4 md:w-4 text-primary" />
                               ) : (
-                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                <ChevronRight className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground" />
                               )}
                             </div>
                           </TableCell>
                           {Object.entries(row).filter(([key]) => 
                             !key.includes('Formula') && key !== 'Annual Hours' && key !== 'Hourly Rate'
                           ).map(([key, value]: [string, any], j: number) => (
-                            <TableCell key={j} className={j === 0 ? "font-medium" : ""}>
+                            <TableCell key={j} className={`text-xs md:text-sm px-2 md:px-4 py-1.5 md:py-2 ${j === 0 ? "font-medium" : ""}`}>
                               {key === 'Severity' ? (
-                                <Badge className={`${severityColors.bg} ${severityColors.text} ${severityColors.border} border`}>
+                                <Badge className={`${severityColors.bg} ${severityColors.text} ${severityColors.border} border text-[10px] md:text-xs`}>
                                   {value || 'Low'}
                                 </Badge>
                               ) : (
@@ -3500,7 +3576,7 @@ function StepCard({ step }: { step: any }) {
                 <TableHeader>
                   <TableRow className="bg-muted/50">
                     {Object.keys(step.data[0]).map((key: string, i: number) => (
-                      <TableHead key={i} className="font-semibold text-primary whitespace-nowrap">{key}</TableHead>
+                      <TableHead key={i} className="font-semibold text-primary whitespace-nowrap text-xs md:text-sm px-2 md:px-4 py-2 md:py-3">{key}</TableHead>
                     ))}
                   </TableRow>
                 </TableHeader>
@@ -3510,7 +3586,7 @@ function StepCard({ step }: { step: any }) {
                       {Object.entries(row).map(([key, value]: [string, any], j: number) => (
                         <TableCell 
                           key={j} 
-                          className={`${j === 0 ? "font-medium" : ""} ${key.toLowerCase() === "description" ? "min-w-[300px] max-w-[400px] whitespace-normal" : ""}`}
+                          className={`text-xs md:text-sm px-2 md:px-4 py-1.5 md:py-2 ${j === 0 ? "font-medium" : ""} ${key.toLowerCase() === "description" ? "min-w-[200px] md:min-w-[300px] max-w-[300px] md:max-w-[400px] whitespace-normal" : ""}`}
                         >
                           {renderCellValue(key, value)}
                         </TableCell>

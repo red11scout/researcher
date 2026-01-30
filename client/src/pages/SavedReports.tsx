@@ -238,46 +238,46 @@ export default function SavedReports() {
                         Updated: {formatDate(report.updatedAt)}
                       </span>
                     </div>
-                    <div className="flex items-center gap-2 pt-2 border-t">
-                      <Link href={`/whatif/${report.id}`} className="flex-1">
-                        <Button variant="outline" size="sm" className="w-full gap-1 text-xs h-8 border-primary text-primary hover:bg-primary/10" data-testid={`button-whatif-mobile-${report.id}`}>
-                          <Zap className="h-3 w-3" />
-                          What-If
+                    <div className="flex flex-col gap-2 pt-3 border-t">
+                      <Link href={`/report?company=${encodeURIComponent(report.companyName)}`} className="w-full">
+                        <Button variant="default" className="w-full gap-2 min-h-[44px]" data-testid={`button-view-mobile-${report.id}`}>
+                          <FileText className="h-4 w-4" />
+                          View Report
                         </Button>
                       </Link>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => handleRegenerate(report)}
-                        disabled={regeneratingId === report.id}
-                        className="flex-1 gap-1 text-xs h-8"
-                        data-testid={`button-update-mobile-${report.id}`}
-                      >
-                        {regeneratingId === report.id ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : (
-                          <RefreshCw className="h-3 w-3" />
-                        )}
-                        Update
-                      </Button>
-                      <Link href={`/report?company=${encodeURIComponent(report.companyName)}`} className="flex-1">
-                        <Button variant="default" size="sm" className="w-full gap-1 text-xs h-8" data-testid={`button-view-mobile-${report.id}`}>
-                          <FileText className="h-3 w-3" />
-                          View
+                      <Link href={`/whatif/${report.id}`} className="w-full">
+                        <Button variant="outline" className="w-full gap-2 min-h-[44px] border-primary text-primary hover:bg-primary/10" data-testid={`button-whatif-mobile-${report.id}`}>
+                          <Zap className="h-4 w-4" />
+                          What-If Analysis
                         </Button>
                       </Link>
-                      <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10 flex-shrink-0"
-                        onClick={() => {
-                          setReportToDelete(report);
-                          setDeleteDialogOpen(true);
-                        }}
-                        data-testid={`button-delete-mobile-${report.id}`}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex gap-2">
+                        <Button 
+                          variant="outline" 
+                          onClick={() => handleRegenerate(report)}
+                          disabled={regeneratingId === report.id}
+                          className="flex-1 gap-2 min-h-[44px]"
+                          data-testid={`button-update-mobile-${report.id}`}
+                        >
+                          {regeneratingId === report.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <RefreshCw className="h-4 w-4" />
+                          )}
+                          Update
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          className="min-h-[44px] min-w-[44px] text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/30"
+                          onClick={() => {
+                            setReportToDelete(report);
+                            setDeleteDialogOpen(true);
+                          }}
+                          data-testid={`button-delete-mobile-${report.id}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
