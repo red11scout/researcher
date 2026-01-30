@@ -48,10 +48,10 @@ export function evaluateWithHyperFormula(inputs: NamedInputMap, formulas: Record
     outIdx += 1;
   });
 
-  // Read outputs
-  Object.keys(formulas).forEach((outKey) => {
-    const value = hf.getNamedExpressionValue(outKey);
-    outputs[outKey] = typeof value === 'number' ? value : Number(value);
+  // Read outputs from cells directly since named expressions may have scope issues
+  Object.entries(formulas).forEach(([outKey, _formula], idx) => {
+    const cellValue = hf.getCellValue({ sheet: sheetId, col: 1, row: idx });
+    outputs[outKey] = typeof cellValue === 'number' ? cellValue : (parseFloat(String(cellValue)) || 0);
   });
 
   return {

@@ -1,6 +1,7 @@
 // src/calc/formulas.ts
 // Deterministic Formula Registry for BlueAlly AI Calculations
 // All monetary outputs must store a trace: formula + resolved inputs + intermediate steps
+// SPEC COMPLIANT: Follows Section 3.2 and 3.3 of build prompt
 
 export interface FormulaInput {
   [key: string]: number;
@@ -18,150 +19,179 @@ export interface CalculationResult {
   trace: FormulaTrace;
 }
 
-// Global default multipliers
+// Global default multipliers (Section 3.3 Required Assumptions)
 export const DEFAULT_MULTIPLIERS = {
-  costRealization: 0.90,
-  revenueRealization: 0.95,
-  cashFlowRealization: 0.85,
-  riskRealization: 0.80,
-  dataMaturity: 0.75,
-  probabilityOfSuccess: 0.85,
+  // Section 3.3 - Required global assumptions
   loadedHourlyRate: 150,
+  efficiencyMultiplier: 0.85,      // Efficiency factor (0-1)
+  adoptionMultiplier: 0.70,         // Expected adoption rate (0-1)
+  dataMaturityMultiplier: 0.75,     // Data maturity factor (0-1)
+  
+  // Realization multipliers (probability-weighted adjustments)
+  costRealizationMultiplier: 0.90,
+  revenueRealizationMultiplier: 0.95,
+  cashFlowRealizationMultiplier: 0.85,
+  riskRealizationMultiplier: 0.80,
+  
+  // Token pricing (Claude 3.5 Sonnet defaults)
   inputTokenPricePerM: 3.00,
   outputTokenPricePerM: 15.00,
+  
+  // Optional probability of success per use case
+  probabilityOfSuccess: 1.0,
 };
 
 /**
- * Cost Benefit Calculation
- * Formula: CostBenefit = HoursSaved × LoadedRate × CostRealization × DataMaturity
+ * Cost Benefit Calculation (Section 3.2)
+ * SPEC FORMULA: CostBenefit = HoursSaved × LoadedRate × Efficiency × Adoption × DataMaturity
+ * 
+ * @param hoursSaved - Annual hours saved by automation
+ * @param loadedHourlyRate - Fully burdened hourly cost (wages + benefits + overhead)
+ * @param efficiencyMultiplier - Efficiency gain factor (0-1)
+ * @param adoptionMultiplier - Expected user adoption rate (0-1)
+ * @param dataMaturityMultiplier - Data readiness factor (0-1)
  */
 export function calculateCostBenefit(inputs: {
   hoursSaved: number;
   loadedHourlyRate: number;
-  costRealization?: number;
-  dataMaturity?: number;
+  efficiencyMultiplier?: number;
+  adoptionMultiplier?: number;
+  dataMaturityMultiplier?: number;
 }): CalculationResult {
   const {
     hoursSaved,
     loadedHourlyRate,
-    costRealization = DEFAULT_MULTIPLIERS.costRealization,
-    dataMaturity = DEFAULT_MULTIPLIERS.dataMaturity,
+    efficiencyMultiplier = DEFAULT_MULTIPLIERS.efficiencyMultiplier,
+    adoptionMultiplier = DEFAULT_MULTIPLIERS.adoptionMultiplier,
+    dataMaturityMultiplier = DEFAULT_MULTIPLIERS.dataMaturityMultiplier,
   } = inputs;
 
-  const value = hoursSaved * loadedHourlyRate * costRealization * dataMaturity;
+  const rawValue = hoursSaved * loadedHourlyRate * efficiencyMultiplier * adoptionMultiplier * dataMaturityMultiplier;
+  const roundedValue = Math.floor(rawValue / 100000) * 100000; // Round DOWN to nearest $100K
   
   return {
-    value: Math.floor(value / 100000) * 100000, // Round DOWN to nearest $100K
+    value: roundedValue,
     trace: {
-      formula: 'HoursSaved × LoadedHourlyRate × CostRealization × DataMaturity',
-      inputs: { hoursSaved, loadedHourlyRate, costRealization, dataMaturity },
-      output: value,
+      formula: 'HoursSaved × LoadedRate × Efficiency × Adoption × DataMaturity',
+      inputs: { hoursSaved, loadedHourlyRate, efficiencyMultiplier, adoptionMultiplier, dataMaturityMultiplier },
+      intermediates: { rawValue },
+      output: rawValue,
     },
   };
 }
 
 /**
- * Revenue Benefit Calculation
- * Formula: RevenueBenefit = UpliftPct × BaselineRevenue × MarginPct × RevenueRealization × DataMaturity
+ * Revenue Benefit Calculation (Section 3.2)
+ * SPEC FORMULA: RevenueBenefit = UpliftPct × BaselineRevenueAtRisk × MarginPct × Realization × DataMaturity
+ * 
+ * Examples of BaselineRevenueAtRisk:
+ * - Churn-at-risk revenue
+ * - Pipeline value
+ * - Opportunity cost/day × days reduced
  */
 export function calculateRevenueBenefit(inputs: {
   upliftPct: number;
-  baselineRevenue: number;
+  baselineRevenueAtRisk: number;
   marginPct?: number;
-  revenueRealization?: number;
-  dataMaturity?: number;
+  revenueRealizationMultiplier?: number;
+  dataMaturityMultiplier?: number;
 }): CalculationResult {
   const {
     upliftPct,
-    baselineRevenue,
+    baselineRevenueAtRisk,
     marginPct = 1.0,
-    revenueRealization = DEFAULT_MULTIPLIERS.revenueRealization,
-    dataMaturity = DEFAULT_MULTIPLIERS.dataMaturity,
+    revenueRealizationMultiplier = DEFAULT_MULTIPLIERS.revenueRealizationMultiplier,
+    dataMaturityMultiplier = DEFAULT_MULTIPLIERS.dataMaturityMultiplier,
   } = inputs;
 
-  const value = upliftPct * baselineRevenue * marginPct * revenueRealization * dataMaturity;
+  const rawValue = upliftPct * baselineRevenueAtRisk * marginPct * revenueRealizationMultiplier * dataMaturityMultiplier;
+  const roundedValue = Math.floor(rawValue / 100000) * 100000;
   
   return {
-    value: Math.floor(value / 100000) * 100000,
+    value: roundedValue,
     trace: {
-      formula: 'UpliftPct × BaselineRevenue × MarginPct × RevenueRealization × DataMaturity',
-      inputs: { upliftPct, baselineRevenue, marginPct, revenueRealization, dataMaturity },
-      output: value,
+      formula: 'UpliftPct × BaselineRevenueAtRisk × MarginPct × Realization × DataMaturity',
+      inputs: { upliftPct, baselineRevenueAtRisk, marginPct, revenueRealizationMultiplier, dataMaturityMultiplier },
+      intermediates: { rawValue },
+      output: rawValue,
     },
   };
 }
 
 /**
- * Cash Flow Benefit Calculation
- * Formula: CashFlowBenefit = DaysImprovement × DailyRevenue × WorkingCapitalPct × CashFlowRealization × DataMaturity
+ * Cash Flow Benefit Calculation (Section 3.2)
+ * SPEC FORMULA: CashFlowBenefit = DaysImprovement × DailyRevenue × WorkingCapitalPct × Realization × DataMaturity
  */
 export function calculateCashFlowBenefit(inputs: {
   daysImprovement: number;
   dailyRevenue: number;
   workingCapitalPct?: number;
-  cashFlowRealization?: number;
-  dataMaturity?: number;
+  cashFlowRealizationMultiplier?: number;
+  dataMaturityMultiplier?: number;
 }): CalculationResult {
   const {
     daysImprovement,
     dailyRevenue,
     workingCapitalPct = 1.0,
-    cashFlowRealization = DEFAULT_MULTIPLIERS.cashFlowRealization,
-    dataMaturity = DEFAULT_MULTIPLIERS.dataMaturity,
+    cashFlowRealizationMultiplier = DEFAULT_MULTIPLIERS.cashFlowRealizationMultiplier,
+    dataMaturityMultiplier = DEFAULT_MULTIPLIERS.dataMaturityMultiplier,
   } = inputs;
 
-  const value = daysImprovement * dailyRevenue * workingCapitalPct * cashFlowRealization * dataMaturity;
+  const rawValue = daysImprovement * dailyRevenue * workingCapitalPct * cashFlowRealizationMultiplier * dataMaturityMultiplier;
+  const roundedValue = Math.floor(rawValue / 100000) * 100000;
   
   return {
-    value: Math.floor(value / 100000) * 100000,
+    value: roundedValue,
     trace: {
-      formula: 'DaysImprovement × DailyRevenue × WorkingCapitalPct × CashFlowRealization × DataMaturity',
-      inputs: { daysImprovement, dailyRevenue, workingCapitalPct, cashFlowRealization, dataMaturity },
-      output: value,
+      formula: 'DaysImprovement × DailyRevenue × WorkingCapitalPct × Realization × DataMaturity',
+      inputs: { daysImprovement, dailyRevenue, workingCapitalPct, cashFlowRealizationMultiplier, dataMaturityMultiplier },
+      intermediates: { rawValue },
+      output: rawValue,
     },
   };
 }
 
 /**
- * Risk Benefit Calculation
- * Formula: RiskBenefit = (ProbBefore × ImpactBefore - ProbAfter × ImpactAfter) × RiskRealization × DataMaturity
+ * Risk Benefit Calculation (Section 3.2)
+ * SPEC FORMULA: RiskBenefit = (ProbBefore × ImpactBefore - ProbAfter × ImpactAfter) × Realization × DataMaturity
  */
 export function calculateRiskBenefit(inputs: {
   probBefore: number;
   impactBefore: number;
   probAfter: number;
   impactAfter: number;
-  riskRealization?: number;
-  dataMaturity?: number;
+  riskRealizationMultiplier?: number;
+  dataMaturityMultiplier?: number;
 }): CalculationResult {
   const {
     probBefore,
     impactBefore,
     probAfter,
     impactAfter,
-    riskRealization = DEFAULT_MULTIPLIERS.riskRealization,
-    dataMaturity = DEFAULT_MULTIPLIERS.dataMaturity,
+    riskRealizationMultiplier = DEFAULT_MULTIPLIERS.riskRealizationMultiplier,
+    dataMaturityMultiplier = DEFAULT_MULTIPLIERS.dataMaturityMultiplier,
   } = inputs;
 
   const riskBefore = probBefore * impactBefore;
   const riskAfter = probAfter * impactAfter;
   const riskReduction = riskBefore - riskAfter;
-  const value = riskReduction * riskRealization * dataMaturity;
+  const rawValue = riskReduction * riskRealizationMultiplier * dataMaturityMultiplier;
+  const roundedValue = Math.floor(rawValue / 100000) * 100000;
   
   return {
-    value: Math.floor(value / 100000) * 100000,
+    value: roundedValue,
     trace: {
-      formula: '(ProbBefore × ImpactBefore - ProbAfter × ImpactAfter) × RiskRealization × DataMaturity',
-      inputs: { probBefore, impactBefore, probAfter, impactAfter, riskRealization, dataMaturity },
-      intermediates: { riskBefore, riskAfter, riskReduction },
-      output: value,
+      formula: '(ProbBefore × ImpactBefore - ProbAfter × ImpactAfter) × Realization × DataMaturity',
+      inputs: { probBefore, impactBefore, probAfter, impactAfter, riskRealizationMultiplier, dataMaturityMultiplier },
+      intermediates: { riskBefore, riskAfter, riskReduction, rawValue },
+      output: rawValue,
     },
   };
 }
 
 /**
- * Token Cost Calculation
- * Formula: AnnualTokenCost = 12 × ((MonthlyInputTokens/1e6 × InputPrice) + (MonthlyOutputTokens/1e6 × OutputPrice))
+ * Token Cost Calculation (Section 3.2)
+ * SPEC FORMULA: AnnualTokenCost = 12 × ((MonthlyInputTokens/1e6 × InputPrice) + (MonthlyOutputTokens/1e6 × OutputPrice))
  */
 export function calculateTokenCost(inputs: {
   runsPerMonth: number;
@@ -197,8 +227,8 @@ export function calculateTokenCost(inputs: {
 }
 
 /**
- * Total Annual Value Calculation
- * Formula: TotalAnnualValue = (CostBenefit + RevenueBenefit + CashFlowBenefit + RiskBenefit) × ProbabilityOfSuccess
+ * Total Annual Value Calculation (Section 3.2)
+ * SPEC FORMULA: TotalAnnualValue = (CostBenefit + RevenueBenefit + CashFlowBenefit + RiskBenefit) × ProbabilityOfSuccess
  */
 export function calculateTotalAnnualValue(inputs: {
   costBenefit: number;
@@ -216,22 +246,23 @@ export function calculateTotalAnnualValue(inputs: {
   } = inputs;
 
   const sumBenefits = costBenefit + revenueBenefit + cashFlowBenefit + riskBenefit;
-  const value = sumBenefits * probabilityOfSuccess;
+  const rawValue = sumBenefits * probabilityOfSuccess;
+  const roundedValue = Math.floor(rawValue / 100000) * 100000;
   
   return {
-    value: Math.floor(value / 100000) * 100000,
+    value: roundedValue,
     trace: {
       formula: '(CostBenefit + RevenueBenefit + CashFlowBenefit + RiskBenefit) × ProbabilityOfSuccess',
       inputs: { costBenefit, revenueBenefit, cashFlowBenefit, riskBenefit, probabilityOfSuccess },
-      intermediates: { sumBenefits },
-      output: value,
+      intermediates: { sumBenefits, rawValue },
+      output: rawValue,
     },
   };
 }
 
 /**
  * Value per Million Tokens
- * Formula: ValuePerMillionTokens = TotalAnnualValue / (TotalMonthlyTokens / 1M)
+ * SPEC FORMULA: ValuePerMillionTokens = TotalAnnualValue / (TotalMonthlyTokens / 1M)
  */
 export function calculateValuePerMillionTokens(inputs: {
   totalAnnualValue: number;
@@ -254,18 +285,33 @@ export function calculateValuePerMillionTokens(inputs: {
 }
 
 /**
- * Priority Score Calculation
- * ValueScore (0-40): Linear scale where >= $9M = 40
- * TTVScore (0-30): 3 months = 30, 12 months = 5 (piecewise)
- * EffortScore (0-30): Inverse of complexity
- * PriorityScore = 0.4 × ValueScore + 0.3 × TTVScore + 0.3 × EffortScore
+ * Priority Score Calculation (Section 3.2)
+ * 
+ * SCORING COMPONENTS (all normalized to 0-100):
+ * - ValueScore: Linear scale where $10M+ = 100
+ * - TTVScore: 3 months = 100, 12+ months = 0 (linear interpolation)
+ * - EffortScore: Based on data readiness (higher = easier), integration complexity (lower = easier), change mgmt (lower = easier)
+ * 
+ * FINAL FORMULA: PriorityScore = 0.4 × ValueScore + 0.3 × TTVScore + 0.3 × EffortScore
+ * Result range: 0-100
+ * 
+ * TIER THRESHOLDS:
+ * - Critical: >= 80
+ * - High: >= 60
+ * - Medium: >= 40
+ * - Low: < 40
+ * 
+ * INPUT DIRECTIONS:
+ * - dataReadiness: 1-5 where 5 = HIGH readiness = EASY (better)
+ * - integrationComplexity: 1-5 where 5 = HIGH complexity = HARD (worse)
+ * - changeMgmt: 1-5 where 5 = HIGH change management = HARD (worse)
  */
 export function calculatePriorityScore(inputs: {
   totalAnnualValue: number;
   timeToValueMonths: number;
-  dataReadiness: number; // 1-5
-  integrationComplexity: number; // 1-5
-  changeMgmt: number; // 1-5
+  dataReadiness: number; // 1-5, where 5 = easy/ready
+  integrationComplexity: number; // 1-5, where 5 = hard
+  changeMgmt: number; // 1-5, where 5 = hard
 }): CalculationResult & { 
   valueScore: number; 
   ttvScore: number; 
@@ -273,24 +319,31 @@ export function calculatePriorityScore(inputs: {
 } {
   const { totalAnnualValue, timeToValueMonths, dataReadiness, integrationComplexity, changeMgmt } = inputs;
 
-  // Value Score (0-40): $9M+ = 40, linear scale below
-  const valueScore = Math.min(40, Math.round((totalAnnualValue / 9_000_000) * 40));
+  // Value Score (0-100): $10M+ = 100, linear scale below
+  const valueScore = Math.min(100, Math.round((totalAnnualValue / 10_000_000) * 100));
   
-  // TTV Score (0-30): 3 months = 30, 12 months = 5, linear interpolation
+  // TTV Score (0-100): 3 months = 100, 12+ months = 0, linear interpolation
   let ttvScore: number;
   if (timeToValueMonths <= 3) {
-    ttvScore = 30;
+    ttvScore = 100;
   } else if (timeToValueMonths >= 12) {
-    ttvScore = 5;
+    ttvScore = 0;
   } else {
-    ttvScore = Math.round(30 - ((timeToValueMonths - 3) / 9) * 25);
+    // Linear interpolation: score decreases by 100/9 per month from month 3 to 12
+    ttvScore = Math.round(100 - ((timeToValueMonths - 3) / 9) * 100);
   }
   
-  // Effort Score (0-30): Average of (6 - complexity) factors, scaled to 30
-  const avgComplexity = (dataReadiness + integrationComplexity + changeMgmt) / 3;
-  const effortScore = Math.round(((6 - avgComplexity) / 5) * 30);
+  // Effort Score (0-100): Lower effort = higher score
+  // Convert factors to "ease" scores (0-100 each):
+  // - dataReadiness: 5 = easy, so easeFromData = (dataReadiness - 1) / 4 * 100
+  // - integrationComplexity: 1 = easy (low complexity), so easeFromIntegration = (5 - integrationComplexity) / 4 * 100
+  // - changeMgmt: 1 = easy (low change), so easeFromChange = (5 - changeMgmt) / 4 * 100
+  const easeFromData = ((dataReadiness - 1) / 4) * 100;
+  const easeFromIntegration = ((5 - integrationComplexity) / 4) * 100;
+  const easeFromChange = ((5 - changeMgmt) / 4) * 100;
+  const effortScore = Math.round((easeFromData + easeFromIntegration + easeFromChange) / 3);
   
-  // Priority Score
+  // Priority Score: weighted average, result is 0-100
   const priorityScore = Math.round(0.4 * valueScore + 0.3 * ttvScore + 0.3 * effortScore);
   
   return {
@@ -301,14 +354,21 @@ export function calculatePriorityScore(inputs: {
     trace: {
       formula: '0.4 × ValueScore + 0.3 × TTVScore + 0.3 × EffortScore',
       inputs: { totalAnnualValue, timeToValueMonths, dataReadiness, integrationComplexity, changeMgmt },
-      intermediates: { valueScore, ttvScore, effortScore, avgComplexity },
+      intermediates: { 
+        valueScore, 
+        ttvScore, 
+        effortScore, 
+        easeFromData, 
+        easeFromIntegration, 
+        easeFromChange 
+      },
       output: priorityScore,
     },
   };
 }
 
 /**
- * Priority Tier Assignment
+ * Priority Tier Assignment (matches 0-100 scale)
  */
 export function getPriorityTier(priorityScore: number): 'Critical' | 'High' | 'Medium' | 'Low' {
   if (priorityScore >= 80) return 'Critical';
@@ -344,4 +404,14 @@ export function formatMoney(value: number): string {
 // Percentage formatter utility
 export function formatPercentage(value: number, decimals: number = 0): string {
   return `${(value * 100).toFixed(decimals)}%`;
+}
+
+// Round timeline UP to nearest month
+export function roundTimelineUp(months: number): number {
+  return Math.ceil(months);
+}
+
+// Round benefits DOWN to nearest $100K
+export function roundBenefitDown(value: number): number {
+  return Math.floor(value / 100000) * 100000;
 }

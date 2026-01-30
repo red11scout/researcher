@@ -2302,71 +2302,74 @@ Return ONLY valid JSON with this structure:
         return typeof val === "number" ? val : defaultVal;
       };
 
-      // Calculate benefits using the formula registry
+      // Calculate benefits using the formula registry (SPEC COMPLIANT: Section 3.2 & 3.3)
       const calculationResults: Record<string, any> = {};
       const traces: Record<string, any> = {};
 
-      // Calculate cost benefit
+      // SPEC 3.3: Required global assumptions
       const hoursSaved = getNum("hours_saved_annually", 10000);
       const loadedHourlyRate = getNum("loaded_hourly_rate", formulas.DEFAULT_MULTIPLIERS.loadedHourlyRate);
-      const costRealization = getNum("cost_realization", formulas.DEFAULT_MULTIPLIERS.costRealization);
-      const dataMaturity = getNum("data_maturity", formulas.DEFAULT_MULTIPLIERS.dataMaturity);
+      const efficiencyMultiplier = getNum("efficiency_multiplier", formulas.DEFAULT_MULTIPLIERS.efficiencyMultiplier);
+      const adoptionMultiplier = getNum("adoption_multiplier", formulas.DEFAULT_MULTIPLIERS.adoptionMultiplier);
+      const dataMaturityMultiplier = getNum("data_maturity", formulas.DEFAULT_MULTIPLIERS.dataMaturityMultiplier);
 
+      // SPEC 3.2: CostBenefit = HoursSaved × LoadedRate × Efficiency × Adoption × DataMaturity
       const costBenefitResult = formulas.calculateCostBenefit({
         hoursSaved,
         loadedHourlyRate,
-        costRealization,
-        dataMaturity,
+        efficiencyMultiplier,
+        adoptionMultiplier,
+        dataMaturityMultiplier,
       });
       calculationResults.costBenefit = costBenefitResult.value;
       traces.costBenefit = costBenefitResult.trace;
 
-      // Calculate revenue benefit
+      // SPEC 3.2: RevenueBenefit = UpliftPct × BaselineRevenueAtRisk × MarginPct × Realization × DataMaturity
       const upliftPct = getNum("revenue_uplift_pct", 0.05);
-      const baselineRevenue = getNum("annual_revenue", 100000000);
+      const baselineRevenueAtRisk = getNum("annual_revenue", 100000000);
       const marginPct = getNum("gross_margin_pct", 1.0);
-      const revenueRealization = getNum("revenue_realization", formulas.DEFAULT_MULTIPLIERS.revenueRealization);
+      const revenueRealizationMultiplier = getNum("revenue_realization", formulas.DEFAULT_MULTIPLIERS.revenueRealizationMultiplier);
 
       const revenueBenefitResult = formulas.calculateRevenueBenefit({
         upliftPct,
-        baselineRevenue,
+        baselineRevenueAtRisk,
         marginPct,
-        revenueRealization,
-        dataMaturity,
+        revenueRealizationMultiplier,
+        dataMaturityMultiplier,
       });
       calculationResults.revenueBenefit = revenueBenefitResult.value;
       traces.revenueBenefit = revenueBenefitResult.trace;
 
-      // Calculate cash flow benefit
+      // SPEC 3.2: CashFlowBenefit = DaysImprovement × DailyRevenue × WorkingCapitalPct × Realization × DataMaturity
       const daysImprovement = getNum("dso_improvement_days", 5);
-      const dailyRevenue = baselineRevenue / 365;
+      const dailyRevenue = baselineRevenueAtRisk / 365;
       const workingCapitalPct = getNum("working_capital_pct", 1.0);
-      const cashFlowRealization = getNum("cashflow_realization", formulas.DEFAULT_MULTIPLIERS.cashFlowRealization);
+      const cashFlowRealizationMultiplier = getNum("cashflow_realization", formulas.DEFAULT_MULTIPLIERS.cashFlowRealizationMultiplier);
 
       const cashFlowBenefitResult = formulas.calculateCashFlowBenefit({
         daysImprovement,
         dailyRevenue,
         workingCapitalPct,
-        cashFlowRealization,
-        dataMaturity,
+        cashFlowRealizationMultiplier,
+        dataMaturityMultiplier,
       });
       calculationResults.cashFlowBenefit = cashFlowBenefitResult.value;
       traces.cashFlowBenefit = cashFlowBenefitResult.trace;
 
-      // Calculate risk benefit
+      // SPEC 3.2: RiskBenefit = (ProbBefore × ImpactBefore - ProbAfter × ImpactAfter) × Realization × DataMaturity
       const probBefore = getNum("risk_prob_before", 0.15);
       const impactBefore = getNum("risk_impact_before", 5000000);
       const probAfter = getNum("risk_prob_after", 0.05);
       const impactAfter = getNum("risk_impact_after", 2000000);
-      const riskRealization = getNum("risk_realization", formulas.DEFAULT_MULTIPLIERS.riskRealization);
+      const riskRealizationMultiplier = getNum("risk_realization", formulas.DEFAULT_MULTIPLIERS.riskRealizationMultiplier);
 
       const riskBenefitResult = formulas.calculateRiskBenefit({
         probBefore,
         impactBefore,
         probAfter,
         impactAfter,
-        riskRealization,
-        dataMaturity,
+        riskRealizationMultiplier,
+        dataMaturityMultiplier,
       });
       calculationResults.riskBenefit = riskBenefitResult.value;
       traces.riskBenefit = riskBenefitResult.trace;
