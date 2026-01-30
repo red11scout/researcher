@@ -1,0 +1,73 @@
+openapi: 3.0.3
+info:
+  title: Researcher App v2 API
+  version: 0.1.0
+servers:
+  - url: http://localhost:3000
+paths:
+  /api/companies:
+    post:
+      summary: Create company
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string }
+                industry: { type: string }
+                description: { type: string }
+      responses:
+        '200':
+          description: Company created
+  /api/reports:
+    post:
+      summary: Create report for a company
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [companyId, title]
+              properties:
+                companyId: { type: string }
+                title: { type: string }
+      responses:
+        '200':
+          description: Report created
+  /api/reports/{id}:
+    get:
+      summary: Get report (hydrated)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Report payload
+  /api/reports/{id}/recalculate:
+    post:
+      summary: Re-run deterministic calculation engine
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Results recomputed
+  /api/reports/{id}/generate-narrative:
+    post:
+      summary: Generate narrative sections using LLM (placeholders only)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Narrative saved (validated no digits)
