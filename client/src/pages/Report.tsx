@@ -3153,6 +3153,17 @@ function StepCard({ step }: { step: any }) {
   };
 
   const isBenefitsStep = step.step === 5;
+  const isFrictionStep = step.step === 3;
+  const isExpandableStep = isBenefitsStep || isFrictionStep;
+
+  const getSeverityColor = (severity: string) => {
+    switch (severity?.toLowerCase()) {
+      case 'critical': return { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-300' };
+      case 'high': return { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-300' };
+      case 'medium': return { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-300' };
+      default: return { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-300' };
+    }
+  };
 
   return (
     <Card data-testid={`card-step-${step.step}`}>
@@ -3179,7 +3190,7 @@ function StepCard({ step }: { step: any }) {
             </CardTitle>
           </div>
           <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
-            {isBenefitsStep && hasData && (
+            {isExpandableStep && hasData && (
               <div className="flex gap-0.5 md:gap-1">
                 <Button variant="ghost" size="sm" onClick={expandAll} className="text-[10px] md:text-xs h-7 md:h-8 px-1.5 md:px-2">
                   <span className="hidden sm:inline">Expand All</span>
@@ -3367,6 +3378,107 @@ function StepCard({ step }: { step: any }) {
                                       <span className="bg-orange-100 px-1.5 py-0.5 rounded text-orange-800">{row['Risk Benefit ($)'] || '$0'}</span>
                                       <span className="text-muted-foreground">=</span>
                                       <span className="bg-primary/20 px-1.5 py-0.5 rounded text-primary font-bold">{row['Total Annual Value ($)'] || '$0'}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        ) : hasData && isFrictionStep ? (
+          <div className="rounded-md border overflow-hidden">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead className="w-8"></TableHead>
+                    {Object.keys(step.data[0]).filter((k: string) => 
+                      !k.includes('Formula') && k !== 'Annual Hours' && k !== 'Hourly Rate'
+                    ).map((key: string, i: number) => (
+                      <TableHead key={i} className="font-semibold text-primary whitespace-nowrap">{key}</TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {step.data.map((row: any, i: number) => {
+                    const isExpanded = expandedRows.has(i);
+                    const colCount = Object.keys(row).filter(k => !k.includes('Formula') && k !== 'Annual Hours' && k !== 'Hourly Rate').length + 1;
+                    const severityColors = getSeverityColor(row['Severity']);
+                    
+                    return (
+                      <React.Fragment key={i}>
+                        <TableRow 
+                          className="hover:bg-muted/20 transition-colors cursor-pointer"
+                          onClick={() => toggleRow(i)}
+                        >
+                          <TableCell className="w-8 p-2">
+                            <div className="flex items-center justify-center">
+                              {isExpanded ? (
+                                <ChevronDown className="h-4 w-4 text-primary" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                              )}
+                            </div>
+                          </TableCell>
+                          {Object.entries(row).filter(([key]) => 
+                            !key.includes('Formula') && key !== 'Annual Hours' && key !== 'Hourly Rate'
+                          ).map(([key, value]: [string, any], j: number) => (
+                            <TableCell key={j} className={j === 0 ? "font-medium" : ""}>
+                              {key === 'Severity' ? (
+                                <Badge className={`${severityColors.bg} ${severityColors.text} ${severityColors.border} border`}>
+                                  {value || 'Low'}
+                                </Badge>
+                              ) : (
+                                renderCellValue(key, value)
+                              )}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                        {isExpanded && (
+                          <TableRow className="bg-amber-50 border-l-4 border-l-amber-500">
+                            <TableCell colSpan={colCount} className="py-2 md:py-4">
+                              <div className="flex flex-col gap-2 md:gap-4 px-1 md:px-4">
+                                <div className="text-xs md:text-sm font-medium text-amber-700">Friction Cost Calculation:</div>
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                                  <div className="p-3 md:p-4 bg-white rounded-lg border border-amber-200">
+                                    <div className="flex items-center justify-between mb-2 md:mb-3">
+                                      <div className="flex items-center gap-2">
+                                        <Zap className="h-4 w-4 md:h-5 md:w-5 text-amber-600" />
+                                        <span className="font-semibold text-amber-700 text-xs md:text-sm">Annual Cost</span>
+                                      </div>
+                                      <div className="text-sm md:text-xl font-bold text-amber-800 bg-amber-100 px-2 md:px-3 py-1 rounded-md border border-amber-300">
+                                        {row['Estimated Annual Cost ($)'] || '$0'}
+                                      </div>
+                                    </div>
+                                    {row['Cost Formula'] ? (
+                                      <div className="bg-amber-50/80 rounded-md p-2 md:p-3 border border-amber-200">
+                                        <div className="text-[9px] md:text-xs text-amber-600 font-medium mb-1">Calculation:</div>
+                                        <div className="text-[10px] md:text-sm text-amber-800 font-mono break-all leading-relaxed">
+                                          {row['Cost Formula']}
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="text-[10px] md:text-xs text-amber-600 italic">No formula available</div>
+                                    )}
+                                  </div>
+                                  
+                                  <div className="p-3 md:p-4 bg-white rounded-lg border border-gray-200">
+                                    <div className="text-xs md:text-sm font-medium text-gray-700 mb-2">Calculation Inputs</div>
+                                    <div className="grid grid-cols-2 gap-2 text-xs md:text-sm">
+                                      <div className="text-gray-500">Annual Hours:</div>
+                                      <div className="font-medium">{typeof row['Annual Hours'] === 'number' ? row['Annual Hours'].toLocaleString() : row['Annual Hours'] || 'N/A'}</div>
+                                      <div className="text-gray-500">Loaded Hourly Rate:</div>
+                                      <div className="font-medium">${typeof row['Hourly Rate'] === 'number' ? row['Hourly Rate'] : row['Hourly Rate'] || 'N/A'}/hr</div>
+                                      <div className="text-gray-500">Primary Driver:</div>
+                                      <div className="font-medium">{row['Primary Driver Impact'] || 'Cost'}</div>
                                     </div>
                                   </div>
                                 </div>
