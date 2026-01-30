@@ -1,6 +1,7 @@
 import pRetry, { AbortError } from "p-retry";
 import Anthropic from "@anthropic-ai/sdk";
 import https from "https";
+import { postProcessAnalysis } from "./calculation-postprocessor";
 
 // Create a custom HTTPS agent that bypasses any proxy settings
 const directAgent = new https.Agent({
@@ -759,7 +760,13 @@ CRITICAL REQUIREMENT: Your ENTIRE response must be valid JSON - no markdown, no 
     try {
       const analysis = JSON.parse(jsonText);
       console.log(`Successfully parsed analysis for: ${companyName}`);
-      return analysis;
+      
+      // Post-process to ensure all calculations are deterministic and accurate
+      console.log(`Post-processing analysis to verify calculations...`);
+      const correctedAnalysis = postProcessAnalysis(analysis);
+      console.log(`Post-processing complete for: ${companyName}`);
+      
+      return correctedAnalysis;
     } catch (parseError) {
       console.error("JSON Parse Error:", parseError);
       console.error("Raw response (first 1000 chars):", jsonText.substring(0, 1000));
