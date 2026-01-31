@@ -219,8 +219,8 @@ function recalculateCostBenefit(formula: string): { value: number; formulaText: 
     dataMaturityMultiplier: inputs.dataMaturityMultiplier,
   });
   
-  // Generate formula text with correct result
-  const newFormula = `${inputs.hoursSaved.toLocaleString()} hours × $${inputs.loadedHourlyRate}/hr × ${inputs.efficiencyMultiplier.toFixed(2)} × ${inputs.adoptionMultiplier.toFixed(2)} × ${inputs.dataMaturityMultiplier.toFixed(2)} = ${formatMoney(result.trace.output)} → ${formatMoney(result.value)}`;
+  // Generate formula text with correct result (hours formatted to max 2 decimals)
+  const newFormula = `${formatHours(inputs.hoursSaved)} × $${inputs.loadedHourlyRate}/hr × ${inputs.efficiencyMultiplier.toFixed(2)} × ${inputs.adoptionMultiplier.toFixed(2)} × ${inputs.dataMaturityMultiplier.toFixed(2)} = ${formatMoney(result.trace.output)} → ${formatMoney(result.value)}`;
   
   return { value: result.value, formulaText: newFormula };
 }
@@ -543,7 +543,7 @@ function recalculateFrictionCost(record: Step3Record): {
     affectsCustomer: driverImpact.includes("customer") || driverImpact.includes("client"),
   });
   
-  const formulaText = `${annualHours.toLocaleString()} hours × $${loadedHourlyRate}/hr = ${formatMoney(result.trace.output)} → ${formatMoney(result.value)}`;
+  const formulaText = `${formatHours(annualHours)} × $${loadedHourlyRate}/hr = ${formatMoney(result.trace.output)} → ${formatMoney(result.value)}`;
   
   return { 
     value: result.value, 

@@ -536,9 +536,27 @@ export function calculateFrictionSeverity(inputs: {
 /**
  * Format hours with appropriate suffix
  */
-export function formatHours(hours: number): string {
-  if (hours >= 1000) {
-    return `${(hours / 1000).toFixed(1)}K hours`;
+export function formatHours(hours: number, includeLabel: boolean = true): string {
+  // Always round to max 2 decimal places
+  const rounded = Math.round(hours * 100) / 100;
+  const suffix = includeLabel ? ' hours' : '';
+  
+  if (rounded >= 1000000) {
+    const millions = Math.round(rounded / 1000000 * 10) / 10;
+    return millions === Math.floor(millions) 
+      ? `${Math.floor(millions).toLocaleString()}M${suffix}`
+      : `${millions.toFixed(1)}M${suffix}`;
   }
-  return `${hours.toLocaleString()} hours`;
+  if (rounded >= 1000) {
+    // Format with commas and max 2 decimals
+    const formatted = rounded === Math.floor(rounded)
+      ? Math.floor(rounded).toLocaleString()
+      : rounded.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+    return `${formatted}${suffix}`;
+  }
+  // For smaller numbers, show up to 2 decimals if needed
+  const formatted = rounded === Math.floor(rounded)
+    ? Math.floor(rounded).toString()
+    : rounded.toFixed(2).replace(/\.?0+$/, '');
+  return `${formatted}${suffix}`;
 }
