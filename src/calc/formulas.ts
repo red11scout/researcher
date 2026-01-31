@@ -537,24 +537,22 @@ export function calculateFrictionSeverity(inputs: {
  * Format hours with appropriate suffix
  */
 export function formatHours(hours: number, includeLabel: boolean = true): string {
-  // Always round to max 2 decimal places
-  const rounded = Math.round(hours * 100) / 100;
   const suffix = includeLabel ? ' hours' : '';
   
-  if (rounded >= 1000000) {
-    const millions = Math.round(rounded / 1000000 * 10) / 10;
-    return millions === Math.floor(millions) 
-      ? `${Math.floor(millions).toLocaleString()}M${suffix}`
-      : `${millions.toFixed(1)}M${suffix}`;
+  // For hours >= 10, round to whole number
+  if (hours >= 10) {
+    const rounded = Math.round(hours);
+    if (rounded >= 1000000) {
+      const millions = Math.round(rounded / 1000000 * 10) / 10;
+      return millions === Math.floor(millions) 
+        ? `${Math.floor(millions).toLocaleString()}M${suffix}`
+        : `${millions.toFixed(1)}M${suffix}`;
+    }
+    return `${rounded.toLocaleString()}${suffix}`;
   }
-  if (rounded >= 1000) {
-    // Format with commas and max 2 decimals
-    const formatted = rounded === Math.floor(rounded)
-      ? Math.floor(rounded).toLocaleString()
-      : rounded.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
-    return `${formatted}${suffix}`;
-  }
-  // For smaller numbers, show up to 2 decimals if needed
+  
+  // For hours < 10, show up to 2 decimals
+  const rounded = Math.round(hours * 100) / 100;
   const formatted = rounded === Math.floor(rounded)
     ? Math.floor(rounded).toString()
     : rounded.toFixed(2).replace(/\.?0+$/, '');

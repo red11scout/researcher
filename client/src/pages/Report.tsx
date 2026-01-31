@@ -3582,7 +3582,7 @@ function StepCard({ step }: { step: any }) {
                                     <div className="text-xs md:text-sm font-medium text-gray-700 mb-2">Calculation Inputs</div>
                                     <div className="grid grid-cols-2 gap-2 text-xs md:text-sm">
                                       <div className="text-gray-500">Annual Hours:</div>
-                                      <div className="font-medium">{typeof row['Annual Hours'] === 'number' ? (Math.round(row['Annual Hours'] * 100) / 100).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) : row['Annual Hours'] || 'N/A'}</div>
+                                      <div className="font-medium">{typeof row['Annual Hours'] === 'number' ? (row['Annual Hours'] >= 10 ? Math.round(row['Annual Hours']).toLocaleString() : (Math.round(row['Annual Hours'] * 100) / 100).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 })) : row['Annual Hours'] || 'N/A'}</div>
                                       <div className="text-gray-500">Loaded Hourly Rate:</div>
                                       <div className="font-medium">${typeof row['Hourly Rate'] === 'number' ? row['Hourly Rate'] : row['Hourly Rate'] || 'N/A'}/hr</div>
                                       <div className="text-gray-500">Primary Driver:</div>
