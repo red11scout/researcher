@@ -70,17 +70,15 @@ interface ValidationResult {
 
 interface BatchJob {
   id: string;
-  status: 'pending' | 'in_progress' | 'paused' | 'completed' | 'cancelled' | 'failed';
+  status: 'pending' | 'processing' | 'paused' | 'completed' | 'cancelled' | 'failed';
   progress: number;
   totalCompanies: number;
-  currentCompanyIndex: number;
-  currentCompanyName: string | null;
-  completedCompanies: Array<{ id: string; name: string; reportId?: string }>;
-  failedCompanies: Array<{ id: string; name: string; error: string }>;
-  batchSize: number;
-  skipExisting: boolean;
+  pendingQueue: Array<{ name: string; group?: string; priority?: number }>;
+  activeQueue: Array<{ name: string; group?: string; priority?: number }>;
+  completedQueue: Array<{ name: string; reportId?: string; duration?: number }>;
+  failedQueue: Array<{ name: string; error?: string; attempts?: number; willRetry?: boolean }>;
+  config: { batchSize?: number; skipExisting?: boolean };
   createdAt: string;
-  updatedAt: string;
   startedAt?: string;
   completedAt?: string;
 }
@@ -122,7 +120,7 @@ export default function BatchResearch() {
   useEffect(() => {
     let pollInterval: NodeJS.Timeout | null = null;
 
-    if (activeJob && (activeJob.status === 'pending' || activeJob.status === 'in_progress')) {
+    if (activeJob && (activeJob.status === 'pending' || activeJob.status === 'processing')) {
       pollInterval = setInterval(async () => {
         try {
           const response = await fetch(`/api/batch-research/status/${activeJob.id}`);
@@ -135,7 +133,7 @@ export default function BatchResearch() {
                 title: job.status === 'completed' ? "Batch Complete" : 
                        job.status === 'cancelled' ? "Batch Cancelled" : "Batch Failed",
                 description: job.status === 'completed' 
-                  ? `Successfully processed ${job.completedCompanies.length} companies.`
+                  ? `Successfully processed ${(job.completedQueue || []).length} companies.`
                   : job.status === 'cancelled'
                   ? "The batch research was cancelled."
                   : "Some companies failed to process.",
@@ -182,7 +180,7 @@ export default function BatchResearch() {
         setActiveJobs(jobs);
         if (jobs.length > 0 && !activeJob) {
           const runningJob = jobs.find((j: BatchJob) => 
-            j.status === 'pending' || j.status === 'in_progress'
+            j.status === 'pending' || j.status === 'processing'
           );
           if (runningJob) {
             setActiveJob(runningJob);
@@ -470,7 +468,7 @@ export default function BatchResearch() {
         method: "POST",
       });
       if (response.ok) {
-        setActiveJob(prev => prev ? { ...prev, status: 'in_progress' } : null);
+        setActiveJob(prev => prev ? { ...prev, status: 'processing' } : null);
         toast({ title: "Batch Resumed" });
       }
     } catch (error) {
@@ -514,7 +512,7 @@ export default function BatchResearch() {
 
   const isApproachingLimit = validation && validation.totalCompanies > 90;
   const isOverLimit = validation && validation.totalCompanies > 100;
-  const isJobRunning = activeJob && (activeJob.status === 'pending' || activeJob.status === 'in_progress');
+  const isJobRunning = activeJob && (activeJob.status === 'pending' || activeJob.status === 'processing');
   const isJobPaused = activeJob?.status === 'paused';
 
   return (
@@ -534,9 +532,9 @@ export default function BatchResearch() {
             <TabsTrigger value="new-batch" data-testid="tab-new-batch">New Batch</TabsTrigger>
             <TabsTrigger value="active-jobs" data-testid="tab-active-jobs">
               Active Jobs
-              {activeJobs.filter(j => j.status === 'in_progress' || j.status === 'pending').length > 0 && (
+              {activeJobs.filter(j => j.status === 'processing' || j.status === 'pending').length > 0 && (
                 <Badge variant="secondary" className="ml-2">
-                  {activeJobs.filter(j => j.status === 'in_progress' || j.status === 'pending').length}
+                  {activeJobs.filter(j => j.status === 'processing' || j.status === 'pending').length}
                 </Badge>
               )}
             </TabsTrigger>
@@ -843,8 +841,8 @@ export default function BatchResearch() {
                   <div>
                     <div className="flex justify-between text-sm mb-2">
                       <span>
-                        Processing company {activeJob.currentCompanyIndex + 1} of {activeJob.totalCompanies}
-                        {activeJob.currentCompanyName && `: ${activeJob.currentCompanyName}`}
+                        Processing company {(activeJob.completedQueue || []).length + (activeJob.activeQueue || []).length} of {activeJob.totalCompanies}
+                        {(activeJob.activeQueue || []).length > 0 && `: ${activeJob.activeQueue[0].name}`}
                       </span>
                       <span>{Math.round(activeJob.progress)}%</span>
                     </div>
@@ -855,16 +853,16 @@ export default function BatchResearch() {
                     <div>
                       <h4 className="font-medium mb-2 flex items-center gap-2">
                         <CheckCircle2 className="h-4 w-4 text-green-500" />
-                        Completed ({activeJob.completedCompanies.length})
+                        Completed ({(activeJob.completedQueue || []).length})
                       </h4>
                       <div className="max-h-[200px] overflow-auto border rounded-lg">
-                        {activeJob.completedCompanies.map((company, i) => (
+                        {(activeJob.completedQueue || []).map((company, i) => (
                           <div key={i} className="px-3 py-2 border-b last:border-0 flex items-center gap-2">
                             <CheckCircle2 className="h-3 w-3 text-green-500" />
                             <span className="text-sm">{company.name}</span>
                           </div>
                         ))}
-                        {activeJob.completedCompanies.length === 0 && (
+                        {(activeJob.completedQueue || []).length === 0 && (
                           <p className="text-sm text-muted-foreground p-3">No companies completed yet</p>
                         )}
                       </div>
@@ -873,10 +871,10 @@ export default function BatchResearch() {
                     <div>
                       <h4 className="font-medium mb-2 flex items-center gap-2">
                         <AlertCircle className="h-4 w-4 text-red-500" />
-                        Failed ({activeJob.failedCompanies.length})
+                        Failed ({(activeJob.failedQueue || []).length})
                       </h4>
                       <div className="max-h-[200px] overflow-auto border rounded-lg">
-                        {activeJob.failedCompanies.map((company, i) => (
+                        {(activeJob.failedQueue || []).map((company, i) => (
                           <div key={i} className="px-3 py-2 border-b last:border-0">
                             <div className="flex items-center gap-2">
                               <AlertCircle className="h-3 w-3 text-red-500" />
@@ -885,7 +883,7 @@ export default function BatchResearch() {
                             <p className="text-xs text-red-600 mt-1">{company.error}</p>
                           </div>
                         ))}
-                        {activeJob.failedCompanies.length === 0 && (
+                        {(activeJob.failedQueue || []).length === 0 && (
                           <p className="text-sm text-muted-foreground p-3">No failures</p>
                         )}
                       </div>
@@ -947,7 +945,7 @@ export default function BatchResearch() {
                               <Progress value={job.progress} className="h-2" />
                             </div>
                           </TableCell>
-                          <TableCell>{job.completedCompanies.length}/{job.totalCompanies}</TableCell>
+                          <TableCell>{(job.completedQueue || []).length}/{job.totalCompanies}</TableCell>
                           <TableCell>
                             <Button
                               variant="ghost"
@@ -1003,8 +1001,10 @@ export default function BatchResearch() {
                     </TableHeader>
                     <TableBody>
                       {historyJobs.map((job) => {
+                        const completedCount = (job.completedQueue || []).length;
+                        const failedCount = (job.failedQueue || []).length;
                         const successRate = job.totalCompanies > 0
-                          ? Math.round((job.completedCompanies.length / job.totalCompanies) * 100)
+                          ? Math.round((completedCount / job.totalCompanies) * 100)
                           : 0;
                         const duration = job.completedAt && job.startedAt
                           ? new Date(job.completedAt).getTime() - new Date(job.startedAt).getTime()
@@ -1014,11 +1014,11 @@ export default function BatchResearch() {
                           <TableRow key={job.id} data-testid={`row-history-${job.id}`}>
                             <TableCell>{formatDate(job.createdAt)}</TableCell>
                             <TableCell>
-                              <span className="text-green-600">{job.completedCompanies.length}</span>
+                              <span className="text-green-600">{completedCount}</span>
                               <span className="text-muted-foreground"> / {job.totalCompanies}</span>
-                              {job.failedCompanies.length > 0 && (
+                              {failedCount > 0 && (
                                 <span className="text-red-600 ml-1">
-                                  ({job.failedCompanies.length} failed)
+                                  ({failedCount} failed)
                                 </span>
                               )}
                             </TableCell>
