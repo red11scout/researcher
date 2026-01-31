@@ -390,9 +390,9 @@ export default function BatchResearch() {
       .filter(c => !c.isDuplicate)
       .filter(c => !skipExisting || !c.existsInReports)
       .map(c => ({
-        company_name: c.company_name,
-        investor_group: c.investor_group,
-        priority: c.priority,
+        name: c.company_name,
+        group: c.investor_group,
+        priority: c.priority ? parseInt(c.priority) : undefined,
       }));
 
     if (companiesToProcess.length === 0) {
