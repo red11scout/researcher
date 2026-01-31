@@ -3033,6 +3033,17 @@ Return ONLY valid JSON with this structure:
     }
   });
 
+  // GET /api/bulk-export/active - Get active export jobs
+  app.get("/api/bulk-export/active", async (req, res) => {
+    try {
+      const activeJobs = await storage.getActiveBulkExports();
+      res.json(activeJobs);
+    } catch (error: any) {
+      console.error("Error getting active bulk exports:", error);
+      res.status(500).json({ error: error.message || "Failed to get active exports" });
+    }
+  });
+
   // GET /api/bulk-export/history - List export history
   app.get("/api/bulk-export/history", async (req, res) => {
     try {

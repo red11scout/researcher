@@ -100,6 +100,7 @@ export default function SavedReports() {
   useEffect(() => {
     fetchReports();
     checkActiveJob();
+    checkActiveExportJob();
   }, []);
 
   useEffect(() => {
@@ -183,6 +184,24 @@ export default function SavedReports() {
       }
     } catch (error) {
       console.error("Failed to check for active job:", error);
+    }
+  };
+
+  const checkActiveExportJob = async () => {
+    try {
+      const response = await fetch("/api/bulk-export/active");
+      if (response.ok) {
+        const jobs = await response.json();
+        // API returns an array of active export jobs, take the first one if exists
+        if (Array.isArray(jobs) && jobs.length > 0) {
+          const job = jobs[0];
+          if (job.status === 'pending' || job.status === 'generating' || job.status === 'ready') {
+            setBulkExportJob(job);
+          }
+        }
+      }
+    } catch (error) {
+      console.error("Failed to check for active export job:", error);
     }
   };
 
