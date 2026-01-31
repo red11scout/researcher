@@ -2827,6 +2827,19 @@ Return ONLY valid JSON with this structure:
       // Create ZIP file
       const zipPath = path.join(EXPORTS_DIR, `${jobId}.zip`);
       
+      // Create manifest object before ZIP creation
+      const manifestData = {
+        exportId: jobId,
+        exportedAt: new Date().toISOString(),
+        format: format,
+        reportType: reportType,
+        totalReports: reportIds.length,
+        successfulExports: completedCompanies.length,
+        failedExports: failedCompanies.length,
+        files: completedCompanies.map(c => c.filename),
+        failed: failedCompanies,
+      };
+      
       await new Promise<void>((resolve, reject) => {
         const output = fs.createWriteStream(zipPath);
         const archive = archiver("zip", { zlib: { level: 9 } });
@@ -2848,19 +2861,8 @@ Return ONLY valid JSON with this structure:
           archive.append(file.content, { name: file.filename });
         }
 
-        // Create manifest
-        const manifest = {
-          exportId: jobId,
-          exportedAt: new Date().toISOString(),
-          format: format,
-          reportType: reportType,
-          totalReports: reportIds.length,
-          successfulExports: completedCompanies.length,
-          failedExports: failedCompanies.length,
-          files: completedCompanies.map(c => c.filename),
-          failed: failedCompanies,
-        };
-        archive.append(JSON.stringify(manifest, null, 2), { name: "manifest.json" });
+        // Add manifest to ZIP
+        archive.append(JSON.stringify(manifestData, null, 2), { name: "manifest.json" });
 
         archive.finalize();
       });
@@ -2881,7 +2883,7 @@ Return ONLY valid JSON with this structure:
         expiresAt,
         completedCompanies,
         failedCompanies,
-        manifest,
+        manifest: manifestData,
       });
 
       console.log(`[bulk-export] Job ${jobId} completed successfully`);
@@ -3053,6 +3055,323 @@ Return ONLY valid JSON with this structure:
     } catch (error: any) {
       console.error("Error getting bulk export history:", error);
       res.status(500).json({ error: error.message || "Failed to get export history" });
+    }
+  });
+
+  // ============================================
+  // BATCH RESEARCH ENDPOINTS
+  // ============================================
+
+  async function processBatchResearch(jobId: string) {
+    const BATCH_SIZE = 3;
+    const COOLDOWN_BETWEEN_BATCHES = 2000;
+
+    let job = await storage.getBatchResearchJob(jobId);
+    if (!job || job.status === 'cancelled' || job.status === 'paused') return;
+
+    await storage.updateBatchResearchJob(jobId, { status: 'processing', startedAt: new Date() });
+
+    while (true) {
+      job = await storage.getBatchResearchJob(jobId);
+      if (!job || job.status === 'cancelled' || job.status === 'paused') break;
+
+      const pending = job.pendingQueue as any[];
+      const completed = job.completedQueue as any[];
+      const failed = job.failedQueue as any[];
+
+      if (pending.length === 0) break;
+
+      const batch = pending.slice(0, BATCH_SIZE);
+      const remaining = pending.slice(BATCH_SIZE);
+
+      await storage.updateBatchResearchJob(jobId, { 
+        pendingQueue: remaining,
+        activeQueue: batch 
+      });
+
+      const results = await Promise.allSettled(
+        batch.map(async (company: any) => {
+          const startTime = Date.now();
+          try {
+            const analysis = await generateCompanyAnalysis(company.name);
+            const report = await storage.createReport({
+              companyName: company.name,
+              analysisData: analysis,
+              isWhatIf: false
+            });
+            return { success: true, name: company.name, reportId: report.id, duration: Math.round((Date.now() - startTime) / 1000) };
+          } catch (error: any) {
+            return { success: false, name: company.name, error: error.message, duration: Math.round((Date.now() - startTime) / 1000) };
+          }
+        })
+      );
+
+      const newCompleted = [...completed];
+      const newFailed = [...failed];
+
+      for (const result of results) {
+        if (result.status === 'fulfilled') {
+          const r = result.value;
+          if (r.success) {
+            newCompleted.push({ name: r.name, reportId: r.reportId, duration: r.duration });
+          } else {
+            newFailed.push({ name: r.name, error: r.error, attempts: 1, willRetry: false });
+          }
+        }
+      }
+
+      const progress = Math.round((newCompleted.length / job.totalCompanies) * 100);
+
+      await storage.updateBatchResearchJob(jobId, {
+        completedQueue: newCompleted,
+        failedQueue: newFailed,
+        activeQueue: [],
+        progress
+      });
+
+      await new Promise(r => setTimeout(r, COOLDOWN_BETWEEN_BATCHES));
+    }
+
+    await storage.updateBatchResearchJob(jobId, {
+      status: 'completed',
+      completedAt: new Date()
+    });
+  }
+
+  // POST /api/batch-research/start - Start a batch research job
+  app.post("/api/batch-research/start", async (req, res) => {
+    try {
+      const { companies, config = {} } = req.body;
+
+      if (!companies || !Array.isArray(companies)) {
+        return res.status(400).json({ error: "companies array is required" });
+      }
+
+      if (companies.length > 100) {
+        return res.status(400).json({ error: "Maximum 100 companies allowed per batch" });
+      }
+
+      if (companies.length === 0) {
+        return res.status(400).json({ error: "At least one company is required" });
+      }
+
+      const normalizeCompanyName = (name: string): string => {
+        return name.toLowerCase().trim().replace(/\s+/g, ' ');
+      };
+
+      const seenNames = new Set<string>();
+      const duplicatesRemoved: string[] = [];
+      const normalizedCompanies: Array<{name: string, normalizedName: string, group?: string, priority?: number}> = [];
+
+      for (const company of companies) {
+        if (!company.name || typeof company.name !== 'string') continue;
+        
+        const normalizedName = normalizeCompanyName(company.name);
+        if (seenNames.has(normalizedName)) {
+          duplicatesRemoved.push(company.name);
+        } else {
+          seenNames.add(normalizedName);
+          normalizedCompanies.push({
+            name: company.name.trim(),
+            normalizedName,
+            group: company.group,
+            priority: company.priority
+          });
+        }
+      }
+
+      const existingReports: Array<{name: string, reportId: string}> = [];
+      const pendingCompanies: Array<{name: string, group?: string, priority?: number}> = [];
+      const skipExisting = config.skipExisting !== false;
+
+      if (skipExisting) {
+        const allReports = await storage.getAllReports();
+        const reportsByNormalizedName = new Map<string, {id: string, companyName: string}>();
+        
+        for (const report of allReports) {
+          if (!report.isWhatIf) {
+            const normalized = normalizeCompanyName(report.companyName);
+            reportsByNormalizedName.set(normalized, { id: report.id, companyName: report.companyName });
+          }
+        }
+
+        for (const company of normalizedCompanies) {
+          const existing = reportsByNormalizedName.get(company.normalizedName);
+          if (existing) {
+            existingReports.push({ name: company.name, reportId: existing.id });
+          } else {
+            pendingCompanies.push({ name: company.name, group: company.group, priority: company.priority });
+          }
+        }
+      } else {
+        for (const company of normalizedCompanies) {
+          pendingCompanies.push({ name: company.name, group: company.group, priority: company.priority });
+        }
+      }
+
+      if (pendingCompanies.length === 0) {
+        return res.json({
+          jobId: null,
+          totalCompanies: 0,
+          duplicatesRemoved: duplicatesRemoved.length,
+          existingReports,
+          estimatedTime: 0,
+          message: "All companies already have existing reports"
+        });
+      }
+
+      const batchSize = config.batchSize || 3;
+      const estimatedTimePerCompany = 60;
+      const estimatedTime = Math.ceil(pendingCompanies.length / batchSize) * estimatedTimePerCompany;
+
+      const job = await storage.createBatchResearchJob({
+        status: 'pending',
+        config: { batchSize, skipExisting },
+        pendingQueue: pendingCompanies,
+        activeQueue: [],
+        completedQueue: [],
+        failedQueue: [],
+        retryQueue: [],
+        totalCompanies: pendingCompanies.length,
+        progress: 0,
+        duplicatesRemoved,
+        existingReports
+      });
+
+      setImmediate(() => {
+        processBatchResearch(job.id).catch(err => {
+          console.error(`[batch-research] Error processing job ${job.id}:`, err);
+        });
+      });
+
+      res.json({
+        jobId: job.id,
+        totalCompanies: pendingCompanies.length,
+        duplicatesRemoved: duplicatesRemoved.length,
+        existingReports,
+        estimatedTime
+      });
+    } catch (error: any) {
+      console.error("Error starting batch research job:", error);
+      res.status(500).json({ error: error.message || "Failed to start batch research" });
+    }
+  });
+
+  // GET /api/batch-research/status/:jobId - Get job status
+  app.get("/api/batch-research/status/:jobId", async (req, res) => {
+    try {
+      const { jobId } = req.params;
+      const job = await storage.getBatchResearchJob(jobId);
+      
+      if (!job) {
+        return res.status(404).json({ error: "Job not found" });
+      }
+      
+      res.json(job);
+    } catch (error: any) {
+      console.error("Error getting batch research status:", error);
+      res.status(500).json({ error: error.message || "Failed to get job status" });
+    }
+  });
+
+  // POST /api/batch-research/pause/:jobId - Pause processing
+  app.post("/api/batch-research/pause/:jobId", async (req, res) => {
+    try {
+      const { jobId } = req.params;
+      const job = await storage.getBatchResearchJob(jobId);
+      
+      if (!job) {
+        return res.status(404).json({ error: "Job not found" });
+      }
+      
+      if (job.status !== 'processing' && job.status !== 'pending') {
+        return res.status(400).json({ error: `Cannot pause job with status: ${job.status}` });
+      }
+      
+      await storage.updateBatchResearchJob(jobId, { status: 'paused' });
+      const updatedJob = await storage.getBatchResearchJob(jobId);
+      
+      res.json(updatedJob);
+    } catch (error: any) {
+      console.error("Error pausing batch research job:", error);
+      res.status(500).json({ error: error.message || "Failed to pause job" });
+    }
+  });
+
+  // POST /api/batch-research/resume/:jobId - Resume processing
+  app.post("/api/batch-research/resume/:jobId", async (req, res) => {
+    try {
+      const { jobId } = req.params;
+      const job = await storage.getBatchResearchJob(jobId);
+      
+      if (!job) {
+        return res.status(404).json({ error: "Job not found" });
+      }
+      
+      if (job.status !== 'paused') {
+        return res.status(400).json({ error: `Cannot resume job with status: ${job.status}` });
+      }
+      
+      await storage.updateBatchResearchJob(jobId, { status: 'processing' });
+      
+      setImmediate(() => {
+        processBatchResearch(jobId).catch(err => {
+          console.error(`[batch-research] Error resuming job ${jobId}:`, err);
+        });
+      });
+      
+      const updatedJob = await storage.getBatchResearchJob(jobId);
+      res.json(updatedJob);
+    } catch (error: any) {
+      console.error("Error resuming batch research job:", error);
+      res.status(500).json({ error: error.message || "Failed to resume job" });
+    }
+  });
+
+  // POST /api/batch-research/cancel/:jobId - Cancel job
+  app.post("/api/batch-research/cancel/:jobId", async (req, res) => {
+    try {
+      const { jobId } = req.params;
+      const job = await storage.getBatchResearchJob(jobId);
+      
+      if (!job) {
+        return res.status(404).json({ error: "Job not found" });
+      }
+      
+      if (job.status === 'completed' || job.status === 'cancelled') {
+        return res.status(400).json({ error: `Cannot cancel job with status: ${job.status}` });
+      }
+      
+      await storage.updateBatchResearchJob(jobId, { status: 'cancelled' });
+      const updatedJob = await storage.getBatchResearchJob(jobId);
+      
+      res.json(updatedJob);
+    } catch (error: any) {
+      console.error("Error cancelling batch research job:", error);
+      res.status(500).json({ error: error.message || "Failed to cancel job" });
+    }
+  });
+
+  // GET /api/batch-research/active - Get active jobs
+  app.get("/api/batch-research/active", async (req, res) => {
+    try {
+      const activeJobs = await storage.getActiveBatchResearchJobs();
+      res.json(activeJobs);
+    } catch (error: any) {
+      console.error("Error getting active batch research jobs:", error);
+      res.status(500).json({ error: error.message || "Failed to get active jobs" });
+    }
+  });
+
+  // GET /api/batch-research/history - Get job history
+  app.get("/api/batch-research/history", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 10;
+      const history = await storage.getBatchResearchJobHistory(limit);
+      res.json(history);
+    } catch (error: any) {
+      console.error("Error getting batch research history:", error);
+      res.status(500).json({ error: error.message || "Failed to get job history" });
     }
   });
 

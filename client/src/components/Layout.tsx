@@ -1,6 +1,6 @@
 import { ReactNode, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Menu, Bell, BarChart3, FileText, Home, Bot } from "lucide-react";
+import { Menu, Bell, BarChart3, FileText, Home, Bot, Layers } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/brand/logo";
 import { brand } from "@/lib/brand";
@@ -81,6 +81,12 @@ export default function Layout({ children }: LayoutProps) {
               >
                 Benchmarks
               </Link>
+              <Link 
+                href="/batch-research" 
+                className={`hover:text-brand-navy transition-colors ${isActive("/batch-research") ? "text-brand-navy font-semibold" : ""}`}
+              >
+                Batch Research
+              </Link>
             </nav>
           </div>
           
@@ -133,6 +139,13 @@ export default function Layout({ children }: LayoutProps) {
                     icon={<BarChart3 className="h-5 w-5" />}
                     label="Benchmarks"
                     isActive={isActive("/benchmarks")}
+                    onClose={closeMobileMenu}
+                  />
+                  <MobileNavLink
+                    href="/batch-research"
+                    icon={<Layers className="h-5 w-5" />}
+                    label="Batch Research"
+                    isActive={isActive("/batch-research")}
                     onClose={closeMobileMenu}
                   />
                 </nav>

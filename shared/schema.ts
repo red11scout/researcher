@@ -84,6 +84,42 @@ export const insertBulkExportSchema = createInsertSchema(bulkExports).omit({
 export type InsertBulkExport = z.infer<typeof insertBulkExportSchema>;
 export type BulkExport = typeof bulkExports.$inferSelect;
 
+export const batchResearchJobs = pgTable("batch_research_jobs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  status: varchar("status", { length: 20 }).notNull().default("pending"), // pending, processing, completed, failed, paused, cancelled
+  
+  // Configuration
+  config: jsonb("config").notNull().default({}), // batchSize, researchDepth, skipExisting, etc.
+  
+  // Queue management (all are arrays of objects)
+  pendingQueue: jsonb("pending_queue").notNull().default([]), // [{name, group, priority}]
+  activeQueue: jsonb("active_queue").notNull().default([]), // companies currently being researched
+  completedQueue: jsonb("completed_queue").notNull().default([]), // [{name, reportId, duration}]
+  failedQueue: jsonb("failed_queue").notNull().default([]), // [{name, attempts, error, willRetry}]
+  retryQueue: jsonb("retry_queue").notNull().default([]), // [{name, attempts, nextRetryAt}]
+  
+  // Progress metrics
+  totalCompanies: integer("total_companies").notNull().default(0),
+  progress: integer("progress").notNull().default(0), // 0-100
+  averageTimePerCompany: integer("average_time_per_company"), // seconds
+  
+  // Duplicate detection results
+  duplicatesRemoved: jsonb("duplicates_removed").default([]), // companies removed as duplicates
+  existingReports: jsonb("existing_reports").default([]), // companies with existing reports
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+});
+
+export const insertBatchResearchJobSchema = createInsertSchema(batchResearchJobs).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertBatchResearchJob = z.infer<typeof insertBatchResearchJobSchema>;
+export type BatchResearchJob = typeof batchResearchJobs.$inferSelect;
+
 // Parent categories for hierarchical organization (per document Section 3)
 export const PARENT_CATEGORIES = [
   "financial_operational",   // Company financial & operational assumptions

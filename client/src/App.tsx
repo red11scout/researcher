@@ -16,12 +16,14 @@ import Assumptions from "@/pages/Assumptions";
 import DashboardPage from "@/pages/DashboardPage";
 import SharedDashboard from "@/pages/SharedDashboard";
 import CrewAI from "@/pages/CrewAI";
+import BatchResearch from "@/pages/BatchResearch";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/crewai" component={CrewAI} />
+      <Route path="/batch-research" component={BatchResearch} />
       <Route path="/dashboard/:reportId" component={DashboardPage} />
       <Route path="/shared/:shareId" component={SharedDashboard} />
       <Route path="/report" component={Report} />

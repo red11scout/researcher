@@ -7,6 +7,7 @@ import {
   sharedDashboards,
   bulkUpdateJobs,
   bulkExports,
+  batchResearchJobs,
   type Report, 
   type InsertReport,
   type AssumptionSet,
@@ -21,6 +22,8 @@ import {
   type InsertBulkUpdateJob,
   type BulkExport,
   type InsertBulkExport,
+  type BatchResearchJob,
+  type InsertBatchResearchJob,
   DEFAULT_ASSUMPTIONS,
   DEFAULT_FORMULAS,
   ASSUMPTION_CATEGORIES,
@@ -86,6 +89,13 @@ export interface IStorage {
   getActiveBulkExports(): Promise<BulkExport[]>;
   getBulkExportHistory(limit?: number): Promise<BulkExport[]>;
   cleanupExpiredBulkExports(): Promise<number>;
+  
+  // Batch Research Job operations
+  createBatchResearchJob(job: InsertBatchResearchJob): Promise<BatchResearchJob>;
+  getBatchResearchJob(id: string): Promise<BatchResearchJob | undefined>;
+  updateBatchResearchJob(id: string, data: Partial<InsertBatchResearchJob>): Promise<BatchResearchJob | undefined>;
+  getActiveBatchResearchJobs(): Promise<BatchResearchJob[]>;
+  getBatchResearchJobHistory(limit?: number): Promise<BatchResearchJob[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -698,6 +708,51 @@ export class DatabaseStorage implements IStorage {
       )
       .returning();
     return result.length;
+  }
+
+  // Batch Research Job operations
+  async createBatchResearchJob(job: InsertBatchResearchJob): Promise<BatchResearchJob> {
+    const [newJob] = await db
+      .insert(batchResearchJobs)
+      .values(job)
+      .returning();
+    return newJob;
+  }
+
+  async getBatchResearchJob(id: string): Promise<BatchResearchJob | undefined> {
+    const [job] = await db
+      .select()
+      .from(batchResearchJobs)
+      .where(eq(batchResearchJobs.id, id))
+      .limit(1);
+    return job;
+  }
+
+  async updateBatchResearchJob(id: string, data: Partial<InsertBatchResearchJob>): Promise<BatchResearchJob | undefined> {
+    const [updated] = await db
+      .update(batchResearchJobs)
+      .set(data)
+      .where(eq(batchResearchJobs.id, id))
+      .returning();
+    return updated;
+  }
+
+  async getActiveBatchResearchJobs(): Promise<BatchResearchJob[]> {
+    return await db
+      .select()
+      .from(batchResearchJobs)
+      .where(
+        sql`${batchResearchJobs.status} IN ('pending', 'processing')`
+      )
+      .orderBy(desc(batchResearchJobs.createdAt));
+  }
+
+  async getBatchResearchJobHistory(limit: number = 50): Promise<BatchResearchJob[]> {
+    return await db
+      .select()
+      .from(batchResearchJobs)
+      .orderBy(desc(batchResearchJobs.createdAt))
+      .limit(limit);
   }
 }
 
