@@ -5,6 +5,7 @@ import {
   assumptionFields,
   formulaConfigs,
   sharedDashboards,
+  bulkUpdateJobs,
   type Report, 
   type InsertReport,
   type AssumptionSet,
@@ -15,6 +16,8 @@ import {
   type InsertFormulaConfig,
   type SharedDashboard,
   type InsertSharedDashboard,
+  type BulkUpdateJob,
+  type InsertBulkUpdateJob,
   DEFAULT_ASSUMPTIONS,
   DEFAULT_FORMULAS,
   ASSUMPTION_CATEGORIES,
@@ -65,6 +68,13 @@ export interface IStorage {
   getSharedDashboard(id: string): Promise<SharedDashboard | undefined>;
   incrementSharedDashboardViewCount(id: string): Promise<void>;
   cleanupExpiredSharedDashboards(): Promise<number>;
+  
+  // Bulk Update Job operations
+  createBulkUpdateJob(job: InsertBulkUpdateJob): Promise<BulkUpdateJob>;
+  getBulkUpdateJob(id: string): Promise<BulkUpdateJob | undefined>;
+  updateBulkUpdateJob(id: string, data: Partial<InsertBulkUpdateJob>): Promise<BulkUpdateJob | undefined>;
+  getActiveBulkUpdateJobs(): Promise<BulkUpdateJob[]>;
+  getBulkUpdateHistory(limit?: number): Promise<BulkUpdateJob[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -574,6 +584,51 @@ export class DatabaseStorage implements IStorage {
       .where(lt(sharedDashboards.expiresAt, new Date()))
       .returning();
     return result.length;
+  }
+
+  // Bulk Update Job operations
+  async createBulkUpdateJob(job: InsertBulkUpdateJob): Promise<BulkUpdateJob> {
+    const [newJob] = await db
+      .insert(bulkUpdateJobs)
+      .values(job)
+      .returning();
+    return newJob;
+  }
+
+  async getBulkUpdateJob(id: string): Promise<BulkUpdateJob | undefined> {
+    const [job] = await db
+      .select()
+      .from(bulkUpdateJobs)
+      .where(eq(bulkUpdateJobs.id, id))
+      .limit(1);
+    return job;
+  }
+
+  async updateBulkUpdateJob(id: string, data: Partial<InsertBulkUpdateJob>): Promise<BulkUpdateJob | undefined> {
+    const [updated] = await db
+      .update(bulkUpdateJobs)
+      .set(data)
+      .where(eq(bulkUpdateJobs.id, id))
+      .returning();
+    return updated;
+  }
+
+  async getActiveBulkUpdateJobs(): Promise<BulkUpdateJob[]> {
+    return await db
+      .select()
+      .from(bulkUpdateJobs)
+      .where(
+        sql`${bulkUpdateJobs.status} IN ('pending', 'in_progress')`
+      )
+      .orderBy(desc(bulkUpdateJobs.createdAt));
+  }
+
+  async getBulkUpdateHistory(limit: number = 50): Promise<BulkUpdateJob[]> {
+    return await db
+      .select()
+      .from(bulkUpdateJobs)
+      .orderBy(desc(bulkUpdateJobs.createdAt))
+      .limit(limit);
   }
 }
 

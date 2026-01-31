@@ -40,6 +40,26 @@ export const insertSharedDashboardSchema = createInsertSchema(sharedDashboards).
 export type InsertSharedDashboard = z.infer<typeof insertSharedDashboardSchema>;
 export type SharedDashboard = typeof sharedDashboards.$inferSelect;
 
+export const bulkUpdateJobs = pgTable("bulk_update_jobs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  companyIds: jsonb("company_ids").notNull(), // array of report IDs
+  status: varchar("status", { length: 20 }).notNull().default("pending"), // pending, in_progress, completed, failed, cancelled
+  progress: integer("progress").default(0).notNull(), // 0-100
+  currentCompanyId: varchar("current_company_id"),
+  completedCompanies: jsonb("completed_companies").default([]).notNull(), // array of {id, name, status}
+  failedCompanies: jsonb("failed_companies").default([]).notNull(), // array of {id, name, error}
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertBulkUpdateJobSchema = createInsertSchema(bulkUpdateJobs).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertBulkUpdateJob = z.infer<typeof insertBulkUpdateJobSchema>;
+export type BulkUpdateJob = typeof bulkUpdateJobs.$inferSelect;
+
 // Parent categories for hierarchical organization (per document Section 3)
 export const PARENT_CATEGORIES = [
   "financial_operational",   // Company financial & operational assumptions

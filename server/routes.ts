@@ -2488,5 +2488,222 @@ Return ONLY valid JSON with this structure:
     }
   });
 
+  // =============================================
+  // BULK UPDATE API ENDPOINTS
+  // =============================================
+
+  // Processing function for bulk updates (non-blocking)
+  async function processBulkUpdate(jobId: string, reportIds: string[]) {
+    console.log(`[bulk-update] Starting job ${jobId} with ${reportIds.length} reports`);
+    
+    try {
+      // Update job status to in_progress
+      await storage.updateBulkUpdateJob(jobId, {
+        status: "in_progress",
+        startedAt: new Date(),
+      });
+
+      const completedCompanies: Array<{ id: string; name: string; status: string }> = [];
+      const failedCompanies: Array<{ id: string; name: string; error: string }> = [];
+
+      for (let i = 0; i < reportIds.length; i++) {
+        const reportId = reportIds[i];
+        
+        // Check if job was cancelled
+        const currentJob = await storage.getBulkUpdateJob(jobId);
+        if (currentJob?.status === "cancelled") {
+          console.log(`[bulk-update] Job ${jobId} was cancelled, stopping processing`);
+          break;
+        }
+
+        // Get the report
+        const report = await storage.getReportById(reportId);
+        if (!report) {
+          failedCompanies.push({ id: reportId, name: "Unknown", error: "Report not found" });
+          continue;
+        }
+
+        const companyName = report.companyName;
+        console.log(`[bulk-update] Processing ${i + 1}/${reportIds.length}: ${companyName}`);
+
+        // Update current company being processed
+        await storage.updateBulkUpdateJob(jobId, {
+          currentCompanyId: reportId,
+          progress: Math.round((i / reportIds.length) * 100),
+          completedCompanies,
+          failedCompanies,
+        });
+
+        try {
+          // Generate new analysis
+          const analysis = await generateCompanyAnalysis(companyName);
+          
+          // Update the report with new analysis
+          await storage.updateReport(reportId, {
+            analysisData: analysis,
+          });
+
+          completedCompanies.push({ id: reportId, name: companyName, status: "updated" });
+          console.log(`[bulk-update] Successfully updated ${companyName}`);
+        } catch (error: any) {
+          console.error(`[bulk-update] Error updating ${companyName}:`, error?.message);
+          failedCompanies.push({ 
+            id: reportId, 
+            name: companyName, 
+            error: error?.message || "Unknown error" 
+          });
+        }
+
+        // Update progress after each company
+        await storage.updateBulkUpdateJob(jobId, {
+          progress: Math.round(((i + 1) / reportIds.length) * 100),
+          completedCompanies,
+          failedCompanies,
+        });
+      }
+
+      // Check final status (may have been cancelled)
+      const finalJob = await storage.getBulkUpdateJob(jobId);
+      if (finalJob?.status !== "cancelled") {
+        // Determine final status
+        const finalStatus = failedCompanies.length === reportIds.length 
+          ? "failed" 
+          : "completed";
+
+        await storage.updateBulkUpdateJob(jobId, {
+          status: finalStatus,
+          progress: 100,
+          currentCompanyId: null,
+          completedCompanies,
+          failedCompanies,
+          completedAt: new Date(),
+        });
+
+        console.log(`[bulk-update] Job ${jobId} finished with status: ${finalStatus}`);
+      }
+    } catch (error: any) {
+      console.error(`[bulk-update] Job ${jobId} failed with error:`, error?.message);
+      await storage.updateBulkUpdateJob(jobId, {
+        status: "failed",
+        completedAt: new Date(),
+      });
+    }
+  }
+
+  // POST /api/bulk-update/start - Initiate bulk update job
+  app.post("/api/bulk-update/start", async (req, res) => {
+    try {
+      const { reportIds } = req.body;
+
+      if (!reportIds || !Array.isArray(reportIds) || reportIds.length === 0) {
+        return res.status(400).json({ error: "reportIds array is required" });
+      }
+
+      // Check AI service configuration
+      const configCheck = checkProductionConfig();
+      if (!configCheck.ok) {
+        return res.status(503).json({ error: configCheck.message });
+      }
+
+      // Create the bulk update job
+      const job = await storage.createBulkUpdateJob({
+        companyIds: reportIds,
+        status: "pending",
+        progress: 0,
+        completedCompanies: [],
+        failedCompanies: [],
+      });
+
+      // Estimate time (roughly 30-60 seconds per report)
+      const estimatedTime = reportIds.length * 45; // seconds
+
+      // Start processing asynchronously (non-blocking)
+      setImmediate(() => {
+        processBulkUpdate(job.id, reportIds);
+      });
+
+      res.json({
+        jobId: job.id,
+        estimatedTime,
+        totalReports: reportIds.length,
+        message: "Bulk update job started",
+      });
+    } catch (error: any) {
+      console.error("Error starting bulk update:", error);
+      res.status(500).json({ error: error.message || "Failed to start bulk update" });
+    }
+  });
+
+  // GET /api/bulk-update/status/:jobId - Check job progress
+  app.get("/api/bulk-update/status/:jobId", async (req, res) => {
+    try {
+      const { jobId } = req.params;
+      
+      const job = await storage.getBulkUpdateJob(jobId);
+      
+      if (!job) {
+        return res.status(404).json({ error: "Job not found" });
+      }
+
+      res.json(job);
+    } catch (error: any) {
+      console.error("Error getting bulk update status:", error);
+      res.status(500).json({ error: error.message || "Failed to get job status" });
+    }
+  });
+
+  // POST /api/bulk-update/cancel/:jobId - Cancel running job
+  app.post("/api/bulk-update/cancel/:jobId", async (req, res) => {
+    try {
+      const { jobId } = req.params;
+      
+      const job = await storage.getBulkUpdateJob(jobId);
+      
+      if (!job) {
+        return res.status(404).json({ error: "Job not found" });
+      }
+
+      if (job.status !== "pending" && job.status !== "in_progress") {
+        return res.status(400).json({ 
+          error: "Cannot cancel job", 
+          reason: `Job is already ${job.status}` 
+        });
+      }
+
+      await storage.updateBulkUpdateJob(jobId, {
+        status: "cancelled",
+        completedAt: new Date(),
+      });
+
+      res.json({ success: true, message: "Job cancelled" });
+    } catch (error: any) {
+      console.error("Error cancelling bulk update:", error);
+      res.status(500).json({ error: error.message || "Failed to cancel job" });
+    }
+  });
+
+  // GET /api/bulk-update/active - Get active jobs
+  app.get("/api/bulk-update/active", async (req, res) => {
+    try {
+      const activeJobs = await storage.getActiveBulkUpdateJobs();
+      res.json(activeJobs);
+    } catch (error: any) {
+      console.error("Error getting active bulk updates:", error);
+      res.status(500).json({ error: error.message || "Failed to get active jobs" });
+    }
+  });
+
+  // GET /api/bulk-update/history - List recent bulk update jobs
+  app.get("/api/bulk-update/history", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 10;
+      const history = await storage.getBulkUpdateHistory(limit);
+      res.json(history);
+    } catch (error: any) {
+      console.error("Error getting bulk update history:", error);
+      res.status(500).json({ error: error.message || "Failed to get job history" });
+    }
+  });
+
   return httpServer;
 }

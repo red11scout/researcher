@@ -1,0 +1,94 @@
+add a bulk update feature to the Saved Reports screen that allows me to refresh company research for multiple companies at once.
+Requirements:
+
+Multi-Select UI on Saved Reports Screen
+
+Add checkboxes to each company row in the saved reports list
+Add a "Select All" checkbox in the header that toggles all visible companies
+Add a "Select All in Group" option for bulk selecting all companies under a specific investor/group (e.g., all 54 AEA companies, all 17 StonePeak companies)
+Show a floating action bar when 1+ companies are selected displaying:
+
+Count of selected companies: "X companies selected"
+"Update Selected" button
+"Clear Selection" button
+
+
+
+
+Bulk Update Processing
+
+When "Update Selected" is clicked, show a confirmation modal:
+
+"Update research for X companies? This may take several minutes."
+Estimated time based on company count (e.g., ~2 min per company)
+Option to run in background or stay on page
+
+
+Process updates sequentially to avoid rate limits on research APIs
+Show progress indicator:
+
+"Updating company X of Y: [Company Name]"
+Progress bar showing percentage complete
+List of completed companies with status (success/failed)
+Ability to cancel remaining updates
+
+
+
+
+Background Processing Option
+
+Allow user to initiate bulk update and navigate away
+Store update job status in database with:
+
+Job ID
+Companies to update (array)
+Current progress
+Start time
+Status (pending, in_progress, completed, failed)
+
+
+Show notification badge on Saved Reports when background job is running
+Show toast notification when background job completes
+
+
+Error Handling
+
+If a company update fails, log the error and continue with remaining companies
+At completion, show summary:
+
+"X of Y companies updated successfully"
+List of failed companies with retry option
+
+
+Store last successful update timestamp per company
+
+
+UI/UX Considerations
+
+Preserve existing filter/sort state during selection
+Clear selection when switching between investor groups
+Keyboard shortcuts: Ctrl+A to select all visible, Escape to clear selection
+Selected row highlighting for visual feedback
+
+
+
+Database Schema Additions:
+bulk_update_jobs:
+  - id (uuid)
+  - user_id
+  - company_ids (array)
+  - status (enum: pending, in_progress, completed, failed, cancelled)
+  - progress (int, 0-100)
+  - current_company_id
+  - completed_companies (array)
+  - failed_companies (array with error messages)
+  - started_at (timestamp)
+  - completed_at (timestamp)
+
+
+API Endpoints Needed:
+
+POST /api/bulk-update/start - Initiate bulk update job
+GET /api/bulk-update/status/:jobId - Check job progress
+POST /api/bulk-update/cancel/:jobId - Cancel running job
+GET /api/bulk-update/history - List recent bulk update jobs
