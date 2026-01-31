@@ -45,14 +45,13 @@ interface SavedReport {
 }
 
 interface BulkUpdateJob {
-  jobId: string;
-  status: 'pending' | 'processing' | 'completed' | 'cancelled' | 'failed';
+  id: string;
+  status: 'pending' | 'in_progress' | 'completed' | 'cancelled' | 'failed';
   progress: number;
-  currentCompanyIndex: number;
-  totalCompanies: number;
-  currentCompanyName: string;
-  completedCompanies: string[];
-  failedCompanies: string[];
+  currentCompanyId: string | null;
+  companyIds: string[];
+  completedCompanies: Array<{id: string; name: string; status: string}>;
+  failedCompanies: Array<{id: string; name: string; error: string}>;
 }
 
 export default function SavedReports() {
@@ -99,11 +98,11 @@ export default function SavedReports() {
   useEffect(() => {
     let pollInterval: NodeJS.Timeout | null = null;
 
-    if (bulkUpdateJob && (bulkUpdateJob.status === 'pending' || bulkUpdateJob.status === 'processing')) {
+    if (bulkUpdateJob && (bulkUpdateJob.status === 'pending' || bulkUpdateJob.status === 'in_progress')) {
       setIsPolling(true);
       pollInterval = setInterval(async () => {
         try {
-          const response = await fetch(`/api/bulk-update/status/${bulkUpdateJob.jobId}`);
+          const response = await fetch(`/api/bulk-update/status/${bulkUpdateJob.id}`);
           if (response.ok) {
             const job = await response.json();
             setBulkUpdateJob(job);
@@ -140,15 +139,19 @@ export default function SavedReports() {
     return () => {
       if (pollInterval) clearInterval(pollInterval);
     };
-  }, [bulkUpdateJob?.jobId, bulkUpdateJob?.status]);
+  }, [bulkUpdateJob?.id, bulkUpdateJob?.status]);
 
   const checkActiveJob = async () => {
     try {
       const response = await fetch("/api/bulk-update/active");
       if (response.ok) {
-        const job = await response.json();
-        if (job && (job.status === 'pending' || job.status === 'processing')) {
-          setBulkUpdateJob(job);
+        const jobs = await response.json();
+        // API returns an array of active jobs, take the first one if exists
+        if (Array.isArray(jobs) && jobs.length > 0) {
+          const job = jobs[0];
+          if (job.status === 'pending' || job.status === 'in_progress') {
+            setBulkUpdateJob(job);
+          }
         }
       }
     } catch (error) {
@@ -216,8 +219,13 @@ export default function SavedReports() {
       });
 
       if (response.ok) {
-        const job = await response.json();
-        setBulkUpdateJob(job);
+        const { jobId } = await response.json();
+        // Fetch the full job status to get proper shape
+        const statusResponse = await fetch(`/api/bulk-update/status/${jobId}`);
+        if (statusResponse.ok) {
+          const fullJob = await statusResponse.json();
+          setBulkUpdateJob(fullJob);
+        }
         toast({
           title: "Bulk Update Started",
           description: `Updating ${selectedReports.size} companies...`,
@@ -238,7 +246,7 @@ export default function SavedReports() {
     if (!bulkUpdateJob) return;
 
     try {
-      const response = await fetch(`/api/bulk-update/cancel/${bulkUpdateJob.jobId}`, {
+      const response = await fetch(`/api/bulk-update/cancel/${bulkUpdateJob.id}`, {
         method: "POST",
       });
 
@@ -351,7 +359,7 @@ export default function SavedReports() {
     report.companyName.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const isJobActive = bulkUpdateJob && (bulkUpdateJob.status === 'pending' || bulkUpdateJob.status === 'processing');
+  const isJobActive = bulkUpdateJob && (bulkUpdateJob.status === 'pending' || bulkUpdateJob.status === 'in_progress');
 
   if (loading) {
     return (
@@ -678,7 +686,7 @@ export default function SavedReports() {
             </DialogTitle>
             <DialogDescription>
               {isJobActive ? (
-                <>Updating company {(bulkUpdateJob?.currentCompanyIndex ?? 0) + 1} of {bulkUpdateJob?.totalCompanies}: <strong>{bulkUpdateJob?.currentCompanyName}</strong></>
+                <>Updating company {(bulkUpdateJob?.completedCompanies.length ?? 0) + 1} of {bulkUpdateJob?.companyIds.length ?? 0}</>
               ) : bulkUpdateJob?.status === 'completed' ? (
                 `Successfully updated ${bulkUpdateJob?.completedCompanies.length} companies.`
               ) : bulkUpdateJob?.status === 'cancelled' ? (
@@ -698,18 +706,18 @@ export default function SavedReports() {
               <Progress value={bulkUpdateJob?.progress ?? 0} className="h-2" />
             </div>
             
-            {bulkUpdateJob && bulkUpdateJob.completedCompanies.length > 0 && (
+            {bulkUpdateJob && (bulkUpdateJob.completedCompanies.length > 0 || bulkUpdateJob.failedCompanies.length > 0) && (
               <div className="max-h-40 overflow-y-auto space-y-1 border rounded-md p-2">
                 {bulkUpdateJob.completedCompanies.map((company, index) => (
                   <div key={index} className="flex items-center gap-2 text-sm text-green-600">
                     <CheckCircle2 className="h-4 w-4" />
-                    <span>{company}</span>
+                    <span>{company.name}</span>
                   </div>
                 ))}
                 {bulkUpdateJob.failedCompanies.map((company, index) => (
                   <div key={`failed-${index}`} className="flex items-center gap-2 text-sm text-destructive">
                     <X className="h-4 w-4" />
-                    <span>{company} (failed)</span>
+                    <span>{company.name} (failed)</span>
                   </div>
                 ))}
               </div>
