@@ -6,6 +6,7 @@ import {
   formulaConfigs,
   sharedDashboards,
   bulkUpdateJobs,
+  bulkExports,
   type Report, 
   type InsertReport,
   type AssumptionSet,
@@ -18,6 +19,8 @@ import {
   type InsertSharedDashboard,
   type BulkUpdateJob,
   type InsertBulkUpdateJob,
+  type BulkExport,
+  type InsertBulkExport,
   DEFAULT_ASSUMPTIONS,
   DEFAULT_FORMULAS,
   ASSUMPTION_CATEGORIES,
@@ -75,6 +78,14 @@ export interface IStorage {
   updateBulkUpdateJob(id: string, data: Partial<InsertBulkUpdateJob>): Promise<BulkUpdateJob | undefined>;
   getActiveBulkUpdateJobs(): Promise<BulkUpdateJob[]>;
   getBulkUpdateHistory(limit?: number): Promise<BulkUpdateJob[]>;
+  
+  // Bulk Export operations
+  createBulkExport(job: InsertBulkExport): Promise<BulkExport>;
+  getBulkExport(id: string): Promise<BulkExport | undefined>;
+  updateBulkExport(id: string, data: Partial<InsertBulkExport>): Promise<BulkExport | undefined>;
+  getActiveBulkExports(): Promise<BulkExport[]>;
+  getBulkExportHistory(limit?: number): Promise<BulkExport[]>;
+  cleanupExpiredBulkExports(): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -629,6 +640,64 @@ export class DatabaseStorage implements IStorage {
       .from(bulkUpdateJobs)
       .orderBy(desc(bulkUpdateJobs.createdAt))
       .limit(limit);
+  }
+
+  // Bulk Export operations
+  async createBulkExport(job: InsertBulkExport): Promise<BulkExport> {
+    const [newJob] = await db
+      .insert(bulkExports)
+      .values(job)
+      .returning();
+    return newJob;
+  }
+
+  async getBulkExport(id: string): Promise<BulkExport | undefined> {
+    const [job] = await db
+      .select()
+      .from(bulkExports)
+      .where(eq(bulkExports.id, id))
+      .limit(1);
+    return job;
+  }
+
+  async updateBulkExport(id: string, data: Partial<InsertBulkExport>): Promise<BulkExport | undefined> {
+    const [updated] = await db
+      .update(bulkExports)
+      .set(data)
+      .where(eq(bulkExports.id, id))
+      .returning();
+    return updated;
+  }
+
+  async getActiveBulkExports(): Promise<BulkExport[]> {
+    return await db
+      .select()
+      .from(bulkExports)
+      .where(
+        sql`${bulkExports.status} IN ('pending', 'generating')`
+      )
+      .orderBy(desc(bulkExports.createdAt));
+  }
+
+  async getBulkExportHistory(limit: number = 50): Promise<BulkExport[]> {
+    return await db
+      .select()
+      .from(bulkExports)
+      .orderBy(desc(bulkExports.createdAt))
+      .limit(limit);
+  }
+
+  async cleanupExpiredBulkExports(): Promise<number> {
+    const result = await db
+      .delete(bulkExports)
+      .where(
+        and(
+          lt(bulkExports.expiresAt, new Date()),
+          sql`${bulkExports.expiresAt} IS NOT NULL`
+        )
+      )
+      .returning();
+    return result.length;
   }
 }
 

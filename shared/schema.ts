@@ -60,6 +60,30 @@ export const insertBulkUpdateJobSchema = createInsertSchema(bulkUpdateJobs).omit
 export type InsertBulkUpdateJob = z.infer<typeof insertBulkUpdateJobSchema>;
 export type BulkUpdateJob = typeof bulkUpdateJobs.$inferSelect;
 
+export const bulkExports = pgTable("bulk_exports", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  companyIds: jsonb("company_ids").notNull(), // array of report IDs
+  reportType: varchar("report_type", { length: 50 }).notNull().default("overview"), // overview, financial, competitive, full
+  format: varchar("format", { length: 10 }).notNull().default("pdf"), // pdf, docx, xlsx, md, json
+  status: varchar("status", { length: 20 }).notNull().default("pending"), // pending, generating, ready, expired, failed, cancelled
+  progress: integer("progress").default(0).notNull(), // 0-100
+  filePath: text("file_path"),
+  fileSize: integer("file_size"),
+  downloadUrl: text("download_url"),
+  expiresAt: timestamp("expires_at"),
+  manifest: jsonb("manifest"), // export manifest JSON
+  completedCompanies: jsonb("completed_companies").default([]).notNull(),
+  failedCompanies: jsonb("failed_companies").default([]).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertBulkExportSchema = createInsertSchema(bulkExports).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertBulkExport = z.infer<typeof insertBulkExportSchema>;
+export type BulkExport = typeof bulkExports.$inferSelect;
+
 // Parent categories for hierarchical organization (per document Section 3)
 export const PARENT_CATEGORIES = [
   "financial_operational",   // Company financial & operational assumptions

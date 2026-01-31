@@ -8,6 +8,9 @@ import { insertReportSchema } from "@shared/schema";
 import { nanoid } from "nanoid";
 import multer from "multer";
 import { createRequire } from "module";
+import archiver from "archiver";
+import fs from "fs";
+import path from "path";
 const require = createRequire(import.meta.url);
 const { PDFParse } = require("pdf-parse");
 
@@ -2702,6 +2705,343 @@ Return ONLY valid JSON with this structure:
     } catch (error: any) {
       console.error("Error getting bulk update history:", error);
       res.status(500).json({ error: error.message || "Failed to get job history" });
+    }
+  });
+
+  // ============================================================
+  // BULK EXPORT ENDPOINTS
+  // ============================================================
+
+  const EXPORTS_DIR = "/tmp/exports";
+  
+  // Ensure exports directory exists
+  if (!fs.existsSync(EXPORTS_DIR)) {
+    fs.mkdirSync(EXPORTS_DIR, { recursive: true });
+  }
+
+  // Process bulk export job asynchronously
+  async function processBulkExport(jobId: string): Promise<void> {
+    try {
+      const job = await storage.getBulkExport(jobId);
+      if (!job) {
+        console.error(`[bulk-export] Job ${jobId} not found`);
+        return;
+      }
+
+      const reportIds = job.companyIds as string[];
+      const format = job.format;
+      const reportType = job.reportType;
+
+      // Update status to generating
+      await storage.updateBulkExport(jobId, {
+        status: "generating",
+      });
+
+      console.log(`[bulk-export] Starting job ${jobId} with ${reportIds.length} reports, format: ${format}`);
+
+      const completedCompanies: Array<{ id: string; name: string; filename: string }> = [];
+      const failedCompanies: Array<{ id: string; name: string; error: string }> = [];
+      const exportFiles: Array<{ filename: string; content: string }> = [];
+
+      for (let i = 0; i < reportIds.length; i++) {
+        // Check if job was cancelled
+        const currentJob = await storage.getBulkExport(jobId);
+        if (currentJob?.status === "cancelled") {
+          console.log(`[bulk-export] Job ${jobId} was cancelled, stopping processing`);
+          return;
+        }
+
+        const reportId = reportIds[i];
+        try {
+          const report = await storage.getReportById(reportId);
+          if (!report) {
+            failedCompanies.push({ id: reportId, name: "Unknown", error: "Report not found" });
+            continue;
+          }
+
+          const companyName = report.companyName;
+          console.log(`[bulk-export] Processing ${i + 1}/${reportIds.length}: ${companyName}`);
+
+          // Generate export content based on format
+          let filename: string;
+          let content: string;
+          const safeCompanyName = companyName.replace(/[^a-zA-Z0-9]/g, "_");
+
+          switch (format) {
+            case "json":
+              filename = `${safeCompanyName}_${reportType}.json`;
+              content = JSON.stringify({
+                company: companyName,
+                reportType: reportType,
+                exportedAt: new Date().toISOString(),
+                data: report.analysisData,
+              }, null, 2);
+              break;
+            case "md":
+              filename = `${safeCompanyName}_${reportType}.md`;
+              const analysisData = report.analysisData as any;
+              content = `# ${companyName} - ${reportType} Report\n\n`;
+              content += `**Generated:** ${new Date().toISOString()}\n\n`;
+              content += `## Summary\n\n${analysisData?.summary || "No summary available"}\n\n`;
+              if (analysisData?.steps) {
+                for (const step of analysisData.steps) {
+                  content += `## ${step.title || `Step ${step.step}`}\n\n`;
+                  content += `${step.content || ""}\n\n`;
+                }
+              }
+              break;
+            case "pdf":
+              filename = `${safeCompanyName}_${reportType}.txt`;
+              content = `[PDF Export Placeholder]\n\nCompany: ${companyName}\nReport Type: ${reportType}\nExported: ${new Date().toISOString()}\n\nNote: Actual PDF generation will be implemented in a future update.`;
+              break;
+            case "docx":
+              filename = `${safeCompanyName}_${reportType}.txt`;
+              content = `[DOCX Export Placeholder]\n\nCompany: ${companyName}\nReport Type: ${reportType}\nExported: ${new Date().toISOString()}\n\nNote: Actual DOCX generation will be implemented in a future update.`;
+              break;
+            case "xlsx":
+              filename = `${safeCompanyName}_${reportType}.txt`;
+              content = `[XLSX Export Placeholder]\n\nCompany: ${companyName}\nReport Type: ${reportType}\nExported: ${new Date().toISOString()}\n\nNote: Actual XLSX generation will be implemented in a future update.`;
+              break;
+            default:
+              filename = `${safeCompanyName}_${reportType}.json`;
+              content = JSON.stringify(report.analysisData, null, 2);
+          }
+
+          exportFiles.push({ filename, content });
+          completedCompanies.push({ id: reportId, name: companyName, filename });
+
+          // Update progress
+          const progress = Math.round(((i + 1) / reportIds.length) * 90); // Reserve 10% for ZIP creation
+          await storage.updateBulkExport(jobId, {
+            progress,
+            completedCompanies,
+            failedCompanies,
+          });
+
+        } catch (error: any) {
+          console.error(`[bulk-export] Error processing report ${reportId}:`, error?.message);
+          failedCompanies.push({ id: reportId, name: "Unknown", error: error?.message || "Unknown error" });
+        }
+      }
+
+      // Create ZIP file
+      const zipPath = path.join(EXPORTS_DIR, `${jobId}.zip`);
+      
+      await new Promise<void>((resolve, reject) => {
+        const output = fs.createWriteStream(zipPath);
+        const archive = archiver("zip", { zlib: { level: 9 } });
+
+        output.on("close", () => {
+          console.log(`[bulk-export] ZIP created: ${archive.pointer()} bytes`);
+          resolve();
+        });
+
+        archive.on("error", (err) => {
+          console.error(`[bulk-export] Archive error:`, err);
+          reject(err);
+        });
+
+        archive.pipe(output);
+
+        // Add all export files
+        for (const file of exportFiles) {
+          archive.append(file.content, { name: file.filename });
+        }
+
+        // Create manifest
+        const manifest = {
+          exportId: jobId,
+          exportedAt: new Date().toISOString(),
+          format: format,
+          reportType: reportType,
+          totalReports: reportIds.length,
+          successfulExports: completedCompanies.length,
+          failedExports: failedCompanies.length,
+          files: completedCompanies.map(c => c.filename),
+          failed: failedCompanies,
+        };
+        archive.append(JSON.stringify(manifest, null, 2), { name: "manifest.json" });
+
+        archive.finalize();
+      });
+
+      // Get file size
+      const stats = fs.statSync(zipPath);
+      const fileSize = stats.size;
+
+      // Calculate expiration (24 hours from now)
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+      // Update job with final status
+      await storage.updateBulkExport(jobId, {
+        status: "ready",
+        progress: 100,
+        filePath: zipPath,
+        fileSize,
+        expiresAt,
+        completedCompanies,
+        failedCompanies,
+        manifest,
+      });
+
+      console.log(`[bulk-export] Job ${jobId} completed successfully`);
+
+    } catch (error: any) {
+      console.error(`[bulk-export] Job ${jobId} failed:`, error?.message);
+      await storage.updateBulkExport(jobId, {
+        status: "failed",
+        failedCompanies: [{ id: "system", name: "System Error", error: error?.message || "Unknown error" }],
+      });
+    }
+  }
+
+  // POST /api/bulk-export/start - Initiate bulk export job
+  app.post("/api/bulk-export/start", async (req, res) => {
+    try {
+      const { reportIds, format, reportType } = req.body;
+
+      // Validate reportIds
+      if (!reportIds || !Array.isArray(reportIds) || reportIds.length === 0) {
+        return res.status(400).json({ error: "reportIds must be a non-empty array" });
+      }
+
+      if (reportIds.length > 100) {
+        return res.status(400).json({ error: "Maximum 100 reports per export job" });
+      }
+
+      // Validate format
+      const validFormats = ["pdf", "docx", "xlsx", "md", "json"];
+      if (!format || !validFormats.includes(format)) {
+        return res.status(400).json({ error: `Invalid format. Must be one of: ${validFormats.join(", ")}` });
+      }
+
+      // Validate reportType
+      if (!reportType || typeof reportType !== "string") {
+        return res.status(400).json({ error: "reportType is required" });
+      }
+
+      // Create job in storage
+      const job = await storage.createBulkExport({
+        companyIds: reportIds,
+        format,
+        reportType,
+        status: "pending",
+        progress: 0,
+        completedCompanies: [],
+        failedCompanies: [],
+      });
+
+      // Estimate time (roughly 2 seconds per report + 5 seconds for ZIP)
+      const estimatedTime = reportIds.length * 2 + 5;
+
+      // Start processing asynchronously
+      setImmediate(() => processBulkExport(job.id));
+
+      res.json({
+        jobId: job.id,
+        totalReports: reportIds.length,
+        estimatedTime,
+      });
+
+    } catch (error: any) {
+      console.error("Error starting bulk export:", error);
+      res.status(500).json({ error: error.message || "Failed to start export job" });
+    }
+  });
+
+  // GET /api/bulk-export/status/:jobId - Check export progress
+  app.get("/api/bulk-export/status/:jobId", async (req, res) => {
+    try {
+      const { jobId } = req.params;
+      const job = await storage.getBulkExport(jobId);
+
+      if (!job) {
+        return res.status(404).json({ error: "Export job not found" });
+      }
+
+      res.json(job);
+    } catch (error: any) {
+      console.error("Error getting bulk export status:", error);
+      res.status(500).json({ error: error.message || "Failed to get job status" });
+    }
+  });
+
+  // GET /api/bulk-export/download/:jobId - Download zip file
+  app.get("/api/bulk-export/download/:jobId", async (req, res) => {
+    try {
+      const { jobId } = req.params;
+      const job = await storage.getBulkExport(jobId);
+
+      if (!job) {
+        return res.status(404).json({ error: "Export job not found" });
+      }
+
+      if (job.status !== "ready") {
+        return res.status(400).json({ error: `Export is not ready. Current status: ${job.status}` });
+      }
+
+      if (!job.filePath || !fs.existsSync(job.filePath)) {
+        return res.status(404).json({ error: "Export file not found" });
+      }
+
+      // Check if expired
+      if (job.expiresAt && new Date(job.expiresAt) < new Date()) {
+        return res.status(410).json({ error: "Export has expired" });
+      }
+
+      // Set headers for download
+      res.setHeader("Content-Type", "application/zip");
+      res.setHeader("Content-Disposition", `attachment; filename="export_${jobId}.zip"`);
+      res.setHeader("Content-Length", job.fileSize || 0);
+
+      // Stream the file
+      const fileStream = fs.createReadStream(job.filePath);
+      fileStream.pipe(res);
+
+    } catch (error: any) {
+      console.error("Error downloading bulk export:", error);
+      res.status(500).json({ error: error.message || "Failed to download export" });
+    }
+  });
+
+  // POST /api/bulk-export/cancel/:jobId - Cancel export
+  app.post("/api/bulk-export/cancel/:jobId", async (req, res) => {
+    try {
+      const { jobId } = req.params;
+      const job = await storage.getBulkExport(jobId);
+
+      if (!job) {
+        return res.status(404).json({ error: "Export job not found" });
+      }
+
+      // Check if job is cancellable
+      const cancellableStatuses = ["pending", "generating"];
+      if (!cancellableStatuses.includes(job.status)) {
+        return res.status(400).json({ error: `Cannot cancel job with status: ${job.status}` });
+      }
+
+      // Update status to cancelled
+      await storage.updateBulkExport(jobId, {
+        status: "cancelled",
+      });
+
+      res.json({ success: true, message: "Export job cancelled" });
+
+    } catch (error: any) {
+      console.error("Error cancelling bulk export:", error);
+      res.status(500).json({ error: error.message || "Failed to cancel export" });
+    }
+  });
+
+  // GET /api/bulk-export/history - List export history
+  app.get("/api/bulk-export/history", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 10;
+      const history = await storage.getBulkExportHistory(limit);
+      res.json(history);
+    } catch (error: any) {
+      console.error("Error getting bulk export history:", error);
+      res.status(500).json({ error: error.message || "Failed to get export history" });
     }
   });
 

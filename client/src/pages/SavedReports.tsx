@@ -32,7 +32,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Search, FileText, RefreshCw, Trash2, Calendar, Loader2, Database, ArrowRight, Zap, X, CheckCircle2 } from "lucide-react";
+import { Search, FileText, RefreshCw, Trash2, Calendar, Loader2, Database, ArrowRight, Zap, X, CheckCircle2, Download } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Link, useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 
@@ -54,6 +63,19 @@ interface BulkUpdateJob {
   failedCompanies: Array<{id: string; name: string; error: string}>;
 }
 
+interface BulkExportJob {
+  id: string;
+  status: 'pending' | 'generating' | 'ready' | 'expired' | 'failed' | 'cancelled';
+  progress: number;
+  format: string;
+  reportType: string;
+  companyIds: string[];
+  completedCompanies: Array<{id: string; name: string; filename: string}>;
+  failedCompanies: Array<{id: string; name: string; error: string}>;
+  downloadUrl?: string;
+  fileSize?: number;
+}
+
 export default function SavedReports() {
   const [reports, setReports] = useState<SavedReport[]>([]);
   const [loading, setLoading] = useState(true);
@@ -69,6 +91,11 @@ export default function SavedReports() {
   const [bulkUpdateJob, setBulkUpdateJob] = useState<BulkUpdateJob | null>(null);
   const [showBulkModal, setShowBulkModal] = useState(false);
   const [isPolling, setIsPolling] = useState(false);
+
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportFormat, setExportFormat] = useState<'pdf' | 'docx' | 'xlsx' | 'md' | 'json'>('pdf');
+  const [exportReportType, setExportReportType] = useState('overview');
+  const [bulkExportJob, setBulkExportJob] = useState<BulkExportJob | null>(null);
 
   useEffect(() => {
     fetchReports();
@@ -268,6 +295,125 @@ export default function SavedReports() {
     }
   };
 
+  useEffect(() => {
+    let pollInterval: NodeJS.Timeout | null = null;
+
+    if (bulkExportJob && (bulkExportJob.status === 'pending' || bulkExportJob.status === 'generating')) {
+      pollInterval = setInterval(async () => {
+        try {
+          const response = await fetch(`/api/bulk-export/status/${bulkExportJob.id}`);
+          if (response.ok) {
+            const job = await response.json();
+            setBulkExportJob(job);
+            
+            if (job.status === 'ready' || job.status === 'cancelled' || job.status === 'failed' || job.status === 'expired') {
+              if (job.status === 'ready') {
+                toast({
+                  title: "Export Ready",
+                  description: `Your export is ready for download.`,
+                });
+              } else if (job.status === 'cancelled') {
+                toast({
+                  title: "Export Cancelled",
+                  description: "The bulk export was cancelled.",
+                });
+              } else if (job.status === 'failed') {
+                toast({
+                  title: "Export Failed",
+                  description: "Some reports failed to export.",
+                  variant: "destructive",
+                });
+              }
+            }
+          }
+        } catch (error) {
+          console.error("Failed to poll export job status:", error);
+        }
+      }, 2000);
+    }
+
+    return () => {
+      if (pollInterval) clearInterval(pollInterval);
+    };
+  }, [bulkExportJob?.id, bulkExportJob?.status]);
+
+  const startBulkExport = async () => {
+    setShowExportModal(false);
+    
+    try {
+      const response = await fetch("/api/bulk-export/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          reportIds: Array.from(selectedReports),
+          format: exportFormat,
+          reportType: exportReportType
+        }),
+      });
+
+      if (response.ok) {
+        const { jobId } = await response.json();
+        const statusResponse = await fetch(`/api/bulk-export/status/${jobId}`);
+        if (statusResponse.ok) {
+          const fullJob = await statusResponse.json();
+          setBulkExportJob(fullJob);
+        }
+        toast({
+          title: "Export Started",
+          description: `Exporting ${selectedReports.size} reports as ${exportFormat.toUpperCase()}...`,
+        });
+      } else {
+        throw new Error("Failed to start bulk export");
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to start bulk export. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const cancelBulkExport = async () => {
+    if (!bulkExportJob) return;
+
+    try {
+      const response = await fetch(`/api/bulk-export/cancel/${bulkExportJob.id}`, {
+        method: "POST",
+      });
+
+      if (response.ok) {
+        setBulkExportJob(prev => prev ? { ...prev, status: 'cancelled' } : null);
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to cancel export. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const closeExportProgressModal = () => {
+    if (bulkExportJob?.status === 'ready' || bulkExportJob?.status === 'cancelled' || bulkExportJob?.status === 'failed' || bulkExportJob?.status === 'expired') {
+      setBulkExportJob(null);
+      clearSelection();
+    }
+  };
+
+  const handleExportDownload = () => {
+    if (bulkExportJob?.id) {
+      window.location.href = `/api/bulk-export/download/${bulkExportJob.id}`;
+    }
+  };
+
+  const formatFileSize = (bytes?: number) => {
+    if (!bytes) return '';
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
   const handleRegenerate = async (report: SavedReport) => {
     try {
       setRegeneratingId(report.id);
@@ -360,6 +506,7 @@ export default function SavedReports() {
   );
 
   const isJobActive = bulkUpdateJob && (bulkUpdateJob.status === 'pending' || bulkUpdateJob.status === 'in_progress');
+  const isExportJobActive = bulkExportJob && (bulkExportJob.status === 'pending' || bulkExportJob.status === 'generating');
 
   if (loading) {
     return (
@@ -622,7 +769,7 @@ export default function SavedReports() {
       </div>
 
       {/* Floating Action Bar */}
-      {selectedReports.size > 0 && !isJobActive && (
+      {selectedReports.size > 0 && !isJobActive && !isExportJobActive && (
         <div 
           className="fixed bottom-4 left-1/2 transform -translate-x-1/2 bg-white shadow-lg rounded-lg p-4 border flex items-center gap-4 z-50"
           data-testid="floating-action-bar"
@@ -639,6 +786,15 @@ export default function SavedReports() {
             >
               <X className="h-4 w-4 mr-1" />
               Clear
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowExportModal(true)}
+              data-testid="button-export-selected"
+            >
+              <Download className="h-4 w-4 mr-1" />
+              Export Selected
             </Button>
             <Button
               size="sm"
@@ -755,6 +911,155 @@ export default function SavedReports() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Export Configuration Modal */}
+      <AlertDialog open={showExportModal} onOpenChange={setShowExportModal}>
+        <AlertDialogContent className="sm:max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle data-testid="dialog-export-title">
+              Export {selectedReports.size} {selectedReports.size === 1 ? 'Company' : 'Companies'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Choose the export format and report type for your selected companies.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          
+          <div className="space-y-6 py-4">
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">Export Format</Label>
+              <RadioGroup 
+                value={exportFormat} 
+                onValueChange={(value) => setExportFormat(value as typeof exportFormat)}
+                className="grid grid-cols-2 gap-2"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="pdf" id="format-pdf" />
+                  <Label htmlFor="format-pdf" className="cursor-pointer">PDF</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="docx" id="format-docx" />
+                  <Label htmlFor="format-docx" className="cursor-pointer">Word (.docx)</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="xlsx" id="format-xlsx" />
+                  <Label htmlFor="format-xlsx" className="cursor-pointer">Excel (.xlsx)</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="md" id="format-md" />
+                  <Label htmlFor="format-md" className="cursor-pointer">Markdown</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="json" id="format-json" />
+                  <Label htmlFor="format-json" className="cursor-pointer">JSON</Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">Report Type</Label>
+              <Select value={exportReportType} onValueChange={setExportReportType}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select report type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="overview">Company Overview</SelectItem>
+                  <SelectItem value="executive">Executive Summary</SelectItem>
+                  <SelectItem value="detailed">Detailed Analysis</SelectItem>
+                  <SelectItem value="financial">Financial Impact</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="bg-muted p-3 rounded-md text-sm">
+              <strong>Preview:</strong> Export {selectedReports.size} {selectedReports.size === 1 ? 'report' : 'reports'} as .{exportFormat} {selectedReports.size === 1 ? 'file' : 'files'}
+            </div>
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-export-cancel">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={startBulkExport} data-testid="button-export-start">
+              <Download className="h-4 w-4 mr-1" />
+              Start Export
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Export Progress Modal */}
+      <Dialog open={!!bulkExportJob} onOpenChange={(open) => !open && closeExportProgressModal()}>
+        <DialogContent className="sm:max-w-md" data-testid="dialog-export-progress">
+          <DialogHeader>
+            <DialogTitle>
+              {isExportJobActive ? "Exporting Reports..." : 
+               bulkExportJob?.status === 'ready' ? "Export Ready" :
+               bulkExportJob?.status === 'cancelled' ? "Export Cancelled" : 
+               bulkExportJob?.status === 'expired' ? "Export Expired" : "Export Failed"}
+            </DialogTitle>
+            <DialogDescription>
+              {isExportJobActive ? (
+                <>Generating report {(bulkExportJob?.completedCompanies.length ?? 0) + 1} of {bulkExportJob?.companyIds.length ?? 0}</>
+              ) : bulkExportJob?.status === 'ready' ? (
+                <>Your export is ready for download. {bulkExportJob?.fileSize ? `(${formatFileSize(bulkExportJob.fileSize)})` : ''}</>
+              ) : bulkExportJob?.status === 'cancelled' ? (
+                `Export cancelled after generating ${bulkExportJob?.completedCompanies.length} reports.`
+              ) : bulkExportJob?.status === 'expired' ? (
+                "This export has expired. Please start a new export."
+              ) : (
+                `Export failed. Generated ${bulkExportJob?.completedCompanies.length} reports before error.`
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>Progress</span>
+                <span>{Math.round(bulkExportJob?.progress ?? 0)}%</span>
+              </div>
+              <Progress value={bulkExportJob?.progress ?? 0} className="h-2" />
+            </div>
+            
+            {bulkExportJob && (bulkExportJob.completedCompanies.length > 0 || bulkExportJob.failedCompanies.length > 0) && (
+              <div className="max-h-40 overflow-y-auto space-y-1 border rounded-md p-2">
+                {bulkExportJob.completedCompanies.map((company, index) => (
+                  <div key={index} className="flex items-center gap-2 text-sm text-green-600">
+                    <CheckCircle2 className="h-4 w-4" />
+                    <span>{company.name}</span>
+                  </div>
+                ))}
+                {bulkExportJob.failedCompanies.map((company, index) => (
+                  <div key={`failed-${index}`} className="flex items-center gap-2 text-sm text-destructive">
+                    <X className="h-4 w-4" />
+                    <span>{company.name} (failed)</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            {isExportJobActive ? (
+              <Button variant="destructive" onClick={cancelBulkExport} data-testid="button-cancel-export">
+                Cancel Export
+              </Button>
+            ) : bulkExportJob?.status === 'ready' ? (
+              <>
+                <Button variant="outline" onClick={closeExportProgressModal} data-testid="button-close-export">
+                  Close
+                </Button>
+                <Button onClick={handleExportDownload} data-testid="button-download-export">
+                  <Download className="h-4 w-4 mr-1" />
+                  Download
+                </Button>
+              </>
+            ) : (
+              <Button onClick={closeExportProgressModal} data-testid="button-close-export">
+                Close
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 }
