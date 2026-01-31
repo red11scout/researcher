@@ -6,6 +6,23 @@ BlueAlly Insight is an enterprise research and analysis platform that generates 
 
 The platform features a modern, professional interface with interactive data visualization, real-time analysis progress tracking, industry benchmarking capabilities, and comprehensive What-If Analysis with full scenario modeling.
 
+## Recent Changes (January 2026)
+
+**Bulk Update Feature for Saved Reports (Complete)**:
+- Multi-select UI on Saved Reports screen with checkboxes on each company row
+- "Select All" checkbox in table header to toggle all visible companies
+- Floating action bar when companies are selected showing count and action buttons
+- Bulk update processing with confirmation modal showing estimated time (~45s per company)
+- Sequential processing to avoid rate limits on AI APIs
+- Progress tracking with real-time updates showing "Updating company X of Y"
+- Progress bar and list of completed/failed companies with status indicators
+- Cancellation support to stop remaining updates mid-process
+- Background job stored in database (bulk_update_jobs table) with status tracking
+- Automatic resume on page reload if active job exists
+- Keyboard shortcuts: Ctrl+A to select all, Escape to clear selection
+- API endpoints: POST /api/bulk-update/start, GET /api/bulk-update/status/:jobId, POST /api/bulk-update/cancel/:jobId, GET /api/bulk-update/active, GET /api/bulk-update/history
+- Files: SavedReports.tsx (UI), routes.ts (API), storage.ts (database), schema.ts (table)
+
 ## Recent Changes (December 2025)
 
 **Document Upload for Enhanced Analysis (Complete)**:
