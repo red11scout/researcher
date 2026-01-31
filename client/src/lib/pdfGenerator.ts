@@ -24,17 +24,25 @@ export const sanitizeForPDF = (text: string): string => {
 export const loadImageAsBase64 = (url: string): Promise<string> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.crossOrigin = 'anonymous';
+    // Only set crossOrigin for external URLs to avoid CORS issues with bundled assets
+    if (url.startsWith('http') && !url.includes(window.location.origin)) {
+      img.crossOrigin = 'anonymous';
+    }
     img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.drawImage(img, 0, 0);
-        resolve(canvas.toDataURL('image/png'));
-      } else {
-        reject(new Error('Could not get canvas context'));
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0);
+          resolve(canvas.toDataURL('image/png'));
+        } else {
+          reject(new Error('Could not get canvas context'));
+        }
+      } catch (e) {
+        // Fallback: if canvas operations fail (CORS), reject gracefully
+        reject(new Error('Canvas drawing failed - possible CORS issue'));
       }
     };
     img.onerror = () => reject(new Error('Failed to load image'));
