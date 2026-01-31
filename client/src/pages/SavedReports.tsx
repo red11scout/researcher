@@ -510,11 +510,12 @@ export default function SavedReports() {
     try {
       const value = report.analysisData?.executiveDashboard?.totalAnnualValue;
       if (value >= 1000000) {
-        return `$${(value / 1000000).toFixed(1)}M`;
+        const millions = Math.round(value / 1000000 * 10) / 10;
+        return millions === Math.floor(millions) ? `$${Math.floor(millions)}M` : `$${millions.toFixed(1)}M`;
       } else if (value >= 1000) {
         return `$${Math.round(value / 1000)}K`;
       }
-      return value ? `$${value}` : "N/A";
+      return value ? `$${Math.round(value)}` : "N/A";
     } catch {
       return "N/A";
     }

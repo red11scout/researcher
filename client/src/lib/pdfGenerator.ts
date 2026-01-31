@@ -68,13 +68,19 @@ const formatCurrency = (value: number | string): string => {
   const prefix = isNegative ? '-$' : '$';
   
   if (absValue >= 1000000000) {
-    return `${prefix}${(absValue / 1000000000).toFixed(1)}B`;
+    const billions = Math.round(absValue / 1000000000 * 10) / 10;
+    return billions === Math.floor(billions) 
+      ? `${prefix}${Math.floor(billions)}B`
+      : `${prefix}${billions.toFixed(1)}B`;
   } else if (absValue >= 1000000) {
-    return `${prefix}${(absValue / 1000000).toFixed(1)}M`;
+    const millions = Math.round(absValue / 1000000 * 10) / 10;
+    return millions === Math.floor(millions)
+      ? `${prefix}${Math.floor(millions)}M`
+      : `${prefix}${millions.toFixed(1)}M`;
   } else if (absValue >= 1000) {
     return `${prefix}${addCommas(Math.round(absValue))}`;
   } else if (absValue > 0) {
-    return `${prefix}${absValue.toFixed(0)}`;
+    return `${prefix}${Math.round(absValue)}`;
   }
   return '$0';
 };
@@ -92,9 +98,15 @@ const formatNumber = (value: number | string): string => {
   const prefix = isNegative ? '-' : '';
   
   if (absValue >= 1000000000) {
-    return `${prefix}${(absValue / 1000000000).toFixed(1)}B`;
+    const billions = Math.round(absValue / 1000000000 * 10) / 10;
+    return billions === Math.floor(billions)
+      ? `${prefix}${Math.floor(billions)}B`
+      : `${prefix}${billions.toFixed(1)}B`;
   } else if (absValue >= 1000000) {
-    return `${prefix}${(absValue / 1000000).toFixed(1)}M`;
+    const millions = Math.round(absValue / 1000000 * 10) / 10;
+    return millions === Math.floor(millions)
+      ? `${prefix}${Math.floor(millions)}M`
+      : `${prefix}${millions.toFixed(1)}M`;
   } else if (absValue >= 1000) {
     return `${prefix}${addCommas(Math.round(absValue))}`;
   }

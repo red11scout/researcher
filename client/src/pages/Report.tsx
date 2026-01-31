@@ -188,19 +188,25 @@ const formatCurrency = (value: number | string): string => {
   const prefix = isNegative ? '-$' : '$';
   
   if (absValue >= 1000000000) {
-    return `${prefix}${(absValue / 1000000000).toFixed(1)}B`;
+    const billions = Math.round(absValue / 1000000000 * 10) / 10;
+    return billions === Math.floor(billions) 
+      ? `${prefix}${Math.floor(billions)}B`
+      : `${prefix}${billions.toFixed(1)}B`;
   } else if (absValue >= 1000000) {
-    return `${prefix}${(absValue / 1000000).toFixed(1)}M`;
+    const millions = Math.round(absValue / 1000000 * 10) / 10;
+    return millions === Math.floor(millions)
+      ? `${prefix}${Math.floor(millions)}M`
+      : `${prefix}${millions.toFixed(1)}M`;
   } else if (absValue >= 1000) {
     return `${prefix}${addCommas(Math.round(absValue))}`;
   } else if (absValue > 0) {
-    return `${prefix}${absValue.toFixed(0)}`;
+    return `${prefix}${Math.round(absValue)}`;
   }
   return '$0';
 };
 
 // Format plain numbers with commas for readability
-// Examples: 1,234 | 45,678 | 1.2M | 3.5B
+// All numbers rounded to whole values (except percentages)
 const formatNumber = (value: number | string): string => {
   if (typeof value === 'string') {
     const num = parseFloat(value.replace(/[,]/g, ''));
@@ -214,9 +220,15 @@ const formatNumber = (value: number | string): string => {
   const prefix = isNegative ? '-' : '';
   
   if (absValue >= 1000000000) {
-    return `${prefix}${(absValue / 1000000000).toFixed(1)}B`;
+    const billions = Math.round(absValue / 1000000000 * 10) / 10;
+    return billions === Math.floor(billions)
+      ? `${prefix}${Math.floor(billions)}B`
+      : `${prefix}${billions.toFixed(1)}B`;
   } else if (absValue >= 1000000) {
-    return `${prefix}${(absValue / 1000000).toFixed(1)}M`;
+    const millions = Math.round(absValue / 1000000 * 10) / 10;
+    return millions === Math.floor(millions)
+      ? `${prefix}${Math.floor(millions)}M`
+      : `${prefix}${millions.toFixed(1)}M`;
   } else if (absValue >= 1000) {
     return `${prefix}${addCommas(Math.round(absValue))}`;
   }
@@ -3189,10 +3201,16 @@ function StepCard({ step }: { step: any }) {
     const absValue = Math.abs(value);
     const prefix = isNegative ? '-$' : '$';
     
-    if (absValue >= 1000000000) return `${prefix}${(absValue / 1000000000).toFixed(1)}B`;
-    if (absValue >= 1000000) return `${prefix}${(absValue / 1000000).toFixed(1)}M`;
-    if (absValue >= 1000) return `${prefix}${absValue.toLocaleString('en-US')}`;
-    return `${prefix}${absValue.toFixed(0)}`;
+    if (absValue >= 1000000000) {
+      const billions = Math.round(absValue / 1000000000 * 10) / 10;
+      return billions === Math.floor(billions) ? `${prefix}${Math.floor(billions)}B` : `${prefix}${billions.toFixed(1)}B`;
+    }
+    if (absValue >= 1000000) {
+      const millions = Math.round(absValue / 1000000 * 10) / 10;
+      return millions === Math.floor(millions) ? `${prefix}${Math.floor(millions)}M` : `${prefix}${millions.toFixed(1)}M`;
+    }
+    if (absValue >= 1000) return `${prefix}${Math.round(absValue).toLocaleString('en-US')}`;
+    return `${prefix}${Math.round(absValue)}`;
   };
   
   const formatNumberLocal = (value: number): string => {
@@ -3200,9 +3218,15 @@ function StepCard({ step }: { step: any }) {
     const absValue = Math.abs(value);
     const prefix = isNegative ? '-' : '';
     
-    if (absValue >= 1000000000) return `${prefix}${(absValue / 1000000000).toFixed(1)}B`;
-    if (absValue >= 1000000) return `${prefix}${(absValue / 1000000).toFixed(1)}M`;
-    if (absValue >= 1000) return `${prefix}${absValue.toLocaleString('en-US')}`;
+    if (absValue >= 1000000000) {
+      const billions = Math.round(absValue / 1000000000 * 10) / 10;
+      return billions === Math.floor(billions) ? `${prefix}${Math.floor(billions)}B` : `${prefix}${billions.toFixed(1)}B`;
+    }
+    if (absValue >= 1000000) {
+      const millions = Math.round(absValue / 1000000 * 10) / 10;
+      return millions === Math.floor(millions) ? `${prefix}${Math.floor(millions)}M` : `${prefix}${millions.toFixed(1)}M`;
+    }
+    if (absValue >= 1000) return `${prefix}${Math.round(absValue).toLocaleString('en-US')}`;
     return `${prefix}${Math.round(absValue)}`;
   };
   

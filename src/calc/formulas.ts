@@ -228,7 +228,8 @@ export function calculateTokenCost(inputs: {
 
 /**
  * Total Annual Value Calculation (Section 3.2)
- * SPEC FORMULA: TotalAnnualValue = (CostBenefit + RevenueBenefit + CashFlowBenefit + RiskBenefit) × ProbabilityOfSuccess
+ * FORMULA: TotalAnnualValue = CostBenefit + RevenueBenefit + CashFlowBenefit + RiskBenefit
+ * Note: Each driver already has realization multipliers applied, so we don't apply probability again
  */
 export function calculateTotalAnnualValue(inputs: {
   costBenefit: number;
@@ -242,20 +243,22 @@ export function calculateTotalAnnualValue(inputs: {
     revenueBenefit,
     cashFlowBenefit,
     riskBenefit,
-    probabilityOfSuccess = DEFAULT_MULTIPLIERS.probabilityOfSuccess,
+    // Note: probabilityOfSuccess is kept for interface compatibility but NOT applied
+    // Each driver benefit already has realization multipliers applied
   } = inputs;
 
+  // Total Annual Value is the simple sum of all four driver benefits
+  // DO NOT apply probability again - each driver already has realization adjustments
   const sumBenefits = costBenefit + revenueBenefit + cashFlowBenefit + riskBenefit;
-  const rawValue = sumBenefits * probabilityOfSuccess;
-  const roundedValue = Math.floor(rawValue / 100000) * 100000;
+  const roundedValue = Math.floor(sumBenefits / 100000) * 100000;
   
   return {
     value: roundedValue,
     trace: {
-      formula: '(CostBenefit + RevenueBenefit + CashFlowBenefit + RiskBenefit) × ProbabilityOfSuccess',
-      inputs: { costBenefit, revenueBenefit, cashFlowBenefit, riskBenefit, probabilityOfSuccess },
-      intermediates: { sumBenefits, rawValue },
-      output: rawValue,
+      formula: 'CostBenefit + RevenueBenefit + CashFlowBenefit + RiskBenefit',
+      inputs: { costBenefit, revenueBenefit, cashFlowBenefit, riskBenefit },
+      intermediates: { sumBenefits },
+      output: sumBenefits,
     },
   };
 }
@@ -389,16 +392,27 @@ export function getRecommendedPhase(priorityScore: number, timeToValueMonths: nu
 
 // Money formatter utility
 export function formatMoney(value: number): string {
-  if (value >= 1_000_000_000) {
-    return `$${(value / 1_000_000_000).toFixed(1)}B`;
+  // Round to whole numbers for readability (except percentages)
+  const rounded = Math.round(value);
+  
+  if (rounded >= 1_000_000_000) {
+    const billions = rounded / 1_000_000_000;
+    // Use whole numbers: $1B, $2B, etc. For fractions, show $1.5B only if needed
+    return billions === Math.floor(billions) 
+      ? `$${Math.floor(billions)}B`
+      : `$${billions.toFixed(1)}B`;
   }
-  if (value >= 1_000_000) {
-    return `$${(value / 1_000_000).toFixed(1)}M`;
+  if (rounded >= 1_000_000) {
+    const millions = rounded / 1_000_000;
+    // Use whole numbers for clean millions, otherwise 1 decimal
+    return millions === Math.floor(millions)
+      ? `$${Math.floor(millions)}M`
+      : `$${millions.toFixed(1)}M`;
   }
-  if (value >= 1_000) {
-    return `$${(value / 1_000).toFixed(0)}K`;
+  if (rounded >= 1_000) {
+    return `$${Math.round(rounded / 1_000)}K`;
   }
-  return `$${value.toFixed(0)}`;
+  return `$${rounded}`;
 }
 
 // Percentage formatter utility

@@ -223,11 +223,17 @@ const styles = StyleSheet.create({
 
 function formatCurrency(value: number, compact = false): string {
   if (compact) {
-    if (value >= 1_000_000_000) return `$${(value / 1_000_000_000).toFixed(1)}B`;
-    if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
-    if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}K`;
+    if (value >= 1_000_000_000) {
+      const billions = Math.round(value / 1_000_000_000 * 10) / 10;
+      return billions === Math.floor(billions) ? `$${Math.floor(billions)}B` : `$${billions.toFixed(1)}B`;
+    }
+    if (value >= 1_000_000) {
+      const millions = Math.round(value / 1_000_000 * 10) / 10;
+      return millions === Math.floor(millions) ? `$${Math.floor(millions)}M` : `$${millions.toFixed(1)}M`;
+    }
+    if (value >= 1_000) return `$${Math.round(value / 1_000)}K`;
   }
-  return `$${value.toLocaleString()}`;
+  return `$${Math.round(value).toLocaleString()}`;
 }
 
 function formatPercent(value: number): string {
