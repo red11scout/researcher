@@ -1219,6 +1219,10 @@ export default function Report() {
             if (typeof val === 'number' && col.toLowerCase().includes('$')) {
               return formatCurrency(val);
             }
+            // Round hours to whole numbers
+            if (typeof val === 'number' && col.toLowerCase().includes('hours')) {
+              return Math.round(val).toLocaleString();
+            }
             if (typeof val === 'number' && val > 1000) {
               return formatNumber(val);
             }
@@ -1593,6 +1597,10 @@ export default function Report() {
             // Handle different value types
             if (val === null || val === undefined) return '';
             if (typeof val === 'object') return JSON.stringify(val);
+            // Round hours to whole numbers
+            if (col.toLowerCase().includes('hours') && typeof val === 'number') {
+              return Math.round(val);
+            }
             // Preserve numbers, booleans, and strings as native types
             return val;
           });
@@ -1837,11 +1845,16 @@ export default function Report() {
           }),
           ...step.data.map((row: any) => 
             new DocxTableRow({
-              children: columns.map(col => 
-                new DocxTableCell({
-                  children: [new Paragraph({ text: String(row[col] || '').substring(0, 50), alignment: AlignmentType.CENTER })],
-                })
-              ),
+              children: columns.map(col => {
+                const val = row[col];
+                // Round hours to whole numbers
+                const formattedVal = col.toLowerCase().includes('hours') && typeof val === 'number'
+                  ? Math.round(val).toLocaleString()
+                  : String(val || '').substring(0, 50);
+                return new DocxTableCell({
+                  children: [new Paragraph({ text: formattedVal, alignment: AlignmentType.CENTER })],
+                });
+              }),
             })
           ),
         ];
@@ -1920,7 +1933,14 @@ export default function Report() {
         mdContent += `| ${columns.join(' | ')} |\n`;
         mdContent += `| ${columns.map(() => ':---:').join(' | ')} |\n`;
         step.data.forEach((row: any) => {
-          const values = columns.map(col => String(row[col] || '').substring(0, 40));
+          const values = columns.map(col => {
+            const val = row[col];
+            // Round hours to whole numbers
+            if (col.toLowerCase().includes('hours') && typeof val === 'number') {
+              return Math.round(val).toLocaleString();
+            }
+            return String(val || '').substring(0, 40);
+          });
           mdContent += `| ${values.join(' | ')} |\n`;
         });
         mdContent += `\n`;
@@ -2112,7 +2132,14 @@ export default function Report() {
           <tbody>
 `;
         step.data.forEach((row: any, idx: number) => {
-          html += `            <tr>${columns.map(c => `<td>${String(row[c] || '').substring(0, 60)}</td>`).join('')}</tr>\n`;
+          html += `            <tr>${columns.map(c => {
+            const val = row[c];
+            // Format hours as whole numbers
+            if (c.toLowerCase().includes('hours') && typeof val === 'number') {
+              return `<td>${Math.round(val).toLocaleString()}</td>`;
+            }
+            return `<td>${String(val || '').substring(0, 60)}</td>`;
+          }).join('')}</tr>\n`;
           
           // Add benefit breakdown for Step 5
           if (isBenefitsStep) {

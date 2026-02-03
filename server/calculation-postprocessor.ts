@@ -603,7 +603,7 @@ export function postProcessAnalysis(analysisResult: any): any {
         ...record,
         "Estimated Annual Cost ($)": formatMoney(frictionResult.value),
         "Cost Formula": frictionResult.formulaText,
-        "Annual Hours": frictionResult.annualHours,
+        "Annual Hours": Math.round(frictionResult.annualHours),
         "Hourly Rate": frictionResult.loadedHourlyRate,
         Severity: frictionResult.severity,
       });
