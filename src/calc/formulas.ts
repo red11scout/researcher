@@ -539,22 +539,15 @@ export function calculateFrictionSeverity(inputs: {
 export function formatHours(hours: number, includeLabel: boolean = true): string {
   const suffix = includeLabel ? ' hours' : '';
   
-  // For hours >= 10, round to whole number
-  if (hours >= 10) {
-    const rounded = Math.round(hours);
-    if (rounded >= 1000000) {
-      const millions = Math.round(rounded / 1000000 * 10) / 10;
-      return millions === Math.floor(millions) 
-        ? `${Math.floor(millions).toLocaleString()}M${suffix}`
-        : `${millions.toFixed(1)}M${suffix}`;
-    }
-    return `${rounded.toLocaleString()}${suffix}`;
+  // Always round to whole number for all hours
+  const rounded = Math.round(hours);
+  
+  if (rounded >= 1000000) {
+    const millions = Math.round(rounded / 1000000 * 10) / 10;
+    return millions === Math.floor(millions) 
+      ? `${Math.floor(millions).toLocaleString()}M${suffix}`
+      : `${millions.toFixed(1)}M${suffix}`;
   }
   
-  // For hours < 10, show up to 2 decimals
-  const rounded = Math.round(hours * 100) / 100;
-  const formatted = rounded === Math.floor(rounded)
-    ? Math.floor(rounded).toString()
-    : rounded.toFixed(2).replace(/\.?0+$/, '');
-  return `${formatted}${suffix}`;
+  return `${rounded.toLocaleString()}${suffix}`;
 }
