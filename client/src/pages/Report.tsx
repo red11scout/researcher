@@ -165,6 +165,28 @@ const parseFormattedValue = (value: any): number => {
   return num * multiplier;
 };
 
+// Normalize all hours fields in report data to whole numbers
+// This ensures every rendering path and export gets clean integers
+function normalizeReportData(data: any): any {
+  if (!data || typeof data !== 'object') return data;
+  
+  if (Array.isArray(data)) {
+    return data.map(item => normalizeReportData(item));
+  }
+  
+  const normalized: any = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (key.toLowerCase().includes('hours') && typeof value === 'number') {
+      normalized[key] = Math.round(value);
+    } else if (typeof value === 'object' && value !== null) {
+      normalized[key] = normalizeReportData(value);
+    } else {
+      normalized[key] = value;
+    }
+  }
+  return normalized;
+}
+
 // Formatting helpers (used by both Report and StepCard)
 // Format numbers with commas for readability (e.g., 1,234,567)
 const addCommas = (num: number): string => {
@@ -389,7 +411,7 @@ export default function Report() {
       if (initialResult.id && initialResult.data) {
         eventSource.close();
         setReportId(initialResult.id);
-        setData(initialResult.data);
+        setData(normalizeReportData(initialResult.data));
         setStatus("complete");
         setCompletedSteps([0, 1, 2, 3, 4, 5, 6, 7, 8]);
         
@@ -427,7 +449,7 @@ export default function Report() {
               if (statusData.status === 'complete' && statusData.result) {
                 eventSource.close();
                 setReportId(statusData.result.id);
-                setData(statusData.result.data);
+                setData(normalizeReportData(statusData.result.data));
                 setStatus("complete");
                 setCompletedSteps([0, 1, 2, 3, 4, 5, 6, 7, 8]);
                 toast({
@@ -458,7 +480,7 @@ export default function Report() {
       eventSource.close();
       if (initialResult.id) {
         setReportId(initialResult.id);
-        setData(initialResult.data);
+        setData(normalizeReportData(initialResult.data));
         setStatus("complete");
         setCompletedSteps([0, 1, 2, 3, 4, 5, 6, 7, 8]);
         toast({
@@ -560,7 +582,7 @@ export default function Report() {
         throw new Error(`Failed to parse response: ${parseError?.message || 'Invalid JSON'}`);
       }
       
-      setData(result.data);
+      setData(normalizeReportData(result.data));
       setStatus("complete");
       setCompletedSteps([0, 1, 2, 3, 4, 5, 6, 7, 8]);
 
@@ -618,7 +640,7 @@ export default function Report() {
     },
     onSuccess: (result) => {
       if (result.report) {
-        setData(result.report.analysisData);
+        setData(normalizeReportData(result.report.analysisData));
       }
       setHasUnsavedChanges(false);
       setAssumptionEdits({});
