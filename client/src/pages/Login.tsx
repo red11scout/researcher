@@ -13,20 +13,31 @@ export default function Login({ onAuthenticated }: LoginProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
 
-    setTimeout(() => {
-      if (password === "BlueAlly45") {
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+        credentials: "include",
+      });
+
+      if (res.ok) {
         sessionStorage.setItem("ba_authenticated", "true");
         onAuthenticated();
       } else {
-        setError("Incorrect password. Please try again.");
+        const data = await res.json();
+        setError(data.error || "Incorrect password. Please try again.");
         setIsLoading(false);
       }
-    }, 400);
+    } catch {
+      setError("Connection error. Please try again.");
+      setIsLoading(false);
+    }
   };
 
   return (

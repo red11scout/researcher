@@ -1,5 +1,6 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
+import crypto from "crypto";
 import { storage } from "./storage";
 import { generateCompanyAnalysis, generateWhatIfSuggestion, checkProductionConfig } from "./ai-service";
 import * as formulaService from "./formula-service";
@@ -68,10 +69,67 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  
-  // Version check
+
+  const APP_PASSWORD = "BlueAlly45";
+  const validTokens = new Set<string>();
+
+  function generateAuthToken(): string {
+    return crypto.randomBytes(32).toString('hex');
+  }
+
+  // --- Public auth routes (no auth required) ---
+
+  app.post("/api/auth/login", (req: Request, res: Response) => {
+    const { password } = req.body;
+    if (password === APP_PASSWORD) {
+      const token = generateAuthToken();
+      validTokens.add(token);
+      res.cookie('ba_auth_token', token, {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 24 * 60 * 60 * 1000,
+      });
+      return res.json({ success: true });
+    }
+    return res.status(401).json({ error: "Incorrect password" });
+  });
+
+  app.post("/api/auth/logout", (req: Request, res: Response) => {
+    const token = req.cookies?.ba_auth_token;
+    if (token) {
+      validTokens.delete(token);
+    }
+    res.clearCookie('ba_auth_token', { path: '/' });
+    return res.json({ success: true });
+  });
+
+  app.get("/api/auth/check", (req: Request, res: Response) => {
+    const token = req.cookies?.ba_auth_token;
+    const authenticated = !!token && validTokens.has(token);
+    return res.json({ authenticated });
+  });
+
+  // Version check (public)
   app.get("/api/version", (req, res) => {
     res.json({ version: "2.5.0", buildTime: "2025-11-30T03:10:00Z" });
+  });
+
+  // Health check is registered later but listed here as public context
+
+  // --- Auth middleware for all remaining /api/* routes ---
+  app.use("/api", (req: Request, res: Response, next: NextFunction) => {
+    if (req.method === 'GET' && req.path === '/health') {
+      return next();
+    }
+    if (req.method === 'GET' && (req.path.startsWith('/share/') || req.path.startsWith('/reports/'))) {
+      return next();
+    }
+    const token = req.cookies?.ba_auth_token;
+    if (!token || !validTokens.has(token)) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+    next();
   });
 
   // Document upload endpoint - extracts text from PDFs and text files
