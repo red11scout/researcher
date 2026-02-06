@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Switch, Route } from "wouter";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -17,6 +18,7 @@ import DashboardPage from "@/pages/DashboardPage";
 import SharedDashboard from "@/pages/SharedDashboard";
 import CrewAI from "@/pages/CrewAI";
 import BatchResearch from "@/pages/BatchResearch";
+import Login from "@/pages/Login";
 
 function Router() {
   return (
@@ -40,6 +42,14 @@ function Router() {
 }
 
 function App() {
+  const [isAuthenticated, setIsAuthenticated] = useState(
+    () => sessionStorage.getItem("ba_authenticated") === "true"
+  );
+
+  if (!isAuthenticated) {
+    return <Login onAuthenticated={() => setIsAuthenticated(true)} />;
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
