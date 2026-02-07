@@ -3,31 +3,38 @@ import ws from "ws";
 import * as schema from "@shared/schema";
 
 function getDatabaseUrl(): string {
-  // Priority 1: Use NEON_DB_URL if available (external Neon database - works in both dev and production)
   if (process.env.NEON_DB_URL) {
     const url = process.env.NEON_DB_URL.trim();
     if (url.startsWith("postgresql://") || url.startsWith("postgres://")) {
-      console.log("Using NEON_DB_URL (external Neon database)");
+      console.log("Database: Using NEON_DB_URL (external Neon database)");
       console.log("Database host:", url.split("@")[1]?.split("/")[0] || "unknown");
       return url;
     }
   }
   
-  // Priority 2: Fall back to DATABASE_URL (Replit's internal database - dev only)
   if (process.env.DATABASE_URL) {
-    console.log("Using DATABASE_URL from environment variable");
+    console.log("Database: Using DATABASE_URL from environment");
     return process.env.DATABASE_URL;
   }
   
   throw new Error(
-    "Database URL not configured. Set NEON_DB_URL or DATABASE_URL.",
+    "Database URL not configured. Set NEON_DB_URL or DATABASE_URL environment variable.",
   );
 }
 
-const databaseUrl = getDatabaseUrl();
+let db: ReturnType<typeof drizzle>;
 
-export const db = drizzle({
-  connection: databaseUrl,
-  schema,
-  ws: ws,
-});
+try {
+  const databaseUrl = getDatabaseUrl();
+  db = drizzle({
+    connection: databaseUrl,
+    schema,
+    ws: ws,
+  });
+  console.log("Database: Connection initialized successfully");
+} catch (error) {
+  console.error("Database: Failed to initialize connection:", error);
+  process.exit(1);
+}
+
+export { db };
