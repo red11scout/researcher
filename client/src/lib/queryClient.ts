@@ -2,11 +2,6 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
-    if (res.status === 401) {
-      sessionStorage.removeItem("ba_authenticated");
-      window.location.reload();
-      throw new Error("Authentication required");
-    }
     const text = (await res.text()) || res.statusText;
     throw new Error(`${res.status}: ${text}`);
   }
