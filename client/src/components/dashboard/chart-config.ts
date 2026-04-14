@@ -36,6 +36,30 @@ export const chartColors = {
     '#0284C7',
     '#0369A1',
   ],
+
+  // Tier colors for consulting-grade bubble chart (colorblind-safe navy/blue/slate)
+  tier: {
+    critical: '#0F172A',
+    high: '#0339AF',
+    medium: '#4C73E9',
+    low: '#94A3B8',
+  },
+
+  // Quadrant background fills (pastel, applied directly without opacity)
+  quadrant: {
+    champion: '#DCFCE7',
+    strategicBet: '#DBEAFE',
+    quickWin: '#CCFBF1',
+    foundation: '#F1F5F9',
+  },
+
+  // Quadrant label colors (darker for text contrast)
+  quadrantLabel: {
+    champion: '#166534',
+    strategicBet: '#1E40AF',
+    quickWin: '#115E59',
+    foundation: '#475569',
+  },
 };
 
 export const chartConfig = {

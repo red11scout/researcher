@@ -2,12 +2,32 @@
 // Instead, we bypass proxy per-request only for Anthropic API calls in ai-service.ts
 
 import express, { type Request, Response, NextFunction } from "express";
-import cookieParser from "cookie-parser";
+import cookieParser from 'cookie-parser';
 import { registerRoutes } from "./routes";
+import { setupAuth } from "./auth";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 import path from "path";
 import fs from "fs";
+
+function validateEnvironment() {
+  const hasAnthropicKey = !!(process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY);
+  const hasDbUrl = !!process.env.DATABASE_URL;
+  
+  const missing: string[] = [];
+  if (!hasAnthropicKey) missing.push('ANTHROPIC_API_KEY');
+  if (!hasDbUrl) missing.push('DATABASE_URL');
+  
+  if (missing.length > 0) {
+    console.error(`FATAL: Missing required environment variables: ${missing.join(', ')}`);
+    console.error('Please configure these in your Replit secrets.');
+    // Don't throw - just warn. The app should still start for configuration.
+  } else {
+    console.log('All required environment variables present');
+  }
+}
+
+validateEnvironment();
 
 const app = express();
 const httpServer = createServer(app);
@@ -34,6 +54,8 @@ app.use(
 
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
+
+setupAuth(app);
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -73,43 +95,42 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  try {
-    await registerRoutes(httpServer, app);
+  await registerRoutes(httpServer, app);
 
-    app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-      const status = err.status || err.statusCode || 500;
-      const message = err.message || "Internal Server Error";
-      log(`Error: ${message}`, "error");
-      res.status(status).json({ message });
-    });
+  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+    const status = err.status || err.statusCode || 500;
+    const message = err.message || "Internal Server Error";
 
-    if (process.env.NODE_ENV === "production") {
-      serveStatic(app);
-    } else {
-      const { setupVite } = await import("./vite");
-      await setupVite(httpServer, app);
-    }
+    res.status(status).json({ message });
+    throw err;
+  });
 
-    const port = parseInt(process.env.PORT || "5000", 10);
-    httpServer.on("error", (err: NodeJS.ErrnoException) => {
-      console.error(`Server error: ${err.message}`);
-      if (err.code === "EADDRINUSE") {
-        console.error(`Port ${port} is already in use`);
-      }
-      process.exit(1);
-    });
-    httpServer.listen(
-      {
-        port,
-        host: "0.0.0.0",
-        reusePort: true,
-      },
-      () => {
-        log(`serving on port ${port}`);
-      },
-    );
-  } catch (error) {
-    console.error("Failed to start server:", error);
-    process.exit(1);
+  // importantly only setup vite in development and after
+  // setting up all the other routes so the catch-all route
+  // doesn't interfere with the other routes
+  if (process.env.NODE_ENV === "production") {
+    serveStatic(app);
+  } else {
+    const { setupVite } = await import("./vite");
+    await setupVite(httpServer, app);
   }
+
+  // ALWAYS serve the app on the port specified in the environment variable PORT
+  // Other ports are firewalled. Default to 5000 if not specified.
+  // this serves both the API and the client.
+  // It is the only port that is not firewalled.
+  const port = parseInt(process.env.PORT || "5000", 10);
+  httpServer.timeout = 960000;
+  httpServer.keepAliveTimeout = 720000;
+  httpServer.headersTimeout = 725000;
+  httpServer.listen(
+    {
+      port,
+      host: "0.0.0.0",
+      reusePort: true,
+    },
+    () => {
+      log(`serving on port ${port}`);
+    },
+  );
 })();

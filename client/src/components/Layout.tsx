@@ -1,9 +1,10 @@
 import { ReactNode, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Menu, Bell, BarChart3, FileText, Home, Bot, Layers } from "lucide-react";
+import { Menu, Bell, BarChart3, FileText, Home, Bot, Layers, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/brand/logo";
 import { brand } from "@/lib/brand";
+import { useAuth } from "@/contexts/AuthContext";
 import { 
   Sheet,
   SheetContent,
@@ -45,6 +46,7 @@ function MobileNavLink({ href, icon, label, isActive, onClose }: MobileNavLinkPr
 export default function Layout({ children }: LayoutProps) {
   const [location] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { logout } = useAuth();
   
   const isActive = (path: string) => {
     if (path === "/" && location === "/") return true;
@@ -53,6 +55,11 @@ export default function Layout({ children }: LayoutProps) {
   };
 
   const closeMobileMenu = () => setMobileMenuOpen(false);
+
+  const handleLogout = async () => {
+    await logout();
+    window.location.href = "/login";
+  };
 
   return (
     <div className="min-h-screen bg-background flex flex-col font-sans">
@@ -93,6 +100,17 @@ export default function Layout({ children }: LayoutProps) {
           <div className="flex items-center gap-2 md:gap-4">
             <Button variant="ghost" size="icon" className="text-slate-500 h-8 w-8 md:h-9 md:w-9 hover:text-brand-navy">
               <Bell className="h-4 w-4 md:h-5 md:w-5" />
+            </Button>
+
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-slate-500 h-8 w-8 md:h-9 md:w-9 hover:text-red-600"
+              onClick={handleLogout}
+              title="Logout"
+              data-testid="button-logout"
+            >
+              <LogOut className="h-4 w-4 md:h-5 md:w-5" />
             </Button>
             
             <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
@@ -148,6 +166,14 @@ export default function Layout({ children }: LayoutProps) {
                     isActive={isActive("/batch-research")}
                     onClose={closeMobileMenu}
                   />
+                  <button
+                    onClick={() => { closeMobileMenu(); handleLogout(); }}
+                    className="flex items-center gap-3 min-h-[44px] px-4 py-3 rounded-lg text-base font-medium transition-all duration-200 text-red-600 hover:bg-red-50 mt-4 border-t border-slate-200 pt-5"
+                    data-testid="mobile-nav-logout"
+                  >
+                    <LogOut className="h-5 w-5" />
+                    Logout
+                  </button>
                 </nav>
               </SheetContent>
             </Sheet>

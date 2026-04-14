@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useLocation, Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Layout from "@/components/Layout";
@@ -49,7 +49,7 @@ import {
   DollarSign, ShieldCheck, Zap, Target, ChevronDown, ChevronRight,
   Settings2, HelpCircle, Info, Sliders, BarChart3, Building2,
   Users, ClipboardList, Lightbulb, Scale, MapPin, Save, Layers, Share2, LayoutDashboard,
-  Menu, X
+  Menu, X, AlertTriangle
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import jsPDF from 'jspdf';
@@ -61,6 +61,192 @@ import blueAllyLogoUrl from '@assets/image_1764369352062.png';
 import blueAllyLogoWhiteUrl from '@assets/blueally-logo-white.png';
 import { WorkflowExportPanel } from "@/components/report/WorkflowExportPanel";
 import { generateBoardPresentationPDF } from "@/lib/pdfGenerator";
+import { parseEpochFlags, getEpochBadge as epochGetBadge } from "@/lib/epoch-utils";
+import { STEP_COLUMN_ORDER, COLUMN_NAME_ALIASES } from "@shared/taxonomy";
+
+// ===== COLUMN ORDERING & TAXONOMY =====
+// Imported from shared/taxonomy.ts for consistency across all report pages
+
+// Hidden columns that should never appear in main table views
+const HIDDEN_COLUMNS = new Set([
+  "Cost Formula", "Revenue Formula", "Cash Flow Formula", "Risk Formula", "Benefit Formula",
+  "Cost Formula Labels", "Revenue Formula Labels", "Cash Flow Formula Labels", "Risk Formula Labels",
+  "Annual Hours", "Hourly Rate", "Measurement Method",
+  "Friction Point", // Only hidden when it's a "Target Friction" alias scenario
+  "Annual Token Cost", "Annual Token Cost ($)",
+]);
+
+function reorderAndFilterColumns(data: any[], stepNum: number): any[] {
+  if (!data || data.length === 0) return data;
+
+  const desiredOrder = STEP_COLUMN_ORDER[stepNum];
+  if (!desiredOrder || desiredOrder.length === 0) return data;
+
+  return data.map(row => {
+    // Normalize column names
+    const normalizedRow: Record<string, any> = {};
+    for (const [key, value] of Object.entries(row)) {
+      let canonicalKey = COLUMN_NAME_ALIASES[key] || key;
+      if (stepNum === 4 && canonicalKey === 'Use Case') {
+        canonicalKey = 'Use Case Name';
+      }
+      normalizedRow[canonicalKey] = value;
+    }
+
+    // Compute Expected Value for Step 5 if not present
+    if (stepNum === 5 && !('Expected Value ($)' in normalizedRow)) {
+      const totalStr = String(normalizedRow['Total Annual Value ($)'] || 0);
+      const totalVal = parseFloat(totalStr.replace(/[^0-9.-]/g, '')) || 0;
+      const prob = normalizedRow['Probability of Success'] || 0;
+      const probNum = typeof prob === 'number' ? prob : parseFloat(String(prob)) || 0;
+      const adjustedProb = probNum > 1 ? probNum / 100 : probNum;
+      const ev = totalVal * adjustedProb;
+      normalizedRow['Expected Value ($)'] = `$${ev.toLocaleString('en-US', {maximumFractionDigits: 0})}`;
+    }
+
+    // Reorder: desired columns first, then extras
+    const reorderedRow: Record<string, any> = {};
+    for (const col of desiredOrder) {
+      if (col in normalizedRow) {
+        reorderedRow[col] = normalizedRow[col];
+      }
+    }
+    // Add remaining non-hidden columns
+    for (const [key, value] of Object.entries(normalizedRow)) {
+      if (!(key in reorderedRow) && !HIDDEN_COLUMNS.has(key)) {
+        reorderedRow[key] = value;
+      }
+    }
+    return reorderedRow;
+  });
+}
+
+// Get visible columns for a step (excludes hidden/formula columns)
+function getVisibleColumns(row: any, stepNum: number): string[] {
+  const desiredOrder = STEP_COLUMN_ORDER[stepNum];
+  if (!desiredOrder) {
+    return Object.keys(row).filter(k => !HIDDEN_COLUMNS.has(k));
+  }
+
+  const cols: string[] = [];
+  // Add ordered columns first
+  for (const col of desiredOrder) {
+    if (col in row) cols.push(col);
+  }
+  // Add extras
+  for (const key of Object.keys(row)) {
+    if (!cols.includes(key) && !HIDDEN_COLUMNS.has(key)) cols.push(key);
+  }
+  return cols;
+}
+
+// Benchmark column color coding
+function getBenchmarkCellClass(columnName: string): string {
+  if (columnName === "Benchmark (Avg)" || columnName === "Industry Benchmark") {
+    return "bg-yellow-50 text-yellow-800";
+  }
+  if (columnName === "Benchmark (Industry Best)") {
+    return "bg-blue-50 text-blue-800";
+  }
+  if (columnName === "Benchmark (Overall Best)") {
+    return "bg-green-50 text-green-800";
+  }
+  return "";
+}
+
+// Strategic theme colors (5 distinct colors for 5 themes)
+const THEME_COLORS = [
+  { bg: "bg-indigo-50", border: "border-indigo-200", text: "text-indigo-700", badge: "bg-indigo-100 text-indigo-700 border-indigo-300" },
+  { bg: "bg-teal-50", border: "border-teal-200", text: "text-teal-700", badge: "bg-teal-100 text-teal-700 border-teal-300" },
+  { bg: "bg-rose-50", border: "border-rose-200", text: "text-rose-700", badge: "bg-rose-100 text-rose-700 border-rose-300" },
+  { bg: "bg-amber-50", border: "border-amber-200", text: "text-amber-700", badge: "bg-amber-100 text-amber-700 border-amber-300" },
+  { bg: "bg-cyan-50", border: "border-cyan-200", text: "text-cyan-700", badge: "bg-cyan-100 text-cyan-700 border-cyan-300" },
+];
+
+function getThemeColor(themeIndex: number) {
+  return THEME_COLORS[themeIndex % THEME_COLORS.length];
+}
+
+// Group data by Strategic Theme field
+function groupByStrategicTheme(data: any[]): Map<string, any[]> {
+  const groups = new Map<string, any[]>();
+  const ungrouped: any[] = [];
+
+  for (const row of data) {
+    const theme = row["Strategic Theme"];
+    if (theme) {
+      if (!groups.has(theme)) groups.set(theme, []);
+      groups.get(theme)!.push(row);
+    } else {
+      ungrouped.push(row);
+    }
+  }
+
+  // Add ungrouped items if any
+  if (ungrouped.length > 0) {
+    groups.set("Other", ungrouped);
+  }
+
+  return groups;
+}
+
+// Render a labeled formula component grid
+function formatLabelValue(label: string, value: any): string {
+  const num = typeof value === 'string' ? parseFloat(value) : value;
+  if (isNaN(num)) return String(value);
+  const lbl = label.toLowerCase();
+  if (lbl.includes('uplift') || lbl.includes('reduction') || lbl.includes('maturity') || lbl.includes('realization') || lbl.includes('adoption') || lbl.includes('loading') || lbl.includes('capital')) {
+    if (num >= 0 && num <= 1) return num.toString();
+  }
+  if (lbl.includes('revenue') || lbl.includes('exposure') || lbl.includes('risk')) {
+    if (num >= 1_000_000_000) return `$${(num / 1_000_000_000).toFixed(1)}B`;
+    if (num >= 1_000_000) return `$${(num / 1_000_000).toFixed(1)}M`;
+    if (num >= 1_000) return `$${Math.round(num / 1_000)}K`;
+    return `$${num}`;
+  }
+  if (lbl.includes('rate') && !lbl.includes('uplift') && !lbl.includes('reduction')) {
+    return `$${num}`;
+  }
+  if (lbl.includes('hours') || lbl.includes('days')) {
+    return num.toLocaleString();
+  }
+  return num.toLocaleString();
+}
+
+function renderLabeledFormula(formulaLabels: any, formulaStr: string, colorClass: string): React.ReactNode {
+  if (!formulaLabels || !formulaLabels.components || formulaLabels.components.length === 0) {
+    return (
+      <div className={`text-[10px] md:text-sm ${colorClass} font-mono break-all leading-relaxed`}>
+        {formulaStr}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-end gap-1 md:gap-2">
+        {formulaLabels.components.map((comp: any, idx: number) => (
+          <React.Fragment key={idx}>
+            {idx > 0 && <span className="text-muted-foreground font-mono text-sm self-end pb-0.5">×</span>}
+            <div className="flex flex-col items-center">
+              <span className="text-[8px] md:text-[10px] text-muted-foreground font-medium mb-0.5 text-center leading-tight">{comp.label}</span>
+              <span className={`text-[10px] md:text-sm ${colorClass} font-mono font-semibold bg-white/60 px-1.5 py-0.5 rounded border`}>
+                {formatLabelValue(comp.label, comp.value)}
+              </span>
+            </div>
+          </React.Fragment>
+        ))}
+        <span className="text-muted-foreground font-mono text-sm self-end pb-0.5">=</span>
+        <div className="flex flex-col items-center">
+          <span className="text-[8px] md:text-[10px] text-muted-foreground font-medium mb-0.5">Result</span>
+          <span className={`text-[10px] md:text-sm ${colorClass} font-mono font-bold bg-white/80 px-1.5 py-0.5 rounded border-2`}>
+            {formulaLabels.result || formulaStr}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // Sanitize text for PDF - remove emojis and fix encoding issues
 const sanitizeForPDF = (text: string): string => {
@@ -273,7 +459,7 @@ const navigationSections = [
   { id: "step-3", label: "Friction Points", icon: Zap },
   { id: "step-4", label: "AI Use Cases", icon: Lightbulb },
   { id: "step-5", label: "Benefits Quantification", icon: DollarSign },
-  { id: "step-6", label: "Effort & Token Model", icon: Calculator },
+  { id: "step-6", label: "Readiness & Token Modeling", icon: Calculator },
   { id: "step-7", label: "Priority Roadmap", icon: MapPin },
 ];
 
@@ -284,9 +470,8 @@ const metricTooltips: Record<string, string> = {
   "costBenefit": "Projected annual cost savings from AI-driven process automation and efficiency improvements.",
   "cashFlowBenefit": "Projected annual cash flow improvements from accelerated collections and reduced inventory carrying costs.",
   "riskBenefit": "Projected annual risk reduction value from improved compliance, fraud detection, and quality control.",
-  "priorityScore": "Composite score (0-100) based on value potential, time-to-value, and implementation effort.",
+  "priorityScore": "Composite score (0-100) based on value potential, time-to-value, and implementation readiness.",
   "probabilityOfSuccess": "Estimated likelihood of achieving projected benefits, based on data readiness and implementation complexity.",
-  "tokenCost": "Estimated annual cost for AI model token usage based on projected runs and average tokens per run.",
   "monthlyTokens": "Estimated total monthly token consumption across all AI use cases, based on projected runs and average tokens per run.",
   "valuePerToken": "Average value generated per million tokens consumed, calculated by dividing total annual value by annual token consumption.",
 };
@@ -304,6 +489,8 @@ export default function Report() {
   const [error, setError] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState<ProgressUpdate | null>(null);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+  const [failedStep, setFailedStep] = useState<number | null>(null);
+  const accumulatedResultsRef = useRef<Record<string, any>>({});
   
   // Assumption drawer state
   const [assumptionDrawerOpen, setAssumptionDrawerOpen] = useState(false);
@@ -321,194 +508,165 @@ export default function Report() {
     }
   }, []);
 
+  const stepLabels: Record<number, string> = {
+    0: "Company Overview",
+    1: "Strategic Anchoring",
+    2: "Business Functions & KPIs",
+    3: "Friction Points",
+    4: "AI Use Cases",
+    5: "Benefits Quantification",
+    6: "Readiness & Token Modeling",
+    7: "Priority Roadmap",
+  };
+
+  const callLabels = [
+    "Company Overview & Strategic Themes",
+    "Friction Points & AI Use Cases",
+    "Benefits Quantification",
+    "Readiness, Roadmap & Summary",
+  ];
+
+  const runPipelineFromStep = async (startCall: number, accumulatedResults: Record<string, any>, documentContext: string) => {
+    const stepsBeforeCall: Record<number, number[]> = {
+      1: [],
+      2: [0, 1, 2],
+      3: [0, 1, 2, 3, 4],
+      4: [0, 1, 2, 3, 4, 5],
+    };
+
+    for (let callNum = startCall; callNum <= 4; callNum++) {
+      setCurrentStep({
+        step: callNum,
+        message: `Step ${callNum}/4: ${callLabels[callNum - 1]}`,
+        detail: `Generating ${callLabels[callNum - 1].toLowerCase()}...`,
+      });
+
+      if (stepsBeforeCall[callNum]) {
+        setCompletedSteps(stepsBeforeCall[callNum]);
+      }
+
+      let attempts = 0;
+      const MAX_RETRIES = 3;
+      let success = false;
+
+      while (attempts < MAX_RETRIES && !success) {
+        try {
+          const response = await fetch("/api/analyze/step", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              companyName,
+              callNumber: callNum,
+              previousCallResults: accumulatedResults,
+              documentContext: callNum === 1 ? documentContext : undefined,
+            }),
+            signal: AbortSignal.timeout(180_000),
+          });
+
+          if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            throw new Error(errData.error || `Call ${callNum} failed: HTTP ${response.status}`);
+          }
+
+          const result = await response.json();
+
+          if (callNum === 4 && result.report) {
+            setReportId(result.report.id);
+            setData(normalizeReportData(result.report.data));
+            setStatus("complete");
+            setCompletedSteps([0, 1, 2, 3, 4, 5, 6, 7, 8]);
+            toast({ title: "Analysis Complete", description: "Your strategic analysis has been generated and saved." });
+            return;
+          }
+
+          accumulatedResults[`call${callNum}`] = result.data;
+          accumulatedResultsRef.current = { ...accumulatedResults };
+          success = true;
+        } catch (err: any) {
+          attempts++;
+          console.warn(`[Call ${callNum}] Attempt ${attempts} failed:`, err.message);
+          if (attempts >= MAX_RETRIES) {
+            setFailedStep(callNum);
+            accumulatedResultsRef.current = { ...accumulatedResults };
+            throw new Error(`Analysis failed at "${callLabels[callNum - 1]}" after ${MAX_RETRIES} attempts: ${err.message}`);
+          }
+          const delay = 2000 * Math.pow(2, attempts) + Math.random() * 1000;
+          await new Promise(r => setTimeout(r, delay));
+        }
+      }
+    }
+  };
+
   const fetchAnalysis = async () => {
     try {
       setStatus("loading");
       setError(null);
       setCompletedSteps([]);
-      
-      const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
-      // Set up SSE connection for progress updates
-      const eventSource = new EventSource(`/api/progress/${sessionId}`);
-      
-      eventSource.onmessage = (event) => {
-        try {
-          const update: ProgressUpdate = JSON.parse(event.data);
-          setCurrentStep(update);
-          
-          if (update.step > 0 && update.step < 100) {
-            setCompletedSteps(prev => {
-              if (!prev.includes(update.step - 1) && update.step > 1) {
-                return [...prev, update.step - 1];
-              }
-              return prev;
-            });
-          }
-          
-          if (update.step === 100) {
-            setCompletedSteps([0, 1, 2, 3, 4, 5, 6, 7, 8]);
-            eventSource.close();
-          }
-          
-          if (update.step === -1) {
-            eventSource.close();
-          }
-        } catch (e) {
-          console.error("Error parsing progress update:", e);
-        }
-      };
+      setFailedStep(null);
+      accumulatedResultsRef.current = {};
 
-      eventSource.onerror = () => {
-        eventSource.close();
-      };
-
-      let response: Response;
+      let documents: Array<{ name: string; content: string }> = [];
       try {
-        // Get uploaded documents from sessionStorage
-        let documents: Array<{ name: string; content: string }> = [];
-        try {
-          const storedDocs = sessionStorage.getItem("uploadedDocuments");
-          if (storedDocs) {
-            documents = JSON.parse(storedDocs);
-            sessionStorage.removeItem("uploadedDocuments"); // Clear after use
-          }
-        } catch (e) {
-          console.log("No documents found in session storage");
+        const storedDocs = sessionStorage.getItem("uploadedDocuments");
+        if (storedDocs) {
+          documents = JSON.parse(storedDocs);
+          sessionStorage.removeItem("uploadedDocuments");
         }
-        
-        response = await fetch("/api/analyze", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ companyName, sessionId, documents }),
-        });
-      } catch (fetchError: any) {
-        eventSource.close();
-        throw new Error(`Network error: ${fetchError?.message || 'Failed to connect to server'}`);
+      } catch (e) {}
+
+      let documentContext = "";
+      if (documents.length > 0) {
+        documentContext = documents.map(d => `--- ${d.name} ---\n${d.content.slice(0, 50000)}\n--- End ---`).join("\n\n");
       }
 
-      if (!response.ok) {
-        eventSource.close();
-        let errorMessage = "Failed to generate analysis";
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.message || errorData.error || errorMessage;
-        } catch {
-          errorMessage = `Server error (${response.status}): ${response.statusText}`;
+      const checkResponse = await fetch("/api/analyze/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ companyName }),
+      });
+
+      if (checkResponse.ok) {
+        const existing = await checkResponse.json();
+        if (existing.exists && existing.report) {
+          setReportId(existing.report.id);
+          setData(normalizeReportData(existing.report.data));
+          setStatus("complete");
+          setCompletedSteps([0, 1, 2, 3, 4, 5, 6, 7, 8]);
+          toast({ title: "Report Retrieved", description: "Loaded existing analysis." });
+          return;
         }
-        throw new Error(errorMessage);
       }
 
-      let initialResult;
-      try {
-        initialResult = await response.json();
-      } catch (parseError: any) {
-        eventSource.close();
-        throw new Error(`Failed to parse response: ${parseError?.message || 'Invalid JSON'}`);
-      }
-      
-      // If we got an existing report directly, use it
-      if (initialResult.id && initialResult.data) {
-        eventSource.close();
-        setReportId(initialResult.id);
-        setData(normalizeReportData(initialResult.data));
-        setStatus("complete");
-        setCompletedSteps([0, 1, 2, 3, 4, 5, 6, 7, 8]);
-        
-        if (initialResult.isNew === false) {
-          toast({
-            title: "Report Retrieved",
-            description: "Loaded existing analysis for this company.",
-          });
-        }
-        return;
-      }
-      
-      // If processing in background, poll for results
-      if (initialResult.status === 'processing' && initialResult.jobId) {
-        const jobId = initialResult.jobId;
-        const maxPolls = 300; // 5 minutes at 1 second intervals
-        let pollCount = 0;
-        
-        const pollForResult = async (): Promise<void> => {
-          while (pollCount < maxPolls) {
-            pollCount++;
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
-            
-            try {
-              const statusResponse = await fetch(`/api/analyze/status/${jobId}`);
-              if (!statusResponse.ok) {
-                if (statusResponse.status === 404) {
-                  throw new Error('Analysis job not found - please try again');
-                }
-                continue; // Retry on other errors
-              }
-              
-              const statusData = await statusResponse.json();
-              
-              if (statusData.status === 'complete' && statusData.result) {
-                eventSource.close();
-                setReportId(statusData.result.id);
-                setData(normalizeReportData(statusData.result.data));
-                setStatus("complete");
-                setCompletedSteps([0, 1, 2, 3, 4, 5, 6, 7, 8]);
-                toast({
-                  title: "Analysis Complete",
-                  description: "Your strategic analysis has been generated and saved.",
-                });
-                return;
-              } else if (statusData.status === 'error') {
-                throw new Error(statusData.error || 'Analysis failed');
-              }
-              // Continue polling if still processing
-            } catch (pollError: any) {
-              if (pollError.message.includes('job not found') || pollError.message.includes('Analysis failed')) {
-                throw pollError;
-              }
-              // Continue polling on network errors
-            }
-          }
-          
-          throw new Error('Analysis timed out after 5 minutes. Please try again.');
-        };
-        
-        await pollForResult();
-        return;
-      }
-      
-      // Fallback for direct result (shouldn't happen with new pattern)
-      eventSource.close();
-      if (initialResult.id) {
-        setReportId(initialResult.id);
-        setData(normalizeReportData(initialResult.data));
-        setStatus("complete");
-        setCompletedSteps([0, 1, 2, 3, 4, 5, 6, 7, 8]);
-        toast({
-          title: "Analysis Complete",
-          description: "Your strategic analysis has been generated and saved.",
-        });
-      }
+      await runPipelineFromStep(1, {}, documentContext);
     } catch (err: any) {
       console.error("Analysis error details:", err);
-      let errorMessage: string;
-      if (err instanceof Error) {
-        errorMessage = err.message;
-      } else if (typeof err === 'string') {
-        errorMessage = err;
-      } else if (err && typeof err === 'object') {
-        errorMessage = err.message || err.error || JSON.stringify(err) || "Unknown error";
-      } else {
-        errorMessage = "Unknown error occurred";
-      }
-      // Ensure we never show just "{}" 
-      if (errorMessage === "{}" || errorMessage === "{}") {
-        errorMessage = "Connection failed - please try again";
-      }
+      let errorMessage = err instanceof Error ? err.message : String(err || "Unknown error");
+      if (errorMessage === "{}") errorMessage = "Connection failed - please try again";
       setError(errorMessage);
       setStatus("complete");
       toast({
         variant: "destructive",
         title: "Analysis Failed",
+        description: errorMessage,
+      });
+    }
+  };
+
+  const retryFromStep = async (stepNum: number) => {
+    try {
+      setStatus("loading");
+      setError(null);
+      setFailedStep(null);
+      await runPipelineFromStep(stepNum, { ...accumulatedResultsRef.current }, "");
+    } catch (err: any) {
+      console.error("Retry error:", err);
+      let errorMessage = err instanceof Error ? err.message : String(err || "Unknown error");
+      if (errorMessage === "{}") errorMessage = "Connection failed - please try again";
+      setError(errorMessage);
+      setStatus("complete");
+      toast({
+        variant: "destructive",
+        title: "Retry Failed",
         description: errorMessage,
       });
     }
@@ -521,90 +679,14 @@ export default function Report() {
       setStatus("loading");
       setError(null);
       setCompletedSteps([]);
-      
-      const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
-      const eventSource = new EventSource(`/api/progress/${sessionId}`);
-      
-      eventSource.onmessage = (event) => {
-        try {
-          const update: ProgressUpdate = JSON.parse(event.data);
-          setCurrentStep(update);
-          if (update.step === 100 || update.step === -1) {
-            eventSource.close();
-          }
-        } catch (e) {
-          console.error("Error parsing progress update:", e);
-        }
-      };
+      setFailedStep(null);
+      accumulatedResultsRef.current = {};
 
-      let response: Response;
-      try {
-        // Use AbortController with 5-minute timeout for long-running analysis
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => {
-          controller.abort();
-        }, 5 * 60 * 1000); // 5 minutes
-        
-        response = await fetch(`/api/regenerate/${reportId}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ companyName, sessionId }),
-          signal: controller.signal,
-        });
-        
-        clearTimeout(timeoutId);
-      } catch (fetchError: any) {
-        eventSource.close();
-        if (fetchError?.name === 'AbortError') {
-          throw new Error('Analysis timed out after 5 minutes. Please try again.');
-        }
-        throw new Error(`Network error: ${fetchError?.message || 'Failed to connect to server'}`);
-      }
-
-      eventSource.close();
-
-      if (!response.ok) {
-        let errorMessage = "Failed to regenerate analysis";
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.message || errorData.error || errorMessage;
-        } catch {
-          errorMessage = `Server error (${response.status}): ${response.statusText}`;
-        }
-        throw new Error(errorMessage);
-      }
-
-      let result;
-      try {
-        result = await response.json();
-      } catch (parseError: any) {
-        throw new Error(`Failed to parse response: ${parseError?.message || 'Invalid JSON'}`);
-      }
-      
-      setData(normalizeReportData(result.data));
-      setStatus("complete");
-      setCompletedSteps([0, 1, 2, 3, 4, 5, 6, 7, 8]);
-
-      toast({
-        title: "Analysis Refreshed",
-        description: "Your report has been regenerated with latest insights.",
-      });
+      await runPipelineFromStep(1, {}, "");
     } catch (err: any) {
       console.error("Regenerate error details:", err);
-      let errorMessage: string;
-      if (err instanceof Error) {
-        errorMessage = err.message;
-      } else if (typeof err === 'string') {
-        errorMessage = err;
-      } else if (err && typeof err === 'object') {
-        errorMessage = err.message || err.error || JSON.stringify(err) || "Unknown error";
-      } else {
-        errorMessage = "Unknown error occurred";
-      }
-      if (errorMessage === "{}" || errorMessage === "{}") {
-        errorMessage = "Connection failed - please try again";
-      }
+      let errorMessage = err instanceof Error ? err.message : String(err || "Unknown error");
+      if (errorMessage === "{}") errorMessage = "Connection failed - please try again";
       setError(errorMessage);
       setStatus("complete");
       toast({
@@ -1223,19 +1305,21 @@ export default function Report() {
       if (step.data && step.data.length > 0) {
         const isBenefitsStep = step.step === 5;
         const isNarrativeStep = step.step === 1 || step.step === 2 || step.step === 3; // Strategic Anchoring, Business Functions, Friction Points
-        const allColumns = Object.keys(step.data[0]);
+        // Apply column reordering and normalization
+        const reorderedData = reorderAndFilterColumns(step.data, step.step);
+        const allColumns = Object.keys(reorderedData[0]);
         const formulaColumns = allColumns.filter(k => k.includes('Formula'));
-        const displayColumns = allColumns.filter(k => !k.includes('Formula'));
+        const displayColumns = allColumns.filter(k => !k.includes('Formula') && !k.includes('Labels') && !HIDDEN_COLUMNS.has(k));
         
         // Limit columns for board readability - fewer columns for narrative steps
-        const maxCols = isNarrativeStep ? 4 : 6;
+        const maxCols = isNarrativeStep ? 4 : (isBenefitsStep ? 9 : 6);
         const limitedColumns = displayColumns.slice(0, maxCols);
         
         // Character limits based on step type - narrative steps get more room
         const cellCharLimit = isNarrativeStep ? 120 : 60;
         const truncationLimit = isNarrativeStep ? 100 : 45;
         
-        const rows = step.data.map((row: any) => 
+        const rows = reorderedData.map((row: any) =>
           limitedColumns.map(col => {
             const val = row[col];
             if (typeof val === 'number' && col.toLowerCase().includes('$')) {
@@ -1596,24 +1680,27 @@ export default function Report() {
       if (step.data && step.data.length > 0) {
         const sheetName = `Step ${step.step}`.substring(0, 31);
         const ws = wb.addWorksheet(sheetName);
-        
+
         // Add header rows
         ws.addRow([`STEP ${step.step}: ${step.title.toUpperCase()}`]);
         ws.addRow([sanitizeForProse(step.content || '')]);
         ws.addRow(['']);
-        
-        // Get all unique column keys from all data rows to handle varying structures
+
+        // Apply column reordering and normalization
+        const reorderedStepData = reorderAndFilterColumns(step.data, step.step);
+
+        // Get all unique column keys from reordered data
         const allKeys = new Set<string>();
-        step.data.forEach((dataRow: any) => {
+        reorderedStepData.forEach((dataRow: any) => {
           Object.keys(dataRow).forEach(key => allKeys.add(key));
         });
-        const cols = Array.from(allKeys);
-        
+        const cols = Array.from(allKeys).filter(k => !HIDDEN_COLUMNS.has(k) && !k.includes('Labels'));
+
         // Add column headers
         ws.addRow(cols);
-        
+
         // Add data rows, preserving native types
-        step.data.forEach((dataRow: any) => {
+        reorderedStepData.forEach((dataRow: any) => {
           const values = cols.map(col => {
             const val = dataRow[col];
             // Handle different value types
@@ -1833,6 +1920,7 @@ export default function Report() {
 
     // Analysis Steps - Centered headers
     data.steps.forEach((step: any) => {
+      const isBenefitsStepDocx = step.step === 5;
       children.push(
         new Paragraph({
           text: `STEP ${step.step}: ${step.title.toUpperCase()}`,
@@ -1853,19 +1941,21 @@ export default function Report() {
       }
 
       if (step.data && step.data.length > 0) {
-        const allColumns = Object.keys(step.data[0]);
-        const columns = allColumns.filter(k => !k.includes('Formula')).slice(0, 6);
-        
+        // Apply column reordering and normalization
+        const reorderedDocxData = reorderAndFilterColumns(step.data, step.step);
+        const allColumns = Object.keys(reorderedDocxData[0]);
+        const columns = allColumns.filter(k => !k.includes('Formula') && !k.includes('Labels') && !HIDDEN_COLUMNS.has(k)).slice(0, isBenefitsStepDocx ? 9 : 6);
+
         const tableRows = [
           new DocxTableRow({
-            children: columns.map(col => 
+            children: columns.map(col =>
               new DocxTableCell({
                 children: [new Paragraph({ text: col, alignment: AlignmentType.CENTER })],
                 shading: { fill: "001278" },
               })
             ),
           }),
-          ...step.data.map((row: any) => 
+          ...reorderedDocxData.map((row: any) =>
             new DocxTableRow({
               children: columns.map(col => {
                 const val = row[col];
@@ -1942,6 +2032,7 @@ export default function Report() {
 
     // Analysis Steps
     data.steps.forEach((step: any) => {
+      const isBenefitsStepMd = step.step === 5;
       mdContent += `---\n\n`;
       mdContent += `## STEP ${step.step}: ${step.title.toUpperCase()}\n\n`;
       
@@ -1950,11 +2041,13 @@ export default function Report() {
       }
 
       if (step.data && step.data.length > 0) {
-        const allColumns = Object.keys(step.data[0]);
-        const columns = allColumns.filter(k => !k.includes('Formula')).slice(0, 6);
+        // Apply column reordering and normalization
+        const reorderedMdData = reorderAndFilterColumns(step.data, step.step);
+        const allColumns = Object.keys(reorderedMdData[0]);
+        const columns = allColumns.filter(k => !k.includes('Formula') && !k.includes('Labels') && !HIDDEN_COLUMNS.has(k)).slice(0, isBenefitsStepMd ? 9 : 6);
         mdContent += `| ${columns.join(' | ')} |\n`;
         mdContent += `| ${columns.map(() => ':---:').join(' | ')} |\n`;
-        step.data.forEach((row: any) => {
+        reorderedMdData.forEach((row: any) => {
           const values = columns.map(col => {
             const val = row[col];
             // Round hours to whole numbers
@@ -2144,16 +2237,18 @@ export default function Report() {
       }
 
       if (step.data && step.data.length > 0) {
-        const allColumns = Object.keys(step.data[0]);
-        const columns = allColumns.filter(k => !k.includes('Formula')).slice(0, 6);
-        
+        // Apply column reordering and normalization
+        const reorderedHtmlData = reorderAndFilterColumns(step.data, step.step);
+        const allColumns = Object.keys(reorderedHtmlData[0]);
+        const columns = allColumns.filter(k => !k.includes('Formula') && !k.includes('Labels') && !HIDDEN_COLUMNS.has(k)).slice(0, isBenefitsStep ? 9 : 6);
+
         html += `        <table>
           <thead>
             <tr>${columns.map(c => `<th>${c}</th>`).join('')}</tr>
           </thead>
           <tbody>
 `;
-        step.data.forEach((row: any, idx: number) => {
+        reorderedHtmlData.forEach((row: any, idx: number) => {
           html += `            <tr>${columns.map(c => {
             const val = row[c];
             // Format hours as whole numbers
@@ -2244,10 +2339,21 @@ export default function Report() {
   const generateJSON = () => {
     if (!data) return;
     
+    const cleanedData = JSON.parse(JSON.stringify(data));
+    if (cleanedData.steps) {
+      const step6 = cleanedData.steps.find((s: any) => s.step === 6);
+      if (step6?.data) {
+        for (const row of step6.data) {
+          delete row['Annual Token Cost'];
+          delete row['Annual Token Cost ($)'];
+        }
+      }
+    }
+
     const exportData = {
       companyName,
       generatedAt: new Date().toISOString(),
-      analysis: data,
+      analysis: cleanedData,
     };
     
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
@@ -2382,12 +2488,13 @@ export default function Report() {
   const analysisSteps = [
     { step: 0, title: "Company Overview", desc: "Gathering company information..." },
     { step: 1, title: "Strategic Anchoring", desc: "Identifying business drivers..." },
-    { step: 2, title: "Business Functions", desc: "Analyzing departments and KPIs..." },
-    { step: 3, title: "Friction Points", desc: "Identifying operational bottlenecks..." },
-    { step: 4, title: "AI Use Cases", desc: "Generating opportunities with 6 primitives..." },
+    { step: 2, title: "Business Functions & KPIs", desc: "Analyzing 10 KPIs across 5 strategic themes..." },
+    { step: 3, title: "Friction Points", desc: "Identifying 10 operational bottlenecks..." },
+    { step: 4, title: "AI Use Cases", desc: "Generating 10 AI use cases with 1:1:1 mapping..." },
     { step: 5, title: "Benefit Quantification", desc: "Calculating ROI across 4 drivers..." },
-    { step: 6, title: "Token Modeling", desc: "Estimating token costs per use case..." },
-    { step: 7, title: "Priority Scoring", desc: "Computing weighted priority scores..." },
+    { step: 6, title: "Readiness & Token Modeling", desc: "Scoring readiness and token costs..." },
+    { step: 7, title: "Priority Roadmap", desc: "Computing priority scores and tiers..." },
+    { step: 8, title: "Applying Formulas", desc: "Deterministic post-processing..." },
   ];
 
   if (status === "loading") {
@@ -2470,11 +2577,24 @@ export default function Report() {
                 <ShieldCheck className="h-8 w-8 md:h-12 md:w-12 text-red-500" />
               </div>
               <h2 className="text-xl md:text-2xl font-bold mb-2">Analysis Failed</h2>
+              {failedStep && (
+                <p className="text-sm font-medium text-red-600 mb-2" data-testid="text-failed-step">
+                  Failed at Step {failedStep}/4: {callLabels[failedStep - 1]}
+                </p>
+              )}
               <p className="text-sm md:text-base text-muted-foreground mb-4 md:mb-6">{error || "Unable to generate analysis"}</p>
-              <Button onClick={() => { setStatus("init"); setError(null); }} data-testid="button-retry">
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Try Again
-              </Button>
+              <div className="flex gap-3 flex-wrap justify-center">
+                {failedStep && failedStep > 1 && (
+                  <Button onClick={() => retryFromStep(failedStep)} variant="default" data-testid="button-retry-step">
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Retry from Step {failedStep}
+                  </Button>
+                )}
+                <Button onClick={() => { setStatus("init"); setError(null); setFailedStep(null); }} variant={failedStep && failedStep > 1 ? "outline" : "default"} data-testid="button-retry">
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Start Over
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -2762,13 +2882,35 @@ export default function Report() {
                   <DropdownMenuItem onClick={handleShareHTML} data-testid="menu-share-html" className="min-h-[44px] text-sm">
                     <Share2 className="mr-2 h-4 w-4" /> Share HTML Report
                   </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    onClick={handleShareDashboard} 
+                  <DropdownMenuItem
+                    onClick={handleShareDashboard}
                     data-testid="menu-view-dashboard"
                     disabled={!data}
                     className="min-h-[44px] text-sm"
                   >
                     <LayoutDashboard className="mr-2 h-4 w-4" /> Share Dashboard
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      const url = reportId
+                        ? `/api/assumptions/export/${reportId}?format=excel`
+                        : `/api/assumptions/export?format=excel`;
+                      window.open(url, '_blank');
+                    }}
+                    className="min-h-[44px] text-sm"
+                  >
+                    <FileSpreadsheet className="mr-2 h-4 w-4" /> Export Assumptions (Excel)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      const url = reportId
+                        ? `/api/assumptions/export/${reportId}?format=json`
+                        : `/api/assumptions/export?format=json`;
+                      window.open(url, '_blank');
+                    }}
+                    className="min-h-[44px] text-sm"
+                  >
+                    <FileText className="mr-2 h-4 w-4" /> Export Assumptions (JSON)
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -3035,7 +3177,7 @@ export default function Report() {
                     <div>
                       <h4 className="font-semibold mb-2 md:mb-3 flex items-center gap-2 text-sm md:text-base">
                         <Zap className="h-3.5 w-3.5 md:h-4 md:w-4 text-primary" />
-                        Top 5 Use Cases by Priority
+                        Use Cases by Priority
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger>
@@ -3054,21 +3196,7 @@ export default function Report() {
                               <TableRow className="bg-muted/50">
                                 <TableHead className="font-semibold text-primary text-xs md:text-sm whitespace-nowrap">#</TableHead>
                                 <TableHead className="font-semibold text-primary text-xs md:text-sm whitespace-nowrap">Use Case</TableHead>
-                                <TableHead className="font-semibold text-primary text-xs md:text-sm whitespace-nowrap hidden sm:table-cell">
-                                  <span className="flex items-center gap-1">
-                                    Score
-                                    <TooltipProvider>
-                                      <Tooltip>
-                                        <TooltipTrigger>
-                                          <Info className="h-3 w-3 text-muted-foreground hover:text-foreground cursor-help" />
-                                        </TooltipTrigger>
-                                        <TooltipContent className="max-w-xs">
-                                          <p className="text-xs">{metricTooltips.priorityScore}</p>
-                                        </TooltipContent>
-                                      </Tooltip>
-                                    </TooltipProvider>
-                                  </span>
-                                </TableHead>
+                                <TableHead className="font-semibold text-primary text-xs md:text-sm whitespace-nowrap hidden sm:table-cell">Tier</TableHead>
                                 <TableHead className="font-semibold text-primary text-xs md:text-sm whitespace-nowrap hidden md:table-cell">Tokens</TableHead>
                                 <TableHead className="font-semibold text-primary text-xs md:text-sm whitespace-nowrap">Value</TableHead>
                               </TableRow>
@@ -3081,15 +3209,14 @@ export default function Report() {
                                   </TableCell>
                                   <TableCell className="font-medium text-xs md:text-sm py-2">{uc.useCase}</TableCell>
                                   <TableCell className="hidden sm:table-cell py-2">
-                                    <div className="flex items-center gap-1.5 md:gap-2">
-                                      <div className="w-10 md:w-16 h-1.5 md:h-2 bg-muted rounded-full overflow-hidden">
-                                        <div 
-                                          className="h-full bg-primary rounded-full" 
-                                          style={{ width: `${uc.priorityScore}%` }}
-                                        />
-                                      </div>
-                                      <span className="text-xs md:text-sm font-medium">{uc.priorityScore?.toFixed(0)}</span>
-                                    </div>
+                                    <Badge variant="outline" className={`text-[10px] md:text-xs font-medium whitespace-nowrap ${
+                                      uc.priorityTier?.includes('Champions') ? 'bg-emerald-50 text-emerald-700 border-emerald-300' :
+                                      uc.priorityTier?.includes('Quick Win') ? 'bg-teal-50 text-teal-700 border-teal-300' :
+                                      uc.priorityTier?.includes('Strategic') ? 'bg-blue-50 text-blue-700 border-blue-300' :
+                                      'bg-slate-50 text-slate-600 border-slate-300'
+                                    }`}>
+                                      {uc.priorityTier || 'N/A'}
+                                    </Badge>
                                   </TableCell>
                                   <TableCell className="hidden md:table-cell text-xs md:text-sm py-2">{formatNumber(uc.monthlyTokens)}</TableCell>
                                   <TableCell className="font-medium text-green-600 text-xs md:text-sm py-2">{formatCurrency(uc.annualValue)}</TableCell>
@@ -3125,6 +3252,59 @@ export default function Report() {
               {data.steps?.map((step: any, index: number) => (
                 <div key={index} id={`step-${step.step}`} className="scroll-mt-32">
                   <StepCard step={step} />
+                  {step.step === 5 && data && (
+                    (() => {
+                      const showValidation = 
+                        data.benefitsCapped === true ||
+                        (data.validationSummary?.useCasesCapped ?? 0) > 0 ||
+                        (data.validationSummary?.parametersClamped ?? 0) > 0;
+                      
+                      if (!showValidation || !data.validationSummary) return null;
+                      
+                      const scaleFactor = data.validationSummary.portfolioScaleFactor ?? 1;
+                      const originalTotal = data.validationSummary.originalTotal ?? 0;
+                      const validatedTotal = data.validationSummary.validatedTotal ?? 0;
+                      const useCasesCapped = data.validationSummary.useCasesCapped ?? 0;
+                      const parametersClamped = data.validationSummary.parametersClamped ?? 0;
+                      
+                      return (
+                        <Card className="mt-3 border-blue-200 bg-blue-50/50" data-testid="validation-summary">
+                          <CardContent className="pt-4 pb-3">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Info className="h-4 w-4 text-blue-600" />
+                              <h4 className="font-semibold text-sm text-blue-800">Validation Applied</h4>
+                            </div>
+                            <div className="space-y-2.5">
+                              {useCasesCapped > 0 && (
+                                <p className="text-xs text-blue-700">
+                                  <span className="font-medium">{useCasesCapped} use case{useCasesCapped !== 1 ? 's' : ''} capped</span> to meet CFO-credible limits
+                                </p>
+                              )}
+                              {parametersClamped > 0 && (
+                                <p className="text-xs text-blue-700">
+                                  <span className="font-medium">{parametersClamped} parameter{parametersClamped !== 1 ? 's' : ''} clamped</span> to valid ranges
+                                </p>
+                              )}
+                              {scaleFactor < 1 && (
+                                <p className="text-xs text-blue-700">
+                                  <span className="font-medium">Portfolio scaled by {scaleFactor.toFixed(3)}x</span> to meet 3% revenue ceiling
+                                </p>
+                              )}
+                              {originalTotal !== validatedTotal && (
+                                <div className="flex items-center gap-1 text-xs text-blue-700 bg-white/60 rounded px-2 py-1">
+                                  <span>Original:</span>
+                                  <span className="font-medium">${(originalTotal / 1_000_000).toFixed(1)}M</span>
+                                  <span className="text-blue-500">→</span>
+                                  <span>Validated:</span>
+                                  <span className="font-medium">${(validatedTotal / 1_000_000).toFixed(1)}M</span>
+                                </div>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      );
+                    })()
+                  )}
                 </div>
               ))}
             </div>
@@ -3231,12 +3411,12 @@ const stepTooltips: Record<number, { title: string; description: string }> = {
     description: "Conservative financial estimates across 4 business drivers with probability-weighted total annual value for each use case." 
   },
   6: { 
-    title: "Effort & Token Modeling", 
-    description: "Implementation effort assessment and token economics including runs/month, tokens per run, data readiness, integration complexity, and annual token costs." 
+    title: "Readiness & Token Modeling",
+    description: "Implementation readiness assessment and token economics including runs/month, tokens per run, data readiness, integration complexity, and readiness scoring." 
   },
   7: { 
     title: "Priority Scoring & Roadmap", 
-    description: "Priority scoring (0-100) based on value potential, time-to-value, and implementation effort. Use cases are tiered as Critical, High, or Standard with recommended implementation phases." 
+    description: "Priority scoring (0-100) based on value potential, time-to-value, and implementation readiness. Use cases are tiered as Critical, High, or Standard with recommended implementation phases." 
   },
 };
 
@@ -3370,24 +3550,30 @@ function StepCard({ step }: { step: any }) {
           </div>
         )}
         
-        {hasData && isBenefitsStep ? (
+        {hasData && isBenefitsStep ? (() => {
+          const reorderedBenefitsData = reorderAndFilterColumns(step.data, step.step);
+          const benefitsVisibleCols = reorderedBenefitsData.length > 0
+            ? Object.keys(reorderedBenefitsData[0]).filter((k: string) =>
+                !k.includes('Formula') && !k.includes('Labels') && k !== 'Benefit Formula' && k !== 'Strategic Theme' && !HIDDEN_COLUMNS.has(k)
+              )
+            : [];
+          return (
           <div className="rounded-md border overflow-hidden">
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/50">
                     <TableHead className="w-6 md:w-8 px-1 md:px-2"></TableHead>
-                    {Object.keys(step.data[0]).filter((k: string) => 
-                      !k.includes('Formula') && k !== 'Benefit Formula'
-                    ).map((key: string, i: number) => (
+                    {benefitsVisibleCols.map((key: string, i: number) => (
                       <TableHead key={i} className="font-semibold text-primary whitespace-nowrap text-xs md:text-sm px-2 md:px-4 py-2 md:py-3">{key}</TableHead>
                     ))}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {step.data.map((row: any, i: number) => {
+                  {reorderedBenefitsData.map((row: any, i: number) => {
                     const isExpanded = expandedRows.has(i);
-                    const colCount = Object.keys(row).filter(k => !k.includes('Formula')).length + 1;
+                    const colCount = benefitsVisibleCols.length + 1;
+                    const originalRow = step.data[i];
                     
                     return (
                       <React.Fragment key={i}>
@@ -3404,11 +3590,9 @@ function StepCard({ step }: { step: any }) {
                               )}
                             </div>
                           </TableCell>
-                          {Object.entries(row).filter(([key]) => 
-                            !key.includes('Formula') && key !== 'Benefit Formula'
-                          ).map(([key, value]: [string, any], j: number) => (
+                          {benefitsVisibleCols.map((key: string, j: number) => (
                             <TableCell key={j} className={`text-xs md:text-sm px-2 md:px-4 py-1.5 md:py-2 ${j === 0 ? "font-medium" : ""}`}>
-                              {renderCellValue(key, value)}
+                              {renderCellValue(key, row[key])}
                             </TableCell>
                           ))}
                         </TableRow>
@@ -3417,7 +3601,7 @@ function StepCard({ step }: { step: any }) {
                             <TableCell colSpan={colCount} className="py-2 md:py-4">
                               <div className="flex flex-col gap-2 md:gap-4 px-1 md:px-4">
                                 <div className="text-xs md:text-sm font-medium text-primary">Benefit Calculation Breakdown by Driver:</div>
-                                
+
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                                   {/* Revenue Driver */}
                                   <div className="p-3 md:p-4 bg-green-50 rounded-lg border border-green-200">
@@ -3430,18 +3614,16 @@ function StepCard({ step }: { step: any }) {
                                         {row['Revenue Benefit ($)'] || '$0'}
                                       </div>
                                     </div>
-                                    {row['Revenue Formula'] ? (
+                                    {originalRow['Revenue Formula'] && !originalRow['Revenue Formula'].toLowerCase().includes('no ') ? (
                                       <div className="bg-white/80 rounded-md p-2 md:p-3 border border-green-200">
-                                        <div className="text-[9px] md:text-xs text-green-600 font-medium mb-1">Calculation:</div>
-                                        <div className="text-[10px] md:text-sm text-green-800 font-mono break-all leading-relaxed">
-                                          {row['Revenue Formula']}
-                                        </div>
+                                        <div className="text-[9px] md:text-xs text-green-600 font-medium mb-1.5">Calculation:</div>
+                                        {renderLabeledFormula(originalRow['Revenue Formula Labels'], originalRow['Revenue Formula'], 'text-green-800')}
                                       </div>
                                     ) : (
                                       <div className="text-[10px] md:text-xs text-green-600 italic">No revenue impact for this use case</div>
                                     )}
                                   </div>
-                                  
+
                                   {/* Cost Driver */}
                                   <div className="p-3 md:p-4 bg-blue-50 rounded-lg border border-blue-200">
                                     <div className="flex items-center justify-between mb-2 md:mb-3">
@@ -3453,89 +3635,72 @@ function StepCard({ step }: { step: any }) {
                                         {row['Cost Benefit ($)'] || '$0'}
                                       </div>
                                     </div>
-                                    {row['Cost Formula'] ? (
+                                    {originalRow['Cost Formula'] && !originalRow['Cost Formula'].toLowerCase().includes('no ') ? (
                                       <div className="bg-white/80 rounded-md p-2 md:p-3 border border-blue-200">
-                                        <div className="text-[9px] md:text-xs text-blue-600 font-medium mb-1">Calculation:</div>
-                                        <div className="text-[10px] md:text-sm text-blue-800 font-mono break-all leading-relaxed">
-                                          {row['Cost Formula']}
-                                        </div>
+                                        <div className="text-[9px] md:text-xs text-blue-600 font-medium mb-1.5">Calculation:</div>
+                                        {renderLabeledFormula(originalRow['Cost Formula Labels'], originalRow['Cost Formula'], 'text-blue-800')}
                                       </div>
                                     ) : (
                                       <div className="text-[10px] md:text-xs text-blue-600 italic">No cost impact for this use case</div>
                                     )}
                                   </div>
-                                  
+
                                   {/* Cash Flow Driver */}
                                   <div className="p-3 md:p-4 bg-purple-50 rounded-lg border border-purple-200">
                                     <div className="flex items-center justify-between mb-2 md:mb-3">
                                       <div className="flex items-center gap-2">
                                         <DollarSign className="h-4 w-4 md:h-5 md:w-5 text-purple-600" />
-                                        <span className="font-semibold text-purple-700 text-xs md:text-sm">Cash Flow</span>
+                                        <span className="font-semibold text-purple-700 text-xs md:text-sm">Increase Cash Flow</span>
                                       </div>
                                       <div className="text-sm md:text-xl font-bold text-purple-800 bg-purple-100 px-2 md:px-3 py-1 rounded-md border border-purple-300">
                                         {row['Cash Flow Benefit ($)'] || '$0'}
                                       </div>
                                     </div>
-                                    {row['Cash Flow Formula'] ? (
+                                    {originalRow['Cash Flow Formula'] && !originalRow['Cash Flow Formula'].toLowerCase().includes('no ') ? (
                                       <div className="bg-white/80 rounded-md p-2 md:p-3 border border-purple-200">
-                                        <div className="text-[9px] md:text-xs text-purple-600 font-medium mb-1">Calculation:</div>
-                                        <div className="text-[10px] md:text-sm text-purple-800 font-mono break-all leading-relaxed">
-                                          {row['Cash Flow Formula']}
-                                        </div>
+                                        <div className="text-[9px] md:text-xs text-purple-600 font-medium mb-1.5">Calculation:</div>
+                                        {renderLabeledFormula(originalRow['Cash Flow Formula Labels'], originalRow['Cash Flow Formula'], 'text-purple-800')}
                                       </div>
                                     ) : (
                                       <div className="text-[10px] md:text-xs text-purple-600 italic">No cash flow impact for this use case</div>
                                     )}
                                   </div>
-                                  
+
                                   {/* Risk Driver */}
                                   <div className="p-3 md:p-4 bg-orange-50 rounded-lg border border-orange-200">
                                     <div className="flex items-center justify-between mb-2 md:mb-3">
                                       <div className="flex items-center gap-2">
                                         <ShieldCheck className="h-4 w-4 md:h-5 md:w-5 text-orange-600" />
-                                        <span className="font-semibold text-orange-700 text-xs md:text-sm">Reduce Risk</span>
+                                        <span className="font-semibold text-orange-700 text-xs md:text-sm">Decrease Risk</span>
                                       </div>
                                       <div className="text-sm md:text-xl font-bold text-orange-800 bg-orange-100 px-2 md:px-3 py-1 rounded-md border border-orange-300">
                                         {row['Risk Benefit ($)'] || '$0'}
                                       </div>
                                     </div>
-                                    {row['Risk Formula'] ? (
+                                    {originalRow['Risk Formula'] && !originalRow['Risk Formula'].toLowerCase().includes('no ') ? (
                                       <div className="bg-white/80 rounded-md p-2 md:p-3 border border-orange-200">
-                                        <div className="text-[9px] md:text-xs text-orange-600 font-medium mb-1">Calculation:</div>
-                                        <div className="text-[10px] md:text-sm text-orange-800 font-mono break-all leading-relaxed">
-                                          {row['Risk Formula']}
-                                        </div>
+                                        <div className="text-[9px] md:text-xs text-orange-600 font-medium mb-1.5">Calculation:</div>
+                                        {renderLabeledFormula(originalRow['Risk Formula Labels'], originalRow['Risk Formula'], 'text-orange-800')}
                                       </div>
                                     ) : (
                                       <div className="text-[10px] md:text-xs text-orange-600 italic">No risk impact for this use case</div>
                                     )}
                                   </div>
                                 </div>
-                                
-                                {/* Total Summary with Formula Breakdown */}
-                                <div className="p-3 md:p-4 bg-primary/10 rounded-lg border-2 border-primary">
-                                  <div className="flex items-center justify-between mb-2 md:mb-3">
-                                    <div className="flex items-center gap-2">
-                                      <Target className="h-5 w-5 md:h-6 md:w-6 text-primary" />
-                                      <span className="font-bold text-primary text-sm md:text-base">Total Annual Value</span>
-                                    </div>
-                                    <div className="text-lg md:text-2xl font-bold text-primary bg-white px-3 md:px-4 py-1 md:py-2 rounded-md border-2 border-primary">
-                                      {row['Total Annual Value ($)'] || '$0'}
-                                    </div>
-                                  </div>
-                                  <div className="bg-white/80 rounded-md p-2 md:p-3 border border-primary/30">
-                                    <div className="text-[9px] md:text-xs text-primary/70 font-medium mb-1">How it adds up:</div>
-                                    <div className="text-[10px] md:text-sm text-primary font-mono flex flex-wrap items-center gap-1 md:gap-2">
-                                      <span className="bg-green-100 px-1.5 py-0.5 rounded text-green-800">{row['Revenue Benefit ($)'] || '$0'}</span>
-                                      <span className="text-muted-foreground">+</span>
-                                      <span className="bg-blue-100 px-1.5 py-0.5 rounded text-blue-800">{row['Cost Benefit ($)'] || '$0'}</span>
-                                      <span className="text-muted-foreground">+</span>
-                                      <span className="bg-purple-100 px-1.5 py-0.5 rounded text-purple-800">{row['Cash Flow Benefit ($)'] || '$0'}</span>
-                                      <span className="text-muted-foreground">+</span>
-                                      <span className="bg-orange-100 px-1.5 py-0.5 rounded text-orange-800">{row['Risk Benefit ($)'] || '$0'}</span>
-                                      <span className="text-muted-foreground">=</span>
-                                      <span className="bg-primary/20 px-1.5 py-0.5 rounded text-primary font-bold">{row['Total Annual Value ($)'] || '$0'}</span>
-                                    </div>
+
+                                {/* Total Summary — shown ONCE with color-coded breakdown */}
+                                <div className="bg-white/80 rounded-md p-2 md:p-3 border border-primary/30">
+                                  <div className="text-[10px] md:text-sm text-primary font-mono flex flex-wrap items-center gap-1 md:gap-2">
+                                    <span className="text-xs font-medium text-primary mr-1">Total:</span>
+                                    <span className="bg-green-100 px-1.5 py-0.5 rounded text-green-800">{row['Revenue Benefit ($)'] || '$0'}</span>
+                                    <span className="text-muted-foreground">+</span>
+                                    <span className="bg-blue-100 px-1.5 py-0.5 rounded text-blue-800">{row['Cost Benefit ($)'] || '$0'}</span>
+                                    <span className="text-muted-foreground">+</span>
+                                    <span className="bg-purple-100 px-1.5 py-0.5 rounded text-purple-800">{row['Cash Flow Benefit ($)'] || '$0'}</span>
+                                    <span className="text-muted-foreground">+</span>
+                                    <span className="bg-orange-100 px-1.5 py-0.5 rounded text-orange-800">{row['Risk Benefit ($)'] || '$0'}</span>
+                                    <span className="text-muted-foreground">=</span>
+                                    <span className="bg-primary/20 px-2 py-0.5 rounded text-primary font-bold text-sm">{row['Total Annual Value ($)'] || '$0'}</span>
                                   </div>
                                 </div>
                               </div>
@@ -3548,32 +3713,49 @@ function StepCard({ step }: { step: any }) {
                 </TableBody>
               </Table>
             </div>
-          </div>
-        ) : hasData && isFrictionStep ? (
-          <div className="rounded-md border overflow-hidden">
+          </div>);
+        })()
+        : hasData && isFrictionStep ? (() => {
+          // Use column ordering for friction step
+          const frictionReordered = reorderAndFilterColumns(step.data, 3);
+          const frictionVisibleCols = frictionReordered.length > 0
+            ? Object.keys(frictionReordered[0]).filter((k: string) => !k.includes('Formula') && k !== 'Annual Hours' && k !== 'Hourly Rate' && k !== 'Strategic Theme' && !k.startsWith('_'))
+            : [];
+
+          // Build a map from reordered row back to original flat index
+          const rowToOriginalIndex = new Map<any, number>();
+          frictionReordered.forEach((row: any, i: number) => { rowToOriginalIndex.set(row, i); });
+
+          // Group friction points by Strategic Theme (same pattern as Business Functions)
+          const hasStrategicThemes = frictionReordered.some((r: any) => r['Strategic Theme']);
+          const themeGroups = hasStrategicThemes ? groupByStrategicTheme(frictionReordered) : null;
+          const themeNames = themeGroups ? Array.from(themeGroups.keys()) : [];
+
+          // Render a friction table for a subset of rows
+          const renderFrictionTable = (rows: any[]) => (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/50">
                     <TableHead className="w-6 md:w-8 px-1 md:px-2"></TableHead>
-                    {Object.keys(step.data[0]).filter((k: string) => 
-                      !k.includes('Formula') && k !== 'Annual Hours' && k !== 'Hourly Rate'
-                    ).map((key: string, i: number) => (
+                    {frictionVisibleCols.map((key: string, i: number) => (
                       <TableHead key={i} className="font-semibold text-primary whitespace-nowrap text-xs md:text-sm px-2 md:px-4 py-2 md:py-3">{key}</TableHead>
                     ))}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {step.data.map((row: any, i: number) => {
-                    const isExpanded = expandedRows.has(i);
-                    const colCount = Object.keys(row).filter(k => !k.includes('Formula') && k !== 'Annual Hours' && k !== 'Hourly Rate').length + 1;
+                  {rows.map((row: any, localIdx: number) => {
+                    const globalIdx = rowToOriginalIndex.get(row) ?? localIdx;
+                    const isExpanded = expandedRows.has(globalIdx);
+                    const colCount = frictionVisibleCols.length + 1;
                     const severityColors = getSeverityColor(row['Severity']);
-                    
+                    const originalRow = step.data[globalIdx];
+
                     return (
-                      <React.Fragment key={i}>
-                        <TableRow 
+                      <React.Fragment key={globalIdx}>
+                        <TableRow
                           className="hover:bg-muted/20 transition-colors cursor-pointer"
-                          onClick={() => toggleRow(i)}
+                          onClick={() => toggleRow(globalIdx)}
                         >
                           <TableCell className="w-6 md:w-8 p-1 md:p-2">
                             <div className="flex items-center justify-center">
@@ -3584,16 +3766,20 @@ function StepCard({ step }: { step: any }) {
                               )}
                             </div>
                           </TableCell>
-                          {Object.entries(row).filter(([key]) => 
-                            !key.includes('Formula') && key !== 'Annual Hours' && key !== 'Hourly Rate'
-                          ).map(([key, value]: [string, any], j: number) => (
+                          {frictionVisibleCols.map((key: string, j: number) => (
                             <TableCell key={j} className={`text-xs md:text-sm px-2 md:px-4 py-1.5 md:py-2 ${j === 0 ? "font-medium" : ""}`}>
                               {key === 'Severity' ? (
                                 <Badge className={`${severityColors.bg} ${severityColors.text} ${severityColors.border} border text-[10px] md:text-xs`}>
-                                  {value || 'Low'}
+                                  {row[key] || 'Low'}
                                 </Badge>
+                              ) : key === 'Friction Type' ? (
+                                row[key] ? (
+                                  <Badge variant="outline" className="text-[10px] md:text-xs font-normal whitespace-nowrap">
+                                    {row[key]}
+                                  </Badge>
+                                ) : null
                               ) : (
-                                renderCellValue(key, value)
+                                renderCellValue(key, row[key])
                               )}
                             </TableCell>
                           ))}
@@ -3603,7 +3789,7 @@ function StepCard({ step }: { step: any }) {
                             <TableCell colSpan={colCount} className="py-2 md:py-4">
                               <div className="flex flex-col gap-2 md:gap-4 px-1 md:px-4">
                                 <div className="text-xs md:text-sm font-medium text-amber-700">Friction Cost Calculation:</div>
-                                
+
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                                   <div className="p-3 md:p-4 bg-white rounded-lg border border-amber-200">
                                     <div className="flex items-center justify-between mb-2 md:mb-3">
@@ -3612,30 +3798,30 @@ function StepCard({ step }: { step: any }) {
                                         <span className="font-semibold text-amber-700 text-xs md:text-sm">Annual Cost</span>
                                       </div>
                                       <div className="text-sm md:text-xl font-bold text-amber-800 bg-amber-100 px-2 md:px-3 py-1 rounded-md border border-amber-300">
-                                        {row['Estimated Annual Cost ($)'] || '$0'}
+                                        {(originalRow || row)['Estimated Annual Cost ($)'] || '$0'}
                                       </div>
                                     </div>
-                                    {row['Cost Formula'] ? (
+                                    {(originalRow || row)['Cost Formula'] ? (
                                       <div className="bg-amber-50/80 rounded-md p-2 md:p-3 border border-amber-200">
                                         <div className="text-[9px] md:text-xs text-amber-600 font-medium mb-1">Calculation:</div>
                                         <div className="text-[10px] md:text-sm text-amber-800 font-mono break-all leading-relaxed">
-                                          {row['Cost Formula']}
+                                          {(originalRow || row)['Cost Formula']}
                                         </div>
                                       </div>
                                     ) : (
                                       <div className="text-[10px] md:text-xs text-amber-600 italic">No formula available</div>
                                     )}
                                   </div>
-                                  
+
                                   <div className="p-3 md:p-4 bg-white rounded-lg border border-gray-200">
                                     <div className="text-xs md:text-sm font-medium text-gray-700 mb-2">Calculation Inputs</div>
                                     <div className="grid grid-cols-2 gap-2 text-xs md:text-sm">
                                       <div className="text-gray-500">Annual Hours:</div>
-                                      <div className="font-medium">{typeof row['Annual Hours'] === 'number' ? Math.round(row['Annual Hours']).toLocaleString() : row['Annual Hours'] || 'N/A'}</div>
+                                      <div className="font-medium">{typeof (originalRow || row)['Annual Hours'] === 'number' ? Math.round((originalRow || row)['Annual Hours']).toLocaleString() : (originalRow || row)['Annual Hours'] || 'N/A'}</div>
                                       <div className="text-gray-500">Loaded Hourly Rate:</div>
-                                      <div className="font-medium">${typeof row['Hourly Rate'] === 'number' ? row['Hourly Rate'] : row['Hourly Rate'] || 'N/A'}/hr</div>
+                                      <div className="font-medium">${typeof (originalRow || row)['Hourly Rate'] === 'number' ? (originalRow || row)['Hourly Rate'] : (originalRow || row)['Hourly Rate'] || 'N/A'}/hr</div>
                                       <div className="text-gray-500">Primary Driver:</div>
-                                      <div className="font-medium">{row['Primary Driver Impact'] || 'Cost'}</div>
+                                      <div className="font-medium">{(originalRow || row)['Primary Driver Impact'] || row['Primary Driver Impact'] || 'Cost'}</div>
                                     </div>
                                   </div>
                                 </div>
@@ -3649,36 +3835,322 @@ function StepCard({ step }: { step: any }) {
                 </TableBody>
               </Table>
             </div>
-          </div>
-        ) : hasData ? (
-          <div className="rounded-md border overflow-hidden">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/50">
-                    {Object.keys(step.data[0]).map((key: string, i: number) => (
-                      <TableHead key={i} className="font-semibold text-primary whitespace-nowrap text-xs md:text-sm px-2 md:px-4 py-2 md:py-3">{key}</TableHead>
+          );
+
+          return themeGroups && themeNames.length > 1 ? (
+            <Accordion type="multiple" defaultValue={themeNames} className="space-y-2">
+              {themeNames.map((themeName, themeIdx) => {
+                const themeRows = themeGroups.get(themeName) || [];
+                const themeColor = getThemeColor(themeIdx);
+                return (
+                  <AccordionItem key={themeName} value={themeName} className={`border rounded-lg ${themeColor.border}`}>
+                    <AccordionTrigger className={`px-3 py-2 text-sm font-semibold ${themeColor.text} ${themeColor.bg} rounded-t-lg hover:no-underline`}>
+                      <div className="flex items-center gap-2">
+                        <Target className="h-4 w-4" />
+                        <span>{themeName}</span>
+                        <Badge variant="outline" className={`ml-2 text-[10px] ${themeColor.badge}`}>
+                          {themeRows.length} {themeRows.length === 1 ? 'item' : 'items'}
+                        </Badge>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="p-0">
+                      {renderFrictionTable(themeRows)}
+                    </AccordionContent>
+                  </AccordionItem>
+                );
+              })}
+            </Accordion>
+          ) : (
+            <div className="rounded-md border overflow-hidden">
+              {renderFrictionTable(frictionReordered)}
+            </div>
+          );
+        })()
+        : hasData && step.step === 4 ? (() => {
+          // ===== STEP 4: AI USE CASES WITH PATTERN CARDS =====
+          const reorderedData = reorderAndFilterColumns(step.data, step.step);
+          const hasStrategicThemes = reorderedData.some((r: any) => r['Strategic Theme']);
+          const themeGroups = hasStrategicThemes ? groupByStrategicTheme(reorderedData) : null;
+          const themeNames = themeGroups ? Array.from(themeGroups.keys()) : [];
+
+          const getPatternBadgeColor = (pattern: string) => {
+            const singleAgent = ['Reflection', 'Tool Use', 'Planning', 'ReAct Loop', 'Prompt Chaining', 'Semantic Router', 'Constitutional Guardrail'];
+            if (singleAgent.some(p => pattern?.includes(p))) return 'bg-[#001278] text-white';
+            return 'bg-[#02a2fd] text-white'; // multi-agent
+          };
+
+          const getEpochBadgeLocal = (flag: string) => epochGetBadge(flag);
+
+          const parseArrayField = (value: unknown): string[] => {
+            if (!value) return [];
+            if (Array.isArray(value)) return value.map((v) => String(v).trim()).filter(Boolean);
+            const str = String(value).trim();
+            if (!str) return [];
+            if (str.startsWith("[")) {
+              try {
+                const parsed = JSON.parse(str);
+                if (Array.isArray(parsed)) return parsed.map((v: unknown) => String(v).trim()).filter(Boolean);
+              } catch { /* fall through */ }
+            }
+            return str.split(",").map((s) => s.trim()).filter(Boolean);
+          };
+
+          const renderUseCaseCards = (rows: any[]) => (
+            <div className="space-y-4">
+              {rows.map((row: any, i: number) => {
+                const pattern = row['Primary Pattern'] || row['Agentic Pattern'] || '';
+                const altPattern = row['Alternative Pattern'] || '';
+                const desiredOutcomes = parseArrayField(row['Desired Outcomes']);
+                const dataTypes = parseArrayField(row['Data Types']);
+                const integrations = parseArrayField(row['Integrations']);
+
+                return (
+                  <div key={i} className="border rounded-lg overflow-hidden hover:shadow-md transition-shadow">
+                    {/* Card Header */}
+                    <div className="bg-slate-50 px-4 py-3 border-b flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-mono text-slate-400">{row.ID}</span>
+                      <span className="font-semibold text-sm md:text-base text-slate-800 flex-1">{row['Use Case Name']}</span>
+                      {pattern && (
+                        <span className={`text-[10px] md:text-xs px-2 py-0.5 rounded-full font-medium ${getPatternBadgeColor(pattern)}`}>
+                          {pattern}
+                        </span>
+                      )}
+                      {row['Function'] && (
+                        <span className="text-[10px] md:text-xs px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">
+                          {row['Function']}
+                        </span>
+                      )}
+                    </div>
+                    {/* Card Body */}
+                    <div className="p-4 space-y-3">
+                      {row['Description'] && (
+                        <p className="text-xs md:text-sm text-slate-600 leading-relaxed">{row['Description']}</p>
+                      )}
+
+                      {row['Target Friction'] && (
+                        <div className="flex flex-wrap gap-4 text-xs md:text-sm">
+                          <div>
+                            <span className="text-slate-400 font-medium">Target Friction: </span>
+                            <span className="text-slate-700">{row['Target Friction']}</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* AI Primitives */}
+                      {row['AI Primitives'] && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {String(row['AI Primitives']).split(',').map((p: string, j: number) => (
+                            <span key={j} className="text-[10px] px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              {p.trim()}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Agentic Pattern Analysis */}
+                      {(pattern || altPattern) && (
+                        <div className="bg-slate-50 rounded-lg p-3 border space-y-2">
+                          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Agentic Pattern Analysis</div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <div className="text-[10px] text-slate-400 font-medium">PRIMARY PATTERN</div>
+                              <span className={`inline-block text-xs px-2.5 py-1 rounded-md font-medium ${getPatternBadgeColor(pattern)}`}>
+                                {pattern || 'Not assigned'}
+                              </span>
+                            </div>
+                            <div className="space-y-1">
+                              <div className="text-[10px] text-slate-400 font-medium">ALTERNATIVE PATTERN</div>
+                              <span className={`inline-block text-xs px-2.5 py-1 rounded-md font-medium ${altPattern ? getPatternBadgeColor(altPattern) + ' opacity-75' : 'bg-slate-200 text-slate-500'}`}>
+                                {altPattern || 'None'}
+                              </span>
+                            </div>
+                          </div>
+                          {row['Pattern Rationale'] && (
+                            <div className="mt-2 pt-2 border-t border-slate-200">
+                              <div className="text-[10px] text-slate-400 font-medium mb-1">RATIONALE</div>
+                              <p className="text-xs text-slate-600 leading-relaxed">{row['Pattern Rationale']}</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* E.P.O.C.H. Flags */}
+                      {row['EPOCH Flags'] && (() => {
+                        const flags = parseEpochFlags(row['EPOCH Flags']);
+                        return flags.length > 0 ? (
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="text-[10px] font-semibold text-slate-400 uppercase">E.P.O.C.H.:</span>
+                            {flags.map((f: string, j: number) => {
+                              const badge = getEpochBadgeLocal(f);
+                              return (
+                                <span key={j} className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${badge.color}`}>
+                                  {badge.label}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        ) : null;
+                      })()}
+
+                      {/* Desired Outcomes */}
+                      {desiredOutcomes.length > 0 && (
+                        <div className="space-y-1">
+                          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Desired Outcomes</div>
+                          <ul className="list-disc list-inside space-y-0.5">
+                            {desiredOutcomes.map((outcome, j) => (
+                              <li key={j} className="text-xs text-slate-600 leading-relaxed">{outcome}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Data Types */}
+                      {dataTypes.length > 0 && (
+                        <div className="space-y-1">
+                          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Data Types</div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {dataTypes.map((dt, j) => (
+                              <span key={j} className="text-[10px] px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">{dt}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Integrations */}
+                      {integrations.length > 0 && (
+                        <div className="space-y-1">
+                          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Integrations</div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {integrations.map((intg, j) => (
+                              <span key={j} className="text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">{intg}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* HITL Checkpoint */}
+                      {row['Human-in-the-Loop Checkpoint'] && (
+                        <div className="text-xs text-blue-600 flex items-center gap-1.5 bg-blue-50 px-2 py-1.5 rounded border border-blue-200">
+                          <Users className="h-3.5 w-3.5 shrink-0" />
+                          <span className="font-medium">HITL:</span> {row['Human-in-the-Loop Checkpoint']}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+
+          return (
+            <div className="space-y-3">
+              {themeGroups ? (
+                themeNames.map((theme, ti) => (
+                  <div key={ti}>
+                    <div className="flex items-center gap-2 mb-3 mt-4">
+                      <div className="h-1 w-4 rounded bg-[#001278]"></div>
+                      <h4 className="text-sm font-semibold text-[#001278]">{theme}</h4>
+                      <span className="text-xs text-slate-400">({themeGroups.get(theme)?.length} use cases)</span>
+                    </div>
+                    {renderUseCaseCards(themeGroups.get(theme) || [])}
+                  </div>
+                ))
+              ) : (
+                renderUseCaseCards(reorderedData)
+              )}
+            </div>
+          );
+        })()
+        : hasData ? (() => {
+          // ===== GENERIC TABLE WITH COLUMN REORDERING + BENCHMARK COLORS + STRATEGIC THEME GROUPING =====
+          const reorderedData = reorderAndFilterColumns(step.data, step.step);
+          const visibleCols = reorderedData.length > 0
+            ? Object.keys(reorderedData[0]).filter(k => !HIDDEN_COLUMNS.has(k) && k !== 'Strategic Theme')
+            : [];
+          const hasStrategicThemes = reorderedData.some(r => r['Strategic Theme']);
+          const isBenchmarkStep = step.step === 2;
+
+          // Group by strategic theme if available
+          const themeGroups = hasStrategicThemes ? groupByStrategicTheme(reorderedData) : null;
+          const themeNames = themeGroups ? Array.from(themeGroups.keys()) : [];
+
+          const renderTableForRows = (rows: any[]) => (
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/50">
+                  {visibleCols.map((key: string, i: number) => (
+                    <TableHead
+                      key={i}
+                      className={`font-semibold text-primary whitespace-nowrap text-xs md:text-sm px-2 md:px-4 py-2 md:py-3 ${getBenchmarkCellClass(key)}`}
+                    >
+                      {key}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.map((row: any, i: number) => (
+                  <TableRow key={i} className="hover:bg-muted/20 transition-colors">
+                    {visibleCols.map((key: string, j: number) => (
+                      <TableCell
+                        key={j}
+                        className={`text-xs md:text-sm px-2 md:px-4 py-1.5 md:py-2 ${j === 0 ? "font-medium" : ""} ${key.toLowerCase() === "description" ? "min-w-[200px] md:min-w-[300px] max-w-[300px] md:max-w-[400px] whitespace-normal" : ""} ${getBenchmarkCellClass(key)}`}
+                      >
+                        {renderCellValue(key, row[key])}
+                      </TableCell>
                     ))}
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {step.data.map((row: any, i: number) => (
-                    <TableRow key={i} className="hover:bg-muted/20 transition-colors">
-                      {Object.entries(row).map(([key, value]: [string, any], j: number) => (
-                        <TableCell 
-                          key={j} 
-                          className={`text-xs md:text-sm px-2 md:px-4 py-1.5 md:py-2 ${j === 0 ? "font-medium" : ""} ${key.toLowerCase() === "description" ? "min-w-[200px] md:min-w-[300px] max-w-[300px] md:max-w-[400px] whitespace-normal" : ""}`}
-                        >
-                          {renderCellValue(key, value)}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
-        ) : null}
+                ))}
+              </TableBody>
+            </Table>
+          );
+
+          return (
+          <div className="space-y-3">
+            {/* Benchmark legend for Step 2 */}
+            {isBenchmarkStep && reorderedData.some(r => r['Benchmark (Avg)'] || r['Benchmark (Industry Best)'] || r['Benchmark (Overall Best)']) && (
+              <div className="flex flex-wrap items-center gap-3 text-xs px-1">
+                <span className="font-medium text-muted-foreground">Benchmark Legend:</span>
+                <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded bg-yellow-100 border border-yellow-300"></span> Industry Average</span>
+                <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded bg-blue-100 border border-blue-300"></span> Industry Best in Class</span>
+                <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded bg-green-100 border border-green-300"></span> Overall Best in Class</span>
+              </div>
+            )}
+
+            {/* Grouped by strategic theme if available */}
+            {themeGroups && themeNames.length > 1 ? (
+              <Accordion type="multiple" defaultValue={themeNames} className="space-y-2">
+                {themeNames.map((themeName, themeIdx) => {
+                  const themeRows = themeGroups.get(themeName) || [];
+                  const themeColor = getThemeColor(themeIdx);
+                  return (
+                    <AccordionItem key={themeName} value={themeName} className={`border rounded-lg ${themeColor.border}`}>
+                      <AccordionTrigger className={`px-3 py-2 text-sm font-semibold ${themeColor.text} ${themeColor.bg} rounded-t-lg hover:no-underline`}>
+                        <div className="flex items-center gap-2">
+                          <Target className="h-4 w-4" />
+                          <span>{themeName}</span>
+                          <Badge variant="outline" className={`ml-2 text-[10px] ${themeColor.badge}`}>{themeRows.length} items</Badge>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="p-0">
+                        <div className="overflow-x-auto">
+                          {renderTableForRows(themeRows)}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  );
+                })}
+              </Accordion>
+            ) : (
+              <div className="rounded-md border overflow-hidden">
+                <div className="overflow-x-auto">
+                  {renderTableForRows(reorderedData)}
+                </div>
+              </div>
+            )}
+          </div>);
+        })()
+        : null}
       </CardContent>
     </Card>
   );

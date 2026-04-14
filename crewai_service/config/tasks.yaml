@@ -43,7 +43,7 @@ analysis_task:
     5. Resource requirements and ROI projections
   expected_output: >
     A strategic analysis report with clear recommendations,
-    prioritized by impact and feasibility.
+    prioritized by impact and readiness.
   agent: analyst
 
 synthesis_task:

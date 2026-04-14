@@ -1,40 +1,31 @@
-import { drizzle } from "drizzle-orm/neon-serverless";
-import ws from "ws";
+import { drizzle } from "drizzle-orm/node-postgres";
+import pkg from "pg";
+const { Pool } = pkg;
 import * as schema from "@shared/schema";
 
 function getDatabaseUrl(): string {
-  if (process.env.NEON_DB_URL) {
-    const url = process.env.NEON_DB_URL.trim();
+  if (process.env.DATABASE_URL) {
+    console.log("Using Replit DATABASE_URL");
+    return process.env.DATABASE_URL;
+  }
+
+  if (process.env.EXTERNAL_DATABASE_URL) {
+    const url = process.env.EXTERNAL_DATABASE_URL.trim();
     if (url.startsWith("postgresql://") || url.startsWith("postgres://")) {
-      console.log("Database: Using NEON_DB_URL (external Neon database)");
-      console.log("Database host:", url.split("@")[1]?.split("/")[0] || "unknown");
+      console.log("Using EXTERNAL_DATABASE_URL (external Neon database)");
       return url;
     }
   }
-  
-  if (process.env.DATABASE_URL) {
-    console.log("Database: Using DATABASE_URL from environment");
-    return process.env.DATABASE_URL;
-  }
-  
+
   throw new Error(
-    "Database URL not configured. Set NEON_DB_URL or DATABASE_URL environment variable.",
+    "Database URL not configured. Set DATABASE_URL or EXTERNAL_DATABASE_URL.",
   );
 }
 
-let db: ReturnType<typeof drizzle>;
+const databaseUrl = getDatabaseUrl();
 
-try {
-  const databaseUrl = getDatabaseUrl();
-  db = drizzle({
-    connection: databaseUrl,
-    schema,
-    ws: ws,
-  });
-  console.log("Database: Connection initialized successfully");
-} catch (error) {
-  console.error("Database: Failed to initialize connection:", error);
-  process.exit(1);
-}
+const pool = new Pool({
+  connectionString: databaseUrl,
+});
 
-export { db };
+export const db = drizzle(pool, { schema });

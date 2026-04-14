@@ -12,6 +12,11 @@ import {
   getPriorityTier,
   getRecommendedPhase,
   DEFAULT_MULTIPLIERS,
+  SCENARIO_MULTIPLIERS,
+  ROUNDING,
+  PRIORITY_WEIGHTS,
+  PRIORITY_TIERS,
+  TTV_THRESHOLDS,
 } from '../src/calc/formulas';
 
 describe('HyperFormula calculation engine', () => {
@@ -27,7 +32,7 @@ describe('HyperFormula calculation engine', () => {
       CostBenefit: '=HoursSaved*LoadedRate*Efficiency*Adoption*DataMaturity'
     };
     const res = evaluateWithHyperFormula(inputs, formulas);
-    
+
     expect(res.trace).toBeDefined();
     expect(res.trace.formulas).toEqual(formulas);
     expect(res.trace.inputs).toEqual(inputs);
@@ -38,7 +43,7 @@ describe('HyperFormula calculation engine', () => {
     const inputs = { HoursSaved: 100, LoadedRate: 50 };
     const formulas = { Total: '=HoursSaved*LoadedRate' };
     const res = evaluateWithHyperFormula(inputs, formulas);
-    
+
     expect(res.trace).toBeDefined();
     expect(res.trace.formulas).toEqual({ Total: '=HoursSaved*LoadedRate' });
     expect(res.trace.inputs).toEqual({ HoursSaved: 100, LoadedRate: 50 });
@@ -49,21 +54,23 @@ describe('HyperFormula calculation engine', () => {
   });
 });
 
-describe('calculateCostBenefit (SPEC: HoursSaved × LoadedRate × Efficiency × Adoption × DataMaturity)', () => {
+describe('calculateCostBenefit (SPEC: Hours × Rate × BenefitsLoading × Realization × DataMaturity × Scenario)', () => {
   it('computes cost benefit with all inputs per spec formula', () => {
     const result = calculateCostBenefit({
       hoursSaved: 34000,
       loadedHourlyRate: 150,
-      efficiencyMultiplier: 0.85,
-      adoptionMultiplier: 0.70,
+      benefitsLoading: 1.35,
+      costRealizationMultiplier: 0.90,
       dataMaturityMultiplier: 0.75,
+      scenario: 'moderate',
     });
-    
-    // 34000 × 150 × 0.85 × 0.70 × 0.75 = 2,277,750
-    const expectedRaw = 34000 * 150 * 0.85 * 0.70 * 0.75;
+
+    // 34000 × 150 × 1.35 × 0.90 × 0.75 × 1.00 (moderate) = 4,133,625
+    const expectedRaw = 34000 * 150 * 1.35 * 0.90 * 0.75 * SCENARIO_MULTIPLIERS.moderate;
     expect(result.trace.output).toBeCloseTo(expectedRaw, 0);
-    // Rounded down to nearest $100K = 2,200,000
-    expect(result.value).toBe(2200000);
+    // Rounded down to nearest $100K
+    const expectedRounded = Math.floor(expectedRaw / ROUNDING.BENEFIT_PRECISION) * ROUNDING.BENEFIT_PRECISION;
+    expect(result.value).toBe(expectedRounded);
   });
 
   it('uses default multipliers from Section 3.3 when not provided', () => {
@@ -71,14 +78,15 @@ describe('calculateCostBenefit (SPEC: HoursSaved × LoadedRate × Efficiency × 
       hoursSaved: 1000,
       loadedHourlyRate: 100,
     });
-    
-    const expectedRaw = 1000 * 100 * 
-      DEFAULT_MULTIPLIERS.efficiencyMultiplier * 
-      DEFAULT_MULTIPLIERS.adoptionMultiplier * 
-      DEFAULT_MULTIPLIERS.dataMaturityMultiplier;
+
+    const expectedRaw = 1000 * 100 *
+      DEFAULT_MULTIPLIERS.benefitsLoading *
+      DEFAULT_MULTIPLIERS.costRealizationMultiplier *
+      DEFAULT_MULTIPLIERS.dataMaturityMultiplier *
+      SCENARIO_MULTIPLIERS.conservative; // default scenario
     expect(result.trace.output).toBeCloseTo(expectedRaw, 5);
-    expect(result.trace.inputs.efficiencyMultiplier).toBe(DEFAULT_MULTIPLIERS.efficiencyMultiplier);
-    expect(result.trace.inputs.adoptionMultiplier).toBe(DEFAULT_MULTIPLIERS.adoptionMultiplier);
+    expect(result.trace.inputs.benefitsLoading).toBe(DEFAULT_MULTIPLIERS.benefitsLoading);
+    expect(result.trace.inputs.costRealizationMultiplier).toBe(DEFAULT_MULTIPLIERS.costRealizationMultiplier);
     expect(result.trace.inputs.dataMaturityMultiplier).toBe(DEFAULT_MULTIPLIERS.dataMaturityMultiplier);
   });
 
@@ -86,37 +94,40 @@ describe('calculateCostBenefit (SPEC: HoursSaved × LoadedRate × Efficiency × 
     const result = calculateCostBenefit({
       hoursSaved: 2000,
       loadedHourlyRate: 150,
-      efficiencyMultiplier: 0.85,
-      adoptionMultiplier: 0.80,
+      benefitsLoading: 1.35,
+      costRealizationMultiplier: 0.90,
       dataMaturityMultiplier: 0.75,
+      scenario: 'moderate',
     });
-    
-    expect(result.trace.formula).toBe('HoursSaved × LoadedRate × Efficiency × Adoption × DataMaturity');
+
+    expect(result.trace.formula).toBe('HoursSaved × LoadedRate × BenefitsLoading × Realization × DataMaturity × Scenario');
     expect(result.trace.inputs).toEqual({
       hoursSaved: 2000,
       loadedHourlyRate: 150,
-      efficiencyMultiplier: 0.85,
-      adoptionMultiplier: 0.80,
+      benefitsLoading: 1.35,
+      costRealizationMultiplier: 0.90,
       dataMaturityMultiplier: 0.75,
+      scenarioMultiplier: SCENARIO_MULTIPLIERS.moderate,
     });
-    expect(result.trace.intermediates?.rawValue).toBeCloseTo(2000 * 150 * 0.85 * 0.80 * 0.75, 5);
+    expect(result.trace.intermediates?.rawValue).toBeCloseTo(2000 * 150 * 1.35 * 0.90 * 0.75 * 1.0, 5);
   });
 
   it('rounds down to nearest $100K per spec', () => {
     const result = calculateCostBenefit({
       hoursSaved: 1500,
       loadedHourlyRate: 100,
-      efficiencyMultiplier: 1.0,
-      adoptionMultiplier: 1.0,
+      benefitsLoading: 1.0,
+      costRealizationMultiplier: 1.0,
       dataMaturityMultiplier: 1.0,
+      scenario: 'moderate',
     });
-    
-    // 1500 × 100 = 150,000 → rounded to 100,000
+
+    // 1500 × 100 × 1.0 × 1.0 × 1.0 × 1.0 = 150,000 → rounded to 100,000
     expect(result.value).toBe(100000);
   });
 });
 
-describe('calculateRevenueBenefit (SPEC: UpliftPct × BaselineRevenueAtRisk × MarginPct × Realization × DataMaturity)', () => {
+describe('calculateRevenueBenefit (SPEC: UpliftPct × BaselineRevenue × Margin × Realization × DataMaturity × Scenario)', () => {
   it('computes revenue benefit with all inputs', () => {
     const result = calculateRevenueBenefit({
       upliftPct: 0.05,
@@ -124,9 +135,10 @@ describe('calculateRevenueBenefit (SPEC: UpliftPct × BaselineRevenueAtRisk × M
       marginPct: 0.30,
       revenueRealizationMultiplier: 0.95,
       dataMaturityMultiplier: 0.75,
+      scenario: 'moderate',
     });
-    
-    const expectedRaw = 0.05 * 10_000_000 * 0.30 * 0.95 * 0.75;
+
+    const expectedRaw = 0.05 * 10_000_000 * 0.30 * 0.95 * 0.75 * SCENARIO_MULTIPLIERS.moderate;
     expect(result.trace.output).toBeCloseTo(expectedRaw, 5);
   });
 
@@ -135,7 +147,7 @@ describe('calculateRevenueBenefit (SPEC: UpliftPct × BaselineRevenueAtRisk × M
       upliftPct: 0.10,
       baselineRevenueAtRisk: 5_000_000,
     });
-    
+
     expect(result.trace.inputs.revenueRealizationMultiplier).toBe(DEFAULT_MULTIPLIERS.revenueRealizationMultiplier);
     expect(result.trace.inputs.dataMaturityMultiplier).toBe(DEFAULT_MULTIPLIERS.dataMaturityMultiplier);
     expect(result.trace.inputs.marginPct).toBe(1.0);
@@ -146,39 +158,45 @@ describe('calculateRevenueBenefit (SPEC: UpliftPct × BaselineRevenueAtRisk × M
       upliftPct: 0.08,
       baselineRevenueAtRisk: 2_000_000,
     });
-    
-    expect(result.trace.formula).toBe('UpliftPct × BaselineRevenueAtRisk × MarginPct × Realization × DataMaturity');
+
+    expect(result.trace.formula).toBe('UpliftPct × BaselineRevenue × Margin × Realization × DataMaturity × Scenario');
     expect(result.trace.inputs.upliftPct).toBe(0.08);
     expect(result.trace.inputs.baselineRevenueAtRisk).toBe(2_000_000);
   });
 });
 
-describe('calculateCashFlowBenefit', () => {
+describe('calculateCashFlowBenefit (SPEC: AnnualRevenue × (DaysImprovement / 365) × CostOfCapital × Realization × DataMaturity × Scenario)', () => {
   it('computes cash flow benefit correctly', () => {
     const result = calculateCashFlowBenefit({
-      daysImprovement: 10,
-      dailyRevenue: 100_000,
-      workingCapitalPct: 0.5,
+      daysImprovement: 15,
+      annualRevenue: 365_000_000,
+      costOfCapital: 0.08,
       cashFlowRealizationMultiplier: 0.85,
       dataMaturityMultiplier: 0.75,
+      scenario: 'moderate',
     });
-    
-    const expectedRaw = 10 * 100_000 * 0.5 * 0.85 * 0.75;
+
+    // Working capital freed = 365M × 15/365 = 15M
+    // Annual benefit = 15M × 0.08 × 0.85 × 0.75 × 1.0 = 765,000
+    const workingCapitalFreed = 365_000_000 * (15 / 365);
+    const expectedRaw = workingCapitalFreed * 0.08 * 0.85 * 0.75 * SCENARIO_MULTIPLIERS.moderate;
     expect(result.trace.output).toBeCloseTo(expectedRaw, 5);
+    expect(result.trace.intermediates?.workingCapitalFreed).toBeCloseTo(workingCapitalFreed, 5);
   });
 
   it('uses default multipliers when not provided', () => {
     const result = calculateCashFlowBenefit({
       daysImprovement: 5,
-      dailyRevenue: 50_000,
+      annualRevenue: 100_000_000,
     });
-    
+
     expect(result.trace.inputs.cashFlowRealizationMultiplier).toBe(DEFAULT_MULTIPLIERS.cashFlowRealizationMultiplier);
     expect(result.trace.inputs.dataMaturityMultiplier).toBe(DEFAULT_MULTIPLIERS.dataMaturityMultiplier);
+    expect(result.trace.inputs.costOfCapital).toBe(DEFAULT_MULTIPLIERS.defaultCostOfCapital);
   });
 });
 
-describe('calculateRiskBenefit', () => {
+describe('calculateRiskBenefit (SPEC: min(RiskReduction, 50% of Exposure) × Realization × DataMaturity × Scenario)', () => {
   it('computes risk benefit correctly', () => {
     const result = calculateRiskBenefit({
       probBefore: 0.10,
@@ -187,16 +205,23 @@ describe('calculateRiskBenefit', () => {
       impactAfter: 5_000_000,
       riskRealizationMultiplier: 0.80,
       dataMaturityMultiplier: 0.75,
+      scenario: 'moderate',
     });
-    
+
     // Risk reduction = (0.10 × 5M) - (0.02 × 5M) = 500K - 100K = 400K
-    // Value = 400K × 0.80 × 0.75 = 240K
+    // Cap = 50% of exposure (0.10 × 5M = 500K) → cap = 250K
+    // Since 400K > 250K, capped to 250K
+    // Value = 250K × 0.80 × 0.75 × 1.0 = 150K
     const riskBefore = 0.10 * 5_000_000;
     const riskAfter = 0.02 * 5_000_000;
-    const expectedRaw = (riskBefore - riskAfter) * 0.80 * 0.75;
+    const riskReduction = riskBefore - riskAfter;
+    const maxReduction = riskBefore * DEFAULT_MULTIPLIERS.riskReductionCapPct;
+    const cappedReduction = Math.min(riskReduction, maxReduction);
+    const expectedRaw = cappedReduction * 0.80 * 0.75 * SCENARIO_MULTIPLIERS.moderate;
     expect(result.trace.output).toBeCloseTo(expectedRaw, 5);
     expect(result.trace.intermediates?.riskBefore).toBe(riskBefore);
     expect(result.trace.intermediates?.riskAfter).toBe(riskAfter);
+    expect(result.trace.intermediates?.cappedReduction).toBe(cappedReduction);
   });
 });
 
@@ -209,13 +234,13 @@ describe('calculateTokenCost (SPEC: 12 × ((MonthlyInputTokens/1M × InputPrice)
       inputTokenPricePerM: 3.00,
       outputTokenPricePerM: 15.00,
     });
-    
+
     const monthlyInputTokens = 1000 * 1000; // 1M
     const monthlyOutputTokens = 1000 * 500; // 500K
     const monthlyInputCost = (monthlyInputTokens / 1_000_000) * 3.00; // $3
     const monthlyOutputCost = (monthlyOutputTokens / 1_000_000) * 15.00; // $7.50
     const expectedAnnual = 12 * (monthlyInputCost + monthlyOutputCost); // $126
-    
+
     expect(result.value).toBeCloseTo(expectedAnnual, 2);
   });
 
@@ -225,7 +250,7 @@ describe('calculateTokenCost (SPEC: 12 × ((MonthlyInputTokens/1M × InputPrice)
       inputTokensPerRun: 2000,
       outputTokensPerRun: 1000,
     });
-    
+
     expect(result.trace.inputs.inputTokenPricePerM).toBe(DEFAULT_MULTIPLIERS.inputTokenPricePerM);
     expect(result.trace.inputs.outputTokenPricePerM).toBe(DEFAULT_MULTIPLIERS.outputTokenPricePerM);
   });
@@ -236,7 +261,7 @@ describe('calculateTokenCost (SPEC: 12 × ((MonthlyInputTokens/1M × InputPrice)
       inputTokensPerRun: 5000,
       outputTokensPerRun: 2000,
     });
-    
+
     expect(result.trace.formula).toBe('12 × ((MonthlyInputTokens/1M × InputPrice) + (MonthlyOutputTokens/1M × OutputPrice))');
     expect(result.trace.intermediates).toBeDefined();
     expect(result.trace.intermediates?.monthlyInputTokens).toBe(100 * 5000);
@@ -244,19 +269,18 @@ describe('calculateTokenCost (SPEC: 12 × ((MonthlyInputTokens/1M × InputPrice)
   });
 });
 
-describe('calculateTotalAnnualValue', () => {
+describe('calculateTotalAnnualValue (with benefits cap)', () => {
   it('computes total annual value correctly', () => {
     const result = calculateTotalAnnualValue({
       costBenefit: 1_000_000,
       revenueBenefit: 2_000_000,
       cashFlowBenefit: 500_000,
       riskBenefit: 500_000,
-      probabilityOfSuccess: 0.85,
     });
-    
+
     const sumBenefits = 1_000_000 + 2_000_000 + 500_000 + 500_000;
-    const expectedRaw = sumBenefits * 0.85;
-    expect(result.trace.output).toBeCloseTo(expectedRaw, 0);
+    // No revenue cap provided → uncapped
+    expect(result.trace.output).toBeCloseTo(sumBenefits, 0);
   });
 
   it('uses default probability of success when not provided', () => {
@@ -266,41 +290,47 @@ describe('calculateTotalAnnualValue', () => {
       cashFlowBenefit: 0,
       riskBenefit: 0,
     });
-    
-    expect(result.trace.inputs.probabilityOfSuccess).toBe(DEFAULT_MULTIPLIERS.probabilityOfSuccess);
+
+    expect(result.trace.inputs.benefitsCapPct).toBe(DEFAULT_MULTIPLIERS.benefitsCapPct);
   });
 });
 
-describe('calculatePriorityScore (SPEC: 0.4 × ValueScore + 0.3 × TTVScore + 0.3 × EffortScore, result 0-100)', () => {
+describe('calculatePriorityScore (SPEC: 5-criterion weighted matrix, result 0-100)', () => {
   it('computes maximum priority score for ideal inputs', () => {
     const result = calculatePriorityScore({
-      totalAnnualValue: 10_000_000, // $10M = 100 value score
+      totalAnnualValue: 10_000_000, // $10M = 100 financial score
       timeToValueMonths: 3, // 3 months = 100 TTV score
-      dataReadiness: 5, // Max readiness = easy
+      dataReadiness: 5, // Max readiness
       integrationComplexity: 1, // Min complexity = easy
       changeMgmt: 1, // Min change = easy
+      strategicAlignment: 5, // Max alignment
     });
-    
-    // All scores should be 100
-    expect(result.valueScore).toBe(100);
+
+    // All sub-scores should be 100
+    expect(result.financialScore).toBe(100);
     expect(result.ttvScore).toBe(100);
-    expect(result.effortScore).toBe(100);
-    // Priority = 0.4(100) + 0.3(100) + 0.3(100) = 100
+    expect(result.complexityScore).toBe(100);
+    expect(result.dataReadinessScore).toBe(100);
+    expect(result.strategicScore).toBe(100);
+    // Priority = 0.25(100) + 0.25(100) + 0.20(100) + 0.15(100) + 0.15(100) = 100
     expect(result.value).toBe(100);
   });
 
   it('computes minimum priority score for worst inputs', () => {
     const result = calculatePriorityScore({
       totalAnnualValue: 0,
-      timeToValueMonths: 12,
+      timeToValueMonths: 18, // At or above TTV_THRESHOLDS.ZERO_MONTHS = 0 TTV score
       dataReadiness: 1, // Min readiness = hard
       integrationComplexity: 5, // Max complexity = hard
       changeMgmt: 5, // Max change = hard
+      strategicAlignment: 1, // Min alignment
     });
-    
-    expect(result.valueScore).toBe(0);
+
+    expect(result.financialScore).toBe(0);
     expect(result.ttvScore).toBe(0);
-    expect(result.effortScore).toBe(0);
+    expect(result.complexityScore).toBe(0);
+    expect(result.dataReadinessScore).toBe(0);
+    expect(result.strategicScore).toBe(0);
     expect(result.value).toBe(0);
   });
 
@@ -312,7 +342,7 @@ describe('calculatePriorityScore (SPEC: 0.4 × ValueScore + 0.3 × TTVScore + 0.
       integrationComplexity: 3,
       changeMgmt: 3,
     });
-    
+
     const hardData = calculatePriorityScore({
       totalAnnualValue: 5_000_000,
       timeToValueMonths: 6,
@@ -320,9 +350,9 @@ describe('calculatePriorityScore (SPEC: 0.4 × ValueScore + 0.3 × TTVScore + 0.
       integrationComplexity: 3,
       changeMgmt: 3,
     });
-    
-    // Higher data readiness should give HIGHER effort score
-    expect(easyData.effortScore).toBeGreaterThan(hardData.effortScore);
+
+    // Higher data readiness should give HIGHER data readiness score and overall score
+    expect(easyData.dataReadinessScore).toBeGreaterThan(hardData.dataReadinessScore);
     expect(easyData.value).toBeGreaterThan(hardData.value);
   });
 
@@ -334,7 +364,7 @@ describe('calculatePriorityScore (SPEC: 0.4 × ValueScore + 0.3 × TTVScore + 0.
       integrationComplexity: 1, // LOW complexity = EASY
       changeMgmt: 3,
     });
-    
+
     const hardIntegration = calculatePriorityScore({
       totalAnnualValue: 5_000_000,
       timeToValueMonths: 6,
@@ -342,24 +372,24 @@ describe('calculatePriorityScore (SPEC: 0.4 × ValueScore + 0.3 × TTVScore + 0.
       integrationComplexity: 5, // HIGH complexity = HARD
       changeMgmt: 3,
     });
-    
-    // Lower integration complexity should give HIGHER effort score
-    expect(easyIntegration.effortScore).toBeGreaterThan(hardIntegration.effortScore);
+
+    // Lower integration complexity should give HIGHER complexity score
+    expect(easyIntegration.complexityScore).toBeGreaterThan(hardIntegration.complexityScore);
   });
 
   it('computes priority score with medium values', () => {
     const result = calculatePriorityScore({
-      totalAnnualValue: 5_000_000, // 50% of max = 50
-      timeToValueMonths: 7, // Mid-range
+      totalAnnualValue: 5_000_000, // 50% of $10M max = 50 financial
+      timeToValueMonths: 7, // Mid-range TTV
       dataReadiness: 3,
       integrationComplexity: 3,
       changeMgmt: 3,
     });
-    
-    expect(result.valueScore).toBe(50);
-    // TTV for 7 months: 100 - ((7-3)/9)*100 = 100 - 44.4 ≈ 56
-    expect(result.ttvScore).toBeGreaterThan(50);
-    expect(result.ttvScore).toBeLessThan(60);
+
+    expect(result.financialScore).toBe(50);
+    // TTV for 7 months: 100 - ((7-3)/(18-3))*100 = 100 - 26.7 ≈ 73
+    expect(result.ttvScore).toBeGreaterThan(70);
+    expect(result.ttvScore).toBeLessThan(80);
   });
 
   it('generates complete trace with formula and intermediates', () => {
@@ -370,15 +400,18 @@ describe('calculatePriorityScore (SPEC: 0.4 × ValueScore + 0.3 × TTVScore + 0.
       integrationComplexity: 2,
       changeMgmt: 3,
     });
-    
-    expect(result.trace.formula).toBe('0.4 × ValueScore + 0.3 × TTVScore + 0.3 × EffortScore');
+
+    expect(result.trace.formula).toContain('Strategic');
+    expect(result.trace.formula).toContain('Financial');
+    expect(result.trace.formula).toContain('Complexity');
+    expect(result.trace.formula).toContain('DataReady');
+    expect(result.trace.formula).toContain('TTV');
     expect(result.trace.intermediates).toBeDefined();
-    expect(result.trace.intermediates?.valueScore).toBe(result.valueScore);
+    expect(result.trace.intermediates?.financialScore).toBe(result.financialScore);
     expect(result.trace.intermediates?.ttvScore).toBe(result.ttvScore);
-    expect(result.trace.intermediates?.effortScore).toBe(result.effortScore);
-    expect(result.trace.intermediates?.easeFromData).toBeDefined();
-    expect(result.trace.intermediates?.easeFromIntegration).toBeDefined();
-    expect(result.trace.intermediates?.easeFromChange).toBeDefined();
+    expect(result.trace.intermediates?.complexityScore).toBe(result.complexityScore);
+    expect(result.trace.intermediates?.dataReadinessScore).toBe(result.dataReadinessScore);
+    expect(result.trace.intermediates?.strategicScore).toBe(result.strategicScore);
   });
 
   it('caps value score at 100 for values above $10M', () => {
@@ -389,8 +422,8 @@ describe('calculatePriorityScore (SPEC: 0.4 × ValueScore + 0.3 × TTVScore + 0.
       integrationComplexity: 1,
       changeMgmt: 1,
     });
-    
-    expect(result.valueScore).toBe(100);
+
+    expect(result.financialScore).toBe(100);
   });
 
   it('handles TTV at boundary values correctly', () => {
@@ -402,46 +435,47 @@ describe('calculatePriorityScore (SPEC: 0.4 × ValueScore + 0.3 × TTVScore + 0.
       changeMgmt: 3,
     });
     expect(result3Months.ttvScore).toBe(100);
-    
-    const result12Months = calculatePriorityScore({
+
+    // TTV_THRESHOLDS.ZERO_MONTHS = 18 → score = 0
+    const result18Months = calculatePriorityScore({
       totalAnnualValue: 1_000_000,
-      timeToValueMonths: 12,
+      timeToValueMonths: 18,
       dataReadiness: 3,
       integrationComplexity: 3,
       changeMgmt: 3,
     });
-    expect(result12Months.ttvScore).toBe(0);
-    
-    const result15Months = calculatePriorityScore({
+    expect(result18Months.ttvScore).toBe(0);
+
+    const result24Months = calculatePriorityScore({
       totalAnnualValue: 1_000_000,
-      timeToValueMonths: 15,
+      timeToValueMonths: 24,
       dataReadiness: 3,
       integrationComplexity: 3,
       changeMgmt: 3,
     });
-    expect(result15Months.ttvScore).toBe(0);
+    expect(result24Months.ttvScore).toBe(0);
   });
 });
 
 describe('getPriorityTier', () => {
-  it('assigns Critical tier for score >= 80', () => {
-    expect(getPriorityTier(80)).toBe('Critical');
-    expect(getPriorityTier(100)).toBe('Critical');
+  it('assigns Tier 1 for score >= 80', () => {
+    expect(getPriorityTier(80)).toBe(PRIORITY_TIERS.TIER_1.label);
+    expect(getPriorityTier(100)).toBe(PRIORITY_TIERS.TIER_1.label);
   });
 
-  it('assigns High tier for score >= 60', () => {
-    expect(getPriorityTier(60)).toBe('High');
-    expect(getPriorityTier(79)).toBe('High');
+  it('assigns Tier 2 for score >= 60', () => {
+    expect(getPriorityTier(60)).toBe(PRIORITY_TIERS.TIER_2.label);
+    expect(getPriorityTier(79)).toBe(PRIORITY_TIERS.TIER_2.label);
   });
 
-  it('assigns Medium tier for score >= 40', () => {
-    expect(getPriorityTier(40)).toBe('Medium');
-    expect(getPriorityTier(59)).toBe('Medium');
+  it('assigns Tier 3 for score >= 40', () => {
+    expect(getPriorityTier(40)).toBe(PRIORITY_TIERS.TIER_3.label);
+    expect(getPriorityTier(59)).toBe(PRIORITY_TIERS.TIER_3.label);
   });
 
-  it('assigns Low tier for score < 40', () => {
-    expect(getPriorityTier(0)).toBe('Low');
-    expect(getPriorityTier(39)).toBe('Low');
+  it('assigns Tier 4 for score < 40', () => {
+    expect(getPriorityTier(0)).toBe(PRIORITY_TIERS.TIER_4.label);
+    expect(getPriorityTier(39)).toBe(PRIORITY_TIERS.TIER_4.label);
   });
 });
 

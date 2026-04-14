@@ -24,6 +24,12 @@ import {
   type InsertBulkExport,
   type BatchResearchJob,
   type InsertBatchResearchJob,
+  userSessions,
+  userEdits,
+  type UserSession,
+  type InsertUserSession,
+  type UserEdit,
+  type InsertUserEdit,
   DEFAULT_ASSUMPTIONS,
   DEFAULT_FORMULAS,
   ASSUMPTION_CATEGORIES,
@@ -96,6 +102,13 @@ export interface IStorage {
   updateBatchResearchJob(id: string, data: Partial<InsertBatchResearchJob>): Promise<BatchResearchJob | undefined>;
   getActiveBatchResearchJobs(): Promise<BatchResearchJob[]>;
   getBatchResearchJobHistory(limit?: number): Promise<BatchResearchJob[]>;
+
+  // Interactive Editing: Session and Edit operations
+  getOrCreateSession(reportId: string, browserToken: string, sessionName?: string): Promise<UserSession>;
+  getSession(reportId: string, browserToken: string): Promise<UserSession | undefined>;
+  getSessionEdits(sessionId: string): Promise<UserEdit[]>;
+  saveEdit(edit: InsertUserEdit): Promise<UserEdit>;
+  clearSessionEdits(sessionId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -417,11 +430,22 @@ export class DatabaseStorage implements IStorage {
         ));
     }
 
+    const constants = Array.isArray(config.constants) ? config.constants : (config.constants ? Array.from(config.constants as any) : []);
+
     const [newConfig] = await db
       .insert(formulaConfigs)
       .values({
-        ...config,
+        reportId: config.reportId,
+        useCaseId: config.useCaseId || null,
+        fieldKey: config.fieldKey,
+        label: config.label,
+        expression: config.expression,
+        inputFields: config.inputFields,
+        constants: constants as any,
+        isActive: config.isActive,
         version: nextVersion,
+        notes: config.notes,
+        createdBy: config.createdBy,
       })
       .returning();
 
@@ -753,6 +777,80 @@ export class DatabaseStorage implements IStorage {
       .from(batchResearchJobs)
       .orderBy(desc(batchResearchJobs.createdAt))
       .limit(limit);
+  }
+
+  // ============================================
+  // Interactive Editing: Session and Edit operations
+  // ============================================
+
+  async getOrCreateSession(reportId: string, browserToken: string, sessionName?: string): Promise<UserSession> {
+    // Check for existing session
+    const existing = await db
+      .select()
+      .from(userSessions)
+      .where(and(
+        eq(userSessions.reportId, reportId),
+        eq(userSessions.browserToken, browserToken),
+      ))
+      .limit(1);
+
+    if (existing.length > 0) {
+      return existing[0];
+    }
+
+    // Create new session
+    const [session] = await db
+      .insert(userSessions)
+      .values({
+        reportId,
+        browserToken,
+        sessionName: sessionName || "Default Session",
+      })
+      .returning();
+
+    return session;
+  }
+
+  async getSession(reportId: string, browserToken: string): Promise<UserSession | undefined> {
+    const results = await db
+      .select()
+      .from(userSessions)
+      .where(and(
+        eq(userSessions.reportId, reportId),
+        eq(userSessions.browserToken, browserToken),
+      ))
+      .limit(1);
+
+    return results[0];
+  }
+
+  async getSessionEdits(sessionId: string): Promise<UserEdit[]> {
+    return await db
+      .select()
+      .from(userEdits)
+      .where(eq(userEdits.sessionId, sessionId))
+      .orderBy(desc(userEdits.createdAt));
+  }
+
+  async saveEdit(edit: InsertUserEdit): Promise<UserEdit> {
+    const [saved] = await db
+      .insert(userEdits)
+      .values(edit)
+      .returning();
+
+    // Update session updatedAt timestamp
+    await db
+      .update(userSessions)
+      .set({ updatedAt: new Date() })
+      .where(eq(userSessions.id, edit.sessionId));
+
+    return saved;
+  }
+
+  async clearSessionEdits(sessionId: string): Promise<void> {
+    await db
+      .delete(userEdits)
+      .where(eq(userEdits.sessionId, sessionId));
   }
 }
 
