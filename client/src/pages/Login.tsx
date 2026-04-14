@@ -17,12 +17,18 @@ export default function Login() {
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
   const failTimestampsRef = useRef<number[]>([]);
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const { login } = useAuth();
+  const { login, isAuthenticated, isLoading: authLoading } = useAuth();
   const [, setLocation] = useLocation();
   const search = useSearch();
 
   const returnTo = new URLSearchParams(search).get("returnTo") || "/";
   const isCoolingDown = cooldownSeconds > 0;
+
+  useEffect(() => {
+    if (!authLoading && isAuthenticated) {
+      setLocation(returnTo);
+    }
+  }, [authLoading, isAuthenticated, returnTo, setLocation]);
 
   const startCooldown = useCallback(() => {
     setCooldownSeconds(COOLDOWN_DURATION);

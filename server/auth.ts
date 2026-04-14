@@ -58,7 +58,14 @@ export function corsRestrictions(req: Request, res: Response, next: NextFunction
   if (req.path.startsWith("/api/") && !isPublicRoute(req.path)) {
     if (origin) {
       const host = req.headers.host || "";
-      const isAllowed = origin.includes(host) || origin.includes("localhost") || origin.includes("replit");
+      const originUrl = (() => { try { return new URL(origin); } catch { return null; } })();
+      const isAllowed = originUrl && (
+        originUrl.hostname === host.split(":")[0] ||
+        originUrl.hostname === "localhost" ||
+        originUrl.hostname === "127.0.0.1" ||
+        originUrl.hostname.endsWith(".replit.dev") ||
+        originUrl.hostname.endsWith(".replit.app")
+      );
       if (!isAllowed) {
         return res.status(403).json({ message: "Forbidden" });
       }
