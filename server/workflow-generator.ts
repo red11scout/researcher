@@ -17,9 +17,10 @@ import type {
 } from "@shared/schema";
 import { AGENTIC_PATTERNS, AGENTIC_PATTERN_META, DEFAULT_MIRO_METADATA, DEFAULT_VALIDATION_CONFIG } from "@shared/schema";
 import { findMatchingTemplate, type UseCaseWorkflowTemplate } from "./workflow-templates";
+import { extractJSON } from "./ai-service";
 
 const anthropic = new Anthropic({
-  apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
+  apiKey: process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY || process.env.CLAUDERESEARCHER,
   baseURL: process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL,
 });
 
@@ -204,7 +205,9 @@ Exactly 1-2 steps must have isHumanInTheLoop: true for oversight
   }
 }
 
-Return ONLY valid JSON. No markdown, no code blocks, no explanations.`;
+Return ONLY valid JSON. No markdown, no code blocks, no explanations.
+
+RESPONSE FORMAT: Return ONLY valid JSON. No markdown code fences, no explanation text before or after. The response must start with { or [ and end with } or ].`;
 
 export async function generateProcessSteps(
   input: ProcessStepsInput
@@ -233,7 +236,7 @@ Generate realistic, industry-specific workflow steps that address the specific f
 
   try {
     const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-5-20250929",
       max_tokens: 10000,
       messages: [{ role: "user", content: prompt }],
     });
@@ -248,7 +251,7 @@ Generate realistic, industry-specific workflow steps that address the specific f
       throw new Error("No valid JSON found in Claude response");
     }
 
-    const parsedData = JSON.parse(jsonMatch[0]);
+    const parsedData = extractJSON(jsonMatch[0]);
     
     const fakeUseCase: UseCase = {
       name: description.substring(0, 50),
@@ -1034,11 +1037,13 @@ Detail Level: ${detailLevel}
 Current State Steps: ${counts.current}
 Target State Steps: ${counts.target}
 
-Generate realistic, industry-specific workflow steps. Return ONLY valid JSON.`;
+Generate realistic, industry-specific workflow steps. Return ONLY valid JSON.
+
+RESPONSE FORMAT: Return ONLY valid JSON. No markdown code fences, no explanation text before or after. The response must start with { or [ and end with } or ].`;
 
   try {
     const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-20250514",
+      model: "claude-sonnet-4-5-20250929",
       max_tokens: 8000,
       messages: [{ role: "user", content: prompt }],
     });
@@ -1053,7 +1058,7 @@ Generate realistic, industry-specific workflow steps. Return ONLY valid JSON.`;
       throw new Error("No JSON found in response");
     }
 
-    let workflowData = JSON.parse(jsonMatch[0]);
+    let workflowData = extractJSON(jsonMatch[0]);
     
     workflowData = validateAndCorrectWorkflow(workflowData, useCase);
     
@@ -1215,7 +1220,7 @@ export function extractUseCasesFromAnalysis(analysis: any): UseCase[] {
     });
   }
   
-  return useCases.slice(0, 10);
+  return useCases.slice(0, 12);
 }
 
 // ============================================================================

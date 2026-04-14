@@ -43,7 +43,7 @@ function getPriorityBadgeColor(tier: string): string {
   }
 }
 
-export function UseCasesTable({ useCases, limit = 10 }: UseCasesTableProps) {
+export function UseCasesTable({ useCases, limit = 12 }: UseCasesTableProps) {
   const displayUseCases = useCases.slice(0, limit);
 
   if (displayUseCases.length === 0) {

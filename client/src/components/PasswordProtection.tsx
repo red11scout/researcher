@@ -4,9 +4,6 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Lock, Shield } from "lucide-react";
 
-const AUTH_KEY = "blueally_auth";
-const CORRECT_PASSWORD = "RED11scout";
-
 interface PasswordProtectionProps {
   children: ReactNode;
 }
@@ -18,23 +15,37 @@ export function PasswordProtection({ children }: PasswordProtectionProps) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const authToken = sessionStorage.getItem(AUTH_KEY);
-    if (authToken === "authenticated") {
-      setIsAuthenticated(true);
-    }
-    setIsLoading(false);
+    fetch("/api/auth/status", { credentials: "include" })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.authenticated) {
+          setIsAuthenticated(true);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setIsLoading(false));
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
-    if (password === CORRECT_PASSWORD) {
-      sessionStorage.setItem(AUTH_KEY, "authenticated");
-      setIsAuthenticated(true);
-    } else {
-      setError("Incorrect password. Please try again.");
-      setPassword("");
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ password }),
+      });
+
+      if (res.ok) {
+        setIsAuthenticated(true);
+      } else {
+        setError("Incorrect password. Please try again.");
+        setPassword("");
+      }
+    } catch {
+      setError("Connection error. Please try again.");
     }
   };
 

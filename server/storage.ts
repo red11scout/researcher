@@ -5,6 +5,9 @@ import {
   assumptionFields,
   formulaConfigs,
   sharedDashboards,
+  bulkUpdateJobs,
+  bulkExports,
+  batchResearchJobs,
   type Report, 
   type InsertReport,
   type AssumptionSet,
@@ -15,6 +18,18 @@ import {
   type InsertFormulaConfig,
   type SharedDashboard,
   type InsertSharedDashboard,
+  type BulkUpdateJob,
+  type InsertBulkUpdateJob,
+  type BulkExport,
+  type InsertBulkExport,
+  type BatchResearchJob,
+  type InsertBatchResearchJob,
+  userSessions,
+  userEdits,
+  type UserSession,
+  type InsertUserSession,
+  type UserEdit,
+  type InsertUserEdit,
   DEFAULT_ASSUMPTIONS,
   DEFAULT_FORMULAS,
   ASSUMPTION_CATEGORIES,
@@ -65,6 +80,35 @@ export interface IStorage {
   getSharedDashboard(id: string): Promise<SharedDashboard | undefined>;
   incrementSharedDashboardViewCount(id: string): Promise<void>;
   cleanupExpiredSharedDashboards(): Promise<number>;
+  
+  // Bulk Update Job operations
+  createBulkUpdateJob(job: InsertBulkUpdateJob): Promise<BulkUpdateJob>;
+  getBulkUpdateJob(id: string): Promise<BulkUpdateJob | undefined>;
+  updateBulkUpdateJob(id: string, data: Partial<InsertBulkUpdateJob>): Promise<BulkUpdateJob | undefined>;
+  getActiveBulkUpdateJobs(): Promise<BulkUpdateJob[]>;
+  getBulkUpdateHistory(limit?: number): Promise<BulkUpdateJob[]>;
+  
+  // Bulk Export operations
+  createBulkExport(job: InsertBulkExport): Promise<BulkExport>;
+  getBulkExport(id: string): Promise<BulkExport | undefined>;
+  updateBulkExport(id: string, data: Partial<InsertBulkExport>): Promise<BulkExport | undefined>;
+  getActiveBulkExports(): Promise<BulkExport[]>;
+  getBulkExportHistory(limit?: number): Promise<BulkExport[]>;
+  cleanupExpiredBulkExports(): Promise<number>;
+  
+  // Batch Research Job operations
+  createBatchResearchJob(job: InsertBatchResearchJob): Promise<BatchResearchJob>;
+  getBatchResearchJob(id: string): Promise<BatchResearchJob | undefined>;
+  updateBatchResearchJob(id: string, data: Partial<InsertBatchResearchJob>): Promise<BatchResearchJob | undefined>;
+  getActiveBatchResearchJobs(): Promise<BatchResearchJob[]>;
+  getBatchResearchJobHistory(limit?: number): Promise<BatchResearchJob[]>;
+
+  // Interactive Editing: Session and Edit operations
+  getOrCreateSession(reportId: string, browserToken: string, sessionName?: string): Promise<UserSession>;
+  getSession(reportId: string, browserToken: string): Promise<UserSession | undefined>;
+  getSessionEdits(sessionId: string): Promise<UserEdit[]>;
+  saveEdit(edit: InsertUserEdit): Promise<UserEdit>;
+  clearSessionEdits(sessionId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -386,11 +430,22 @@ export class DatabaseStorage implements IStorage {
         ));
     }
 
+    const constants = Array.isArray(config.constants) ? config.constants : (config.constants ? Array.from(config.constants as any) : []);
+
     const [newConfig] = await db
       .insert(formulaConfigs)
       .values({
-        ...config,
+        reportId: config.reportId,
+        useCaseId: config.useCaseId || null,
+        fieldKey: config.fieldKey,
+        label: config.label,
+        expression: config.expression,
+        inputFields: config.inputFields,
+        constants: constants as any,
+        isActive: config.isActive,
         version: nextVersion,
+        notes: config.notes,
+        createdBy: config.createdBy,
       })
       .returning();
 
@@ -574,6 +629,228 @@ export class DatabaseStorage implements IStorage {
       .where(lt(sharedDashboards.expiresAt, new Date()))
       .returning();
     return result.length;
+  }
+
+  // Bulk Update Job operations
+  async createBulkUpdateJob(job: InsertBulkUpdateJob): Promise<BulkUpdateJob> {
+    const [newJob] = await db
+      .insert(bulkUpdateJobs)
+      .values(job)
+      .returning();
+    return newJob;
+  }
+
+  async getBulkUpdateJob(id: string): Promise<BulkUpdateJob | undefined> {
+    const [job] = await db
+      .select()
+      .from(bulkUpdateJobs)
+      .where(eq(bulkUpdateJobs.id, id))
+      .limit(1);
+    return job;
+  }
+
+  async updateBulkUpdateJob(id: string, data: Partial<InsertBulkUpdateJob>): Promise<BulkUpdateJob | undefined> {
+    const [updated] = await db
+      .update(bulkUpdateJobs)
+      .set(data)
+      .where(eq(bulkUpdateJobs.id, id))
+      .returning();
+    return updated;
+  }
+
+  async getActiveBulkUpdateJobs(): Promise<BulkUpdateJob[]> {
+    return await db
+      .select()
+      .from(bulkUpdateJobs)
+      .where(
+        sql`${bulkUpdateJobs.status} IN ('pending', 'in_progress')`
+      )
+      .orderBy(desc(bulkUpdateJobs.createdAt));
+  }
+
+  async getBulkUpdateHistory(limit: number = 50): Promise<BulkUpdateJob[]> {
+    return await db
+      .select()
+      .from(bulkUpdateJobs)
+      .orderBy(desc(bulkUpdateJobs.createdAt))
+      .limit(limit);
+  }
+
+  // Bulk Export operations
+  async createBulkExport(job: InsertBulkExport): Promise<BulkExport> {
+    const [newJob] = await db
+      .insert(bulkExports)
+      .values(job)
+      .returning();
+    return newJob;
+  }
+
+  async getBulkExport(id: string): Promise<BulkExport | undefined> {
+    const [job] = await db
+      .select()
+      .from(bulkExports)
+      .where(eq(bulkExports.id, id))
+      .limit(1);
+    return job;
+  }
+
+  async updateBulkExport(id: string, data: Partial<InsertBulkExport>): Promise<BulkExport | undefined> {
+    const [updated] = await db
+      .update(bulkExports)
+      .set(data)
+      .where(eq(bulkExports.id, id))
+      .returning();
+    return updated;
+  }
+
+  async getActiveBulkExports(): Promise<BulkExport[]> {
+    return await db
+      .select()
+      .from(bulkExports)
+      .where(
+        sql`${bulkExports.status} IN ('pending', 'generating')`
+      )
+      .orderBy(desc(bulkExports.createdAt));
+  }
+
+  async getBulkExportHistory(limit: number = 50): Promise<BulkExport[]> {
+    return await db
+      .select()
+      .from(bulkExports)
+      .orderBy(desc(bulkExports.createdAt))
+      .limit(limit);
+  }
+
+  async cleanupExpiredBulkExports(): Promise<number> {
+    const result = await db
+      .delete(bulkExports)
+      .where(
+        and(
+          lt(bulkExports.expiresAt, new Date()),
+          sql`${bulkExports.expiresAt} IS NOT NULL`
+        )
+      )
+      .returning();
+    return result.length;
+  }
+
+  // Batch Research Job operations
+  async createBatchResearchJob(job: InsertBatchResearchJob): Promise<BatchResearchJob> {
+    const [newJob] = await db
+      .insert(batchResearchJobs)
+      .values(job)
+      .returning();
+    return newJob;
+  }
+
+  async getBatchResearchJob(id: string): Promise<BatchResearchJob | undefined> {
+    const [job] = await db
+      .select()
+      .from(batchResearchJobs)
+      .where(eq(batchResearchJobs.id, id))
+      .limit(1);
+    return job;
+  }
+
+  async updateBatchResearchJob(id: string, data: Partial<InsertBatchResearchJob>): Promise<BatchResearchJob | undefined> {
+    const [updated] = await db
+      .update(batchResearchJobs)
+      .set(data)
+      .where(eq(batchResearchJobs.id, id))
+      .returning();
+    return updated;
+  }
+
+  async getActiveBatchResearchJobs(): Promise<BatchResearchJob[]> {
+    return await db
+      .select()
+      .from(batchResearchJobs)
+      .where(
+        sql`${batchResearchJobs.status} IN ('pending', 'processing')`
+      )
+      .orderBy(desc(batchResearchJobs.createdAt));
+  }
+
+  async getBatchResearchJobHistory(limit: number = 50): Promise<BatchResearchJob[]> {
+    return await db
+      .select()
+      .from(batchResearchJobs)
+      .orderBy(desc(batchResearchJobs.createdAt))
+      .limit(limit);
+  }
+
+  // ============================================
+  // Interactive Editing: Session and Edit operations
+  // ============================================
+
+  async getOrCreateSession(reportId: string, browserToken: string, sessionName?: string): Promise<UserSession> {
+    // Check for existing session
+    const existing = await db
+      .select()
+      .from(userSessions)
+      .where(and(
+        eq(userSessions.reportId, reportId),
+        eq(userSessions.browserToken, browserToken),
+      ))
+      .limit(1);
+
+    if (existing.length > 0) {
+      return existing[0];
+    }
+
+    // Create new session
+    const [session] = await db
+      .insert(userSessions)
+      .values({
+        reportId,
+        browserToken,
+        sessionName: sessionName || "Default Session",
+      })
+      .returning();
+
+    return session;
+  }
+
+  async getSession(reportId: string, browserToken: string): Promise<UserSession | undefined> {
+    const results = await db
+      .select()
+      .from(userSessions)
+      .where(and(
+        eq(userSessions.reportId, reportId),
+        eq(userSessions.browserToken, browserToken),
+      ))
+      .limit(1);
+
+    return results[0];
+  }
+
+  async getSessionEdits(sessionId: string): Promise<UserEdit[]> {
+    return await db
+      .select()
+      .from(userEdits)
+      .where(eq(userEdits.sessionId, sessionId))
+      .orderBy(desc(userEdits.createdAt));
+  }
+
+  async saveEdit(edit: InsertUserEdit): Promise<UserEdit> {
+    const [saved] = await db
+      .insert(userEdits)
+      .values(edit)
+      .returning();
+
+    // Update session updatedAt timestamp
+    await db
+      .update(userSessions)
+      .set({ updatedAt: new Date() })
+      .where(eq(userSessions.id, edit.sessionId));
+
+    return saved;
+  }
+
+  async clearSessionEdits(sessionId: string): Promise<void> {
+    await db
+      .delete(userEdits)
+      .where(eq(userEdits.sessionId, sessionId));
   }
 }
 

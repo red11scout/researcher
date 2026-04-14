@@ -1,14 +1,17 @@
-import type { Express } from "express";
+import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { generateCompanyAnalysis, generateWhatIfSuggestion, checkProductionConfig } from "./ai-service";
+import { generateCompanyAnalysis, generateWhatIfSuggestion, checkProductionConfig, executePipelineCall } from "./ai-service";
 import * as formulaService from "./formula-service";
-import { registerCalcGraphRoutes } from "./calcgraph/routes";
 import { dubService } from "./dub-service";
 import { insertReportSchema } from "@shared/schema";
+import { buildAssumptionExcelWorkbook, buildAssumptionJSON } from "./assumption-export";
 import { nanoid } from "nanoid";
 import multer from "multer";
 import { createRequire } from "module";
+import archiver from "archiver";
+import fs from "fs";
+import path from "path";
 const require = createRequire(import.meta.url);
 const { PDFParse } = require("pdf-parse");
 
@@ -38,16 +41,22 @@ const upload = multer({
   },
 });
 
-// Store active SSE connections for progress updates
-const progressConnections = new Map<string, any>();
-
 // Store background job status and results
+interface StepResult {
+  step: number;
+  title: string;
+  data: any;
+  completedAt: number;
+}
+
 interface JobStatus {
   status: 'pending' | 'processing' | 'complete' | 'error';
   companyName: string;
   result?: any;
   error?: string;
   startedAt: number;
+  completedSteps: StepResult[];
+  currentStep: number;
 }
 const backgroundJobs = new Map<string, JobStatus>();
 
@@ -66,13 +75,9 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  
-  // Register CalcGraph routes for deterministic calculations
-  registerCalcGraphRoutes(app);
 
-  // Version check
   app.get("/api/version", (req, res) => {
-    res.json({ version: "2.6.0", buildTime: "2025-01-30T12:00:00Z", calcGraphVersion: "2.0.0" });
+    res.json({ version: "2.5.0", buildTime: "2025-11-30T03:10:00Z" });
   });
 
   // Document upload endpoint - extracts text from PDFs and text files
@@ -156,6 +161,24 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Report not found" });
       }
 
+      // Re-run post-processing to ensure Step 6 recovery and correct column order
+      const analysis = report.analysisData as any;
+      if (analysis?.steps && Array.isArray(analysis.steps)) {
+        const hasStep6 = analysis.steps.some((s: any) => s.step === 6 && s.data && Array.isArray(s.data) && s.data.length > 0);
+        if (!hasStep6) {
+          try {
+            const { postProcessAnalysis } = await import("./calculation-postprocessor");
+            const reprocessed = await postProcessAnalysis(analysis);
+            report.analysisData = reprocessed;
+            // Persist the fix so future loads don't need reprocessing
+            await storage.updateReport(reportId, { analysisData: reprocessed });
+            console.log(`[routes] Re-processed report ${reportId} to recover missing Step 6`);
+          } catch (ppErr) {
+            console.warn(`[routes] Post-processing failed for report ${reportId}:`, ppErr);
+          }
+        }
+      }
+
       // Return the full report data
       res.json(report);
     } catch (error) {
@@ -212,9 +235,10 @@ export async function registerRoutes(
   app.get("/api/debug-config", (req, res) => {
     const integrationApiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
     const integrationBaseUrl = process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL;
+    const claudeResearcherKey = process.env.CLAUDERESEARCHER;
     
-    // Use Replit-managed integration
-    const activeConfig = integrationApiKey ? "INTEGRATION_KEY" : "NONE";
+    // Use Replit-managed integration, fallback to CLAUDERESEARCHER
+    const activeConfig = integrationApiKey ? "INTEGRATION_KEY" : (claudeResearcherKey ? "CLAUDERESEARCHER" : "NONE");
     const activeBaseUrl = integrationBaseUrl || "https://api.anthropic.com";
     
     res.json({
@@ -224,6 +248,7 @@ export async function registerRoutes(
       apiKeyStatus: {
         AI_INTEGRATIONS_ANTHROPIC_API_KEY: integrationApiKey ? `SET (${integrationApiKey.length} chars)` : "NOT SET",
         AI_INTEGRATIONS_ANTHROPIC_BASE_URL: integrationBaseUrl ? `SET (${integrationBaseUrl.substring(0, 30)}...)` : "NOT SET",
+        CLAUDERESEARCHER: claudeResearcherKey ? `SET (${claudeResearcherKey.length} chars)` : "NOT SET",
       },
       activeConfiguration: activeConfig,
       activeBaseUrl: activeBaseUrl,
@@ -233,15 +258,14 @@ export async function registerRoutes(
 
   // Test direct fetch to Anthropic (bypass SDK)
   app.get("/api/test-direct-fetch", async (req, res) => {
-    // Use Replit-managed integration
+    // Use Replit-managed integration, fallback to CLAUDERESEARCHER
     const integrationApiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
     const integrationBaseUrl = process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL;
     
-    if (!integrationApiKey) {
+    const apiKey = integrationApiKey || process.env.CLAUDERESEARCHER;
+    if (!apiKey) {
       return res.json({ error: "No API key configured", hasIntegrationKey: false });
     }
-    
-    const apiKey = integrationApiKey;
     const baseUrl = integrationBaseUrl || "https://api.anthropic.com";
     
     try {
@@ -272,7 +296,7 @@ export async function registerRoutes(
   
   // Test longer prompt with larger output
   app.get("/api/test-long", async (req, res) => {
-    const apiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
+    const apiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY || process.env.CLAUDERESEARCHER;
     if (!apiKey) {
       return res.json({ error: "No AI integration API key configured" });
     }
@@ -305,7 +329,7 @@ Return ONLY valid JSON with this structure:
           model: "claude-sonnet-4-5-20250929",
           max_tokens: 4000,
           system: longSystemPrompt,
-          messages: [{ role: "user", content: "Analyze TestCorp and return the JSON analysis" }],
+          messages: [{ role: "user", content: "Analyze TestCorp and return the JSON analysis. Return ONLY valid JSON. No markdown code fences, no explanation text before or after. The response must start with { or [ and end with } or ]." }],
         }),
       });
       
@@ -326,7 +350,7 @@ Return ONLY valid JSON with this structure:
   
   // Test with very long system prompt (similar to actual analysis)
   app.get("/api/test-full-prompt", async (req, res) => {
-    const apiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
+    const apiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY || process.env.CLAUDERESEARCHER;
     if (!apiKey) {
       return res.json({ error: "No AI integration API key configured" });
     }
@@ -362,7 +386,7 @@ Return ONLY valid JSON with this structure:
   "summary": "Executive summary"
 }`;
 
-    const userPrompt = `Analyze "TestCorp" and generate the 3-step analysis. Return only valid JSON.`;
+    const userPrompt = `Analyze "TestCorp" and generate the 3-step analysis. Return ONLY valid JSON. No markdown code fences, no explanation text before or after. The response must start with { or [ and end with } or ].`;
     
     try {
       console.log("[test-full-prompt] Making fetch request, prompt length:", systemPrompt.length);
@@ -483,6 +507,85 @@ Return ONLY valid JSON with this structure:
     });
   });
 
+  app.post("/api/analyze/check", async (req, res) => {
+    try {
+      const { companyName } = req.body;
+      if (!companyName) return res.status(400).json({ exists: false });
+      const existing = await storage.getReportByCompany(companyName);
+      if (existing) {
+        return res.json({
+          exists: true,
+          report: {
+            id: existing.id,
+            data: existing.analysisData,
+            createdAt: existing.createdAt,
+            updatedAt: existing.updatedAt,
+          },
+        });
+      }
+      res.json({ exists: false });
+    } catch (err: any) {
+      console.error("[analyze/check] Error:", err.message);
+      res.status(500).json({ exists: false, error: err.message });
+    }
+  });
+
+  app.post("/api/analyze/step", async (req, res) => {
+    try {
+      const { companyName, callNumber, previousCallResults, documentContext } = req.body;
+
+      if (!companyName || typeof companyName !== "string") {
+        return res.status(400).json({ error: "companyName is required" });
+      }
+      if (!callNumber || callNumber < 1 || callNumber > 4) {
+        return res.status(400).json({ error: "callNumber must be 1-4" });
+      }
+
+      const configCheck = checkProductionConfig();
+      if (!configCheck.ok) {
+        return res.status(503).json({ error: configCheck.message });
+      }
+
+      console.log(`[analyze/step] Call ${callNumber} for "${companyName}"`);
+
+      const result = await executePipelineCall(
+        callNumber,
+        companyName,
+        previousCallResults || {},
+        documentContext
+      );
+
+      if (callNumber === 4 && result.analysis) {
+        const report = await storage.createReport({
+          companyName,
+          analysisData: result.analysis,
+        });
+        console.log(`[analyze/step] Report saved: ${report.id}`);
+        return res.json({
+          report: {
+            id: report.id,
+            data: report.analysisData,
+            createdAt: report.createdAt,
+            updatedAt: report.updatedAt,
+          },
+        });
+      }
+
+      return res.json({ data: result });
+    } catch (err: any) {
+      console.error(`[analyze/step] Error:`, err.message);
+
+      if (err.message?.includes("rate limit") || err.message?.includes("429")) {
+        return res.status(429).json({ error: "AI service is busy. Please wait and retry." });
+      }
+      if (err.message?.includes("401") || err.message?.includes("Authentication")) {
+        return res.status(401).json({ error: "API key configuration error." });
+      }
+
+      return res.status(500).json({ error: err.message || "Pipeline step failed" });
+    }
+  });
+
   // Direct analyze test - same as /api/analyze but simpler logging
   app.post("/api/analyze-direct", async (req, res) => {
     console.log("=== ANALYZE-DIRECT START ===");
@@ -554,6 +657,7 @@ Return ONLY valid JSON with this structure:
       environment: process.env.NODE_ENV || "development",
       aiConfigured: {
         hasIntegrationApiKey: !!process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
+        hasCustomApiKey: !!process.env.CLAUDERESEARCHER,
         configOk: configCheck.ok,
         message: configCheck.message,
       },
@@ -604,7 +708,7 @@ Return ONLY valid JSON with this structure:
   app.get("/api/test-ai", async (req, res) => {
     const Anthropic = (await import("@anthropic-ai/sdk")).default;
     
-    const integrationApiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
+    const integrationApiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY || process.env.CLAUDERESEARCHER;
     const baseURL = process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL;
     
     const testResult: any = {
@@ -645,33 +749,6 @@ Return ONLY valid JSON with this structure:
     res.json(testResult);
   });
 
-  // SSE endpoint for progress updates
-  app.get("/api/progress/:sessionId", (req, res) => {
-    const { sessionId } = req.params;
-    
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.flushHeaders();
-
-    progressConnections.set(sessionId, res);
-
-    req.on('close', () => {
-      progressConnections.delete(sessionId);
-    });
-  });
-
-  // Helper to send progress updates
-  const sendProgress = (sessionId: string, step: number, message: string, detail?: string) => {
-    const connection = progressConnections.get(sessionId);
-    if (connection) {
-      const data = JSON.stringify({ step, message, detail, timestamp: Date.now() });
-      connection.write(`data: ${data}\n\n`);
-    }
-  };
-
-  // Generate or retrieve analysis for a company with progress updates
   // Check job status endpoint
   app.get("/api/analyze/status/:jobId", (req, res) => {
     const { jobId } = req.params;
@@ -694,9 +771,45 @@ Return ONLY valid JSON with this structure:
     } else {
       return res.json({
         status: job.status,
-        companyName: job.companyName
+        companyName: job.companyName,
+        currentStep: job.currentStep || 0,
+        completedSteps: (job.completedSteps || []).map(s => s.step),
       });
     }
+  });
+
+  app.get("/api/analyze/step/:jobId/:stepNum", (req, res) => {
+    const { jobId, stepNum } = req.params;
+    const step = parseInt(stepNum);
+    const job = backgroundJobs.get(jobId);
+    
+    if (!job) {
+      return res.status(404).json({ error: "Job not found" });
+    }
+    
+    if (job.status === 'error') {
+      return res.status(500).json({ error: job.error });
+    }
+    
+    if (job.status !== 'complete' || !job.result?.data) {
+      if (job.currentStep !== undefined && job.currentStep > step + 1) {
+        return res.json({ status: 'step_complete', step });
+      }
+      return res.json({ status: 'pending', currentStep: job.currentStep || 0 });
+    }
+    
+    const analysisData = job.result.data;
+    const steps = analysisData?.steps;
+    if (!steps || !Array.isArray(steps)) {
+      return res.status(500).json({ error: "Analysis data missing steps" });
+    }
+    
+    const stepData = steps.find((s: any) => s.step === step);
+    if (!stepData) {
+      return res.status(404).json({ error: `Step ${step} not found in analysis` });
+    }
+    
+    return res.json({ status: 'complete', step, data: stepData });
   });
 
   app.post("/api/analyze", async (req, res) => {
@@ -726,9 +839,6 @@ Return ONLY valid JSON with this structure:
       const configCheck = checkProductionConfig();
       if (!configCheck.ok) {
         console.error("Production config check failed:", configCheck.message);
-        if (sessionId) {
-          sendProgress(sessionId, -1, "Configuration Error", configCheck.message);
-        }
         return res.status(503).json({ 
           error: "AI service not configured for production",
           message: configCheck.message
@@ -736,20 +846,12 @@ Return ONLY valid JSON with this structure:
       }
       console.log("Config check passed");
 
-      // Send initial progress
-      if (sessionId) {
-        sendProgress(sessionId, 0, "Starting analysis", `Analyzing ${companyName}...`);
-      }
-
       // Check if we already have a report for this company
       console.log("Checking for existing report...");
       const existingReport = await storage.getReportByCompany(companyName);
       console.log("Existing report check complete:", existingReport ? "found" : "not found");
       
       if (existingReport) {
-        if (sessionId) {
-          sendProgress(sessionId, 100, "Complete", "Retrieved existing report");
-        }
         return res.json({
           id: existingReport.id,
           companyName: existingReport.companyName,
@@ -767,44 +869,39 @@ Return ONLY valid JSON with this structure:
       backgroundJobs.set(jobId, {
         status: 'processing',
         companyName,
-        startedAt: Date.now()
+        startedAt: Date.now(),
+        completedSteps: [],
+        currentStep: 0,
       });
-
-      // Send progress updates during generation
-      if (sessionId) {
-        sendProgress(sessionId, 1, "Step 0: Company Overview", "Gathering company information...");
-        
-        setTimeout(() => sendProgress(sessionId, 2, "Step 1: Strategic Anchoring", "Identifying business drivers..."), 2000);
-        setTimeout(() => sendProgress(sessionId, 3, "Step 2: Business Functions", "Analyzing departments and KPIs..."), 5000);
-        setTimeout(() => sendProgress(sessionId, 4, "Step 3: Friction Points", "Identifying operational bottlenecks..."), 8000);
-        setTimeout(() => sendProgress(sessionId, 5, "Step 4: AI Use Cases", "Generating AI opportunities with 6 primitives..."), 12000);
-        setTimeout(() => sendProgress(sessionId, 6, "Step 5: Benefit Quantification", "Calculating ROI across 4 drivers..."), 16000);
-        setTimeout(() => sendProgress(sessionId, 7, "Step 6: Token Modeling", "Estimating token costs per use case..."), 20000);
-        setTimeout(() => sendProgress(sessionId, 8, "Step 7: Priority Scoring", "Computing weighted priority scores..."), 24000);
-      }
 
       // Start background processing and return immediately
       // Use setImmediate to ensure response is sent before processing starts
       setImmediate(async () => {
+        const startTime = Date.now();
+        console.log(`[analyze-job] Starting background analysis for "${companyName}" (jobId: ${jobId})`);
         try {
-          // Generate new analysis using AI
-          const analysis = await generateCompanyAnalysis(companyName, documentContext);
-          
-          if (sessionId) {
-            sendProgress(sessionId, 9, "Saving Report", "Storing analysis in database...");
-          }
+          const progressCallback = (step: number, message: string, detail?: string) => {
+            const job = backgroundJobs.get(jobId);
+            if (job) {
+              job.currentStep = step;
+            }
+          };
 
-          // Save to database
+          const analysis = await generateCompanyAnalysis(companyName, documentContext, progressCallback);
+          const aiElapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+          console.log(`[analyze-job] AI generation completed in ${aiElapsed}s for "${companyName}"`);
+
           const report = await storage.createReport({
             companyName,
             analysisData: analysis,
           });
 
-          // Update job status with result
           backgroundJobs.set(jobId, {
             status: 'complete',
             companyName,
             startedAt: backgroundJobs.get(jobId)?.startedAt || Date.now(),
+            completedSteps: [],
+            currentStep: 10,
             result: {
               id: report.id,
               companyName: report.companyName,
@@ -815,23 +912,21 @@ Return ONLY valid JSON with this structure:
             }
           });
 
-          if (sessionId) {
-            sendProgress(sessionId, 100, "Complete", "Report generated successfully!");
-          }
+          const totalElapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+          console.log(`[analyze-job] Job complete for "${companyName}" in ${totalElapsed}s (jobId: ${jobId})`);
         } catch (error: any) {
-          console.error("Background analysis error:", error);
+          const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+          console.error(`[analyze-job] Job FAILED for "${companyName}" after ${elapsed}s (jobId: ${jobId}):`, error?.message || error);
           const errorMessage = error instanceof Error ? error.message : String(error);
           
           backgroundJobs.set(jobId, {
             status: 'error',
             companyName,
             startedAt: backgroundJobs.get(jobId)?.startedAt || Date.now(),
+            completedSteps: [],
+            currentStep: 0,
             error: errorMessage
           });
-
-          if (sessionId) {
-            sendProgress(sessionId, -1, "Error", errorMessage);
-          }
         }
       });
 
@@ -847,11 +942,7 @@ Return ONLY valid JSON with this structure:
       console.error("Analysis error full details:", error);
       console.error("Error message:", error?.message);
       console.error("Error stack:", error?.stack);
-      const { sessionId } = req.body;
       const errorMessage = error instanceof Error ? error.message : (typeof error === 'string' ? error : JSON.stringify(error));
-      if (sessionId) {
-        sendProgress(sessionId, -1, "Error", errorMessage);
-      }
       return res.status(500).json({ 
         error: "Failed to generate analysis",
         message: errorMessage,
@@ -870,34 +961,74 @@ Return ONLY valid JSON with this structure:
         return res.status(400).json({ error: "Company name is required" });
       }
 
-      if (sessionId) {
-        sendProgress(sessionId, 1, "Regenerating Analysis", "Starting fresh analysis...");
-      }
-
-      // Generate fresh analysis
-      const analysis = await generateCompanyAnalysis(companyName);
+      const jobId = sessionId || nanoid();
       
-      // Update existing report
-      const updatedReport = await storage.updateReport(id, {
-        analysisData: analysis,
+      backgroundJobs.set(jobId, {
+        status: 'processing',
+        companyName,
+        startedAt: Date.now(),
+        completedSteps: [],
+        currentStep: 0,
       });
 
-      if (!updatedReport) {
-        return res.status(404).json({ error: "Report not found" });
-      }
+      setImmediate(async () => {
+        const startTime = Date.now();
+        console.log(`[regenerate-job] Starting regeneration for "${companyName}" (jobId: ${jobId})`);
+        try {
+          const progressCallback = (step: number, message: string, detail?: string) => {
+            const job = backgroundJobs.get(jobId);
+            if (job) {
+              job.currentStep = step;
+            }
+          };
 
-      if (sessionId) {
-        sendProgress(sessionId, 100, "Complete", "Report regenerated!");
-      }
+          const analysis = await generateCompanyAnalysis(companyName, "", progressCallback);
+          
+          const updatedReport = await storage.updateReport(id, {
+            analysisData: analysis,
+          });
+
+          if (!updatedReport) {
+            throw new Error("Report not found during regeneration");
+          }
+
+          backgroundJobs.set(jobId, {
+            status: 'complete',
+            companyName,
+            startedAt: backgroundJobs.get(jobId)?.startedAt || Date.now(),
+            completedSteps: [],
+            currentStep: 10,
+            result: {
+              id: updatedReport.id,
+              companyName: updatedReport.companyName,
+              data: updatedReport.analysisData,
+              createdAt: updatedReport.createdAt,
+              updatedAt: updatedReport.updatedAt,
+            }
+          });
+
+          const totalElapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+          console.log(`[regenerate-job] Regeneration complete for "${companyName}" in ${totalElapsed}s`);
+        } catch (error: any) {
+          const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+          console.error(`[regenerate-job] Failed for "${companyName}" after ${elapsed}s:`, error?.message || error);
+          backgroundJobs.set(jobId, {
+            status: 'error',
+            companyName,
+            startedAt: backgroundJobs.get(jobId)?.startedAt || Date.now(),
+            completedSteps: [],
+            currentStep: 0,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      });
 
       return res.json({
-        id: updatedReport.id,
-        companyName: updatedReport.companyName,
-        data: updatedReport.analysisData,
-        createdAt: updatedReport.createdAt,
-        updatedAt: updatedReport.updatedAt,
+        status: 'processing',
+        jobId,
+        companyName,
+        message: 'Regeneration started. Poll /api/analyze/status/:jobId for results.'
       });
-      
     } catch (error) {
       console.error("Regeneration error:", error);
       return res.status(500).json({ 
@@ -1594,6 +1725,46 @@ Return ONLY valid JSON with this structure:
     }
   });
 
+  // Export all assumption/reference data (Excel or JSON)
+  app.get("/api/assumptions/export/:reportId?", async (req, res) => {
+    try {
+      const format = (req.query.format as string) || "json";
+      const { reportId } = req.params;
+
+      // Optionally load report-specific assumptions
+      let reportAssumptions: any[] | undefined;
+      if (reportId) {
+        const activeSet = await storage.getActiveAssumptionSet(reportId);
+        if (activeSet) {
+          const fields = await storage.getAssumptionFieldsBySet(activeSet.id);
+          reportAssumptions = fields.map((f: any) => ({
+            category: f.category,
+            fieldName: f.fieldName,
+            displayName: f.displayName,
+            value: f.value,
+            valueType: f.valueType,
+            unit: f.unit,
+            description: f.description,
+          }));
+        }
+      }
+
+      if (format === "excel") {
+        const workbook = buildAssumptionExcelWorkbook(reportAssumptions);
+        res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        res.setHeader("Content-Disposition", `attachment; filename="assumptions-export.xlsx"`);
+        await workbook.xlsx.write(res);
+        res.end();
+      } else {
+        const data = buildAssumptionJSON(reportAssumptions);
+        res.json(data);
+      }
+    } catch (error) {
+      console.error("Error exporting assumptions:", error);
+      return res.status(500).json({ error: "Failed to export assumptions" });
+    }
+  });
+
   // Recalculate report based on assumptions
   app.post("/api/assumptions/recalculate/:reportId", async (req, res) => {
     try {
@@ -1655,7 +1826,7 @@ Return ONLY valid JSON with this structure:
           step7.data = step7.data.map((row: any) => {
             const valueScore = parseFloat(row['Value Score']) || 0;
             const ttvScore = parseFloat(row['TTV Score']) || 0;
-            const effortScore = parseFloat(row['Effort Score']) || 0;
+            const effortScore = parseFloat(row['Readiness Score'] || row['Effort Score']) || 0;
             
             // Recalculate priority score with new weights
             const priorityScore = Math.round(
@@ -1713,7 +1884,7 @@ Return ONLY valid JSON with this structure:
         
         // Update top use cases based on recalculated priority scores
         if (step7?.data && Array.isArray(step7.data)) {
-          const topUseCases = step7.data.slice(0, 5).map((row: any, index: number) => ({
+          const topUseCases = step7.data.slice(0, 12).map((row: any, index: number) => ({
             rank: index + 1,
             useCase: row['Use Case'],
             annualValue: row['Total Annual Value ($)'] || row['annualValue'],
@@ -2180,6 +2351,1263 @@ Return ONLY valid JSON with this structure:
     const { executionId } = req.params;
     const result = await proxyCrewAIRequest(`${CREWAI_SERVICE_URL}/history/${executionId}`);
     return res.status(result.status).json(result.data);
+  });
+
+  // ==========================================
+  // ASSUMPTIONS MANAGEMENT ENDPOINTS
+  // ==========================================
+
+  // GET /api/assumptions/:reportId - Get all assumptions for a report
+  app.get("/api/assumptions/:reportId", async (req, res) => {
+    try {
+      const { reportId } = req.params;
+
+      // Verify report exists
+      const report = await storage.getReportById(reportId);
+      if (!report) {
+        return res.status(404).json({ error: "Report not found" });
+      }
+
+      // Get all assumption sets for this report
+      const assumptionSets = await storage.getAssumptionSetsByReport(reportId);
+
+      // Get the active assumption set
+      const activeSet = await storage.getActiveAssumptionSet(reportId);
+
+      // Get all fields for each set
+      const setsWithFields = await Promise.all(
+        assumptionSets.map(async (set) => {
+          const fields = await storage.getAssumptionFieldsBySet(set.id);
+          return {
+            ...set,
+            fields,
+          };
+        })
+      );
+
+      res.json({
+        reportId,
+        companyName: report.companyName,
+        activeSetId: activeSet?.id || null,
+        assumptionSets: setsWithFields,
+        totalSets: assumptionSets.length,
+        totalFields: setsWithFields.reduce((acc, set) => acc + set.fields.length, 0),
+      });
+    } catch (error: any) {
+      console.error("Error fetching assumptions:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch assumptions" });
+    }
+  });
+
+  // PUT /api/assumptions/:assumptionId - Update a single assumption value
+  app.put("/api/assumptions/:assumptionId", async (req, res) => {
+    try {
+      const { assumptionId } = req.params;
+      const { value, source, sourceUrl, description, isLocked } = req.body;
+
+      // Validate that at least one field is being updated
+      if (value === undefined && source === undefined && sourceUrl === undefined && 
+          description === undefined && isLocked === undefined) {
+        return res.status(400).json({ 
+          error: "At least one field must be provided for update (value, source, sourceUrl, description, isLocked)" 
+        });
+      }
+
+      // Build update object with only provided fields
+      const updateData: Record<string, any> = {};
+      if (value !== undefined) updateData.value = String(value);
+      if (source !== undefined) updateData.source = source;
+      if (sourceUrl !== undefined) updateData.sourceUrl = sourceUrl;
+      if (description !== undefined) updateData.description = description;
+      if (isLocked !== undefined) updateData.isLocked = isLocked;
+
+      const updatedField = await storage.updateAssumptionField(assumptionId, updateData);
+
+      if (!updatedField) {
+        return res.status(404).json({ error: "Assumption field not found" });
+      }
+
+      res.json({
+        success: true,
+        field: updatedField,
+        message: "Assumption updated successfully",
+      });
+    } catch (error: any) {
+      console.error("Error updating assumption:", error);
+      res.status(500).json({ error: error.message || "Failed to update assumption" });
+    }
+  });
+
+  // POST /api/reports/:id/recalculate - Recalculate all derived values using the formula registry
+  app.post("/api/reports/:id/recalculate", async (req, res) => {
+    try {
+      const { id: reportId } = req.params;
+
+      // Load the report
+      const report = await storage.getReportById(reportId);
+      if (!report) {
+        return res.status(404).json({ error: "Report not found" });
+      }
+
+      // Get the active assumption set
+      const activeSet = await storage.getActiveAssumptionSet(reportId);
+      if (!activeSet) {
+        return res.status(400).json({ 
+          error: "No active assumption set found for this report. Please create or activate an assumption set first." 
+        });
+      }
+
+      // Get all assumption fields for the active set
+      const assumptionFields = await storage.getAssumptionFieldsBySet(activeSet.id);
+
+      // Build a lookup map for assumption values
+      const assumptions: Record<string, number | string> = {};
+      for (const field of assumptionFields) {
+        // Try to parse as number, fallback to string
+        const numValue = parseFloat(field.value);
+        assumptions[field.fieldName] = isNaN(numValue) ? field.value : numValue;
+      }
+
+      // Import formula functions dynamically
+      const formulas = await import("../src/calc/formulas");
+
+      // Extract key values from assumptions with defaults
+      const getNum = (key: string, defaultVal: number = 0): number => {
+        const val = assumptions[key];
+        return typeof val === "number" ? val : defaultVal;
+      };
+
+      // Calculate benefits using the formula registry (SPEC COMPLIANT: Section 3.2 & 3.3)
+      const calculationResults: Record<string, any> = {};
+      const traces: Record<string, any> = {};
+
+      // SPEC 3.3: Required global assumptions
+      const hoursSaved = getNum("hours_saved_annually", 10000);
+      const loadedHourlyRate = getNum("loaded_hourly_rate", formulas.DEFAULT_MULTIPLIERS.loadedHourlyRate);
+      const costRealizationMultiplier = getNum("cost_realization", formulas.DEFAULT_MULTIPLIERS.costRealizationMultiplier);
+      const dataMaturityMultiplier = getNum("data_maturity", formulas.DEFAULT_MULTIPLIERS.dataMaturityMultiplier);
+
+      // SPEC 3.2: CostBenefit = HoursSaved × LoadedRate × BenefitsLoading × Realization × DataMaturity × Scenario
+      const costBenefitResult = formulas.calculateCostBenefit({
+        hoursSaved,
+        loadedHourlyRate,
+        costRealizationMultiplier,
+        dataMaturityMultiplier,
+      });
+      calculationResults.costBenefit = costBenefitResult.value;
+      traces.costBenefit = costBenefitResult.trace;
+
+      // SPEC 3.2: RevenueBenefit = UpliftPct × BaselineRevenueAtRisk × MarginPct × Realization × DataMaturity
+      const upliftPct = getNum("revenue_uplift_pct", 0.05);
+      const baselineRevenueAtRisk = getNum("annual_revenue", 100000000);
+      const marginPct = getNum("gross_margin_pct", 1.0);
+      const revenueRealizationMultiplier = getNum("revenue_realization", formulas.DEFAULT_MULTIPLIERS.revenueRealizationMultiplier);
+
+      const revenueBenefitResult = formulas.calculateRevenueBenefit({
+        upliftPct,
+        baselineRevenueAtRisk,
+        marginPct,
+        revenueRealizationMultiplier,
+        dataMaturityMultiplier,
+      });
+      calculationResults.revenueBenefit = revenueBenefitResult.value;
+      traces.revenueBenefit = revenueBenefitResult.trace;
+
+      // SPEC 3.2: CashFlowBenefit = AnnualRevenue × (DaysImprovement / 365) × CostOfCapital × Realization × DataMaturity
+      const daysImprovement = getNum("dso_improvement_days", 5);
+      const annualRevenue = baselineRevenueAtRisk; // Use full annual revenue for working capital calculation
+      const costOfCapital = getNum("cost_of_capital", formulas.DEFAULT_MULTIPLIERS.defaultCostOfCapital);
+      const cashFlowRealizationMultiplier = getNum("cashflow_realization", formulas.DEFAULT_MULTIPLIERS.cashFlowRealizationMultiplier);
+
+      const cashFlowBenefitResult = formulas.calculateCashFlowBenefit({
+        daysImprovement,
+        annualRevenue,
+        costOfCapital,
+        cashFlowRealizationMultiplier,
+        dataMaturityMultiplier,
+      });
+      calculationResults.cashFlowBenefit = cashFlowBenefitResult.value;
+      traces.cashFlowBenefit = cashFlowBenefitResult.trace;
+
+      // SPEC 3.2: RiskBenefit = (ProbBefore × ImpactBefore - ProbAfter × ImpactAfter) × Realization × DataMaturity
+      const probBefore = getNum("risk_prob_before", 0.15);
+      const impactBefore = getNum("risk_impact_before", 5000000);
+      const probAfter = getNum("risk_prob_after", 0.05);
+      const impactAfter = getNum("risk_impact_after", 2000000);
+      const riskRealizationMultiplier = getNum("risk_realization", formulas.DEFAULT_MULTIPLIERS.riskRealizationMultiplier);
+
+      const riskBenefitResult = formulas.calculateRiskBenefit({
+        probBefore,
+        impactBefore,
+        probAfter,
+        impactAfter,
+        riskRealizationMultiplier,
+        dataMaturityMultiplier,
+      });
+      calculationResults.riskBenefit = riskBenefitResult.value;
+      traces.riskBenefit = riskBenefitResult.trace;
+
+      // Calculate total annual value (with revenue cap)
+      const totalAnnualValueResult = formulas.calculateTotalAnnualValue({
+        costBenefit: calculationResults.costBenefit,
+        revenueBenefit: calculationResults.revenueBenefit,
+        cashFlowBenefit: calculationResults.cashFlowBenefit,
+        riskBenefit: calculationResults.riskBenefit,
+        annualRevenue: baselineRevenueAtRisk,
+      });
+      calculationResults.totalAnnualValue = totalAnnualValueResult.value;
+      traces.totalAnnualValue = totalAnnualValueResult.trace;
+
+      // Calculate token costs (if applicable)
+      const runsPerMonth = getNum("runs_per_month", 1000);
+      const inputTokensPerRun = getNum("input_tokens_per_run", 2000);
+      const outputTokensPerRun = getNum("output_tokens_per_run", 500);
+      const inputTokenPricePerM = getNum("input_token_price_per_m", formulas.DEFAULT_MULTIPLIERS.inputTokenPricePerM);
+      const outputTokenPricePerM = getNum("output_token_price_per_m", formulas.DEFAULT_MULTIPLIERS.outputTokenPricePerM);
+
+      const tokenCostResult = formulas.calculateTokenCost({
+        runsPerMonth,
+        inputTokensPerRun,
+        outputTokensPerRun,
+        inputTokenPricePerM,
+        outputTokenPricePerM,
+      });
+      // Calculate net value
+      calculationResults.netAnnualValue = calculationResults.totalAnnualValue;
+
+      // Calculate priority score
+      const timeToValueMonths = getNum("time_to_value_months", 6);
+      const dataReadiness = getNum("data_readiness", 3);
+      const integrationComplexity = getNum("integration_complexity", 3);
+      const changeMgmt = getNum("change_mgmt_complexity", 3);
+
+      const priorityScoreResult = formulas.calculatePriorityScore({
+        totalAnnualValue: calculationResults.totalAnnualValue,
+        timeToValueMonths,
+        dataReadiness,
+        integrationComplexity,
+        changeMgmt,
+      });
+      calculationResults.priorityScore = priorityScoreResult.value;
+      calculationResults.priorityTier = formulas.getPriorityTier(priorityScoreResult.value);
+      calculationResults.recommendedPhase = formulas.getRecommendedPhase(priorityScoreResult.value, timeToValueMonths);
+      traces.priorityScore = priorityScoreResult.trace;
+
+      // Update the report's analysisData with calculated values
+      const analysisData = report.analysisData as any || {};
+      
+      // Merge calculated results into analysisData
+      const updatedAnalysisData = {
+        ...analysisData,
+        calculatedAt: new Date().toISOString(),
+        assumptionSetId: activeSet.id,
+        assumptionSetName: activeSet.name,
+        calculations: calculationResults,
+        formulaTraces: traces,
+        summary: {
+          ...analysisData.summary,
+          totalAnnualValue: calculationResults.totalAnnualValue,
+          netAnnualValue: calculationResults.netAnnualValue,
+          costBenefit: calculationResults.costBenefit,
+          revenueBenefit: calculationResults.revenueBenefit,
+          cashFlowBenefit: calculationResults.cashFlowBenefit,
+          riskBenefit: calculationResults.riskBenefit,
+          priorityScore: calculationResults.priorityScore,
+          priorityTier: calculationResults.priorityTier,
+          recommendedPhase: calculationResults.recommendedPhase,
+        },
+      };
+
+      // Update the report in the database
+      const updatedReport = await storage.updateReport(reportId, {
+        analysisData: updatedAnalysisData,
+      });
+
+      res.json({
+        success: true,
+        reportId,
+        companyName: report.companyName,
+        assumptionSetUsed: {
+          id: activeSet.id,
+          name: activeSet.name,
+        },
+        calculations: calculationResults,
+        formulaTraces: traces,
+        formattedSummary: {
+          totalAnnualValue: formulas.formatMoney(calculationResults.totalAnnualValue),
+          netAnnualValue: formulas.formatMoney(calculationResults.netAnnualValue),
+          costBenefit: formulas.formatMoney(calculationResults.costBenefit),
+          revenueBenefit: formulas.formatMoney(calculationResults.revenueBenefit),
+          cashFlowBenefit: formulas.formatMoney(calculationResults.cashFlowBenefit),
+          riskBenefit: formulas.formatMoney(calculationResults.riskBenefit),
+          priorityScore: calculationResults.priorityScore,
+          priorityTier: calculationResults.priorityTier,
+          recommendedPhase: calculationResults.recommendedPhase,
+        },
+        message: "Recalculation completed successfully",
+      });
+    } catch (error: any) {
+      console.error("Error recalculating report:", error);
+      res.status(500).json({ 
+        error: error.message || "Failed to recalculate report",
+        stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
+      });
+    }
+  });
+
+  // =============================================
+  // BULK UPDATE API ENDPOINTS
+  // =============================================
+
+  // Processing function for bulk updates (non-blocking)
+  async function processBulkUpdate(jobId: string, reportIds: string[]) {
+    console.log(`[bulk-update] Starting job ${jobId} with ${reportIds.length} reports`);
+    
+    try {
+      // Update job status to in_progress
+      await storage.updateBulkUpdateJob(jobId, {
+        status: "in_progress",
+        startedAt: new Date(),
+      });
+
+      const completedCompanies: Array<{ id: string; name: string; status: string }> = [];
+      const failedCompanies: Array<{ id: string; name: string; error: string }> = [];
+
+      for (let i = 0; i < reportIds.length; i++) {
+        const reportId = reportIds[i];
+        
+        // Check if job was cancelled
+        const currentJob = await storage.getBulkUpdateJob(jobId);
+        if (currentJob?.status === "cancelled") {
+          console.log(`[bulk-update] Job ${jobId} was cancelled, stopping processing`);
+          break;
+        }
+
+        // Get the report
+        const report = await storage.getReportById(reportId);
+        if (!report) {
+          failedCompanies.push({ id: reportId, name: "Unknown", error: "Report not found" });
+          continue;
+        }
+
+        const companyName = report.companyName;
+        console.log(`[bulk-update] Processing ${i + 1}/${reportIds.length}: ${companyName}`);
+
+        // Update current company being processed
+        await storage.updateBulkUpdateJob(jobId, {
+          currentCompanyId: reportId,
+          progress: Math.round((i / reportIds.length) * 100),
+          completedCompanies,
+          failedCompanies,
+        });
+
+        try {
+          // Generate new analysis
+          const analysis = await generateCompanyAnalysis(companyName);
+          
+          // Update the report with new analysis
+          await storage.updateReport(reportId, {
+            analysisData: analysis,
+          });
+
+          completedCompanies.push({ id: reportId, name: companyName, status: "updated" });
+          console.log(`[bulk-update] Successfully updated ${companyName}`);
+        } catch (error: any) {
+          console.error(`[bulk-update] Error updating ${companyName}:`, error?.message);
+          failedCompanies.push({ 
+            id: reportId, 
+            name: companyName, 
+            error: error?.message || "Unknown error" 
+          });
+        }
+
+        // Update progress after each company
+        await storage.updateBulkUpdateJob(jobId, {
+          progress: Math.round(((i + 1) / reportIds.length) * 100),
+          completedCompanies,
+          failedCompanies,
+        });
+      }
+
+      // Check final status (may have been cancelled)
+      const finalJob = await storage.getBulkUpdateJob(jobId);
+      if (finalJob?.status !== "cancelled") {
+        // Determine final status
+        const finalStatus = failedCompanies.length === reportIds.length 
+          ? "failed" 
+          : "completed";
+
+        await storage.updateBulkUpdateJob(jobId, {
+          status: finalStatus,
+          progress: 100,
+          currentCompanyId: null,
+          completedCompanies,
+          failedCompanies,
+          completedAt: new Date(),
+        });
+
+        console.log(`[bulk-update] Job ${jobId} finished with status: ${finalStatus}`);
+      }
+    } catch (error: any) {
+      console.error(`[bulk-update] Job ${jobId} failed with error:`, error?.message);
+      await storage.updateBulkUpdateJob(jobId, {
+        status: "failed",
+        completedAt: new Date(),
+      });
+    }
+  }
+
+  // POST /api/bulk-update/start - Initiate bulk update job
+  app.post("/api/bulk-update/start", async (req, res) => {
+    try {
+      const { reportIds } = req.body;
+
+      if (!reportIds || !Array.isArray(reportIds) || reportIds.length === 0) {
+        return res.status(400).json({ error: "reportIds array is required" });
+      }
+
+      // Check AI service configuration
+      const configCheck = checkProductionConfig();
+      if (!configCheck.ok) {
+        return res.status(503).json({ error: configCheck.message });
+      }
+
+      // Create the bulk update job
+      const job = await storage.createBulkUpdateJob({
+        companyIds: reportIds,
+        status: "pending",
+        progress: 0,
+        completedCompanies: [],
+        failedCompanies: [],
+      });
+
+      // Estimate time (roughly 30-60 seconds per report)
+      const estimatedTime = reportIds.length * 45; // seconds
+
+      // Start processing asynchronously (non-blocking)
+      setImmediate(() => {
+        processBulkUpdate(job.id, reportIds);
+      });
+
+      res.json({
+        jobId: job.id,
+        estimatedTime,
+        totalReports: reportIds.length,
+        message: "Bulk update job started",
+      });
+    } catch (error: any) {
+      console.error("Error starting bulk update:", error);
+      res.status(500).json({ error: error.message || "Failed to start bulk update" });
+    }
+  });
+
+  // GET /api/bulk-update/status/:jobId - Check job progress
+  app.get("/api/bulk-update/status/:jobId", async (req, res) => {
+    try {
+      const { jobId } = req.params;
+      
+      const job = await storage.getBulkUpdateJob(jobId);
+      
+      if (!job) {
+        return res.status(404).json({ error: "Job not found" });
+      }
+
+      res.json(job);
+    } catch (error: any) {
+      console.error("Error getting bulk update status:", error);
+      res.status(500).json({ error: error.message || "Failed to get job status" });
+    }
+  });
+
+  // POST /api/bulk-update/cancel/:jobId - Cancel running job
+  app.post("/api/bulk-update/cancel/:jobId", async (req, res) => {
+    try {
+      const { jobId } = req.params;
+      
+      const job = await storage.getBulkUpdateJob(jobId);
+      
+      if (!job) {
+        return res.status(404).json({ error: "Job not found" });
+      }
+
+      if (job.status !== "pending" && job.status !== "in_progress") {
+        return res.status(400).json({ 
+          error: "Cannot cancel job", 
+          reason: `Job is already ${job.status}` 
+        });
+      }
+
+      await storage.updateBulkUpdateJob(jobId, {
+        status: "cancelled",
+        completedAt: new Date(),
+      });
+
+      res.json({ success: true, message: "Job cancelled" });
+    } catch (error: any) {
+      console.error("Error cancelling bulk update:", error);
+      res.status(500).json({ error: error.message || "Failed to cancel job" });
+    }
+  });
+
+  // GET /api/bulk-update/active - Get active jobs
+  app.get("/api/bulk-update/active", async (req, res) => {
+    try {
+      const activeJobs = await storage.getActiveBulkUpdateJobs();
+      res.json(activeJobs);
+    } catch (error: any) {
+      console.error("Error getting active bulk updates:", error);
+      res.status(500).json({ error: error.message || "Failed to get active jobs" });
+    }
+  });
+
+  // GET /api/bulk-update/history - List recent bulk update jobs
+  app.get("/api/bulk-update/history", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 10;
+      const history = await storage.getBulkUpdateHistory(limit);
+      res.json(history);
+    } catch (error: any) {
+      console.error("Error getting bulk update history:", error);
+      res.status(500).json({ error: error.message || "Failed to get job history" });
+    }
+  });
+
+  // ============================================================
+  // BULK EXPORT ENDPOINTS
+  // ============================================================
+
+  const EXPORTS_DIR = "/tmp/exports";
+  
+  // Ensure exports directory exists
+  if (!fs.existsSync(EXPORTS_DIR)) {
+    fs.mkdirSync(EXPORTS_DIR, { recursive: true });
+  }
+
+  // Process bulk export job asynchronously
+  async function processBulkExport(jobId: string): Promise<void> {
+    try {
+      const job = await storage.getBulkExport(jobId);
+      if (!job) {
+        console.error(`[bulk-export] Job ${jobId} not found`);
+        return;
+      }
+
+      const reportIds = job.companyIds as string[];
+      const format = job.format;
+      const reportType = job.reportType;
+
+      // Update status to generating
+      await storage.updateBulkExport(jobId, {
+        status: "generating",
+      });
+
+      console.log(`[bulk-export] Starting job ${jobId} with ${reportIds.length} reports, format: ${format}`);
+
+      const completedCompanies: Array<{ id: string; name: string; filename: string }> = [];
+      const failedCompanies: Array<{ id: string; name: string; error: string }> = [];
+      const exportFiles: Array<{ filename: string; content: string }> = [];
+
+      for (let i = 0; i < reportIds.length; i++) {
+        // Check if job was cancelled
+        const currentJob = await storage.getBulkExport(jobId);
+        if (currentJob?.status === "cancelled") {
+          console.log(`[bulk-export] Job ${jobId} was cancelled, stopping processing`);
+          return;
+        }
+
+        const reportId = reportIds[i];
+        try {
+          const report = await storage.getReportById(reportId);
+          if (!report) {
+            failedCompanies.push({ id: reportId, name: "Unknown", error: "Report not found" });
+            continue;
+          }
+
+          const companyName = report.companyName;
+          console.log(`[bulk-export] Processing ${i + 1}/${reportIds.length}: ${companyName}`);
+
+          // Generate export content based on format
+          let filename: string;
+          let content: string;
+          const safeCompanyName = companyName.replace(/[^a-zA-Z0-9]/g, "_");
+
+          switch (format) {
+            case "json":
+              filename = `${safeCompanyName}_${reportType}.json`;
+              content = JSON.stringify({
+                company: companyName,
+                reportType: reportType,
+                exportedAt: new Date().toISOString(),
+                data: report.analysisData,
+              }, null, 2);
+              break;
+            case "md":
+              filename = `${safeCompanyName}_${reportType}.md`;
+              const analysisData = report.analysisData as any;
+              content = `# ${companyName} - ${reportType} Report\n\n`;
+              content += `**Generated:** ${new Date().toISOString()}\n\n`;
+              content += `## Summary\n\n${analysisData?.summary || "No summary available"}\n\n`;
+              if (analysisData?.steps) {
+                for (const step of analysisData.steps) {
+                  content += `## ${step.title || `Step ${step.step}`}\n\n`;
+                  content += `${step.content || ""}\n\n`;
+                }
+              }
+              break;
+            case "pdf":
+              filename = `${safeCompanyName}_${reportType}.txt`;
+              content = `[PDF Export Placeholder]\n\nCompany: ${companyName}\nReport Type: ${reportType}\nExported: ${new Date().toISOString()}\n\nNote: Actual PDF generation will be implemented in a future update.`;
+              break;
+            case "docx":
+              filename = `${safeCompanyName}_${reportType}.txt`;
+              content = `[DOCX Export Placeholder]\n\nCompany: ${companyName}\nReport Type: ${reportType}\nExported: ${new Date().toISOString()}\n\nNote: Actual DOCX generation will be implemented in a future update.`;
+              break;
+            case "xlsx":
+              filename = `${safeCompanyName}_${reportType}.txt`;
+              content = `[XLSX Export Placeholder]\n\nCompany: ${companyName}\nReport Type: ${reportType}\nExported: ${new Date().toISOString()}\n\nNote: Actual XLSX generation will be implemented in a future update.`;
+              break;
+            default:
+              filename = `${safeCompanyName}_${reportType}.json`;
+              content = JSON.stringify(report.analysisData, null, 2);
+          }
+
+          exportFiles.push({ filename, content });
+          completedCompanies.push({ id: reportId, name: companyName, filename });
+
+          // Update progress
+          const progress = Math.round(((i + 1) / reportIds.length) * 90); // Reserve 10% for ZIP creation
+          await storage.updateBulkExport(jobId, {
+            progress,
+            completedCompanies,
+            failedCompanies,
+          });
+
+        } catch (error: any) {
+          console.error(`[bulk-export] Error processing report ${reportId}:`, error?.message);
+          failedCompanies.push({ id: reportId, name: "Unknown", error: error?.message || "Unknown error" });
+        }
+      }
+
+      // Create ZIP file
+      const zipPath = path.join(EXPORTS_DIR, `${jobId}.zip`);
+      
+      // Create manifest object before ZIP creation
+      const manifestData = {
+        exportId: jobId,
+        exportedAt: new Date().toISOString(),
+        format: format,
+        reportType: reportType,
+        totalReports: reportIds.length,
+        successfulExports: completedCompanies.length,
+        failedExports: failedCompanies.length,
+        files: completedCompanies.map(c => c.filename),
+        failed: failedCompanies,
+      };
+      
+      await new Promise<void>((resolve, reject) => {
+        const output = fs.createWriteStream(zipPath);
+        const archive = archiver("zip", { zlib: { level: 9 } });
+
+        output.on("close", () => {
+          console.log(`[bulk-export] ZIP created: ${archive.pointer()} bytes`);
+          resolve();
+        });
+
+        archive.on("error", (err) => {
+          console.error(`[bulk-export] Archive error:`, err);
+          reject(err);
+        });
+
+        archive.pipe(output);
+
+        // Add all export files
+        for (const file of exportFiles) {
+          archive.append(file.content, { name: file.filename });
+        }
+
+        // Add manifest to ZIP
+        archive.append(JSON.stringify(manifestData, null, 2), { name: "manifest.json" });
+
+        archive.finalize();
+      });
+
+      // Get file size
+      const stats = fs.statSync(zipPath);
+      const fileSize = stats.size;
+
+      // Calculate expiration (24 hours from now)
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+      // Update job with final status
+      await storage.updateBulkExport(jobId, {
+        status: "ready",
+        progress: 100,
+        filePath: zipPath,
+        fileSize,
+        expiresAt,
+        completedCompanies,
+        failedCompanies,
+        manifest: manifestData,
+      });
+
+      console.log(`[bulk-export] Job ${jobId} completed successfully`);
+
+    } catch (error: any) {
+      console.error(`[bulk-export] Job ${jobId} failed:`, error?.message);
+      await storage.updateBulkExport(jobId, {
+        status: "failed",
+        failedCompanies: [{ id: "system", name: "System Error", error: error?.message || "Unknown error" }],
+      });
+    }
+  }
+
+  // POST /api/bulk-export/start - Initiate bulk export job
+  app.post("/api/bulk-export/start", async (req, res) => {
+    try {
+      const { reportIds, format, reportType } = req.body;
+
+      // Validate reportIds
+      if (!reportIds || !Array.isArray(reportIds) || reportIds.length === 0) {
+        return res.status(400).json({ error: "reportIds must be a non-empty array" });
+      }
+
+      if (reportIds.length > 100) {
+        return res.status(400).json({ error: "Maximum 100 reports per export job" });
+      }
+
+      // Validate format
+      const validFormats = ["pdf", "docx", "xlsx", "md", "json"];
+      if (!format || !validFormats.includes(format)) {
+        return res.status(400).json({ error: `Invalid format. Must be one of: ${validFormats.join(", ")}` });
+      }
+
+      // Validate reportType
+      if (!reportType || typeof reportType !== "string") {
+        return res.status(400).json({ error: "reportType is required" });
+      }
+
+      // Create job in storage
+      const job = await storage.createBulkExport({
+        companyIds: reportIds,
+        format,
+        reportType,
+        status: "pending",
+        progress: 0,
+        completedCompanies: [],
+        failedCompanies: [],
+      });
+
+      // Estimate time (roughly 2 seconds per report + 5 seconds for ZIP)
+      const estimatedTime = reportIds.length * 2 + 5;
+
+      // Start processing asynchronously
+      setImmediate(() => processBulkExport(job.id));
+
+      res.json({
+        jobId: job.id,
+        totalReports: reportIds.length,
+        estimatedTime,
+      });
+
+    } catch (error: any) {
+      console.error("Error starting bulk export:", error);
+      res.status(500).json({ error: error.message || "Failed to start export job" });
+    }
+  });
+
+  // GET /api/bulk-export/status/:jobId - Check export progress
+  app.get("/api/bulk-export/status/:jobId", async (req, res) => {
+    try {
+      const { jobId } = req.params;
+      const job = await storage.getBulkExport(jobId);
+
+      if (!job) {
+        return res.status(404).json({ error: "Export job not found" });
+      }
+
+      res.json(job);
+    } catch (error: any) {
+      console.error("Error getting bulk export status:", error);
+      res.status(500).json({ error: error.message || "Failed to get job status" });
+    }
+  });
+
+  // GET /api/bulk-export/download/:jobId - Download zip file
+  app.get("/api/bulk-export/download/:jobId", async (req, res) => {
+    try {
+      const { jobId } = req.params;
+      const job = await storage.getBulkExport(jobId);
+
+      if (!job) {
+        return res.status(404).json({ error: "Export job not found" });
+      }
+
+      if (job.status !== "ready") {
+        return res.status(400).json({ error: `Export is not ready. Current status: ${job.status}` });
+      }
+
+      if (!job.filePath || !fs.existsSync(job.filePath)) {
+        return res.status(404).json({ error: "Export file not found" });
+      }
+
+      // Check if expired
+      if (job.expiresAt && new Date(job.expiresAt) < new Date()) {
+        return res.status(410).json({ error: "Export has expired" });
+      }
+
+      // Set headers for download
+      res.setHeader("Content-Type", "application/zip");
+      res.setHeader("Content-Disposition", `attachment; filename="export_${jobId}.zip"`);
+      res.setHeader("Content-Length", job.fileSize || 0);
+
+      // Stream the file
+      const fileStream = fs.createReadStream(job.filePath);
+      fileStream.pipe(res);
+
+    } catch (error: any) {
+      console.error("Error downloading bulk export:", error);
+      res.status(500).json({ error: error.message || "Failed to download export" });
+    }
+  });
+
+  // POST /api/bulk-export/cancel/:jobId - Cancel export
+  app.post("/api/bulk-export/cancel/:jobId", async (req, res) => {
+    try {
+      const { jobId } = req.params;
+      const job = await storage.getBulkExport(jobId);
+
+      if (!job) {
+        return res.status(404).json({ error: "Export job not found" });
+      }
+
+      // Check if job is cancellable
+      const cancellableStatuses = ["pending", "generating"];
+      if (!cancellableStatuses.includes(job.status)) {
+        return res.status(400).json({ error: `Cannot cancel job with status: ${job.status}` });
+      }
+
+      // Update status to cancelled
+      await storage.updateBulkExport(jobId, {
+        status: "cancelled",
+      });
+
+      res.json({ success: true, message: "Export job cancelled" });
+
+    } catch (error: any) {
+      console.error("Error cancelling bulk export:", error);
+      res.status(500).json({ error: error.message || "Failed to cancel export" });
+    }
+  });
+
+  // GET /api/bulk-export/active - Get active export jobs
+  app.get("/api/bulk-export/active", async (req, res) => {
+    try {
+      const activeJobs = await storage.getActiveBulkExports();
+      res.json(activeJobs);
+    } catch (error: any) {
+      console.error("Error getting active bulk exports:", error);
+      res.status(500).json({ error: error.message || "Failed to get active exports" });
+    }
+  });
+
+  // GET /api/bulk-export/history - List export history
+  app.get("/api/bulk-export/history", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 10;
+      const history = await storage.getBulkExportHistory(limit);
+      res.json(history);
+    } catch (error: any) {
+      console.error("Error getting bulk export history:", error);
+      res.status(500).json({ error: error.message || "Failed to get export history" });
+    }
+  });
+
+  // ============================================
+  // BATCH RESEARCH ENDPOINTS
+  // ============================================
+
+  async function processBatchResearch(jobId: string) {
+    const BATCH_SIZE = 3;
+    const COOLDOWN_BETWEEN_BATCHES = 2000;
+
+    let job = await storage.getBatchResearchJob(jobId);
+    if (!job || job.status === 'cancelled' || job.status === 'paused') return;
+
+    await storage.updateBatchResearchJob(jobId, { status: 'processing', startedAt: new Date() });
+
+    while (true) {
+      job = await storage.getBatchResearchJob(jobId);
+      if (!job || job.status === 'cancelled' || job.status === 'paused') break;
+
+      const pending = job.pendingQueue as any[];
+      const completed = job.completedQueue as any[];
+      const failed = job.failedQueue as any[];
+
+      if (pending.length === 0) break;
+
+      const batch = pending.slice(0, BATCH_SIZE);
+      const remaining = pending.slice(BATCH_SIZE);
+
+      await storage.updateBatchResearchJob(jobId, { 
+        pendingQueue: remaining,
+        activeQueue: batch 
+      });
+
+      const results = await Promise.allSettled(
+        batch.map(async (company: any) => {
+          const startTime = Date.now();
+          try {
+            const analysis = await generateCompanyAnalysis(company.name);
+            const report = await storage.createReport({
+              companyName: company.name,
+              analysisData: analysis,
+              isWhatIf: false
+            });
+            return { success: true, name: company.name, reportId: report.id, duration: Math.round((Date.now() - startTime) / 1000) };
+          } catch (error: any) {
+            return { success: false, name: company.name, error: error.message, duration: Math.round((Date.now() - startTime) / 1000) };
+          }
+        })
+      );
+
+      const newCompleted = [...completed];
+      const newFailed = [...failed];
+
+      for (const result of results) {
+        if (result.status === 'fulfilled') {
+          const r = result.value;
+          if (r.success) {
+            newCompleted.push({ name: r.name, reportId: r.reportId, duration: r.duration });
+          } else {
+            newFailed.push({ name: r.name, error: r.error, attempts: 1, willRetry: false });
+          }
+        }
+      }
+
+      const progress = Math.round((newCompleted.length / job.totalCompanies) * 100);
+
+      await storage.updateBatchResearchJob(jobId, {
+        completedQueue: newCompleted,
+        failedQueue: newFailed,
+        activeQueue: [],
+        progress
+      });
+
+      await new Promise(r => setTimeout(r, COOLDOWN_BETWEEN_BATCHES));
+    }
+
+    await storage.updateBatchResearchJob(jobId, {
+      status: 'completed',
+      completedAt: new Date()
+    });
+  }
+
+  // POST /api/batch-research/start - Start a batch research job
+  app.post("/api/batch-research/start", async (req, res) => {
+    try {
+      const { companies, config = {} } = req.body;
+
+      if (!companies || !Array.isArray(companies)) {
+        return res.status(400).json({ error: "companies array is required" });
+      }
+
+      if (companies.length > 100) {
+        return res.status(400).json({ error: "Maximum 100 companies allowed per batch" });
+      }
+
+      if (companies.length === 0) {
+        return res.status(400).json({ error: "At least one company is required" });
+      }
+
+      const normalizeCompanyName = (name: string): string => {
+        return name.toLowerCase().trim().replace(/\s+/g, ' ');
+      };
+
+      const seenNames = new Set<string>();
+      const duplicatesRemoved: string[] = [];
+      const normalizedCompanies: Array<{name: string, normalizedName: string, group?: string, priority?: number}> = [];
+
+      for (const company of companies) {
+        if (!company.name || typeof company.name !== 'string') continue;
+        
+        const normalizedName = normalizeCompanyName(company.name);
+        if (seenNames.has(normalizedName)) {
+          duplicatesRemoved.push(company.name);
+        } else {
+          seenNames.add(normalizedName);
+          normalizedCompanies.push({
+            name: company.name.trim(),
+            normalizedName,
+            group: company.group,
+            priority: company.priority
+          });
+        }
+      }
+
+      const existingReports: Array<{name: string, reportId: string}> = [];
+      const pendingCompanies: Array<{name: string, group?: string, priority?: number}> = [];
+      const skipExisting = config.skipExisting !== false;
+
+      if (skipExisting) {
+        const allReports = await storage.getAllReports();
+        const reportsByNormalizedName = new Map<string, {id: string, companyName: string}>();
+        
+        for (const report of allReports) {
+          if (!report.isWhatIf) {
+            const normalized = normalizeCompanyName(report.companyName);
+            reportsByNormalizedName.set(normalized, { id: report.id, companyName: report.companyName });
+          }
+        }
+
+        for (const company of normalizedCompanies) {
+          const existing = reportsByNormalizedName.get(company.normalizedName);
+          if (existing) {
+            existingReports.push({ name: company.name, reportId: existing.id });
+          } else {
+            pendingCompanies.push({ name: company.name, group: company.group, priority: company.priority });
+          }
+        }
+      } else {
+        for (const company of normalizedCompanies) {
+          pendingCompanies.push({ name: company.name, group: company.group, priority: company.priority });
+        }
+      }
+
+      if (pendingCompanies.length === 0) {
+        return res.json({
+          jobId: null,
+          totalCompanies: 0,
+          duplicatesRemoved: duplicatesRemoved.length,
+          existingReports,
+          estimatedTime: 0,
+          message: "All companies already have existing reports"
+        });
+      }
+
+      const batchSize = config.batchSize || 3;
+      const estimatedTimePerCompany = 60;
+      const estimatedTime = Math.ceil(pendingCompanies.length / batchSize) * estimatedTimePerCompany;
+
+      const job = await storage.createBatchResearchJob({
+        status: 'pending',
+        config: { batchSize, skipExisting },
+        pendingQueue: pendingCompanies,
+        activeQueue: [],
+        completedQueue: [],
+        failedQueue: [],
+        retryQueue: [],
+        totalCompanies: pendingCompanies.length,
+        progress: 0,
+        duplicatesRemoved,
+        existingReports
+      });
+
+      setImmediate(() => {
+        processBatchResearch(job.id).catch(err => {
+          console.error(`[batch-research] Error processing job ${job.id}:`, err);
+        });
+      });
+
+      res.json({
+        jobId: job.id,
+        totalCompanies: pendingCompanies.length,
+        duplicatesRemoved: duplicatesRemoved.length,
+        existingReports,
+        estimatedTime
+      });
+    } catch (error: any) {
+      console.error("Error starting batch research job:", error);
+      res.status(500).json({ error: error.message || "Failed to start batch research" });
+    }
+  });
+
+  // GET /api/batch-research/status/:jobId - Get job status
+  app.get("/api/batch-research/status/:jobId", async (req, res) => {
+    try {
+      const { jobId } = req.params;
+      const job = await storage.getBatchResearchJob(jobId);
+      
+      if (!job) {
+        return res.status(404).json({ error: "Job not found" });
+      }
+      
+      res.json(job);
+    } catch (error: any) {
+      console.error("Error getting batch research status:", error);
+      res.status(500).json({ error: error.message || "Failed to get job status" });
+    }
+  });
+
+  // POST /api/batch-research/pause/:jobId - Pause processing
+  app.post("/api/batch-research/pause/:jobId", async (req, res) => {
+    try {
+      const { jobId } = req.params;
+      const job = await storage.getBatchResearchJob(jobId);
+      
+      if (!job) {
+        return res.status(404).json({ error: "Job not found" });
+      }
+      
+      if (job.status !== 'processing' && job.status !== 'pending') {
+        return res.status(400).json({ error: `Cannot pause job with status: ${job.status}` });
+      }
+      
+      await storage.updateBatchResearchJob(jobId, { status: 'paused' });
+      const updatedJob = await storage.getBatchResearchJob(jobId);
+      
+      res.json(updatedJob);
+    } catch (error: any) {
+      console.error("Error pausing batch research job:", error);
+      res.status(500).json({ error: error.message || "Failed to pause job" });
+    }
+  });
+
+  // POST /api/batch-research/resume/:jobId - Resume processing
+  app.post("/api/batch-research/resume/:jobId", async (req, res) => {
+    try {
+      const { jobId } = req.params;
+      const job = await storage.getBatchResearchJob(jobId);
+      
+      if (!job) {
+        return res.status(404).json({ error: "Job not found" });
+      }
+      
+      if (job.status !== 'paused') {
+        return res.status(400).json({ error: `Cannot resume job with status: ${job.status}` });
+      }
+      
+      await storage.updateBatchResearchJob(jobId, { status: 'processing' });
+      
+      setImmediate(() => {
+        processBatchResearch(jobId).catch(err => {
+          console.error(`[batch-research] Error resuming job ${jobId}:`, err);
+        });
+      });
+      
+      const updatedJob = await storage.getBatchResearchJob(jobId);
+      res.json(updatedJob);
+    } catch (error: any) {
+      console.error("Error resuming batch research job:", error);
+      res.status(500).json({ error: error.message || "Failed to resume job" });
+    }
+  });
+
+  // POST /api/batch-research/cancel/:jobId - Cancel job
+  app.post("/api/batch-research/cancel/:jobId", async (req, res) => {
+    try {
+      const { jobId } = req.params;
+      const job = await storage.getBatchResearchJob(jobId);
+      
+      if (!job) {
+        return res.status(404).json({ error: "Job not found" });
+      }
+      
+      if (job.status === 'completed' || job.status === 'cancelled') {
+        return res.status(400).json({ error: `Cannot cancel job with status: ${job.status}` });
+      }
+      
+      await storage.updateBatchResearchJob(jobId, { status: 'cancelled' });
+      const updatedJob = await storage.getBatchResearchJob(jobId);
+      
+      res.json(updatedJob);
+    } catch (error: any) {
+      console.error("Error cancelling batch research job:", error);
+      res.status(500).json({ error: error.message || "Failed to cancel job" });
+    }
+  });
+
+  // GET /api/batch-research/active - Get active jobs
+  app.get("/api/batch-research/active", async (req, res) => {
+    try {
+      const activeJobs = await storage.getActiveBatchResearchJobs();
+      res.json(activeJobs);
+    } catch (error: any) {
+      console.error("Error getting active batch research jobs:", error);
+      res.status(500).json({ error: error.message || "Failed to get active jobs" });
+    }
+  });
+
+  // GET /api/batch-research/history - Get job history
+  app.get("/api/batch-research/history", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 10;
+      const history = await storage.getBatchResearchJobHistory(limit);
+      res.json(history);
+    } catch (error: any) {
+      console.error("Error getting batch research history:", error);
+      res.status(500).json({ error: error.message || "Failed to get job history" });
+    }
+  });
+
+  // ============================================
+  // INTERACTIVE EDITING: Session and Edit Management
+  // Anonymous browser-based sessions (no auth required)
+  // ============================================
+
+  // POST /api/sessions - Create or get session for a report
+  app.post("/api/sessions", async (req, res) => {
+    try {
+      const { reportId, browserToken, sessionName } = req.body;
+      if (!reportId || !browserToken) {
+        return res.status(400).json({ error: "reportId and browserToken are required" });
+      }
+      const session = await storage.getOrCreateSession(reportId, browserToken, sessionName);
+      res.json(session);
+    } catch (error: any) {
+      console.error("Error creating session:", error);
+      res.status(500).json({ error: error.message || "Failed to create session" });
+    }
+  });
+
+  // GET /api/sessions/:reportId/:browserToken - Get session with edits
+  app.get("/api/sessions/:reportId/:browserToken", async (req, res) => {
+    try {
+      const { reportId, browserToken } = req.params;
+      const session = await storage.getSession(reportId, browserToken);
+      if (!session) {
+        return res.status(404).json({ error: "Session not found" });
+      }
+      const edits = await storage.getSessionEdits(session.id);
+      res.json({ session, edits });
+    } catch (error: any) {
+      console.error("Error getting session:", error);
+      res.status(500).json({ error: error.message || "Failed to get session" });
+    }
+  });
+
+  // POST /api/edits - Save a user edit
+  app.post("/api/edits", async (req, res) => {
+    try {
+      const { sessionId, reportId, stepNumber, useCaseId, fieldPath, originalValue, editedValue } = req.body;
+      if (!sessionId || !reportId || stepNumber == null || !fieldPath) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+      const edit = await storage.saveEdit({
+        sessionId,
+        reportId,
+        stepNumber,
+        useCaseId: useCaseId || null,
+        fieldPath,
+        originalValue: String(originalValue),
+        editedValue: String(editedValue),
+      });
+      res.json(edit);
+    } catch (error: any) {
+      console.error("Error saving edit:", error);
+      res.status(500).json({ error: error.message || "Failed to save edit" });
+    }
+  });
+
+  // DELETE /api/edits/:sessionId - Reset all edits for a session
+  app.delete("/api/edits/:sessionId", async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      await storage.clearSessionEdits(sessionId);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error clearing edits:", error);
+      res.status(500).json({ error: error.message || "Failed to clear edits" });
+    }
   });
 
   return httpServer;

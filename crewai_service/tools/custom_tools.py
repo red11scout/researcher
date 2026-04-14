@@ -86,7 +86,7 @@ def extract_bullet_points(text: str) -> str:
 
 
 @tool("Priority Scorer")
-def score_priority(item: str, criteria: str = "impact,urgency,feasibility") -> str:
+def score_priority(item: str, criteria: str = "impact,urgency,readiness") -> str:
     """
     Score an item's priority based on specified criteria.
     

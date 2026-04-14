@@ -5,3 +5,5 @@ export { UseCasesTable } from './use-cases-table';
 export { ShareModal } from './share-modal';
 export { CTASection } from './cta-section';
 export { chartColors, chartConfig } from './chart-config';
+export { QuadrantBubbleChart } from './quadrant-bubble-chart';
+export { MatrixScorecard } from './matrix-scorecard';

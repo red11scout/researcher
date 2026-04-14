@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, jsonb, timestamp, boolean, integer, real } from "drizzle-orm/pg-core";
+import { pgTable, text, varchar, jsonb, timestamp, boolean, integer, real, uuid } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -39,6 +39,126 @@ export const insertSharedDashboardSchema = createInsertSchema(sharedDashboards).
 
 export type InsertSharedDashboard = z.infer<typeof insertSharedDashboardSchema>;
 export type SharedDashboard = typeof sharedDashboards.$inferSelect;
+
+export const bulkUpdateJobs = pgTable("bulk_update_jobs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  companyIds: jsonb("company_ids").notNull(), // array of report IDs
+  status: varchar("status", { length: 20 }).notNull().default("pending"), // pending, in_progress, completed, failed, cancelled
+  progress: integer("progress").default(0).notNull(), // 0-100
+  currentCompanyId: varchar("current_company_id"),
+  completedCompanies: jsonb("completed_companies").default([]).notNull(), // array of {id, name, status}
+  failedCompanies: jsonb("failed_companies").default([]).notNull(), // array of {id, name, error}
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertBulkUpdateJobSchema = createInsertSchema(bulkUpdateJobs).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertBulkUpdateJob = z.infer<typeof insertBulkUpdateJobSchema>;
+export type BulkUpdateJob = typeof bulkUpdateJobs.$inferSelect;
+
+export const bulkExports = pgTable("bulk_exports", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  companyIds: jsonb("company_ids").notNull(), // array of report IDs
+  reportType: varchar("report_type", { length: 50 }).notNull().default("overview"), // overview, financial, competitive, full
+  format: varchar("format", { length: 10 }).notNull().default("pdf"), // pdf, docx, xlsx, md, json
+  status: varchar("status", { length: 20 }).notNull().default("pending"), // pending, generating, ready, expired, failed, cancelled
+  progress: integer("progress").default(0).notNull(), // 0-100
+  filePath: text("file_path"),
+  fileSize: integer("file_size"),
+  downloadUrl: text("download_url"),
+  expiresAt: timestamp("expires_at"),
+  manifest: jsonb("manifest"), // export manifest JSON
+  completedCompanies: jsonb("completed_companies").default([]).notNull(),
+  failedCompanies: jsonb("failed_companies").default([]).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertBulkExportSchema = createInsertSchema(bulkExports).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertBulkExport = z.infer<typeof insertBulkExportSchema>;
+export type BulkExport = typeof bulkExports.$inferSelect;
+
+export const batchResearchJobs = pgTable("batch_research_jobs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  status: varchar("status", { length: 20 }).notNull().default("pending"), // pending, processing, completed, failed, paused, cancelled
+  
+  // Configuration
+  config: jsonb("config").notNull().default({}), // batchSize, researchDepth, skipExisting, etc.
+  
+  // Queue management (all are arrays of objects)
+  pendingQueue: jsonb("pending_queue").notNull().default([]), // [{name, group, priority}]
+  activeQueue: jsonb("active_queue").notNull().default([]), // companies currently being researched
+  completedQueue: jsonb("completed_queue").notNull().default([]), // [{name, reportId, duration}]
+  failedQueue: jsonb("failed_queue").notNull().default([]), // [{name, attempts, error, willRetry}]
+  retryQueue: jsonb("retry_queue").notNull().default([]), // [{name, attempts, nextRetryAt}]
+  
+  // Progress metrics
+  totalCompanies: integer("total_companies").notNull().default(0),
+  progress: integer("progress").notNull().default(0), // 0-100
+  averageTimePerCompany: integer("average_time_per_company"), // seconds
+  
+  // Duplicate detection results
+  duplicatesRemoved: jsonb("duplicates_removed").default([]), // companies removed as duplicates
+  existingReports: jsonb("existing_reports").default([]), // companies with existing reports
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+});
+
+export const insertBatchResearchJobSchema = createInsertSchema(batchResearchJobs).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertBatchResearchJob = z.infer<typeof insertBatchResearchJobSchema>;
+export type BatchResearchJob = typeof batchResearchJobs.$inferSelect;
+
+// ============================================
+// INTERACTIVE EDITING: User sessions and edits
+// Anonymous browser-based sessions (no auth required)
+// ============================================
+export const userSessions = pgTable("user_sessions", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  reportId: varchar("report_id").notNull(),
+  browserToken: text("browser_token").notNull(),  // localStorage UUID, no auth required
+  sessionName: text("session_name").default("Default Session"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertUserSessionSchema = createInsertSchema(userSessions).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export type InsertUserSession = z.infer<typeof insertUserSessionSchema>;
+export type UserSession = typeof userSessions.$inferSelect;
+
+export const userEdits = pgTable("user_edits", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sessionId: varchar("session_id").notNull(),
+  reportId: varchar("report_id").notNull(),
+  stepNumber: integer("step_number").notNull(),
+  useCaseId: text("use_case_id"),       // e.g. "UC-01"
+  fieldPath: text("field_path").notNull(), // e.g. "Annual Hours" or "Organizational Capacity"
+  originalValue: text("original_value").notNull(),
+  editedValue: text("edited_value").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertUserEditSchema = createInsertSchema(userEdits).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertUserEdit = z.infer<typeof insertUserEditSchema>;
+export type UserEdit = typeof userEdits.$inferSelect;
 
 // Parent categories for hierarchical organization (per document Section 3)
 export const PARENT_CATEGORIES = [
@@ -337,7 +457,7 @@ export const DEFAULT_ASSUMPTIONS: Record<AssumptionCategory, Array<{
     { fieldName: "change_mgmt_score", displayName: "Change Management Readiness", defaultValue: "3", valueType: "number", unit: "1-5", description: "Organization's change management capability (1=Poor, 5=Excellent)", usedInSteps: ["6", "7"] },
     { fieldName: "weight_value", displayName: "Priority Weight: Value", defaultValue: "40", valueType: "percentage", unit: "%", description: "Value weight in priority scoring (Value + TTV + Effort = 100%)", usedInSteps: ["7"] },
     { fieldName: "weight_ttv", displayName: "Priority Weight: Time-to-Value", defaultValue: "30", valueType: "percentage", unit: "%", description: "Time-to-value weight in priority scoring", usedInSteps: ["7"] },
-    { fieldName: "weight_effort", displayName: "Priority Weight: Effort", defaultValue: "30", valueType: "percentage", unit: "%", description: "Implementation effort weight in priority scoring", usedInSteps: ["7"] },
+    { fieldName: "weight_effort", displayName: "Priority Weight: Readiness", defaultValue: "30", valueType: "percentage", unit: "%", description: "Implementation effort weight in priority scoring", usedInSteps: ["7"] },
   ],
 };
 
@@ -383,7 +503,6 @@ export const CALCULATED_FIELD_KEYS = [
   "valueScore",
   "ttvScore",
   "effortScore",
-  "annualTokenCost",
   "netBenefit"
 ] as const;
 
@@ -426,16 +545,10 @@ export const DEFAULT_FORMULAS: Record<CalculatedFieldKey, {
     inputFields: ["effortScore"],
     description: "Direct pass-through of effort estimate"
   },
-  annualTokenCost: {
-    label: "Annual Token Cost (Default)",
-    expression: "(avgInputTokens * inputTokenCost / 1000000 + avgOutputTokens * outputTokenCost / 1000000) * runsPerYear * (1 - cachingEffectiveness * promptCachingDiscount / 10000)",
-    inputFields: ["avgInputTokens", "inputTokenCost", "avgOutputTokens", "outputTokenCost", "runsPerYear", "cachingEffectiveness", "promptCachingDiscount"],
-    description: "Annual AI token costs with caching discount"
-  },
   netBenefit: {
     label: "Net Benefit (Default)",
-    expression: "totalAnnualImpact - annualTokenCost - implementationCost / 3",
-    inputFields: ["totalAnnualImpact", "annualTokenCost", "implementationCost"],
+    expression: "totalAnnualImpact - implementationCost / 3",
+    inputFields: ["totalAnnualImpact", "implementationCost"],
     description: "Net annual benefit after costs (3-year amortization)"
   }
 };
@@ -444,66 +557,137 @@ export const DEFAULT_FORMULAS: Record<CalculatedFieldKey, {
 // WORKFLOW DATA TYPES - Miro-Ready Process Flow Generation
 // ============================================================================
 
-// Agentic Patterns for AI use cases
+// Consolidated Agentic Patterns (12 patterns: 7 single-agent, 5 multi-agent)
 export const AGENTIC_PATTERNS = [
-  "Orchestrator-Workers",
-  "Semantic Router", 
+  // Single-Agent Patterns
+  "Reflection",
+  "Tool Use",
+  "Planning",
   "ReAct Loop",
-  "Drafter-Critic",
+  "Prompt Chaining",
+  "Semantic Router",
   "Constitutional Guardrail",
-  "RAG Detective",
-  "Memetic Agent",
-  "Human-in-the-Loop"
+  // Multi-Agent Patterns
+  "Orchestrator-Workers",
+  "Agent Handoff",
+  "Parallelization",
+  "Generator-Critic",
+  "Group Chat",
 ] as const;
 
 export type AgenticPattern = typeof AGENTIC_PATTERNS[number];
 
+export type AgenticPatternType = "single-agent" | "multi-agent";
+export type PatternComplexity = "low" | "medium" | "high";
+
+// Legacy pattern name mapping (for backward compatibility with existing analyses)
+export const LEGACY_PATTERN_MAP: Record<string, AgenticPattern> = {
+  "Drafter-Critic": "Generator-Critic",
+  "RAG Detective": "Tool Use",
+  "Memetic Agent": "Reflection",
+  "Human-in-the-Loop": "Constitutional Guardrail",
+};
+
+// Resolve a pattern name (handles legacy names)
+export function resolvePatternName(name: string): AgenticPattern {
+  if (!name) return "Prompt Chaining";
+  const trimmed = name.trim();
+  if (AGENTIC_PATTERNS.includes(trimmed as AgenticPattern)) return trimmed as AgenticPattern;
+  return LEGACY_PATTERN_MAP[trimmed] || "Prompt Chaining";
+}
+
 // Agentic Pattern descriptions for UI
-export const AGENTIC_PATTERN_META: Record<AgenticPattern, { 
-  description: string; 
+export const AGENTIC_PATTERN_META: Record<AgenticPattern, {
+  description: string;
   icon: string;
+  type: AgenticPatternType;
+  complexity: PatternComplexity;
   useCaseExamples: string[];
 }> = {
-  "Orchestrator-Workers": {
-    description: "Multi-step complex tasks with coordinated sub-agents",
-    icon: "🎭",
-    useCaseExamples: ["Multi-department analysis", "Complex document processing", "End-to-end workflows"]
+  "Reflection": {
+    description: "Self-critique loops where AI evaluates and refines its own outputs iteratively",
+    icon: "🪞",
+    type: "single-agent",
+    complexity: "low",
+    useCaseExamples: ["Content quality review", "Code generation & testing", "Fact-checking"]
   },
-  "Semantic Router": {
-    description: "Classification and intelligent routing decisions",
-    icon: "🔀",
-    useCaseExamples: ["Support ticket triage", "Lead qualification", "Intent classification"]
+  "Tool Use": {
+    description: "LLM invokes external tools, APIs, and databases during reasoning",
+    icon: "🔧",
+    type: "single-agent",
+    complexity: "medium",
+    useCaseExamples: ["Research assistants", "Data lookup & enrichment", "Knowledge search"]
+  },
+  "Planning": {
+    description: "Explicitly breaks complex goals into ordered sub-tasks before execution",
+    icon: "📋",
+    type: "single-agent",
+    complexity: "medium",
+    useCaseExamples: ["Project planning", "Multi-step analysis", "Strategic initiatives"]
   },
   "ReAct Loop": {
     description: "Autonomous troubleshooting with reasoning and action cycles",
     icon: "🔄",
+    type: "single-agent",
+    complexity: "medium",
     useCaseExamples: ["Technical diagnostics", "Root cause analysis", "Self-healing systems"]
   },
-  "Drafter-Critic": {
-    description: "Content generation with iterative review and refinement",
-    icon: "✍️",
-    useCaseExamples: ["Report generation", "Email drafting", "Content creation"]
+  "Prompt Chaining": {
+    description: "Sequential pipeline of prompts where each step feeds the next",
+    icon: "🔗",
+    type: "single-agent",
+    complexity: "low",
+    useCaseExamples: ["Document processing pipelines", "Multi-stage extraction", "Report generation"]
+  },
+  "Semantic Router": {
+    description: "Classification and intelligent routing decisions",
+    icon: "🔀",
+    type: "single-agent",
+    complexity: "low",
+    useCaseExamples: ["Support ticket triage", "Lead qualification", "Intent classification"]
   },
   "Constitutional Guardrail": {
     description: "Compliance-sensitive outputs with built-in constraints",
     icon: "🛡️",
+    type: "single-agent",
+    complexity: "medium",
     useCaseExamples: ["Regulatory compliance", "Policy enforcement", "Risk assessment"]
   },
-  "RAG Detective": {
-    description: "Knowledge retrieval and research with source validation",
-    icon: "🔍",
-    useCaseExamples: ["Knowledge search", "Policy lookup", "Research assistance"]
+  "Orchestrator-Workers": {
+    description: "Multi-step complex tasks with coordinated sub-agents",
+    icon: "🎭",
+    type: "multi-agent",
+    complexity: "high",
+    useCaseExamples: ["Multi-department analysis", "Complex document processing", "End-to-end workflows"]
   },
-  "Memetic Agent": {
-    description: "Personalization with persistent memory and context",
-    icon: "🧠",
-    useCaseExamples: ["Customer personalization", "Adaptive learning", "User preference tracking"]
+  "Agent Handoff": {
+    description: "Decentralized delegation between specialist agents",
+    icon: "🤝",
+    type: "multi-agent",
+    complexity: "high",
+    useCaseExamples: ["Customer service escalation", "Specialist routing", "Cross-domain tasks"]
   },
-  "Human-in-the-Loop": {
-    description: "High-stakes approval gates requiring human oversight",
-    icon: "👤",
-    useCaseExamples: ["Approval workflows", "Exception handling", "Quality assurance"]
-  }
+  "Parallelization": {
+    description: "Concurrent independent sub-tasks with final synthesis",
+    icon: "⚡",
+    type: "multi-agent",
+    complexity: "medium",
+    useCaseExamples: ["Parallel data processing", "Multi-source analysis", "Batch operations"]
+  },
+  "Generator-Critic": {
+    description: "Content generation with iterative review and refinement by a separate critic",
+    icon: "✍️",
+    type: "multi-agent",
+    complexity: "medium",
+    useCaseExamples: ["Report generation", "Email drafting", "Content creation"]
+  },
+  "Group Chat": {
+    description: "Multi-agent deliberation and debate for complex decisions",
+    icon: "💬",
+    type: "multi-agent",
+    complexity: "high",
+    useCaseExamples: ["Multi-perspective analysis", "Consensus building", "Complex evaluations"]
+  },
 };
 
 // Workflow step actor
@@ -591,8 +775,15 @@ export interface MiroMetadata {
   };
 }
 
-// AI Primitives for pattern classification
-export type AIPrimitive = 
+// AI Primitives for pattern classification (standardized labels from taxonomy.ts)
+export type AIPrimitive =
+  | "Research & Information Retrieval"
+  | "Content Creation"
+  | "Data Analysis"
+  | "Conversational Interfaces"
+  | "Workflow Automation"
+  | "Coding Assistance"
+  // Legacy lowercase values for backward compatibility
   | "classification"
   | "generation"
   | "retrieval"
@@ -606,21 +797,43 @@ export type AIPrimitive =
   | "orchestration"
   | "monitoring";
 
-// Business functions for pattern mapping
+// Business functions for pattern mapping (standardized labels from taxonomy.ts)
 export type BusinessFunction =
   | "Sales"
   | "Marketing"
   | "Finance"
   | "Operations"
+  | "Human Resources"
+  | "Information Technology"
+  | "Customer Service"
+  | "Legal & Compliance"
+  | "Supply Chain"
+  | "Product Management"
+  | "Digital Commerce"
+  | "Merchandising"
+  | "Logistics"
+  // Legacy values for backward compatibility
   | "HR"
   | "IT"
   | "Legal"
   | "Compliance"
-  | "Customer Service"
-  | "Supply Chain"
   | "R&D"
   | "Executive"
   | "General";
+
+// Benchmark data structure for KPIs (Step 2)
+export interface BenchmarkData {
+  industryAverage: string;
+  industryBestInClass: string;
+  overallBestInClass: string;
+}
+
+// Strategic theme linkage
+export interface StrategicThemeLink {
+  themeNumber: number;
+  themeName: string;
+  financialImpact: number;
+}
 
 // Pattern mapping result with primary, secondary, and HITL
 export interface AgenticPatternMapping {

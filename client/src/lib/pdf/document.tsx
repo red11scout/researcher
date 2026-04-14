@@ -223,11 +223,17 @@ const styles = StyleSheet.create({
 
 function formatCurrency(value: number, compact = false): string {
   if (compact) {
-    if (value >= 1_000_000_000) return `$${(value / 1_000_000_000).toFixed(1)}B`;
-    if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
-    if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}K`;
+    if (value >= 1_000_000_000) {
+      const billions = Math.round(value / 1_000_000_000 * 10) / 10;
+      return billions === Math.floor(billions) ? `$${Math.floor(billions)}B` : `$${billions.toFixed(1)}B`;
+    }
+    if (value >= 1_000_000) {
+      const millions = Math.round(value / 1_000_000 * 10) / 10;
+      return millions === Math.floor(millions) ? `$${Math.floor(millions)}M` : `$${millions.toFixed(1)}M`;
+    }
+    if (value >= 1_000) return `$${Math.round(value / 1_000)}K`;
   }
-  return `$${value.toLocaleString()}`;
+  return `$${Math.round(value).toLocaleString()}`;
 }
 
 function formatPercent(value: number): string {
@@ -368,9 +374,159 @@ function ExecutiveSummary({ data }: { data: ReportData }) {
   );
 }
 
-function UseCasesTable({ useCases }: { useCases: any[] }) {
-  const columnWidths = ['35%', '20%', '20%', '15%', '10%'];
-  
+const SINGLE_AGENT_PATTERNS = [
+  'Reflection', 'Tool Use', 'Planning', 'ReAct Loop',
+  'Prompt Chaining', 'Semantic Router', 'Constitutional Guardrail',
+];
+
+const cardStyles = StyleSheet.create({
+  themeDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
+  },
+  themeLine: {
+    flex: 1,
+    height: 2,
+    backgroundColor: '#001278',
+  },
+  themeLabel: {
+    fontSize: fonts.sizes.caption,
+    fontWeight: fonts.weights.bold,
+    color: '#001278',
+    paddingHorizontal: spacing.sm,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  card: {
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    borderRadius: 4,
+    marginBottom: spacing.md,
+    padding: spacing.md,
+    backgroundColor: colors.white,
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+    flexWrap: 'wrap',
+    gap: 4,
+  },
+  ucId: {
+    fontSize: fonts.sizes.caption,
+    fontFamily: 'Courier',
+    color: colors.textTertiary,
+    marginRight: spacing.sm,
+  },
+  ucName: {
+    fontSize: fonts.sizes.bodySm,
+    fontWeight: fonts.weights.bold,
+    color: colors.textPrimary,
+    flex: 1,
+  },
+  badgeBase: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 3,
+    marginLeft: 4,
+  },
+  badgeNavy: {
+    backgroundColor: '#001278',
+  },
+  badgeBlue: {
+    backgroundColor: '#02a2fd',
+  },
+  badgeFunction: {
+    backgroundColor: colors.bgSubtle,
+    borderWidth: 1,
+    borderColor: colors.borderDefault,
+  },
+  badgeText: {
+    fontSize: fonts.sizes.tiny,
+    color: colors.white,
+    fontWeight: fonts.weights.semibold,
+  },
+  badgeFunctionText: {
+    fontSize: fonts.sizes.tiny,
+    color: colors.textSecondary,
+    fontWeight: fonts.weights.semibold,
+  },
+  description: {
+    fontSize: fonts.sizes.bodySm,
+    color: colors.textSecondary,
+    lineHeight: fonts.lineHeights.normal,
+    marginBottom: spacing.sm,
+  },
+  fieldLabel: {
+    fontSize: fonts.sizes.caption,
+    fontWeight: fonts.weights.semibold,
+    color: colors.textTertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+    marginBottom: 2,
+  },
+  fieldValue: {
+    fontSize: fonts.sizes.bodySm,
+    color: colors.textSecondary,
+    lineHeight: fonts.lineHeights.normal,
+  },
+  fieldRow: {
+    marginBottom: spacing.sm,
+  },
+  chipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+    marginBottom: spacing.sm,
+  },
+  chip: {
+    backgroundColor: '#d1fae5',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 3,
+  },
+  chipText: {
+    fontSize: fonts.sizes.tiny,
+    color: '#065f46',
+    fontWeight: fonts.weights.semibold,
+  },
+  rationaleBox: {
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    borderRadius: 3,
+    padding: spacing.sm,
+    marginBottom: spacing.sm,
+    backgroundColor: colors.bgLight,
+  },
+  hitlBox: {
+    borderWidth: 1,
+    borderColor: '#bfdbfe',
+    borderRadius: 3,
+    padding: spacing.sm,
+    marginBottom: spacing.sm,
+    backgroundColor: '#eff6ff',
+  },
+  outcomeBullet: {
+    flexDirection: 'row',
+    marginBottom: 2,
+    paddingLeft: spacing.xs,
+  },
+  outcomeDot: {
+    width: 12,
+    fontSize: fonts.sizes.bodySm,
+    color: '#36bf78',
+  },
+  outcomeText: {
+    flex: 1,
+    fontSize: fonts.sizes.bodySm,
+    color: colors.textSecondary,
+    lineHeight: fonts.lineHeights.normal,
+  },
+});
+
+function UseCaseCards({ useCases }: { useCases: any[] }) {
   if (!useCases || useCases.length === 0) {
     return (
       <View style={styles.section}>
@@ -379,46 +535,263 @@ function UseCasesTable({ useCases }: { useCases: any[] }) {
       </View>
     );
   }
-  
+
+  const limited = useCases.slice(0, 12);
+
+  // Group by Strategic Theme if present
+  const hasThemes = limited.some(
+    (uc) => uc['Strategic Theme'] || uc.strategicTheme,
+  );
+
+  type GroupEntry = { theme: string; items: any[] };
+  let groups: GroupEntry[];
+
+  if (hasThemes) {
+    const themeMap = new Map<string, any[]>();
+    for (const uc of limited) {
+      const theme =
+        uc['Strategic Theme'] || uc.strategicTheme || 'Uncategorized';
+      if (!themeMap.has(theme)) themeMap.set(theme, []);
+      themeMap.get(theme)!.push(uc);
+    }
+    groups = Array.from(themeMap.entries()).map(([theme, items]) => ({
+      theme,
+      items,
+    }));
+  } else {
+    groups = [{ theme: '', items: limited }];
+  }
+
+  const isSingleAgent = (pattern: string | undefined) => {
+    if (!pattern) return true;
+    return SINGLE_AGENT_PATTERNS.some(
+      (p) => pattern.toLowerCase().includes(p.toLowerCase()),
+    );
+  };
+
+  const parseList = (val: any): string[] => {
+    if (!val) return [];
+    if (Array.isArray(val)) return val.filter(Boolean);
+    if (typeof val === 'string') {
+      return val
+        .split(/[,;]/)
+        .map((s: string) => s.trim())
+        .filter(Boolean);
+    }
+    return [];
+  };
+
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>AI Use Cases</Text>
       <Text style={styles.sectionSubtitle}>
-        Prioritized opportunities ranked by impact and feasibility
+        Prioritized opportunities with agentic implementation patterns
       </Text>
-      
-      <View style={styles.table}>
-        <View style={styles.tableHeader}>
-          <Text style={[styles.tableCellHeader, { width: columnWidths[0] }]}>Use Case</Text>
-          <Text style={[styles.tableCellHeader, { width: columnWidths[1] }]}>Department</Text>
-          <Text style={[styles.tableCellHeader, styles.tableCellNumber, { width: columnWidths[2] }]}>Annual Impact</Text>
-          <Text style={[styles.tableCellHeader, styles.tableCellNumber, { width: columnWidths[3] }]}>ROI</Text>
-          <Text style={[styles.tableCellHeader, { width: columnWidths[4] }]}>Priority</Text>
+
+      {groups.map((group, gi) => (
+        <View key={gi}>
+          {group.theme !== '' && (
+            <View style={cardStyles.themeDivider}>
+              <View style={cardStyles.themeLine} />
+              <Text style={cardStyles.themeLabel}>{group.theme}</Text>
+              <View style={cardStyles.themeLine} />
+            </View>
+          )}
+
+          {group.items.map((uc: any, idx: number) => {
+            const ucId =
+              uc['ID'] || uc.id || uc.ucId || `UC-${gi + 1}.${idx + 1}`;
+            const ucName =
+              uc['Use Case Name'] ||
+              uc.name ||
+              uc.useCase ||
+              `Use Case ${idx + 1}`;
+            const description =
+              uc['Description'] || uc.description || '';
+            const friction =
+              uc['Target Friction'] || uc.targetFriction || '';
+            const primitivesRaw =
+              uc['AI Primitives'] || uc.aiPrimitives || '';
+            const primitives = parseList(primitivesRaw);
+            const pattern =
+              uc['Primary Pattern'] || uc['Agentic Pattern'] || uc.agenticPattern || '';
+            const altPattern =
+              uc['Alternative Pattern'] || '';
+            const epochFlags =
+              uc['EPOCH Flags'] || '';
+            const rationale =
+              uc['Pattern Rationale'] || uc.patternRationale || '';
+            const hitl =
+              uc['Human-in-the-Loop Checkpoint'] ||
+              uc.humanInTheLoopCheckpoint ||
+              uc.hitlCheckpoint ||
+              '';
+            const func = uc['Function'] || uc.function || uc.department || '';
+            const outcomesRaw =
+              uc['Desired Outcomes'] || uc.desiredOutcomes || '';
+            const outcomes = parseList(outcomesRaw);
+            const dataTypesRaw =
+              uc['Data Types'] || uc.dataTypes || '';
+            const dataTypes = parseList(dataTypesRaw);
+            const integrationsRaw =
+              uc['Integrations'] || uc.integrations || '';
+            const integrations = parseList(integrationsRaw);
+            const singleAgent = isSingleAgent(pattern);
+
+            return (
+              <View key={idx} style={cardStyles.card} wrap={false}>
+                {/* Header row: ID, Name, Pattern badge, Function badge */}
+                <View style={cardStyles.cardHeaderRow}>
+                  <Text style={cardStyles.ucId}>{ucId}</Text>
+                  <Text style={cardStyles.ucName}>{ucName}</Text>
+                  {pattern !== '' && (
+                    <View
+                      style={[
+                        cardStyles.badgeBase,
+                        singleAgent
+                          ? cardStyles.badgeNavy
+                          : cardStyles.badgeBlue,
+                      ]}
+                    >
+                      <Text style={cardStyles.badgeText}>{pattern}</Text>
+                    </View>
+                  )}
+                  {func !== '' && (
+                    <View
+                      style={[cardStyles.badgeBase, cardStyles.badgeFunction]}
+                    >
+                      <Text style={cardStyles.badgeFunctionText}>{func}</Text>
+                    </View>
+                  )}
+                </View>
+
+                {/* Description */}
+                {description !== '' && (
+                  <Text style={cardStyles.description}>{description}</Text>
+                )}
+
+                {/* Target Friction */}
+                {friction !== '' && (
+                  <View style={cardStyles.fieldRow}>
+                    <Text style={cardStyles.fieldLabel}>Target Friction</Text>
+                    <Text style={cardStyles.fieldValue}>{friction}</Text>
+                  </View>
+                )}
+
+                {/* AI Primitives chips */}
+                {primitives.length > 0 && (
+                  <View style={cardStyles.fieldRow}>
+                    <Text style={cardStyles.fieldLabel}>AI Primitives</Text>
+                    <View style={cardStyles.chipsRow}>
+                      {primitives.map((p: string, pi: number) => (
+                        <View key={pi} style={cardStyles.chip}>
+                          <Text style={cardStyles.chipText}>{p}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                )}
+
+                {/* Agentic Pattern Analysis */}
+                {(pattern !== '' || altPattern !== '') && (
+                  <View style={cardStyles.fieldRow}>
+                    <Text style={cardStyles.fieldLabel}>Agentic Pattern Analysis</Text>
+                    <View style={{ flexDirection: 'row', gap: 12, marginTop: 2 }}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 7, color: '#94a3b8', fontWeight: 600, marginBottom: 2 }}>PRIMARY</Text>
+                        <View style={[cardStyles.badgeBase, singleAgent ? cardStyles.badgeNavy : cardStyles.badgeBlue]}>
+                          <Text style={cardStyles.badgeText}>{pattern || 'Not assigned'}</Text>
+                        </View>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 7, color: '#94a3b8', fontWeight: 600, marginBottom: 2 }}>ALTERNATIVE</Text>
+                        <View style={[cardStyles.badgeBase, altPattern ? (isSingleAgent(altPattern) ? cardStyles.badgeNavy : cardStyles.badgeBlue) : cardStyles.badgeFunction]}>
+                          <Text style={altPattern ? cardStyles.badgeText : cardStyles.badgeFunctionText}>{altPattern || 'None'}</Text>
+                        </View>
+                      </View>
+                    </View>
+                    {rationale !== '' && (
+                      <View style={[cardStyles.rationaleBox, { marginTop: 4 }]}>
+                        <Text style={cardStyles.fieldValue}>{rationale}</Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+
+                {/* EPOCH Flags */}
+                {epochFlags !== '' && (() => {
+                  const epochLabelMap: Record<string, string> = { 'E': 'Empathy', 'P': 'Presence', 'O': 'Opinion', 'C': 'Creativity', 'H': 'Hope' };
+                  const validKeys = new Set(['E', 'P', 'O', 'C', 'H']);
+                  const parsedFlags = epochFlags.split(',').map(f => f.trim().charAt(0).toUpperCase()).filter(f => validKeys.has(f));
+                  return parsedFlags.length > 0 ? (
+                    <View style={[cardStyles.fieldRow, { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 4 }]}>
+                      <Text style={{ fontSize: 7, fontWeight: 600, color: '#94a3b8' }}>E.P.O.C.H.:</Text>
+                      {parsedFlags.map((key: string, fi: number) => (
+                        <View key={fi} style={{ backgroundColor: '#f1f5f9', borderRadius: 3, paddingHorizontal: 4, paddingVertical: 1 }}>
+                          <Text style={{ fontSize: 7, color: '#475569' }}>{epochLabelMap[key]}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  ) : null;
+                })()}
+
+                {/* HITL Checkpoint */}
+                {hitl !== '' && (
+                  <View style={cardStyles.fieldRow}>
+                    <Text style={cardStyles.fieldLabel}>
+                      Human-in-the-Loop Checkpoint
+                    </Text>
+                    <View style={cardStyles.hitlBox}>
+                      <Text style={cardStyles.fieldValue}>{hitl}</Text>
+                    </View>
+                  </View>
+                )}
+
+                {/* Desired Outcomes */}
+                {outcomes.length > 0 && (
+                  <View style={cardStyles.fieldRow}>
+                    <Text style={cardStyles.fieldLabel}>Desired Outcomes</Text>
+                    {outcomes.map((o: string, oi: number) => (
+                      <View key={oi} style={cardStyles.outcomeBullet}>
+                        <Text style={cardStyles.outcomeDot}>&#8226;</Text>
+                        <Text style={cardStyles.outcomeText}>{o}</Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {/* Data Types */}
+                {dataTypes.length > 0 && (
+                  <View style={cardStyles.fieldRow}>
+                    <Text style={cardStyles.fieldLabel}>Data Types</Text>
+                    <View style={cardStyles.chipsRow}>
+                      {dataTypes.map((dt: string, di: number) => (
+                        <View key={di} style={[cardStyles.chip, { backgroundColor: '#eff6ff', borderColor: '#bfdbfe' }]}>
+                          <Text style={[cardStyles.chipText, { color: '#1d4ed8' }]}>{dt}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                )}
+
+                {/* Integrations */}
+                {integrations.length > 0 && (
+                  <View style={cardStyles.fieldRow}>
+                    <Text style={cardStyles.fieldLabel}>Integrations</Text>
+                    <View style={cardStyles.chipsRow}>
+                      {integrations.map((intg: string, ii: number) => (
+                        <View key={ii} style={[cardStyles.chip, { backgroundColor: '#f8fafc', borderColor: '#e2e8f0' }]}>
+                          <Text style={[cardStyles.chipText, { color: '#475569' }]}>{intg}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  </View>
+                )}
+              </View>
+            );
+          })}
         </View>
-        
-        {useCases.slice(0, 10).map((uc, idx) => (
-          <View 
-            key={idx} 
-            style={[styles.tableRow, idx % 2 === 1 ? styles.tableRowAlt : {}]}
-          >
-            <Text style={[styles.tableCell, { width: columnWidths[0] }]}>
-              {uc.name || uc.useCase || `Use Case ${idx + 1}`}
-            </Text>
-            <Text style={[styles.tableCell, { width: columnWidths[1] }]}>
-              {uc.department || uc.function || 'General'}
-            </Text>
-            <Text style={[styles.tableCell, styles.tableCellNumber, { width: columnWidths[2] }]}>
-              {formatCurrency(uc.annualImpact || uc.annualValue || 0)}
-            </Text>
-            <Text style={[styles.tableCell, styles.tableCellNumber, { width: columnWidths[3] }]}>
-              {formatPercent(uc.roi || 0)}
-            </Text>
-            <Text style={[styles.tableCell, { width: columnWidths[4] }]}>
-              {uc.tier || uc.priority || 'Medium'}
-            </Text>
-          </View>
-        ))}
-      </View>
+      ))}
     </View>
   );
 }
@@ -439,7 +812,7 @@ export function AssessmentPDF({ data }: { data: ReportData }) {
       
       {data.sections.useCases && data.sections.useCases.length > 0 && (
         <ContentPage companyName={data.company.name}>
-          <UseCasesTable useCases={data.sections.useCases} />
+          <UseCaseCards useCases={data.sections.useCases} />
         </ContentPage>
       )}
     </Document>

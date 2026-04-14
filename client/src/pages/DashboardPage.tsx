@@ -3,12 +3,13 @@ import { useRoute, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import Dashboard from "@/components/Dashboard";
 import { mapReportToDashboardData } from "@/lib/dashboardMapper";
+import { generateProfessionalHTMLReport, generateEditorialHTMLReport } from "@/lib/htmlReportGenerator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { ShareModal } from "@/components/dashboard";
+import { ShareModal } from "@/components/dashboard/share-modal";
 
 export default function DashboardPage() {
   const [, params] = useRoute("/dashboard/:reportId");
@@ -27,11 +28,26 @@ export default function DashboardPage() {
   };
 
   const handleViewHTMLReport = () => {
-    if (!reportId) return;
-    window.open(`/reports/${reportId}/html`, '_blank');
+    if (!report) return;
+    const cName = report.companyName || 'Company';
+    const html = generateProfessionalHTMLReport(report, cName);
+    const blob = new Blob([html], { type: 'text/html' });
+    window.open(URL.createObjectURL(blob), '_blank');
     toast({
-      title: "Opening HTML Report",
-      description: "The detailed HTML report is opening in a new tab.",
+      title: "Opening Boardroom Report",
+      description: "The data-dense Boardroom report is opening in a new tab.",
+    });
+  };
+
+  const handleViewEditorialReport = () => {
+    if (!report) return;
+    const cName = report.companyName || 'Company';
+    const html = generateEditorialHTMLReport(report, cName);
+    const blob = new Blob([html], { type: 'text/html' });
+    window.open(URL.createObjectURL(blob), '_blank');
+    toast({
+      title: "Opening Editorial Report",
+      description: "The narrative-led Editorial report is opening in a new tab.",
     });
   };
 
@@ -96,6 +112,7 @@ export default function DashboardPage() {
         onShareUrl={handleShareUrl}
         onDownloadWorkshopPDF={handleDownloadWorkshopPDF}
         onViewHTMLReport={handleViewHTMLReport}
+        onViewEditorialReport={handleViewEditorialReport}
       />
       <ShareModal
         open={showShareModal}
