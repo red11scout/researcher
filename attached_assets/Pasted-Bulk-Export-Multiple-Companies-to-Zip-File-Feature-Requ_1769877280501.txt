@@ -1,0 +1,190 @@
+Bulk Export Multiple Companies to Zip File
+Feature Request: Multi-Company Bulk Export with Multiple Format Options
+I need to export the same type of report for multiple companies at once from the Saved Reports screen, with all reports compiled into a single zip file download.
+Requirements:
+
+Multi-Select UI (shares infrastructure with Bulk Update)
+
+Same checkbox system as bulk update feature
+Same select all / select by group functionality
+Support selecting up to 100 companies maximum
+Show warning when approaching limit: "98/100 companies selected"
+
+
+Export Configuration Modal
+When "Export Selected" is clicked, show a modal with options:
+Report Format Selection:
+
+Word Document (.docx)
+PDF (.pdf)
+Excel Spreadsheet (.xlsx)
+Markdown (.md)
+JSON (.json)
+
+Allow selecting only ONE format per export (all reports in zip will be same format)
+Report Type Selection:
+
+Company Overview (default)
+Financial Summary
+Competitive Analysis
+Full Research Report
+Custom Template (if user has saved templates)
+
+File Naming Convention:
+
+Default: {company_name}_{report_type}_{date}.{ext}
+Option to customize: prefix, include investor group, date format
+
+Export Preview:
+
+Show list of companies to be exported
+Show estimated file count and approximate zip size
+"Export X reports as .docx files"
+
+
+Export Processing
+
+Generate reports sequentially to manage memory
+Show progress modal:
+
+"Generating report X of Y: [Company Name]"
+Progress bar
+Cancel button
+
+
+Create zip file on server as reports are generated
+Stream download when complete (don't hold entire zip in memory)
+
+
+Zip File Structure:
+export_2026-01-31.zip
+   ├── AEA/
+   │   ├── Company_A_overview_2026-01-31.docx
+   │   ├── Company_B_overview_2026-01-31.docx
+   │   └── ...
+   ├── StonePeak/
+   │   ├── Company_X_overview_2026-01-31.docx
+   │   └── ...
+   └── export_manifest.json  (metadata about export)
+
+Export Manifest (export_manifest.json):
+{
+     "exportDate": "2026-01-31T14:30:00Z",
+     "totalCompanies": 71,
+     "reportType": "Company Overview",
+     "format": "docx",
+     "companies": [
+       {
+         "name": "Company A",
+         "group": "AEA",
+         "filename": "AEA/Company_A_overview_2026-01-31.docx",
+         "generatedAt": "2026-01-31T14:30:05Z",
+         "lastResearchUpdate": "2026-01-15T10:00:00Z"
+       }
+     ],
+     "failed": []
+   }
+Error Handling:
+
+If a report fails to generate, include error in manifest and continue
+At completion, show summary with any failures
+Option to retry failed reports or download partial zip
+Include placeholder file for failed reports: {company}_FAILED.txt with error details
+
+
+Format-Specific Considerations:
+Word (.docx):
+
+Use company branding/logo if available
+Include table of contents for full reports
+Professional formatting with headers/footers
+
+PDF (.pdf):
+
+Generated from same template as Word
+Include bookmarks for navigation
+Optimized for printing
+
+Excel (.xlsx):
+
+Structured data in tabular format
+Multiple sheets: Summary, Financials, Competitors, etc.
+Include company logo in header
+Formatted for analysis
+
+Markdown (.md):
+
+Clean, readable format
+Good for import into other systems
+Include YAML frontmatter with metadata
+
+JSON (.json):
+
+Complete structured data export
+Includes all research data fields
+Schema-documented format
+Good for programmatic access
+
+
+Performance Optimizations:
+
+Queue large exports (>20 companies) as background jobs
+Allow user to receive email notification when export is ready
+Cache recently generated reports to speed up repeat exports
+Set timeout per report generation (30 seconds max)
+Memory limit per export job
+
+
+Download Management:
+
+Generate unique download link valid for 24 hours
+Store export in temporary storage
+Clean up expired exports automatically
+Show download history in user profile
+
+
+
+Database Schema Additions:
+bulk_exports:
+  - id (uuid)
+  - user_id
+  - company_ids (array)
+  - report_type
+  - format
+  - status (enum: pending, generating, ready, expired, failed)
+  - progress (int, 0-100)
+  - file_path
+  - file_size
+  - download_url
+  - expires_at
+  - created_at
+  - manifest (jsonb)
+
+API Endpoints Needed:
+
+POST /api/bulk-export/start - Initiate export job
+GET /api/bulk-export/status/:jobId - Check export progress
+GET /api/bulk-export/download/:jobId - Download zip file
+POST /api/bulk-export/cancel/:jobId - Cancel export
+GET /api/bulk-export/history - List user's export history
+
+
+Implementation Notes
+Shared Components:
+Both features share the multi-select infrastructure. Build the selection system first, then add the specific actions.
+Recommended Implementation Order:
+
+Multi-select checkbox UI with select all/group functionality
+Floating action bar component
+Bulk update feature (simpler, good for testing selection logic)
+Bulk export feature (more complex with format options)
+
+State Management:
+Consider using React context or Zustand to manage selected companies state, as it needs to persist across component rerenders and be accessible from multiple UI elements.
+Testing:
+
+Test with large selections (100 companies)
+Test cancellation mid-process
+Test network failures during bulk operations
+Test concurrent bulk operations from same user
+

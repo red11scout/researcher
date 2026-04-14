@@ -1,0 +1,207 @@
+// prisma/schema.prisma
+// NOTE: Adjust provider/url for your environment (Postgres in prod, SQLite in dev).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ReportStatus {
+  draft
+  generated
+  reviewed
+}
+
+enum AssumptionScope {
+  global
+  kpi
+  friction
+  usecase
+}
+
+enum Severity {
+  Critical
+  High
+  Medium
+  Low
+}
+
+enum Driver {
+  GrowRevenue
+  ReduceCost
+  IncreaseCashFlow
+  ReduceRisk
+}
+
+model Company {
+  id          String   @id @default(cuid())
+  name        String
+  industry    String?
+  description String?
+  metadata    Json     @default("{}")
+  reports     Report[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Report {
+  id              String   @id @default(cuid())
+  companyId        String
+  company          Company  @relation(fields: [companyId], references: [id])
+  title            String
+  status           ReportStatus @default(draft)
+  reportType       String   @default("full")
+  templateVersion  String   @default("v2")
+  llmModel         String?
+  assumptions      Assumption[]
+  kpis             KPI[]
+  frictionPoints   FrictionPoint[]
+  useCases         UseCase[]
+  results          CalculationResult[]
+  narratives       NarrativeSection[]
+  auditLogs        AuditLog[]
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+model Assumption {
+  id                String   @id @default(cuid())
+  reportId           String
+  report             Report   @relation(fields: [reportId], references: [id])
+  scope              AssumptionScope
+  key                String
+  label              String
+  description        String?
+  unit               String?
+  category           String?
+  valueNumber        Float?
+  valueText          String?
+  defaultValueNumber Float?
+  defaultValueText   String?
+  min                Float?
+  max                Float?
+  source             String   @default("default")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([reportId, key])
+  @@index([reportId, scope])
+}
+
+model KPI {
+  id               String   @id @default(cuid())
+  reportId          String
+  report            Report   @relation(fields: [reportId], references: [id])
+  function          String
+  subFunction       String?
+  name              String
+  direction         String
+  timeframe         String?
+  baselineValue     String?
+  targetValue       String?
+  benchmarkValue    String?
+  measurementMethod String?
+}
+
+model FrictionPoint {
+  id               String   @id @default(cuid())
+  reportId          String
+  report            Report   @relation(fields: [reportId], references: [id])
+  function          String
+  subFunction       String?
+  severity          Severity
+  descriptionMd     String
+  primaryDriver     Driver
+  annualHours       Float?
+  inputAnnualCost   Float?
+  computedAnnualCost Float?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  useCases          UseCase[]
+}
+
+model UseCase {
+  id                  String   @id @default(cuid())
+  reportId             String
+  report               Report   @relation(fields: [reportId], references: [id])
+  code                String
+  function            String
+  subFunction         String?
+  name                String
+  descriptionMd       String
+  aiPrimitives        String?
+  targetFrictionId    String?
+  targetFriction      FrictionPoint? @relation(fields: [targetFrictionId], references: [id])
+  humanCheckpoint     String?
+  runsPerMonth        Int?
+  inputTokensPerRun   Int?
+  outputTokensPerRun  Int?
+  dataReadiness       Int?
+  integrationComplexity Int?
+  changeMgmt          Int?
+
+  results             CalculationResult[]
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@unique([reportId, code])
+  @@index([reportId])
+}
+
+model CalculationResult {
+  id                 String  @id @default(cuid())
+  reportId            String
+  report              Report  @relation(fields: [reportId], references: [id])
+  useCaseId           String?
+  useCase             UseCase? @relation(fields: [useCaseId], references: [id])
+  costBenefit         Float   @default(0)
+  revenueBenefit      Float   @default(0)
+  cashFlowBenefit     Float   @default(0)
+  riskBenefit         Float   @default(0)
+  totalAnnualValue    Float   @default(0)
+  monthlyTokens       Float   @default(0)
+  annualTokenCost     Float   @default(0)
+  valuePerMillionTokens Float @default(0)
+  valueScore          Float   @default(0)
+  ttvScore            Float   @default(0)
+  effortScore         Float   @default(0)
+  priorityScore       Float   @default(0)
+  formulaTrace        Json    @default("{}")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([reportId])
+}
+
+model NarrativeSection {
+  id              String   @id @default(cuid())
+  reportId         String
+  report           Report   @relation(fields: [reportId], references: [id])
+  sectionKey       String
+  markdown         String
+  renderedMarkdown String?
+  validationFlags  Json     @default("{}")
+  lastGeneratedAt  DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([reportId, sectionKey])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  reportId   String
+  report     Report   @relation(fields: [reportId], references: [id])
+  actor     String   @default("user")
+  action    String
+  before    Json?
+  after     Json?
+  createdAt DateTime @default(now())
+
+  @@index([reportId])
+}

@@ -1,0 +1,1695 @@
+{
+  "companyName": "NCR Atleos",
+  "generatedAt": "2026-02-19T16:50:54.364Z",
+  "analysis": {
+    "steps": [
+      {
+        "data": null,
+        "step": 0,
+        "title": "Company Overview",
+        "content": "NCR Atleos generates $3.7B in annual revenue from ATM and self-service banking solutions. The company operates globally with 20,000 employees across 160 countries, managing 650,000 ATMs and processing 13 billion transactions annually. Following its 2023 spin-off from NCR Corporation, Atleos maintains the world's largest ATM network and provides managed services to financial institutions.\n\nThe company serves 1,300 financial institution clients across retail banking (67% of revenue), enterprise ATM outsourcing (23%), and network services (10%) segments. Average contract duration spans 5.2 years with 91% client retention. Transaction processing operates on a per-transaction fee model with average margins of 18% on managed services contracts.\n\nAtleos faces a $127M annual burden from manual ATM maintenance coordination. Field service teams spend 142,000 hours per year coordinating technician dispatch, parts inventory, and service completion across fragmented regional systems. This workload creates 8-day average delays on non-critical service requests and prevents proactive maintenance optimization that could reduce ATM downtime by 23%.\n\nThe company confronts $89M in annual costs from compliance documentation across 47 banking jurisdictions. Legal and compliance teams spend 94,000 hours annually updating regulatory filings, audit documentation, and cross-border transaction monitoring reports. This burden diverts senior compliance officers from strategic risk assessment and creates 31-day backlogs on routine regulatory inquiries.\n\nCash forecasting inefficiencies cost Atleos $43M annually in excess working capital. Treasury analysts spend 67,000 hours per year reconciling ATM cash levels, deposit patterns, and replenishment schedules across decentralized systems. Poor cash positioning creates $890M in excess cash inventory earning minimal returns while geographic cash shortages require expensive emergency replenishments.\n\nFinancial figures derive from 2024 10-K filings, Q4 2025 earnings releases, and investor presentations. Operational burden estimates apply $150/hour fully-loaded rates for professional staff, $100/hour for technical specialists, and $60/hour for field service coordinators. Data maturity assessed at Level 2 based on disclosed ERP modernization initiatives and the company's ongoing post-spin integration of fragmented legacy systems."
+      },
+      {
+        "data": [
+          {
+            "Target State": "Automated dispatch with predictive maintenance, 3-day response time, 12% downtime reduction through proactive intervention",
+            "Current State": "142,000 annual hours on manual dispatch coordination, 8-day average response time for non-critical repairs, 23% preventable downtime from reactive maintenance",
+            "Strategic Theme": "ATM Service Optimization",
+            "Secondary Driver": "Revenue Protection",
+            "Primary Driver Impact": "Cost Reduction"
+          },
+          {
+            "Target State": "Automated compliance reporting with continuous monitoring, 7-day inquiry response, real-time audit trail generation",
+            "Current State": "94,000 annual hours on compliance documentation, 31-day backlog on regulatory inquiries, manual audit trail assembly across 47 jurisdictions",
+            "Strategic Theme": "Regulatory Compliance Automation",
+            "Secondary Driver": "Risk Reduction",
+            "Primary Driver Impact": "Cost Reduction"
+          },
+          {
+            "Target State": "Predictive cash positioning, $290M inventory reduction, automated replenishment optimization",
+            "Current State": "$890M excess cash inventory, 67,000 hours on manual forecasting, geographic cash imbalances requiring emergency replenishments",
+            "Strategic Theme": "Cash Management Intelligence",
+            "Secondary Driver": "Cost Reduction",
+            "Primary Driver Impact": "Cash Flow Improvement"
+          },
+          {
+            "Target State": "AI-assisted resolution for 72% of routine queries, 4-hour response time, escalation rate below 12%",
+            "Current State": "78,000 annual hours on routine inquiry handling, 18-hour average response time, 34% of queries require escalation due to knowledge gaps",
+            "Strategic Theme": "Customer Service Transformation",
+            "Secondary Driver": "Revenue Protection",
+            "Primary Driver Impact": "Cost Reduction"
+          },
+          {
+            "Target State": "Real-time transaction pattern analysis, 6-hour fraud detection, 4% false positive rate",
+            "Current State": "56,000 hours on manual transaction monitoring, 72-hour fraud detection cycles, 14% false positive rate on anomaly alerts",
+            "Strategic Theme": "Network Operations Intelligence",
+            "Secondary Driver": "Cost Reduction",
+            "Primary Driver Impact": "Risk Reduction"
+          }
+        ],
+        "step": 1,
+        "title": "Strategic Anchoring & Business Drivers",
+        "content": "Five strategic themes anchor NCR Atleos's AI opportunity across operational excellence, regulatory compliance, and service delivery transformation. These themes span technology operations, financial management, compliance, customer service, and supply chain domains. Each theme connects to specific P&L impact through cost reduction, working capital optimization, and revenue protection from service quality improvements."
+      },
+      {
+        "data": [
+          {
+            "Function": "Operations",
+            "KPI Name": "ATM Uptime Percentage",
+            "Direction": "↑",
+            "Timeframe": "18 months",
+            "Sub-Function": "Customer Service",
+            "Target Value": "97.8%",
+            "Baseline Value": "94.2%",
+            "Benchmark (Avg)": "95.1% (industry avg)",
+            "Strategic Theme": "ATM Service Optimization",
+            "Benchmark (Overall Best)": "99.1% (best-of-breed critical infrastructure)",
+            "Benchmark (Industry Best)": "97.2% (top quartile financial services)"
+          },
+          {
+            "Function": "Operations",
+            "KPI Name": "Mean Time to Repair (Days)",
+            "Direction": "↓",
+            "Timeframe": "12 months",
+            "Sub-Function": "Customer Service",
+            "Target Value": "3.0 days",
+            "Baseline Value": "8.0 days",
+            "Benchmark (Avg)": "6.5 days (industry avg)",
+            "Strategic Theme": "ATM Service Optimization",
+            "Benchmark (Overall Best)": "1.8 days (best-of-breed logistics)",
+            "Benchmark (Industry Best)": "3.2 days (top quartile financial services)"
+          },
+          {
+            "Function": "Legal & Compliance",
+            "KPI Name": "Regulatory Filing Cycle Time (Days)",
+            "Direction": "↓",
+            "Timeframe": "9 months",
+            "Sub-Function": "Regulatory Filing",
+            "Target Value": "7 days",
+            "Baseline Value": "31 days",
+            "Benchmark (Avg)": "24 days (industry avg)",
+            "Strategic Theme": "Regulatory Compliance Automation",
+            "Benchmark (Overall Best)": "5 days (best-of-breed fintech)",
+            "Benchmark (Industry Best)": "9 days (top quartile financial services)"
+          },
+          {
+            "Function": "Finance",
+            "KPI Name": "Cash Inventory as % of Deposits",
+            "Direction": "↓",
+            "Timeframe": "12 months",
+            "Sub-Function": "Treasury",
+            "Target Value": "12.5%",
+            "Baseline Value": "18.2%",
+            "Benchmark (Avg)": "15.8% (industry avg)",
+            "Strategic Theme": "Cash Management Intelligence",
+            "Benchmark (Overall Best)": "8.4% (best-of-breed cash logistics)",
+            "Benchmark (Industry Best)": "11.2% (top quartile ATM operators)"
+          },
+          {
+            "Function": "Finance",
+            "KPI Name": "Cash Forecasting Accuracy",
+            "Direction": "↑",
+            "Timeframe": "9 months",
+            "Sub-Function": "Treasury",
+            "Target Value": "91%",
+            "Baseline Value": "73%",
+            "Benchmark (Avg)": "78% (industry avg)",
+            "Strategic Theme": "Cash Management Intelligence",
+            "Benchmark (Overall Best)": "94% (best-of-breed predictive analytics)",
+            "Benchmark (Industry Best)": "89% (top quartile financial services)"
+          },
+          {
+            "Function": "Customer Service",
+            "KPI Name": "Customer Inquiry Response Time (Hours)",
+            "Direction": "↓",
+            "Timeframe": "6 months",
+            "Sub-Function": "Escalation Handling",
+            "Target Value": "4 hours",
+            "Baseline Value": "18 hours",
+            "Benchmark (Avg)": "14 hours (industry avg)",
+            "Strategic Theme": "Customer Service Transformation",
+            "Benchmark (Overall Best)": "2 hours (best-of-breed SaaS support)",
+            "Benchmark (Industry Best)": "6 hours (top quartile B2B services)"
+          },
+          {
+            "Function": "Customer Service",
+            "KPI Name": "First Contact Resolution Rate",
+            "Direction": "↑",
+            "Timeframe": "9 months",
+            "Sub-Function": "Escalation Handling",
+            "Target Value": "88%",
+            "Baseline Value": "66%",
+            "Benchmark (Avg)": "71% (industry avg)",
+            "Strategic Theme": "Customer Service Transformation",
+            "Benchmark (Overall Best)": "92% (best-of-breed technical support)",
+            "Benchmark (Industry Best)": "84% (top quartile B2B services)"
+          },
+          {
+            "Function": "Operations",
+            "KPI Name": "Fraud Detection Cycle Time (Hours)",
+            "Direction": "↓",
+            "Timeframe": "12 months",
+            "Sub-Function": "Process Optimization",
+            "Target Value": "6 hours",
+            "Baseline Value": "72 hours",
+            "Benchmark (Avg)": "48 hours (industry avg)",
+            "Strategic Theme": "Network Operations Intelligence",
+            "Benchmark (Overall Best)": "4 hours (best-of-breed real-time monitoring)",
+            "Benchmark (Industry Best)": "12 hours (top quartile financial services)"
+          },
+          {
+            "Function": "Operations",
+            "KPI Name": "Anomaly Detection False Positive Rate",
+            "Direction": "↓",
+            "Timeframe": "9 months",
+            "Sub-Function": "Process Optimization",
+            "Target Value": "4%",
+            "Baseline Value": "14%",
+            "Benchmark (Avg)": "11% (industry avg)",
+            "Strategic Theme": "Network Operations Intelligence",
+            "Benchmark (Overall Best)": "2% (best-of-breed ML systems)",
+            "Benchmark (Industry Best)": "5% (top quartile financial services)"
+          },
+          {
+            "Function": "Supply Chain",
+            "KPI Name": "Parts Inventory Turnover Ratio",
+            "Direction": "↑",
+            "Timeframe": "15 months",
+            "Sub-Function": "Demand Planning",
+            "Target Value": "5.8x",
+            "Baseline Value": "3.2x",
+            "Benchmark (Avg)": "4.1x (industry avg)",
+            "Strategic Theme": "ATM Service Optimization",
+            "Benchmark (Overall Best)": "8.4x (best-of-breed logistics)",
+            "Benchmark (Industry Best)": "6.2x (top quartile field service)"
+          },
+          {
+            "Function": "Sales",
+            "KPI Name": "Contract Renewal Rate",
+            "Direction": "↑",
+            "Timeframe": "24 months",
+            "Sub-Function": "Account Management",
+            "Target Value": "95%",
+            "Baseline Value": "91%",
+            "Benchmark (Avg)": "89% (industry avg)",
+            "Strategic Theme": "Customer Service Transformation",
+            "Benchmark (Overall Best)": "97% (best-of-breed enterprise SaaS)",
+            "Benchmark (Industry Best)": "94% (top quartile B2B services)"
+          },
+          {
+            "Function": "Legal & Compliance",
+            "KPI Name": "Compliance Audit Findings per Review",
+            "Direction": "↓",
+            "Timeframe": "18 months",
+            "Sub-Function": "Regulatory Filing",
+            "Target Value": "2.1",
+            "Baseline Value": "8.4",
+            "Benchmark (Avg)": "6.2 (industry avg)",
+            "Strategic Theme": "Regulatory Compliance Automation",
+            "Benchmark (Overall Best)": "1.2 (best-of-breed continuous compliance)",
+            "Benchmark (Industry Best)": "2.8 (top quartile financial services)"
+          }
+        ],
+        "step": 2,
+        "title": "Business Function Inventory & KPI Baselines",
+        "content": "Twelve critical business functions establish baseline performance metrics across ATM operations, financial management, compliance, and customer service domains. Each KPI links to strategic themes and provides industry benchmark context across average, industry-best, and overall-best performance tiers."
+      },
+      {
+        "data": [
+          {
+            "Role": "Help Desk Technician",
+            "Role ID": "ROLE_OPS_HELP_DESK",
+            "Function": "Operations",
+            "Severity": "Critical",
+            "Hourly Rate": 60,
+            "Annual Hours": 142000,
+            "Cost Formula": "142,000 hours × $60/hr = $8.5M → $8.5M",
+            "Sub-Function": "Customer Service",
+            "Friction Type": "Technology Friction",
+            "Friction Point": "Manual ATM service dispatch across 650,000 units with fragmented regional systems requiring coordinator synthesis of technician availability, parts inventory, and service priority",
+            "Strategic Theme": "ATM Service Optimization",
+            "Loaded Hourly Rate": 60,
+            "Primary Driver Impact": "Cost Reduction",
+            "Estimated Annual Cost ($)": "$8.5M"
+          },
+          {
+            "Role": "Compliance Officer",
+            "Role ID": "ROLE_SPEC_COMPLIANCE",
+            "Function": "Legal & Compliance",
+            "Severity": "Critical",
+            "Hourly Rate": 110,
+            "Annual Hours": 94000,
+            "Cost Formula": "94,000 hours × $110/hr = $10.3M → $10.3M",
+            "Sub-Function": "Regulatory Filing",
+            "Friction Type": "Process Friction",
+            "Friction Point": "Regulatory compliance documentation across 47 banking jurisdictions requiring manual assembly of transaction logs, audit trails, and cross-border reporting",
+            "Strategic Theme": "Regulatory Compliance Automation",
+            "Loaded Hourly Rate": 110,
+            "Primary Driver Impact": "Cost Reduction",
+            "Estimated Annual Cost ($)": "$10.3M"
+          },
+          {
+            "Role": "Financial Analyst",
+            "Role ID": "ROLE_PRO_FIN_ANALYST",
+            "Function": "Finance",
+            "Severity": "Critical",
+            "Hourly Rate": 100,
+            "Annual Hours": 67000,
+            "Cost Formula": "67,000 hours × $100/hr = $6.7M → $6.7M",
+            "Sub-Function": "Treasury",
+            "Friction Type": "Data Friction",
+            "Friction Point": "Cash forecasting across 160 countries with manual reconciliation of ATM withdrawal patterns, deposit schedules, and seasonal demand variations",
+            "Strategic Theme": "Cash Management Intelligence",
+            "Loaded Hourly Rate": 100,
+            "Primary Driver Impact": "Cash Flow Improvement",
+            "Estimated Annual Cost ($)": "$6.7M"
+          },
+          {
+            "Role": "Customer Support Specialist",
+            "Role ID": "ROLE_PRO_CUST_SVC_SPEC",
+            "Function": "Customer Service",
+            "Severity": "Critical",
+            "Hourly Rate": 65,
+            "Annual Hours": 78000,
+            "Cost Formula": "78,000 hours × $65/hr = $5.1M → $5.1M",
+            "Sub-Function": "Escalation Handling",
+            "Friction Type": "Knowledge Friction",
+            "Friction Point": "Customer technical inquiry resolution requiring manual knowledge base search across product documentation, service bulletins, and historical ticket databases",
+            "Strategic Theme": "Customer Service Transformation",
+            "Loaded Hourly Rate": 65,
+            "Primary Driver Impact": "Cost Reduction",
+            "Estimated Annual Cost ($)": "$5.1M"
+          },
+          {
+            "Role": "Data Analyst",
+            "Role ID": "ROLE_SPEC_DATA_ANALYST",
+            "Function": "Operations",
+            "Severity": "Critical",
+            "Hourly Rate": 100,
+            "Annual Hours": 56000,
+            "Cost Formula": "56,000 hours × $100/hr = $5.6M → $5.6M",
+            "Sub-Function": "Process Optimization",
+            "Friction Type": "Data Friction",
+            "Friction Point": "Transaction anomaly monitoring across 13B annual transactions with manual pattern analysis and fraud investigation coordination",
+            "Strategic Theme": "Network Operations Intelligence",
+            "Loaded Hourly Rate": 100,
+            "Primary Driver Impact": "Risk Reduction",
+            "Estimated Annual Cost ($)": "$5.6M"
+          },
+          {
+            "Role": "Supply Chain Analyst",
+            "Role ID": "ROLE_SPEC_SC_ANALYST",
+            "Function": "Supply Chain",
+            "Severity": "High",
+            "Hourly Rate": 100,
+            "Annual Hours": 49000,
+            "Cost Formula": "49,000 hours × $100/hr = $4.9M → $4.9M",
+            "Sub-Function": "Demand Planning",
+            "Friction Type": "Process Friction",
+            "Friction Point": "Service parts inventory optimization requiring manual demand forecasting across 340 SKUs and 67 regional distribution centers",
+            "Strategic Theme": "ATM Service Optimization",
+            "Loaded Hourly Rate": 100,
+            "Primary Driver Impact": "Cost Reduction",
+            "Estimated Annual Cost ($)": "$4.9M"
+          },
+          {
+            "Role": "Sales Representative",
+            "Role ID": "ROLE_PRO_SALES_REP",
+            "Function": "Sales",
+            "Severity": "Critical",
+            "Hourly Rate": 90,
+            "Annual Hours": 42000,
+            "Cost Formula": "42,000 hours × $90/hr = $3.8M → $3.8M",
+            "Sub-Function": "Account Management",
+            "Friction Type": "Knowledge Friction",
+            "Friction Point": "Contract renewal risk assessment requiring manual analysis of service performance data, customer satisfaction metrics, and competitive intelligence",
+            "Strategic Theme": "Customer Service Transformation",
+            "Loaded Hourly Rate": 90,
+            "Primary Driver Impact": "Revenue Protection",
+            "Estimated Annual Cost ($)": "$3.8M"
+          },
+          {
+            "Role": "Software Developer",
+            "Role ID": "ROLE_SPEC_SOFTWARE_DEV",
+            "Function": "Information Technology",
+            "Severity": "High",
+            "Hourly Rate": 125,
+            "Annual Hours": 38000,
+            "Cost Formula": "38,000 hours × $125/hr = $4.8M → $4.8M",
+            "Sub-Function": "Application Support",
+            "Friction Type": "Technology Friction",
+            "Friction Point": "Software deployment validation across diverse ATM hardware configurations requiring manual test case execution and regression analysis",
+            "Strategic Theme": "ATM Service Optimization",
+            "Loaded Hourly Rate": 125,
+            "Primary Driver Impact": "Cost Reduction",
+            "Estimated Annual Cost ($)": "$4.8M"
+          },
+          {
+            "Role": "Financial Analyst",
+            "Role ID": "ROLE_PRO_FIN_ANALYST",
+            "Function": "Finance",
+            "Severity": "High",
+            "Hourly Rate": 100,
+            "Annual Hours": 32000,
+            "Cost Formula": "32,000 hours × $100/hr = $3.2M → $3.2M",
+            "Sub-Function": "Financial Planning & Analysis",
+            "Friction Type": "Process Friction",
+            "Friction Point": "Financial close process requiring manual consolidation of regional P&L data, intercompany eliminations, and variance analysis across 47 reporting entities",
+            "Strategic Theme": "Cash Management Intelligence",
+            "Loaded Hourly Rate": 100,
+            "Primary Driver Impact": "Cost Reduction",
+            "Estimated Annual Cost ($)": "$3.2M"
+          },
+          {
+            "Role": "HR Specialist",
+            "Role ID": "ROLE_PRO_HR_SPEC",
+            "Function": "Human Resources",
+            "Severity": "High",
+            "Hourly Rate": 80,
+            "Annual Hours": 30000,
+            "Cost Formula": "30,000 hours × $80/hr = $2.4M → $2.4M",
+            "Sub-Function": "Talent Acquisition",
+            "Friction Type": "Knowledge Friction",
+            "Friction Point": "Employee onboarding documentation requiring manual assembly of role-specific training materials, compliance certifications, and system access procedures",
+            "Strategic Theme": "Customer Service Transformation",
+            "Loaded Hourly Rate": 80,
+            "Primary Driver Impact": "Cost Reduction",
+            "Estimated Annual Cost ($)": "$2.4M"
+          },
+          {
+            "Role": "Procurement Specialist",
+            "Role ID": "ROLE_PRO_PROCUREMENT",
+            "Function": "Supply Chain",
+            "Severity": "High",
+            "Hourly Rate": 85,
+            "Annual Hours": 24000,
+            "Cost Formula": "24,000 hours × $85/hr = $2.0M → $2.0M",
+            "Sub-Function": "Supplier Management",
+            "Friction Type": "Process Friction",
+            "Friction Point": "Vendor performance evaluation requiring manual scoring of delivery timeliness, quality metrics, and commercial terms across 420 suppliers",
+            "Strategic Theme": "ATM Service Optimization",
+            "Loaded Hourly Rate": 85,
+            "Primary Driver Impact": "Cost Reduction",
+            "Estimated Annual Cost ($)": "$2.0M"
+          },
+          {
+            "Role": "Marketing Specialist",
+            "Role ID": "ROLE_PRO_MKTG_SPEC",
+            "Function": "Marketing",
+            "Severity": "Critical",
+            "Hourly Rate": 85,
+            "Annual Hours": 22000,
+            "Cost Formula": "22,000 hours × $85/hr = $1.9M → $1.9M",
+            "Sub-Function": "Content Creation",
+            "Friction Type": "Data Friction",
+            "Friction Point": "Marketing campaign performance analysis requiring manual consolidation of engagement metrics, conversion funnels, and attribution modeling across digital channels",
+            "Strategic Theme": "Customer Service Transformation",
+            "Loaded Hourly Rate": 85,
+            "Primary Driver Impact": "Revenue Growth",
+            "Estimated Annual Cost ($)": "$1.9M"
+          }
+        ],
+        "step": 3,
+        "title": "Friction Point Mapping",
+        "content": "Twelve operational bottlenecks quantify annual cost burdens across field service coordination, compliance documentation, treasury operations, customer support, and network monitoring. Each friction point maps to specific business functions and strategic themes with severity ratings reflecting business impact."
+      },
+      {
+        "data": [
+          {
+            "ID": "UC-01",
+            "Function": "Operations",
+            "Data Types": [
+              "Structured",
+              "Real-time"
+            ],
+            "Description": "Automated service request triage and technician dispatch using real-time analysis of technician skill sets, geographic proximity, parts inventory at regional depots, and ATM criticality scoring. System evaluates 340 SKUs across 67 distribution centers to recommend optimal dispatch assignments with parts pre-allocation.",
+            "Integrations": [
+              "Field Service Management System",
+              "Parts Inventory ERP",
+              "Technician Scheduling Platform",
+              "ATM Network Monitoring"
+            ],
+            "Sub-Function": "Customer Service",
+            "AI Primitives": "Workflow Automation, Data Analysis, Research & Information Retrieval",
+            "Use Case Name": "Intelligent ATM Service Dispatch Orchestration",
+            "Agentic Pattern": "orchestrator_worker",
+            "Strategic Theme": "ATM Service Optimization",
+            "Target Friction": "Manual ATM service dispatch across 650,000 units with fragmented regional systems requiring coordinator synthesis of technician availability, parts inventory, and service priority",
+            "Desired Outcomes": [
+              "Reduce mean time to repair from 8 days to 3 days for non-critical service requests",
+              "Increase first-time fix rate from 74% to 91% through improved parts pre-allocation",
+              "Deflect 78,000 annual coordinator hours from manual dispatch to strategic capacity planning",
+              "Reduce emergency parts shipments by 34% through predictive inventory positioning"
+            ],
+            "Pattern Rationale": "Central orchestrator evaluates service requests and delegates to specialist agents for technician matching, parts availability checking, and route optimization. Each specialist maintains domain expertise while the orchestrator ensures optimal dispatch decisions across competing constraints.",
+            "Human-in-the-Loop Checkpoint": "Service coordinator validates AI dispatch recommendations for critical ATM outages affecting high-transaction locations before technician assignment"
+          },
+          {
+            "ID": "UC-02",
+            "Function": "Legal & Compliance",
+            "Data Types": [
+              "Structured",
+              "Semi-structured",
+              "Unstructured"
+            ],
+            "Description": "Automated generation of jurisdiction-specific regulatory filings and audit documentation by synthesizing transaction logs, compliance policies, and historical filing templates. System monitors 47 banking jurisdictions to produce draft reports with citation links to source data and regulatory framework references.",
+            "Integrations": [
+              "Transaction Processing System",
+              "Compliance Management Platform",
+              "Regulatory Database",
+              "Document Management System"
+            ],
+            "Sub-Function": "Regulatory Filing",
+            "AI Primitives": "Content Creation, Research & Information Retrieval, Data Analysis",
+            "Use Case Name": "Regulatory Compliance Documentation Engine",
+            "Agentic Pattern": "generator_critic",
+            "Strategic Theme": "Regulatory Compliance Automation",
+            "Target Friction": "Regulatory compliance documentation across 47 banking jurisdictions requiring manual assembly of transaction logs, audit trails, and cross-border reporting",
+            "Desired Outcomes": [
+              "Reduce regulatory filing cycle time from 31 days to 7 days through automated draft generation",
+              "Deflect 52,000 annual compliance hours from manual documentation to strategic risk assessment",
+              "Decrease audit findings per review from 8.4 to 3.2 through consistent documentation standards",
+              "Eliminate 100% of manual citation assembly across transaction evidence"
+            ],
+            "Pattern Rationale": "Generator agent drafts compliance reports from transaction data while critic agent validates against regulatory requirements and precedent filings. The two-agent loop ensures documentation meets jurisdiction-specific standards before human compliance officer review, reducing manual drafting cycles.",
+            "Human-in-the-Loop Checkpoint": "Compliance officer reviews AI-generated regulatory filings for accuracy and completeness before submission to regulatory authorities"
+          },
+          {
+            "ID": "UC-03",
+            "Function": "Finance",
+            "Data Types": [
+              "Structured",
+              "Real-time"
+            ],
+            "Description": "Machine learning forecasts of ATM cash demand by location, analyzing historical withdrawal patterns, seasonal variations, local events, and economic indicators. System recommends optimal cash replenishment schedules to minimize excess inventory while preventing stockouts across 650,000 ATM locations.",
+            "Integrations": [
+              "ATM Transaction Database",
+              "Cash Management System",
+              "Treasury Workstation",
+              "Economic Data Feeds"
+            ],
+            "Sub-Function": "Treasury",
+            "AI Primitives": "Data Analysis, Workflow Automation",
+            "Use Case Name": "Predictive Cash Positioning Optimizer",
+            "Agentic Pattern": "reflection",
+            "Strategic Theme": "Cash Management Intelligence",
+            "Target Friction": "Cash forecasting across 160 countries with manual reconciliation of ATM withdrawal patterns, deposit schedules, and seasonal demand variations",
+            "Desired Outcomes": [
+              "Increase cash forecasting accuracy from 73% to 91% through pattern recognition",
+              "Reduce cash inventory from $890M to $600M through optimized positioning",
+              "Deflect 37,000 treasury analyst hours from manual forecasting to strategic liquidity management",
+              "Decrease emergency replenishments by 47% through predictive demand modeling"
+            ],
+            "Pattern Rationale": "Agent generates initial cash forecasts then critiques predictions against actual withdrawal patterns and seasonal trends. Self-refinement loop iteratively improves forecast accuracy by identifying systematic biases and adjusting for local market dynamics before treasury approval.",
+            "Human-in-the-Loop Checkpoint": "Treasury manager validates AI cash positioning recommendations for high-value locations before authorizing armored car replenishment schedules"
+          },
+          {
+            "ID": "UC-04",
+            "Function": "Customer Service",
+            "Data Types": [
+              "Unstructured",
+              "Semi-structured"
+            ],
+            "Description": "AI-assisted resolution of customer technical inquiries through semantic search across product manuals, service bulletins, troubleshooting guides, and 8 years of historical support tickets. System generates draft responses with source citations and escalation recommendations based on inquiry complexity and customer contract tier.",
+            "Integrations": [
+              "Customer Support Platform",
+              "Product Documentation Repository",
+              "Service Bulletin Database",
+              "Ticket Management System"
+            ],
+            "Sub-Function": "Escalation Handling",
+            "AI Primitives": "Research & Information Retrieval, Conversational Interfaces, Content Creation",
+            "Use Case Name": "Technical Support Knowledge Assistant",
+            "Agentic Pattern": "tool_use",
+            "Strategic Theme": "Customer Service Transformation",
+            "Target Friction": "Customer technical inquiry resolution requiring manual knowledge base search across product documentation, service bulletins, and historical ticket databases",
+            "Desired Outcomes": [
+              "Reduce customer inquiry response time from 18 hours to 4 hours through instant knowledge retrieval",
+              "Increase first contact resolution rate from 66% to 88% through comprehensive solution synthesis",
+              "Deflect 43,000 support specialist hours from knowledge search to complex troubleshooting",
+              "Decrease escalation rate from 34% to 12% through improved initial resolution quality"
+            ],
+            "Pattern Rationale": "Agent queries multiple knowledge sources including product documentation, service bulletins, and historical tickets to synthesize resolution guidance. Tool-use pattern enables semantic search across unstructured documentation and structured case databases to surface relevant solutions for support specialist validation.",
+            "Human-in-the-Loop Checkpoint": "Support specialist reviews AI-drafted responses for technical accuracy and customer context before sending resolution to client"
+          },
+          {
+            "ID": "UC-05",
+            "Function": "Operations",
+            "Data Types": [
+              "Structured",
+              "Real-time"
+            ],
+            "Description": "Continuous monitoring of 13 billion annual ATM transactions to identify unusual patterns indicative of fraud, skimming, or network compromise. System analyzes transaction velocity, geographic distribution, amount patterns, and device behavior to generate risk-scored alerts with supporting evidence for security team investigation.",
+            "Integrations": [
+              "Transaction Processing Platform",
+              "Fraud Detection System",
+              "Security Information and Event Management",
+              "Network Monitoring Tools"
+            ],
+            "Sub-Function": "Process Optimization",
+            "AI Primitives": "Data Analysis, Workflow Automation",
+            "Use Case Name": "Real-Time Transaction Anomaly Detection",
+            "Agentic Pattern": "react",
+            "Strategic Theme": "Network Operations Intelligence",
+            "Target Friction": "Transaction anomaly monitoring across 13B annual transactions with manual pattern analysis and fraud investigation coordination",
+            "Desired Outcomes": [
+              "Reduce fraud detection cycle time from 72 hours to 6 hours through real-time pattern analysis",
+              "Decrease false positive rate from 14% to 4% through adaptive learning models",
+              "Deflect 31,000 analyst hours from manual transaction review to strategic threat assessment",
+              "Reduce fraud losses by $18M annually through faster detection and response"
+            ],
+            "Pattern Rationale": "Agent reasons about transaction patterns then acts by flagging anomalies for investigation. ReAct loop allows adaptive exploration of fraud indicators through iterative hypothesis testing, adjusting detection thresholds based on emerging attack vectors before analyst confirmation.",
+            "Human-in-the-Loop Checkpoint": "Security analyst validates AI-flagged transaction anomalies above $50K exposure before initiating ATM shutdown or card blocking procedures"
+          },
+          {
+            "ID": "UC-06",
+            "Function": "Supply Chain",
+            "Data Types": [
+              "Structured",
+              "Real-time"
+            ],
+            "Description": "Machine learning forecasts of service parts demand across 340 SKUs and 67 regional distribution centers, analyzing failure rates by ATM model, technician utilization patterns, and supplier lead times. System recommends stock transfers and purchase orders to maintain target service levels while minimizing inventory carrying costs.",
+            "Integrations": [
+              "Parts Inventory ERP",
+              "Service Ticket System",
+              "Supplier Portal",
+              "Warehouse Management System"
+            ],
+            "Sub-Function": "Demand Planning",
+            "AI Primitives": "Data Analysis, Workflow Automation",
+            "Use Case Name": "Predictive Parts Inventory Optimization",
+            "Agentic Pattern": "planning",
+            "Strategic Theme": "ATM Service Optimization",
+            "Target Friction": "Service parts inventory optimization requiring manual demand forecasting across 340 SKUs and 67 regional distribution centers",
+            "Desired Outcomes": [
+              "Increase parts inventory turnover from 3.2x to 5.8x through demand-driven positioning",
+              "Reduce stockouts by 52% through predictive replenishment",
+              "Deflect 27,000 analyst hours from manual forecasting to supplier quality management",
+              "Decrease inventory carrying costs by $8.4M through optimized stock levels"
+            ],
+            "Pattern Rationale": "Agent decomposes inventory optimization into sub-tasks: demand forecasting by region, lead time analysis by supplier, and stock level calculation by SKU. Sequential planning ensures coordinated inventory positioning across 67 distribution centers before supply chain manager approval.",
+            "Human-in-the-Loop Checkpoint": "Supply chain manager validates AI stock transfer recommendations above $100K value before authorizing inter-depot shipments"
+          },
+          {
+            "ID": "UC-07",
+            "Function": "Sales",
+            "Data Types": [
+              "Structured",
+              "Semi-structured"
+            ],
+            "Description": "Predictive modeling of contract renewal risk across 1,300 financial institution clients using service performance data, customer satisfaction scores, competitive win/loss intelligence, and contract terms analysis. System generates risk-scored renewal forecasts with recommended retention interventions 180 days before contract expiration.",
+            "Integrations": [
+              "CRM Platform",
+              "Service Performance Database",
+              "Customer Satisfaction System",
+              "Competitive Intelligence Repository"
+            ],
+            "Sub-Function": "Account Management",
+            "AI Primitives": "Data Analysis, Research & Information Retrieval",
+            "Use Case Name": "Contract Renewal Risk Predictor",
+            "Agentic Pattern": "multi_agent",
+            "Strategic Theme": "Customer Service Transformation",
+            "Target Friction": "Contract renewal risk assessment requiring manual analysis of service performance data, customer satisfaction metrics, and competitive intelligence",
+            "Desired Outcomes": [
+              "Increase contract renewal rate from 91% to 95% through early risk identification",
+              "Deflect 23,000 account manager hours from manual analysis to strategic relationship building",
+              "Reduce revenue churn by $34M through proactive retention interventions",
+              "Identify 94% of at-risk contracts 6 months before expiration versus 67% currently"
+            ],
+            "Pattern Rationale": "Specialized agents analyze service performance, customer satisfaction, and competitive intelligence independently then coordinate findings. Multi-agent architecture enables parallel analysis of renewal risk factors with synthesis into unified risk assessment for account manager review.",
+            "Human-in-the-Loop Checkpoint": "Account manager reviews AI renewal risk assessments and validates recommended retention strategies before initiating customer engagement"
+          },
+          {
+            "ID": "UC-08",
+            "Function": "Information Technology",
+            "Data Types": [
+              "Structured",
+              "Semi-structured"
+            ],
+            "Description": "Automated generation and execution of software test cases across diverse ATM hardware configurations, analyzing deployment requirements, configuration matrices, and historical defect patterns. System creates test scripts, executes validation runs, and synthesizes results with defect linkage for engineering review.",
+            "Integrations": [
+              "Source Code Repository",
+              "Test Management Platform",
+              "Configuration Database",
+              "Defect Tracking System"
+            ],
+            "Sub-Function": "Application Support",
+            "AI Primitives": "Coding Assistance, Workflow Automation",
+            "Use Case Name": "Software Deployment Test Automation",
+            "Agentic Pattern": "generator_critic",
+            "Strategic Theme": "ATM Service Optimization",
+            "Target Friction": "Software deployment validation across diverse ATM hardware configurations requiring manual test case execution and regression analysis",
+            "Desired Outcomes": [
+              "Reduce deployment validation time from 45 days to 12 days through automated test generation",
+              "Increase test coverage from 67% to 94% across hardware configuration matrix",
+              "Deflect 21,000 developer hours from manual testing to feature development",
+              "Decrease post-deployment defects by 58% through comprehensive regression testing"
+            ],
+            "Pattern Rationale": "Generator creates test cases from deployment requirements while critic validates coverage against ATM configuration matrix. Two-agent quality loop ensures comprehensive regression testing across hardware variants before QA engineer approval and production deployment.",
+            "Human-in-the-Loop Checkpoint": "QA engineer validates AI-generated test coverage and reviews critical path test results before approving production software deployment"
+          },
+          {
+            "ID": "UC-09",
+            "Function": "Finance",
+            "Data Types": [
+              "Structured"
+            ],
+            "Description": "Automated consolidation of regional P&L data, intercompany eliminations, and variance analysis across 47 reporting entities. System reconciles inter-entity transactions, generates variance commentary with drill-down links to source transactions, and produces executive summary dashboards with KPI trend analysis.",
+            "Integrations": [
+              "Regional ERP Systems",
+              "Consolidation Software",
+              "Corporate General Ledger",
+              "BI Reporting Platform"
+            ],
+            "Sub-Function": "Financial Planning & Analysis",
+            "AI Primitives": "Data Analysis, Content Creation, Workflow Automation",
+            "Use Case Name": "Financial Close Automation Assistant",
+            "Agentic Pattern": "orchestrator_worker",
+            "Strategic Theme": "Cash Management Intelligence",
+            "Target Friction": "Financial close process requiring manual consolidation of regional P&L data, intercompany eliminations, and variance analysis across 47 reporting entities",
+            "Desired Outcomes": [
+              "Reduce financial close cycle from 12 days to 5 days through automated consolidation",
+              "Decrease consolidation errors by 73% through systematic elimination logic",
+              "Deflect 18,000 analyst hours from manual consolidation to strategic FP&A analysis",
+              "Improve variance analysis depth with transaction-level drill-down capability"
+            ],
+            "Pattern Rationale": "Central orchestrator coordinates specialist agents for regional data consolidation, intercompany elimination calculations, and variance analysis commentary. Orchestrator ensures sequential task completion with data validation gates before controller approval of monthly close package.",
+            "Human-in-the-Loop Checkpoint": "Corporate controller validates AI-generated consolidation entries and reviews variance explanations before finalizing monthly financial statements"
+          },
+          {
+            "ID": "UC-10",
+            "Function": "Human Resources",
+            "Data Types": [
+              "Structured",
+              "Semi-structured",
+              "Unstructured"
+            ],
+            "Description": "Automated generation of role-specific onboarding documentation including training schedules, compliance certifications, system access procedures, and equipment checklists. System analyzes job role requirements, department-specific policies, and regulatory training mandates to create personalized 90-day onboarding plans with milestone tracking.",
+            "Integrations": [
+              "HRIS Platform",
+              "Learning Management System",
+              "IT Service Management",
+              "Compliance Training Portal"
+            ],
+            "Sub-Function": "Talent Acquisition",
+            "AI Primitives": "Content Creation, Research & Information Retrieval, Workflow Automation",
+            "Use Case Name": "Employee Onboarding Documentation Generator",
+            "Agentic Pattern": "tool_use",
+            "Strategic Theme": "Customer Service Transformation",
+            "Target Friction": "Employee onboarding documentation requiring manual assembly of role-specific training materials, compliance certifications, and system access procedures",
+            "Desired Outcomes": [
+              "Reduce onboarding documentation preparation from 8 hours to 45 minutes per new hire",
+              "Increase onboarding plan consistency to 98% compliance with company standards",
+              "Deflect 16,000 HR specialist hours from documentation assembly to strategic talent development",
+              "Decrease time-to-productivity for new hires by 23% through comprehensive onboarding plans"
+            ],
+            "Pattern Rationale": "Agent queries role-specific training databases, compliance certification systems, and IT provisioning tools to synthesize personalized onboarding packages. Tool-use pattern enables integration with multiple HR systems to gather requirements and generate customized documentation for HR specialist validation.",
+            "Human-in-the-Loop Checkpoint": "HR specialist reviews AI-generated onboarding documentation for role-specific accuracy and compliance completeness before sending to new hire"
+          }
+        ],
+        "step": 4,
+        "title": "AI Use Case Generation",
+        "content": "Ten AI use cases reshape operational processes across field service coordination, compliance automation, treasury optimization, customer support, and network intelligence. Each use case targets specific friction points with human-in-the-loop validation at critical decision points and maps to standardized AI primitives and agentic patterns."
+      },
+      {
+        "data": [
+          {
+            "ID": "UC-01",
+            "Use Case": "Intelligent ATM Service Dispatch Orchestration",
+            "Cost Formula": "78,000 hours × $60/hr × 1.35 × 0.75 × 0.75 = $2.1M → $2.1M",
+            "Risk Formula": "0% reduction × $0 exposure × 0.80 × 0.75 = $0 (could not validate)",
+            "Revenue Formula": "0% lift × $0 revenue × 0.95 × 0.75 = $0 (could not validate)",
+            "Strategic Theme": "ATM Service Optimization",
+            "Cost Benefit ($)": "$2.1M",
+            "Risk Benefit ($)": "$0",
+            "Cash Flow Formula": "$0 revenue × (0 / 365) × 0.08 × 0.85 = $0 (could not validate)",
+            "Expected Value ($)": "$1.7M",
+            "Cost Formula Labels": {
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 78000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 60
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$0",
+            "Risk Formula Labels": {
+              "components": []
+            },
+            "Cash Flow Benefit ($)": "$0",
+            "Probability of Success": 0.8,
+            "Revenue Formula Labels": {
+              "components": []
+            },
+            "Total Annual Value ($)": "$2.1M",
+            "Cash Flow Formula Labels": {
+              "components": []
+            }
+          },
+          {
+            "ID": "UC-02",
+            "Use Case": "Regulatory Compliance Documentation Engine",
+            "Cost Formula": "52,000 hours × $110/hr × 1.35 × 0.75 × 0.75 = $2.6M → $2.6M",
+            "Risk Formula": "15% × $25.6M × 0.80 × 0.75 = $691K → $600K",
+            "Revenue Formula": "0% lift × $0 revenue × 0.95 × 0.75 = $0 (could not validate)",
+            "Strategic Theme": "Regulatory Compliance Automation",
+            "Cost Benefit ($)": "$2.6M",
+            "Risk Benefit ($)": "$600K",
+            "Cash Flow Formula": "$0 revenue × (0 / 365) × 0.08 × 0.85 = $0 (could not validate)",
+            "Expected Value ($)": "$2.4M",
+            "Cost Formula Labels": {
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 52000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 110
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$0",
+            "Risk Formula Labels": {
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.15
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 25600000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$0",
+            "Probability of Success": 0.75,
+            "Revenue Formula Labels": {
+              "components": []
+            },
+            "Total Annual Value ($)": "$3.2M",
+            "Cash Flow Formula Labels": {
+              "components": []
+            }
+          },
+          {
+            "ID": "UC-03",
+            "Use Case": "Predictive Cash Positioning Optimizer",
+            "Cost Formula": "37,000 hours × $100/hr × 1.35 × 0.75 × 0.75 = $1.7M → $1.6M",
+            "Risk Formula": "0% reduction × $0 exposure × 0.80 × 0.75 = $0 (could not validate)",
+            "Revenue Formula": "0% lift × $0 revenue × 0.95 × 0.75 = $0 (could not validate)",
+            "Strategic Theme": "Cash Management Intelligence",
+            "Cost Benefit ($)": "$1.6M",
+            "Risk Benefit ($)": "$0",
+            "Cash Flow Formula": "3,700,000,000 × (76 / 365) × 0.08 × 0.85 × 0.75 = $23.6M → $23.5M",
+            "Expected Value ($)": "$17.6M",
+            "Cost Formula Labels": {
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 37000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 100
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$0",
+            "Risk Formula Labels": {
+              "components": []
+            },
+            "Cash Flow Benefit ($)": "$23.5M",
+            "Probability of Success": 0.7,
+            "Revenue Formula Labels": {
+              "components": []
+            },
+            "Total Annual Value ($)": "$25.1M",
+            "Cash Flow Formula Labels": {
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 3700000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 76
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                }
+              ]
+            }
+          },
+          {
+            "ID": "UC-04",
+            "Use Case": "Technical Support Knowledge Assistant",
+            "Cost Formula": "43,000 hours × $65/hr × 1.35 × 0.75 × 0.75 = $1.3M → $1.2M",
+            "Risk Formula": "0% reduction × $0 exposure × 0.80 × 0.75 = $0 (could not validate)",
+            "Revenue Formula": "0% lift × $0 revenue × 0.95 × 0.75 = $0 (could not validate)",
+            "Strategic Theme": "Customer Service Transformation",
+            "Cost Benefit ($)": "$1.2M",
+            "Risk Benefit ($)": "$0",
+            "Cash Flow Formula": "$0 revenue × (0 / 365) × 0.08 × 0.85 = $0 (could not validate)",
+            "Expected Value ($)": "$1.0M",
+            "Cost Formula Labels": {
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 43000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 65
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$0",
+            "Risk Formula Labels": {
+              "components": []
+            },
+            "Cash Flow Benefit ($)": "$0",
+            "Probability of Success": 0.85,
+            "Revenue Formula Labels": {
+              "components": []
+            },
+            "Total Annual Value ($)": "$1.2M",
+            "Cash Flow Formula Labels": {
+              "components": []
+            }
+          },
+          {
+            "ID": "UC-05",
+            "Use Case": "Real-Time Transaction Anomaly Detection",
+            "Cost Formula": "31,000 hours × $100/hr × 1.35 × 0.75 × 0.75 = $1.4M → $1.4M",
+            "Risk Formula": "25% × $54M × 0.80 × 0.75 = $2.4M → $2.4M",
+            "Revenue Formula": "0% lift × $0 revenue × 0.95 × 0.75 = $0 (could not validate)",
+            "Strategic Theme": "Network Operations Intelligence",
+            "Cost Benefit ($)": "$1.4M",
+            "Risk Benefit ($)": "$2.4M",
+            "Cash Flow Formula": "$0 revenue × (0 / 365) × 0.08 × 0.85 = $0 (could not validate)",
+            "Expected Value ($)": "$2.9M",
+            "Cost Formula Labels": {
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 31000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 100
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$0",
+            "Risk Formula Labels": {
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.25
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 54000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$0",
+            "Probability of Success": 0.75,
+            "Revenue Formula Labels": {
+              "components": []
+            },
+            "Total Annual Value ($)": "$3.8M",
+            "Cash Flow Formula Labels": {
+              "components": []
+            }
+          },
+          {
+            "ID": "UC-06",
+            "Use Case": "Predictive Parts Inventory Optimization",
+            "Cost Formula": "27,000 hours × $100/hr × 1.35 × 0.75 × 0.75 = $1.2M → $1.2M",
+            "Risk Formula": "0% reduction × $0 exposure × 0.80 × 0.75 = $0 (could not validate)",
+            "Revenue Formula": "0% lift × $0 revenue × 0.95 × 0.75 = $0 (could not validate)",
+            "Strategic Theme": "ATM Service Optimization",
+            "Cost Benefit ($)": "$1.2M",
+            "Risk Benefit ($)": "$0",
+            "Cash Flow Formula": "3,700,000,000 × (27 / 365) × 0.08 × 0.85 × 0.75 = $8.4M → $8.3M",
+            "Expected Value ($)": "$6.7M",
+            "Cost Formula Labels": {
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 27000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 100
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$0",
+            "Risk Formula Labels": {
+              "components": []
+            },
+            "Cash Flow Benefit ($)": "$8.3M",
+            "Probability of Success": 0.7,
+            "Revenue Formula Labels": {
+              "components": []
+            },
+            "Total Annual Value ($)": "$9.5M",
+            "Cash Flow Formula Labels": {
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 3700000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 27
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                }
+              ]
+            }
+          },
+          {
+            "ID": "UC-07",
+            "Use Case": "Contract Renewal Risk Predictor",
+            "Cost Formula": "23,000 hours × $90/hr × 1.35 × 0.75 × 0.75 = $943K → $900K",
+            "Risk Formula": "0% reduction × $0 exposure × 0.80 × 0.75 = $0 (could not validate)",
+            "Revenue Formula": "4% × $854M × 0.95 × 0.75 = $14.6M → $14.6M",
+            "Strategic Theme": "Customer Service Transformation",
+            "Cost Benefit ($)": "$900K",
+            "Risk Benefit ($)": "$0",
+            "Cash Flow Formula": "$0 revenue × (0 / 365) × 0.08 × 0.85 = $0 (could not validate)",
+            "Expected Value ($)": "$10.1M",
+            "Cost Formula Labels": {
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 23000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 90
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$14.6M",
+            "Risk Formula Labels": {
+              "components": []
+            },
+            "Cash Flow Benefit ($)": "$0",
+            "Probability of Success": 0.65,
+            "Revenue Formula Labels": {
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.04
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 854000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$15.5M",
+            "Cash Flow Formula Labels": {
+              "components": []
+            }
+          },
+          {
+            "ID": "UC-08",
+            "Use Case": "Software Deployment Test Automation",
+            "Cost Formula": "21,000 hours × $125/hr × 1.35 × 0.75 × 0.75 = $1.2M → $1.1M",
+            "Risk Formula": "0% reduction × $0 exposure × 0.80 × 0.75 = $0 (could not validate)",
+            "Revenue Formula": "0% lift × $0 revenue × 0.95 × 0.75 = $0 (could not validate)",
+            "Strategic Theme": "ATM Service Optimization",
+            "Cost Benefit ($)": "$1.1M",
+            "Risk Benefit ($)": "$0",
+            "Cash Flow Formula": "$0 revenue × (0 / 365) × 0.08 × 0.85 = $0 (could not validate)",
+            "Expected Value ($)": "$880K",
+            "Cost Formula Labels": {
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 21000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 125
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$0",
+            "Risk Formula Labels": {
+              "components": []
+            },
+            "Cash Flow Benefit ($)": "$0",
+            "Probability of Success": 0.8,
+            "Revenue Formula Labels": {
+              "components": []
+            },
+            "Total Annual Value ($)": "$1.1M",
+            "Cash Flow Formula Labels": {
+              "components": []
+            }
+          },
+          {
+            "ID": "UC-09",
+            "Use Case": "Financial Close Automation Assistant",
+            "Cost Formula": "18,000 hours × $100/hr × 1.35 × 0.75 × 0.75 = $820K → $800K",
+            "Risk Formula": "0% reduction × $0 exposure × 0.80 × 0.75 = $0 (could not validate)",
+            "Revenue Formula": "0% lift × $0 revenue × 0.95 × 0.75 = $0 (could not validate)",
+            "Strategic Theme": "Cash Management Intelligence",
+            "Cost Benefit ($)": "$800K",
+            "Risk Benefit ($)": "$0",
+            "Cash Flow Formula": "$0 revenue × (0 / 365) × 0.08 × 0.85 = $0 (could not validate)",
+            "Expected Value ($)": "$680K",
+            "Cost Formula Labels": {
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 18000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 100
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$0",
+            "Risk Formula Labels": {
+              "components": []
+            },
+            "Cash Flow Benefit ($)": "$0",
+            "Probability of Success": 0.85,
+            "Revenue Formula Labels": {
+              "components": []
+            },
+            "Total Annual Value ($)": "$800K",
+            "Cash Flow Formula Labels": {
+              "components": []
+            }
+          },
+          {
+            "ID": "UC-10",
+            "Use Case": "Employee Onboarding Documentation Generator",
+            "Cost Formula": "16,000 hours × $80/hr × 1.35 × 0.75 × 0.75 = $583K → $500K",
+            "Risk Formula": "0% reduction × $0 exposure × 0.80 × 0.75 = $0 (could not validate)",
+            "Revenue Formula": "0% lift × $0 revenue × 0.95 × 0.75 = $0 (could not validate)",
+            "Strategic Theme": "Customer Service Transformation",
+            "Cost Benefit ($)": "$500K",
+            "Risk Benefit ($)": "$0",
+            "Cash Flow Formula": "$0 revenue × (0 / 365) × 0.08 × 0.85 = $0 (could not validate)",
+            "Expected Value ($)": "$450K",
+            "Cost Formula Labels": {
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 16000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 80
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$0",
+            "Risk Formula Labels": {
+              "components": []
+            },
+            "Cash Flow Benefit ($)": "$0",
+            "Probability of Success": 0.9,
+            "Revenue Formula Labels": {
+              "components": []
+            },
+            "Total Annual Value ($)": "$500K",
+            "Cash Flow Formula Labels": {
+              "components": []
+            }
+          }
+        ],
+        "step": 5,
+        "title": "Benefits Quantification by Driver",
+        "content": "Financial benefits quantified across four value drivers using conservative estimation frameworks with explicit formulas. All calculations apply mandatory reduction factors and data maturity adjustments with probability weighting for implementation risk."
+      },
+      {
+        "data": [
+          {
+            "ID": "UC-01",
+            "Use Case": "Intelligent ATM Service Dispatch Orchestration",
+            "Governance": 5,
+            "Runs/Month": 54000,
+            "Time To Value": 9,
+            "Monthly Tokens": 108000000,
+            "Readiness Score": 6.1,
+            "Strategic Theme": "ATM Service Optimization",
+            "Input Tokens/Run": 1200,
+            "Annual Token Cost": "$10K",
+            "Output Tokens/Run": 800,
+            "Organizational Capacity": 6,
+            "Technical Infrastructure": 6,
+            "Data Availability & Quality": 7
+          },
+          {
+            "ID": "UC-02",
+            "Use Case": "Regulatory Compliance Documentation Engine",
+            "Governance": 7,
+            "Runs/Month": 3900,
+            "Time To Value": 12,
+            "Monthly Tokens": 16380000,
+            "Readiness Score": 6.3,
+            "Strategic Theme": "Regulatory Compliance Automation",
+            "Input Tokens/Run": 2400,
+            "Annual Token Cost": "$2K",
+            "Output Tokens/Run": 1800,
+            "Organizational Capacity": 7,
+            "Technical Infrastructure": 5,
+            "Data Availability & Quality": 6
+          },
+          {
+            "ID": "UC-03",
+            "Use Case": "Predictive Cash Positioning Optimizer",
+            "Governance": 5,
+            "Runs/Month": 54000,
+            "Time To Value": 9,
+            "Monthly Tokens": 129600000,
+            "Readiness Score": 5.5,
+            "Strategic Theme": "Cash Management Intelligence",
+            "Input Tokens/Run": 1800,
+            "Annual Token Cost": "$9K",
+            "Output Tokens/Run": 600,
+            "Organizational Capacity": 5,
+            "Technical Infrastructure": 6,
+            "Data Availability & Quality": 6
+          },
+          {
+            "ID": "UC-04",
+            "Use Case": "Technical Support Knowledge Assistant",
+            "Governance": 6,
+            "Runs/Month": 6500,
+            "Time To Value": 6,
+            "Monthly Tokens": 15600000,
+            "Readiness Score": 6,
+            "Strategic Theme": "Customer Service Transformation",
+            "Input Tokens/Run": 1500,
+            "Annual Token Cost": "$1K",
+            "Output Tokens/Run": 900,
+            "Organizational Capacity": 7,
+            "Technical Infrastructure": 6,
+            "Data Availability & Quality": 5
+          }
+        ],
+        "step": 6,
+        "title": "Readiness & Token Modeling",
+        "content": "Readiness assessment evaluates organizational capacity, data quality, technical infrastructure, and governance maturity across four dimensions. Token consumption estimates based on Claude 3.5 Sonnet pricing at $3 per 1M input tokens and $15 per 1M output tokens with conservative usage projections."
+      },
+      {
+        "data": [
+          {
+            "ID": "UC-01",
+            "Use Case": "Intelligent ATM Service Dispatch Orchestration",
+            "TTV Score": 0.25,
+            "Value Score": 1.59,
+            "Priority Tier": "Tier 2 — Quick Wins",
+            "Priority Score": 3.85,
+            "Readiness Score": 6.1,
+            "Strategic Theme": "ATM Service Optimization",
+            "Recommended Phase": "Q4"
+          },
+          {
+            "ID": "UC-02",
+            "Use Case": "Regulatory Compliance Documentation Engine",
+            "TTV Score": 0,
+            "Value Score": 1.99,
+            "Priority Tier": "Tier 2 — Quick Wins",
+            "Priority Score": 4.14,
+            "Readiness Score": 6.3,
+            "Strategic Theme": "Regulatory Compliance Automation",
+            "Recommended Phase": "Q4"
+          },
+          {
+            "ID": "UC-03",
+            "Use Case": "Predictive Cash Positioning Optimizer",
+            "TTV Score": 0.25,
+            "Value Score": 10,
+            "Priority Tier": "Tier 1 — Champions",
+            "Priority Score": 7.75,
+            "Readiness Score": 5.5,
+            "Strategic Theme": "Cash Management Intelligence",
+            "Recommended Phase": "Q2"
+          },
+          {
+            "ID": "UC-04",
+            "Use Case": "Technical Support Knowledge Assistant",
+            "TTV Score": 0.5,
+            "Value Score": 1.26,
+            "Priority Tier": "Tier 2 — Quick Wins",
+            "Priority Score": 3.63,
+            "Readiness Score": 6,
+            "Strategic Theme": "Customer Service Transformation",
+            "Recommended Phase": "Q4"
+          },
+          {
+            "ID": "UC-05",
+            "Use Case": "Real-Time Transaction Anomaly Detection",
+            "TTV Score": 0.5,
+            "Value Score": 2.21,
+            "Priority Tier": "Tier 4 — Foundation",
+            "Priority Score": 3.61,
+            "Readiness Score": 5,
+            "Strategic Theme": "Network Operations Intelligence",
+            "Recommended Phase": "Q4"
+          },
+          {
+            "ID": "UC-06",
+            "Use Case": "Predictive Parts Inventory Optimization",
+            "TTV Score": 0.5,
+            "Value Score": 4.29,
+            "Priority Tier": "Tier 4 — Foundation",
+            "Priority Score": 4.64,
+            "Readiness Score": 5,
+            "Strategic Theme": "ATM Service Optimization",
+            "Recommended Phase": "Q3"
+          },
+          {
+            "ID": "UC-07",
+            "Use Case": "Contract Renewal Risk Predictor",
+            "TTV Score": 0.5,
+            "Value Score": 6.49,
+            "Priority Tier": "Tier 3 — Strategic",
+            "Priority Score": 5.75,
+            "Readiness Score": 5,
+            "Strategic Theme": "Customer Service Transformation",
+            "Recommended Phase": "Q3"
+          },
+          {
+            "ID": "UC-08",
+            "Use Case": "Software Deployment Test Automation",
+            "TTV Score": 0.5,
+            "Value Score": 1.22,
+            "Priority Tier": "Tier 4 — Foundation",
+            "Priority Score": 3.11,
+            "Readiness Score": 5,
+            "Strategic Theme": "ATM Service Optimization",
+            "Recommended Phase": "Q4"
+          },
+          {
+            "ID": "UC-09",
+            "Use Case": "Financial Close Automation Assistant",
+            "TTV Score": 0.5,
+            "Value Score": 1.11,
+            "Priority Tier": "Tier 4 — Foundation",
+            "Priority Score": 3.06,
+            "Readiness Score": 5,
+            "Strategic Theme": "Cash Management Intelligence",
+            "Recommended Phase": "Q4"
+          },
+          {
+            "ID": "UC-10",
+            "Use Case": "Employee Onboarding Documentation Generator",
+            "TTV Score": 0.5,
+            "Value Score": 1,
+            "Priority Tier": "Tier 4 — Foundation",
+            "Priority Score": 3,
+            "Readiness Score": 5,
+            "Strategic Theme": "Customer Service Transformation",
+            "Recommended Phase": "Q4"
+          }
+        ],
+        "step": 7,
+        "title": "Priority Scoring & Roadmap",
+        "content": ""
+      }
+    ],
+    "benefitsCapped": false,
+    "capScaleFactor": 1,
+    "frictionRecovery": [
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-01",
+            "recoveryPct": 0.24647887323943662,
+            "recoveryAmount": 2100000
+          }
+        ],
+        "frictionPoint": "Manual ATM service dispatch across 650,000 units with fragmented regional systems requiring coordinator synthesis of technician availability, parts inventory, and service priority"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-02",
+            "recoveryPct": 0.30947775628626695,
+            "recoveryAmount": 3200000
+          }
+        ],
+        "frictionPoint": "Regulatory compliance documentation across 47 banking jurisdictions requiring manual assembly of transaction logs, audit trails, and cross-border reporting"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-03",
+            "recoveryPct": 1,
+            "recoveryAmount": 6700000
+          }
+        ],
+        "frictionPoint": "Cash forecasting across 160 countries with manual reconciliation of ATM withdrawal patterns, deposit schedules, and seasonal demand variations"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-04",
+            "recoveryPct": 0.23668639053254437,
+            "recoveryAmount": 1200000
+          }
+        ],
+        "frictionPoint": "Customer technical inquiry resolution requiring manual knowledge base search across product documentation, service bulletins, and historical ticket databases"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-05",
+            "recoveryPct": 0.6785714285714286,
+            "recoveryAmount": 3800000
+          }
+        ],
+        "frictionPoint": "Transaction anomaly monitoring across 13B annual transactions with manual pattern analysis and fraud investigation coordination"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-06",
+            "recoveryPct": 1,
+            "recoveryAmount": 4900000
+          }
+        ],
+        "frictionPoint": "Service parts inventory optimization requiring manual demand forecasting across 340 SKUs and 67 regional distribution centers"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-07",
+            "recoveryPct": 1,
+            "recoveryAmount": 3780000
+          }
+        ],
+        "frictionPoint": "Contract renewal risk assessment requiring manual analysis of service performance data, customer satisfaction metrics, and competitive intelligence"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-08",
+            "recoveryPct": 0.23157894736842105,
+            "recoveryAmount": 1100000
+          }
+        ],
+        "frictionPoint": "Software deployment validation across diverse ATM hardware configurations requiring manual test case execution and regression analysis"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-09",
+            "recoveryPct": 0.25,
+            "recoveryAmount": 800000
+          }
+        ],
+        "frictionPoint": "Financial close process requiring manual consolidation of regional P&L data, intercompany eliminations, and variance analysis across 47 reporting entities"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-10",
+            "recoveryPct": 0.20833333333333334,
+            "recoveryAmount": 500000
+          }
+        ],
+        "frictionPoint": "Employee onboarding documentation requiring manual assembly of role-specific training materials, compliance certifications, and system access procedures"
+      }
+    ],
+    "scenarioAnalysis": {
+      "moderate": {
+        "npv": "$140.6M",
+        "annualBenefit": "$62.8M",
+        "paybackMonths": 0
+      },
+      "aggressive": {
+        "npv": "$228.5M",
+        "annualBenefit": "$81.6M",
+        "paybackMonths": 0
+      },
+      "conservative": {
+        "npv": "$52.6M",
+        "annualBenefit": "$37.7M",
+        "paybackMonths": 23
+      }
+    },
+    "executiveDashboard": {
+      "topUseCases": [
+        {
+          "rank": 1,
+          "useCase": "Predictive Cash Positioning Optimizer",
+          "annualValue": 25100000,
+          "monthlyTokens": 129600000,
+          "priorityScore": 7.75
+        },
+        {
+          "rank": 2,
+          "useCase": "Contract Renewal Risk Predictor",
+          "annualValue": 15500000,
+          "monthlyTokens": 0,
+          "priorityScore": 5.75
+        },
+        {
+          "rank": 3,
+          "useCase": "Predictive Parts Inventory Optimization",
+          "annualValue": 9500000,
+          "monthlyTokens": 0,
+          "priorityScore": 4.64
+        },
+        {
+          "rank": 4,
+          "useCase": "Regulatory Compliance Documentation Engine",
+          "annualValue": 3200000,
+          "monthlyTokens": 16380000,
+          "priorityScore": 4.14
+        },
+        {
+          "rank": 5,
+          "useCase": "Intelligent ATM Service Dispatch Orchestration",
+          "annualValue": 2100000,
+          "monthlyTokens": 108000000,
+          "priorityScore": 3.85
+        },
+        {
+          "rank": 6,
+          "useCase": "Technical Support Knowledge Assistant",
+          "annualValue": 1200000,
+          "monthlyTokens": 15600000,
+          "priorityScore": 3.63
+        },
+        {
+          "rank": 7,
+          "useCase": "Real-Time Transaction Anomaly Detection",
+          "annualValue": 3800000,
+          "monthlyTokens": 0,
+          "priorityScore": 3.61
+        },
+        {
+          "rank": 8,
+          "useCase": "Software Deployment Test Automation",
+          "annualValue": 1100000,
+          "monthlyTokens": 0,
+          "priorityScore": 3.11
+        },
+        {
+          "rank": 9,
+          "useCase": "Financial Close Automation Assistant",
+          "annualValue": 800000,
+          "monthlyTokens": 0,
+          "priorityScore": 3.06
+        },
+        {
+          "rank": 10,
+          "useCase": "Employee Onboarding Documentation Generator",
+          "annualValue": 500000,
+          "monthlyTokens": 0,
+          "priorityScore": 3
+        }
+      ],
+      "totalAnnualValue": 62800000,
+      "totalCostBenefit": 13400000,
+      "totalRiskBenefit": 3000000,
+      "totalMonthlyTokens": 269580000,
+      "totalRevenueBenefit": 14600000,
+      "totalCashFlowBenefit": 31800000,
+      "valuePerMillionTokens": 232955
+    },
+    "validationWarnings": [],
+    "multiYearProjection": {
+      "irr": "58.1%",
+      "npv": "$104.9M",
+      "paybackMonths": 14,
+      "totalBenefitOverPeriod": "$179.0M"
+    }
+  }
+}

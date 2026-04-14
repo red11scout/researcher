@@ -1,0 +1,293 @@
+# REPLIT AGENT PROMPT: Debug, Fix & Harden the BlueAlly AI Assessment App
+
+**Priority: CRITICAL — App is broken in production. Fix before adding features.**
+
+---
+
+## CONTEXT
+
+This is a Next.js application (deployed on Replit) that generates AI-powered corporate intelligence reports. It takes a company name, runs an 8-step analysis pipeline via Claude API calls, and renders an interactive report. The app was working until today — report generation is now failing with timeouts and JSON parsing errors.
+
+**Live URLs (same app, two domains):**
+- https://discover.movefasterwithai.com/
+- https://smart-report-ai-claude-style.replit.app
+
+**Current state:** The homepage loads. Saved reports load and render correctly. But generating NEW reports fails — the pipeline hangs, times out, or crashes on JSON parsing errors during the multi-step Claude API orchestration.
+
+---
+
+## PART 1: DIAGNOSE AND FIX ALL BREAKING ISSUES
+
+### Observed Symptoms
+
+1. **Timeout failures during report generation.** The 8-step pipeline (Steps 0–7) begins executing, the progress UI shows steps advancing, but the process stalls mid-pipeline and eventually times out. This likely happens at Steps 4–5 where the Claude prompts are longest and most complex.
+
+2. **JSON parsing errors.** Claude's responses are not being parsed correctly. This suggests either:
+   - Claude is returning markdown-wrapped JSON (```json ... ```) and the parser isn't stripping the code fences
+   - Claude is returning truncated responses that aren't valid JSON (hitting max_tokens limits)
+   - The response parsing expects a specific JSON structure but Claude's output has slight schema deviations (e.g., extra fields, different key names, different nesting)
+   - SSE/streaming response chunks are being parsed before the full response is assembled
+
+3. **Async message channel errors.** Browser console is flooded with: `"Error: A listener indicated an asynchronous response by returning true, but the message channel closed before a response was received"` — this fires in bursts every 30–90 seconds during report generation, indicating SSE/EventSource connections are dropping and reconnecting.
+
+### Root Cause Investigation Checklist
+
+Search the entire codebase for each of these patterns and fix every instance:
+
+**A. Claude API Call Reliability**
+- [ ] Check every `fetch` or `anthropic.messages.create()` call for proper timeout configuration. Replit's default request timeout may be too short for Claude calls that take 30–90 seconds. Set explicit timeouts of at least 120 seconds on all Claude API calls.
+- [ ] Check if any Claude calls are hitting `max_tokens` limits that cause truncated JSON. If `max_tokens` is set below 4096 for any step, increase it. Steps 4 (use cases) and 5 (benefits) need at least 8192 tokens.
+- [ ] Check for missing retry logic. Every Claude API call should have exponential backoff with 3 retries. Claude can return 529 (overloaded) or 500 errors intermittently.
+- [ ] Verify the Claude model string is valid and hasn't been deprecated. Use `claude-sonnet-4-5-20250929` or equivalent current model.
+
+**B. JSON Parsing Robustness**
+- [ ] Find every `JSON.parse()` call in the codebase. Wrap each one in try/catch with meaningful error logging that includes the raw string being parsed (truncated to 500 chars).
+- [ ] Add a `cleanJsonResponse(text)` utility that strips markdown code fences (```json and ```), strips leading/trailing whitespace, and handles BOM characters before parsing.
+- [ ] If using streaming responses, ensure the full response text is accumulated before attempting JSON parse — never parse partial chunks.
+- [ ] Add schema validation (Zod) after each parse to catch structural issues early with clear error messages identifying which field failed.
+
+**C. SSE/EventSource Connection Stability**
+- [ ] Check the SSE endpoint (likely `/api/assess/[id]/stream` or similar). Ensure it sends keepalive comments (`: keepalive\n\n`) every 15 seconds to prevent proxy/load-balancer timeouts.
+- [ ] Check the client-side EventSource handler for proper `onerror` reconnection logic with backoff.
+- [ ] Ensure the SSE endpoint doesn't close prematurely when a step takes >30 seconds to complete.
+- [ ] Check if Replit's proxy is killing long-lived connections. If so, implement a polling fallback.
+
+**D. Replit-Specific Issues**
+- [ ] Check `.replit` configuration for any request timeout settings. Replit's web server proxy may have a 30-second or 60-second timeout that kills long Claude API calls. If configurable, set to 300 seconds.
+- [ ] Check if the Replit deployment is running out of memory during multi-step generation. Log memory usage at each step.
+- [ ] Verify all environment variables (ANTHROPIC_API_KEY, DATABASE_URL, etc.) are set in Replit Secrets and accessible at runtime.
+- [ ] Check if Replit recently updated its infrastructure or Node.js version, which could break existing dependencies.
+
+**E. API Route Architecture**
+- [ ] If the entire 8-step pipeline runs in a single API route handler, this WILL timeout on Replit. Refactor to:
+  1. POST `/api/assess` → creates assessment record, returns assessment ID, kicks off background job
+  2. The background job runs Steps 0–7 sequentially, writing results to the database after each step
+  3. GET `/api/assess/[id]/status` → returns current step and any completed data
+  4. The frontend polls or uses SSE to track progress
+- [ ] Each step should be an independent database write. If Step 5 fails, Steps 0–4 results should be preserved and Step 5 should be retryable.
+
+### Fix Implementation Order
+
+1. **First:** Add the JSON cleaning utility and wrap all `JSON.parse()` calls
+2. **Second:** Add timeouts and retry logic to all Claude API calls
+3. **Third:** Fix SSE keepalive to prevent connection drops
+4. **Fourth:** If the pipeline is monolithic, break it into per-step database writes with status tracking
+5. **Fifth:** Add comprehensive error logging at every step boundary
+6. **Test:** Run a report for "Truist Financial" end-to-end and verify all 8 steps complete
+
+---
+
+## PART 2: FIX BENEFITS QUANTIFICATION (Section 5) — VALUES ARE WILDLY UNREALISTIC
+
+### The Problem
+
+The Benefits Quantification step is producing absurd values. Evidence from saved reports:
+
+**Ardent Health** (a ~$5.5B revenue healthcare company):
+- Total AI Value: **$839.5M** (15.3% of revenue — no AI portfolio delivers this)
+- Risk Benefit alone: **$654.6M**
+- Revenue Benefit: **$157.7M**
+- Individual use cases showing $93.6M, $106.8M, $120.6M, $226.8M each
+- UC-02 "Autonomous Medical Coding Validator": **$226.8M** — this single use case claims more value than most entire AI programs
+
+**Maryland Department of Health**: $154.2M total
+**NCR Voyix**: $114.1M total
+
+These numbers are not credible. A single AI use case generating $100M+ in annual value does not happen. These figures would be laughed out of any executive presentation.
+
+### Root Cause Analysis
+
+The formulas themselves may be correct, but **Claude is generating unrealistic input parameters** for the benefit calculations. Specifically:
+
+1. **Risk Exposure values are too high.** Claude is likely setting `riskExposure` to hundreds of millions (e.g., the entire malpractice liability pool) and then applying a generous `riskReductionPct` (e.g., 15–25%). A single AI tool does not eliminate 15–25% of an enterprise's total risk exposure.
+
+2. **Revenue Uplift percentages are too aggressive.** If `revenueUpliftPct` is even 2–3% and `revenueAtRisk` is $1B+, you get $20–30M per use case. For a company like Ardent with $5.5B revenue, these compound fast.
+
+3. **No per-use-case ceiling.** There is no maximum value cap per individual use case, so Claude can generate inputs that produce $100M+ per use case unchecked.
+
+4. **The portfolio-level cap (15% of revenue) is too high and may not be enforcing correctly.** Even 15% of revenue ($839M on Ardent's $5.5B) is unrealistic for an AI program. And looking at the $839.5M figure, it appears the cap either isn't firing or is set incorrectly.
+
+### Required Fixes — Conservative Validation Layer
+
+Implement a **hard validation and capping system** in the benefits calculation engine (Step 5). These are guardrails that run AFTER Claude generates the raw inputs and AFTER the formulas compute the values, but BEFORE the values are stored or displayed.
+
+**IMPORTANT: These caps should make the output conservative and defensible. It is far better to underestimate than overestimate. These reports go to C-suite executives and CFOs who will immediately reject unrealistic numbers.**
+
+#### Per-Use-Case Caps (apply to each UC individually)
+
+```
+MAX_SINGLE_USE_CASE_VALUE = min($15M, company_revenue * 0.005)
+```
+
+No single AI use case should claim more than $15M in annual value OR more than 0.5% of total company revenue, whichever is lower. If computed value exceeds this cap, clamp it to the cap and flag it as "capped — review inputs."
+
+#### Per-Driver Caps (apply within each use case)
+
+| Driver | Maximum Value Per Use Case | Rationale |
+|--------|---------------------------|-----------|
+| **Cost Reduction** | min($5M, total_labor_cost * 0.03) | A single AI tool saves at most 3% of total labor spend |
+| **Revenue Growth** | min($8M, company_revenue * 0.003) | Revenue uplift from one AI use case is typically 0.1–0.3% of revenue |
+| **Risk Mitigation** | min($5M, risk_exposure * 0.05) | One tool mitigates at most 5% of the stated risk pool |
+| **Cash Flow Acceleration** | min($3M, company_revenue * 0.002) | DSO improvement from one tool is typically 1–3 days, not 10+ |
+
+#### Portfolio-Level Cap (apply to the sum across all use cases)
+
+```
+MAX_PORTFOLIO_VALUE = company_revenue * 0.03
+```
+
+The total AI portfolio value across ALL 10 use cases should not exceed 3% of annual revenue. This is aggressive but defensible. Most enterprise AI programs deliver 1–3% of revenue in year-one benefits. If the sum exceeds this:
+1. Calculate `scale_factor = MAX_PORTFOLIO_VALUE / actual_sum`
+2. Multiply every use case's Total Annual Value by `scale_factor`
+3. Recalculate all downstream values (Expected Value, Scenario Analysis, Priority Scores)
+4. Log: "Portfolio value capped at 3% of revenue. Scale factor applied: {scale_factor}"
+
+#### Input Parameter Guardrails (constrain what Claude generates)
+
+Add these constraints to the Claude prompt for Steps 3–5, AND validate them server-side after Claude responds:
+
+| Parameter | Constraint | Enforcement |
+|-----------|-----------|-------------|
+| `annualHours` per friction point | Max 50,000 hours | Clamp + log |
+| `hourlyRate` (loaded) | $35–$250/hr range | Clamp to range |
+| `revenueUpliftPct` | Max 0.5% (0.005) per use case | Clamp to 0.5% |
+| `revenueAtRisk` | Max 20% of company revenue | Clamp |
+| `riskExposure` | Max 10% of company revenue per use case | Clamp |
+| `riskReductionPct` | Max 8% per use case | Clamp to 8% |
+| `daysImproved` (DSO) | Max 5 days per use case | Clamp to 5 |
+| `probabilityOfSuccess` | 0.40–0.75 range (not higher) | Clamp to range |
+
+#### Update the Claude Prompt for Step 5
+
+Add this instruction block to the Step 5 benefits quantification prompt:
+
+```
+CRITICAL INSTRUCTION FOR BENEFITS QUANTIFICATION:
+
+You are generating financial benefit estimates that will be presented to C-suite executives.
+Your estimates MUST be conservative, defensible, and credible.
+
+Rules:
+- No single use case should produce more than $10M in total annual value
+- Revenue uplift percentages should be 0.05% to 0.3% — not higher
+- Risk reduction should be 2% to 5% of the risk pool — not higher
+- Cost savings should reflect realistic FTE reductions (2-10 FTEs per use case, not 50+)
+- Cash flow improvements should assume 1-3 days of DSO improvement, not 10+
+- The total portfolio value across all 10 use cases should be 1-3% of company revenue
+
+Think of it this way: if a CFO saw these numbers, would they nod in agreement or laugh you out of the room? Aim for the nod.
+
+When in doubt, go lower. An underestimate that gets approved is infinitely more valuable than an overestimate that destroys credibility.
+```
+
+#### Validation Summary Display
+
+After applying caps, add a validation summary to the report output:
+
+```
+Validation Applied:
+- X use cases were capped at per-UC maximum ($15M or 0.5% of revenue)
+- Portfolio total was scaled by factor Y to meet 3% revenue ceiling
+- Z input parameters were clamped to guardrail ranges
+- Original uncapped total: $AAA.AM → Validated total: $BBB.BM
+```
+
+This transparency builds trust with consultants using the tool — they can see what was adjusted and decide whether to manually override.
+
+---
+
+## PART 3: ADDITIONAL FIXES AND IMPROVEMENTS
+
+### 3A. Route Fixes
+- The `/saved-reports` route returns a 404 while `/saved` works. Ensure both routes are registered, or redirect `/saved-reports` to `/saved`.
+
+### 3B. Error Recovery UX
+- When a step fails mid-pipeline, the UI should show which step failed and offer a "Retry from Step X" button instead of requiring the user to start over.
+- Display the actual error message (e.g., "Step 5 timed out after 120s — Claude API did not respond") rather than a generic failure.
+
+### 3C. Logging
+- Add structured logging (JSON format) for every Claude API call: step number, prompt token count, response token count, latency in ms, success/failure, and any parsing errors.
+- Log to both console and a `/api/logs` endpoint that can be viewed in the app for debugging.
+
+---
+
+## ARCHITECTURE REFERENCE
+
+The app follows a 4-phase pipeline:
+
+```
+Phase 1 — Research: Company research via Claude + web enrichment (30-60s)
+Phase 2 — Analysis: Claude generates Steps 0-4 (qualitative) (90-180s)
+Phase 3 — Computation: Deterministic calc engine for Steps 5-7 (financial) (<5s)
+Phase 4 — Synthesis: Claude generates executive summary + dashboard (<60s)
+```
+
+### The 8 Steps (JSON structure: `analysis.steps[]`)
+
+| Step | Title | What It Does |
+|------|-------|-------------|
+| 0 | Company Overview | Narrative + financial context |
+| 1 | Strategic Anchoring | 5 strategic themes with current/target states |
+| 2 | Business Functions & KPIs | 10 KPIs (2 per theme) with benchmarks |
+| 3 | Friction Points | 10 operational bottlenecks with cost formulas |
+| 4 | AI Use Cases | 10 use cases (1:1 mapped to friction points) |
+| 5 | Benefits Quantification | 4-driver model (cost, revenue, cash flow, risk) |
+| 6 | Readiness & Token Modeling | 4-dimension readiness scores + token cost estimates |
+| 7 | Priority Roadmap | Priority scores, tier assignment, phase sequencing |
+
+### Benefit Calculation Formulas (Step 5)
+
+```
+COST = annualHours × loadedHourlyRate × benefitsLoading(1.35) × adoptionRate(0.90) × dataMaturity
+REVENUE = revenueUpliftPct × revenueAtRisk × realizationFactor(0.95) × dataMaturity
+RISK = riskReductionPct × riskExposure × realizationFactor(0.80) × dataMaturity
+CASH_FLOW = annualRevenue × (daysImproved / 365) × costOfCapital(0.08) × realizationFactor(0.85) × dataMaturity
+
+TOTAL_ANNUAL_VALUE = COST + REVENUE + RISK + CASH_FLOW
+EXPECTED_VALUE = TOTAL_ANNUAL_VALUE × probabilityOfSuccess
+
+Data Maturity Multipliers: Level 1 = 0.50, Level 2 = 0.75, Level 3 = 0.90, Level 4 = 1.00
+```
+
+### Scenario Analysis
+
+```
+Conservative: annualBenefit × 0.60, discount = 12%
+Moderate:     annualBenefit × 1.00, discount = 10%
+Aggressive:   annualBenefit × 1.30, discount = 8%
+NPV = annualBenefit × ((1 - (1 + r)^(-5)) / r)
+```
+
+### Relational Chain (must be maintained)
+
+```
+Theme (5) → KPIs (2 each = 10) → Friction Points (1:1 = 10) → Use Cases (1:1 = 10) → Benefits (1:1 = 10)
+```
+
+---
+
+## TESTING CHECKLIST
+
+After making all fixes, verify:
+
+- [ ] Generate a new report for "Truist Financial" — all 8 steps complete without timeout or JSON errors
+- [ ] Generate a new report for "Home Depot" — verify benefits are under 3% of revenue (~$4.5B revenue → max ~$135M total)
+- [ ] Generate a new report for a small company like "Calendly" — verify benefits scale down appropriately (should be low single-digit millions)
+- [ ] Check that no single use case exceeds $15M in any generated report
+- [ ] Verify the Saved Reports page loads and shows all reports
+- [ ] Verify the Update button on existing reports works
+- [ ] Verify SSE progress stream stays connected for the full 3-5 minute generation time
+- [ ] Check browser console for zero JSON parsing errors during generation
+- [ ] Verify the validation summary appears in the Benefits Quantification section
+
+---
+
+## PRIORITY ORDER
+
+1. **Fix JSON parsing** (wrap all `JSON.parse`, add code-fence stripping) — 30 minutes
+2. **Fix Claude API timeouts** (increase timeouts, add retries) — 30 minutes
+3. **Fix SSE keepalive** (prevent connection drops) — 15 minutes
+4. **Implement benefits validation caps** (per-UC, per-driver, portfolio level) — 2 hours
+5. **Update Claude Step 5 prompt** with conservative instructions — 30 minutes
+6. **Add error logging** — 30 minutes
+7. **Test end-to-end** — 30 minutes

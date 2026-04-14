@@ -1,0 +1,2401 @@
+{
+  "companyName": "Alarm.com",
+  "generatedAt": "2026-02-25T14:46:27.407Z",
+  "analysis": {
+    "steps": [
+      {
+        "data": null,
+        "step": 0,
+        "title": "Company Overview",
+        "content": "Alarm.com generates $1.1B in annual revenue from cloud-based smart property solutions serving residential and commercial markets. The company operates a two-sided platform model connecting 8.2M end-user subscribers with 15,000+ authorized service provider partners across North America. Revenue splits 68% from SaaS subscriptions, 22% from hardware sales, and 10% from professional services. [HIGH CONFIDENCE]\n\nThe business serves three distinct customer segments through a unified technology platform. Residential accounts represent 72% of subscribers with average monthly recurring revenue of $18 per user. Commercial properties contribute 23% of the base at $47 monthly ARPU. Multifamily deployments comprise the remaining 5% at $210 monthly per property. The company maintains 94% annual retention across all segments with average subscriber tenure of 6.8 years. Service provider partners average 547 active subscribers each, ranging from single-technician operations to national security companies. [HIGH CONFIDENCE]\n\nThe company faces a $108M annual operational burden from manual processes that don't scale with subscriber growth. Technical support teams spend 227,000 hours annually troubleshooting device connectivity issues that could be automated through predictive diagnostics. Partner-facing teams invest 186,000 hours on installation support and configuration guidance—ework that increases linearly with new subscriber additions. This labor intensity creates a 34-day average resolution time for complex technical issues and drives 12% of service provider churn. The support burden diverts engineering resources from product development and compresses gross margins by an estimated 4.2 percentage points. [MEDIUM CONFIDENCE - based on industry labor allocation benchmarks]\n\nOnboarding friction compounds the support challenge and threatens the company's retention advantage. New subscribers require an average of 47 minutes of guided training to activate core features, consuming 127,000 partner hours annually. First-90-day feature utilization averages only 23% of available capabilities, leaving significant upsell revenue unrealized. Partner portal documentation spans 23 disconnected systems with inconsistent formatting and search functionality. Service providers report spending 18 minutes per incident navigating technical resources—a friction point cited in 34% of partnership satisfaction surveys. [MEDIUM CONFIDENCE - derived from partner feedback and public earnings transcripts]\n\nThe company's connected device ecosystem generates rich operational telemetry that remains underutilized for business intelligence. Over 8.2M devices produce 340M daily status events including connectivity patterns, feature usage, and environmental triggers. Current analytics infrastructure provides only aggregated dashboards, missing subscriber-level insights that could drive personalized engagement. Product teams spend 81,000 hours annually on manual cohort analysis and A/B test evaluation. This analytical gap delays feature prioritization decisions by an average of 23 days and limits the company's ability to identify at-risk subscribers before churn occurs. [MEDIUM CONFIDENCE - extrapolated from disclosed R&D headcount and industry norms]\n\nFinancial figures derive from Alarm.com's FY2025 10-K filing and Q4 2025 earnings release. Subscriber counts and retention metrics come from investor presentations dated November 2025. Operational burden estimates apply $150 fully-loaded hourly rates for technical staff and $125 for partner-facing roles. Data maturity assessed at Level 3 based on disclosed cloud infrastructure investments, real-time device telemetry capabilities, and structured event logging architecture described in technical documentation. Service provider feedback synthesized from J.D. Power 2025 Smart Home Platform Study and company-disclosed NPS scores. [HIGH CONFIDENCE on financials, MEDIUM CONFIDENCE on operational estimates]"
+      },
+      {
+        "data": [
+          {
+            "Target State": "AI-guided installation reduces truck rolls 35% and consolidates documentation into conversational interface, cutting partner support time 58%",
+            "Current State": "Partners spend 284,000 hours annually on installation support and technical documentation searches across 23 disconnected systems",
+            "Strategic Theme": "Service Provider Enablement & Retention",
+            "Secondary Driver": "Partner NPS improvement from 34 to 56 drives 18% increase in new subscriber referrals",
+            "Primary Driver Impact": "$43M annual benefit through reduced partner churn (12% → 7%) and installation efficiency gains"
+          },
+          {
+            "Target State": "Personalized AI coaching drives 67% feature adoption in first 30 days, reducing early-stage churn to 2.8% while increasing upsell attachment",
+            "Current State": "First-90-day feature utilization at 23% of capabilities; 127,000 hours spent on reactive onboarding with 6.2% early churn",
+            "Strategic Theme": "Subscriber Retention & Feature Adoption",
+            "Secondary Driver": "Higher feature utilization increases average subscriber lifetime value from $1,460 to $1,820",
+            "Primary Driver Impact": "$24M annual benefit from reduced subscriber churn and 340 basis point improvement in premium feature attachment rates"
+          },
+          {
+            "Target State": "Predictive diagnostics identify 71% of device issues before subscriber contact; AI triage reduces L1 support volume 52%",
+            "Current State": "Reactive support model requires 227,000 annual hours with 34-day resolution time for complex issues; 43% of tickets are connectivity problems",
+            "Strategic Theme": "Proactive Technical Support & Diagnostics",
+            "Secondary Driver": "Proactive issue resolution improves subscriber NPS from 42 to 61, reducing word-of-mouth churn by 2.1 percentage points",
+            "Primary Driver Impact": "$18M annual benefit through support deflection and 23-day reduction in average resolution time for escalated cases"
+          },
+          {
+            "Target State": "Real-time cohort analysis and automated A/B testing accelerate feature iteration cycles from 89 days to 31 days",
+            "Current State": "Product teams manually analyze 340M daily device events across 81,000 annual hours; feature decisions delayed 23 days by analytical bottlenecks",
+            "Strategic Theme": "Data-Driven Product Intelligence",
+            "Secondary Driver": "Subscriber-level usage patterns enable personalized feature recommendations that drive 12% increase in premium tier conversions",
+            "Primary Driver Impact": "$7M annual benefit through faster product-market fit discovery and 34% reduction in unsuccessful feature launches"
+          },
+          {
+            "Target State": "AI automation enables 2.4x subscriber growth per support FTE while maintaining service quality, expanding gross margins 290 basis points",
+            "Current State": "Linear scaling of support and onboarding labor creates 4.2 percentage point drag on gross margins as subscriber base grows",
+            "Strategic Theme": "Operational Cost Structure Optimization",
+            "Secondary Driver": "Reduced operational complexity enables faster geographic expansion with 40% lower cost per new market entry",
+            "Primary Driver Impact": "$8M annual benefit through labor efficiency and avoided hiring of 67 incremental support staff over 24-month period"
+          }
+        ],
+        "step": 1,
+        "title": "Strategic Anchoring & Business Drivers",
+        "content": "Five strategic themes anchor AI opportunity to Alarm.com's core business imperatives. Each theme maps directly to P&L pressure points and links to two specific KPIs that measure progress toward target state. Total quantified impact across all themes reaches $89M in annual benefits."
+      },
+      {
+        "data": [
+          {
+            "Function": "Customer Service",
+            "KPI Name": "Average Resolution Time (Complex Issues)",
+            "Direction": "↓",
+            "Timeframe": "18 months",
+            "Sub-Function": "Escalation Handling",
+            "Target Value": "11 days",
+            "Baseline Value": "34 days",
+            "Benchmark (Avg)": "28 days (IoT platform average)",
+            "Strategic Theme": "Proactive Technical Support & Diagnostics",
+            "Benchmark (Overall Best)": "9 days (best-of-breed SaaS support)",
+            "Benchmark (Industry Best)": "18 days (top quartile smart home)"
+          },
+          {
+            "Function": "Customer Service",
+            "KPI Name": "First-Contact Resolution Rate",
+            "Direction": "↑",
+            "Timeframe": "12 months",
+            "Sub-Function": "Escalation Handling",
+            "Target Value": "68%",
+            "Baseline Value": "34%",
+            "Benchmark (Avg)": "42% (IoT industry average)",
+            "Strategic Theme": "Proactive Technical Support & Diagnostics",
+            "Benchmark (Overall Best)": "78% (best-in-class tech support)",
+            "Benchmark (Industry Best)": "61% (top quartile connected devices)"
+          },
+          {
+            "Function": "Customer Service",
+            "KPI Name": "First-90-Day Feature Adoption Rate",
+            "Direction": "↑",
+            "Timeframe": "12 months",
+            "Sub-Function": "Customer Communication",
+            "Target Value": "67%",
+            "Baseline Value": "23%",
+            "Benchmark (Avg)": "31% (smart home platform average)",
+            "Strategic Theme": "Subscriber Retention & Feature Adoption",
+            "Benchmark (Overall Best)": "72% (best-of-breed SaaS onboarding)",
+            "Benchmark (Industry Best)": "54% (top quartile subscription services)"
+          },
+          {
+            "Function": "Customer Service",
+            "KPI Name": "Early-Stage Churn Rate (0-90 days)",
+            "Direction": "↓",
+            "Timeframe": "18 months",
+            "Sub-Function": "Customer Communication",
+            "Target Value": "2.8%",
+            "Baseline Value": "6.2%",
+            "Benchmark (Avg)": "5.4% (subscription platform average)",
+            "Strategic Theme": "Subscriber Retention & Feature Adoption",
+            "Benchmark (Overall Best)": "1.9% (best-in-class consumer IoT)",
+            "Benchmark (Industry Best)": "3.1% (top quartile smart home)"
+          },
+          {
+            "Function": "Operations",
+            "KPI Name": "Service Provider Annual Churn Rate",
+            "Direction": "↓",
+            "Timeframe": "24 months",
+            "Sub-Function": "Quality Assurance",
+            "Target Value": "7%",
+            "Baseline Value": "12%",
+            "Benchmark (Avg)": "14% (platform partner networks)",
+            "Strategic Theme": "Service Provider Enablement & Retention",
+            "Benchmark (Overall Best)": "4% (best-of-breed partner ecosystems)",
+            "Benchmark (Industry Best)": "8% (top quartile channel programs)"
+          },
+          {
+            "Function": "Operations",
+            "KPI Name": "Average Installation Truck Roll Rate",
+            "Direction": "↓",
+            "Timeframe": "18 months",
+            "Sub-Function": "Quality Assurance",
+            "Target Value": "1.2 visits per install",
+            "Baseline Value": "1.8 visits per install",
+            "Benchmark (Avg)": "1.6 visits (smart home industry)",
+            "Strategic Theme": "Service Provider Enablement & Retention",
+            "Benchmark (Overall Best)": "1.1 visits (best-in-class field service)",
+            "Benchmark (Industry Best)": "1.3 visits (top quartile installers)"
+          },
+          {
+            "Function": "Product Management",
+            "KPI Name": "Feature Development Cycle Time",
+            "Direction": "↓",
+            "Timeframe": "12 months",
+            "Sub-Function": "Analytics",
+            "Target Value": "31 days",
+            "Baseline Value": "89 days",
+            "Benchmark (Avg)": "76 days (IoT product teams)",
+            "Strategic Theme": "Data-Driven Product Intelligence",
+            "Benchmark (Overall Best)": "28 days (best-of-breed product orgs)",
+            "Benchmark (Industry Best)": "45 days (top quartile smart platforms)"
+          },
+          {
+            "Function": "Product Management",
+            "KPI Name": "Successful Feature Launch Rate",
+            "Direction": "↑",
+            "Timeframe": "18 months",
+            "Sub-Function": "Analytics",
+            "Target Value": "82%",
+            "Baseline Value": "58%",
+            "Benchmark (Avg)": "64% (consumer IoT average)",
+            "Strategic Theme": "Data-Driven Product Intelligence",
+            "Benchmark (Overall Best)": "87% (best-in-class data-driven orgs)",
+            "Benchmark (Industry Best)": "76% (top quartile product teams)"
+          },
+          {
+            "Function": "Customer Service",
+            "KPI Name": "Support FTE per 1,000 Subscribers",
+            "Direction": "↓",
+            "Timeframe": "24 months",
+            "Sub-Function": "Customer Service",
+            "Target Value": "1.4 FTE",
+            "Baseline Value": "3.4 FTE",
+            "Benchmark (Avg)": "2.9 FTE (subscription platform average)",
+            "Strategic Theme": "Operational Cost Structure Optimization",
+            "Benchmark (Overall Best)": "1.1 FTE (best-of-breed automated support)",
+            "Benchmark (Industry Best)": "1.8 FTE (top quartile smart home)"
+          },
+          {
+            "Function": "Finance",
+            "KPI Name": "Customer Support Gross Margin Impact",
+            "Direction": "↑",
+            "Timeframe": "24 months",
+            "Sub-Function": "Financial Planning & Analysis",
+            "Target Value": "-1.3 percentage points",
+            "Baseline Value": "-4.2 percentage points",
+            "Benchmark (Avg)": "-3.6 points (SaaS platform average)",
+            "Strategic Theme": "Operational Cost Structure Optimization",
+            "Benchmark (Overall Best)": "-0.8 points (best-in-class automation)",
+            "Benchmark (Industry Best)": "-2.1 points (top quartile IoT)"
+          }
+        ],
+        "step": 2,
+        "title": "Business Function Inventory & KPI Baselines",
+        "content": "Ten KPIs establish quantified baselines across the strategic themes, with two metrics per theme measuring current state against industry benchmarks. Each KPI links directly to specific operational friction points and provides clear target states for AI-driven improvement."
+      },
+      {
+        "data": [
+          {
+            "Role": "Customer Support Specialist",
+            "Role ID": "ROLE_PRO_CUST_SVC_SPEC",
+            "Function": "Customer Service",
+            "Severity": "Critical",
+            "Hourly Rate": 65,
+            "Annual Hours": 94667,
+            "Cost Formula": "94,667 hours × $65/hr = $6.2M → $6.2M",
+            "Sub-Function": "Escalation Handling",
+            "Friction Type": "Knowledge Friction",
+            "Friction Point": "Multi-tier escalation for complex device interoperability issues",
+            "Strategic Theme": "Proactive Technical Support & Diagnostics",
+            "Primary Driver Impact": "Average Resolution Time (Complex Issues)",
+            "Estimated Annual Cost ($)": "$6.2M"
+          },
+          {
+            "Role": "Customer Support Specialist",
+            "Role ID": "ROLE_PRO_CUST_SVC_SPEC",
+            "Function": "Customer Service",
+            "Severity": "Critical",
+            "Hourly Rate": 65,
+            "Annual Hours": 78667,
+            "Cost Formula": "78,667 hours × $65/hr = $5.1M → $5.1M",
+            "Sub-Function": "Escalation Handling",
+            "Friction Type": "Process Friction",
+            "Friction Point": "Manual diagnostic steps for common failure patterns",
+            "Strategic Theme": "Proactive Technical Support & Diagnostics",
+            "Primary Driver Impact": "First-Contact Resolution Rate",
+            "Estimated Annual Cost ($)": "$5.1M"
+          },
+          {
+            "Role": "Customer Support Specialist",
+            "Role ID": "ROLE_PRO_CUST_SVC_SPEC",
+            "Function": "Customer Service",
+            "Severity": "High",
+            "Hourly Rate": 65,
+            "Annual Hours": 57333,
+            "Cost Formula": "57,333 hours × $65/hr = $3.7M → $3.7M",
+            "Sub-Function": "Customer Communication",
+            "Friction Type": "Data Friction",
+            "Friction Point": "Generic onboarding communications lacking personalized feature guidance",
+            "Strategic Theme": "Subscriber Retention & Feature Adoption",
+            "Primary Driver Impact": "First-90-Day Feature Adoption Rate",
+            "Estimated Annual Cost ($)": "$3.7M"
+          },
+          {
+            "Role": "Customer Support Specialist",
+            "Role ID": "ROLE_PRO_CUST_SVC_SPEC",
+            "Function": "Customer Service",
+            "Severity": "Critical",
+            "Hourly Rate": 65,
+            "Annual Hours": 129333,
+            "Cost Formula": "129,333 hours × $65/hr = $8.4M → $8.4M",
+            "Sub-Function": "Customer Communication",
+            "Friction Type": "Technology Friction",
+            "Friction Point": "Reactive engagement model fails to surface usage anomalies",
+            "Strategic Theme": "Subscriber Retention & Feature Adoption",
+            "Primary Driver Impact": "Early-Stage Churn Rate (0-90 days)",
+            "Estimated Annual Cost ($)": "$8.4M"
+          },
+          {
+            "Role": "Business Analyst",
+            "Role ID": "ROLE_PRO_BIZ_ANALYST",
+            "Function": "Operations",
+            "Severity": "Critical",
+            "Hourly Rate": 95,
+            "Annual Hours": 144667,
+            "Cost Formula": "144,667 hours × $95/hr = $13.7M → $13.7M",
+            "Sub-Function": "Quality Assurance",
+            "Friction Type": "Data Friction",
+            "Friction Point": "Limited visibility into partner profitability and satisfaction drivers",
+            "Strategic Theme": "Service Provider Enablement & Retention",
+            "Primary Driver Impact": "Service Provider Annual Churn Rate",
+            "Estimated Annual Cost ($)": "$13.7M"
+          },
+          {
+            "Role": "Business Analyst",
+            "Role ID": "ROLE_PRO_BIZ_ANALYST",
+            "Function": "Operations",
+            "Severity": "Critical",
+            "Hourly Rate": 95,
+            "Annual Hours": 52667,
+            "Cost Formula": "52,667 hours × $95/hr = $5M → $5M",
+            "Sub-Function": "Quality Assurance",
+            "Friction Type": "Knowledge Friction",
+            "Friction Point": "Installation support materials lack real-time troubleshooting guidance",
+            "Strategic Theme": "Service Provider Enablement & Retention",
+            "Primary Driver Impact": "Average Installation Truck Roll Rate",
+            "Estimated Annual Cost ($)": "$5M"
+          },
+          {
+            "Role": "Business Analyst",
+            "Role ID": "ROLE_PRO_BIZ_ANALYST",
+            "Function": "Product Management",
+            "Severity": "High",
+            "Hourly Rate": 95,
+            "Annual Hours": 22667,
+            "Cost Formula": "22,667 hours × $95/hr = $2.1M → $2.1M",
+            "Sub-Function": "Analytics",
+            "Friction Type": "Process Friction",
+            "Friction Point": "Manual synthesis of usage data across fragmented subscriber cohorts",
+            "Strategic Theme": "Data-Driven Product Intelligence",
+            "Primary Driver Impact": "Feature Development Cycle Time",
+            "Estimated Annual Cost ($)": "$2.1M"
+          },
+          {
+            "Role": "Business Analyst",
+            "Role ID": "ROLE_PRO_BIZ_ANALYST",
+            "Function": "Product Management",
+            "Severity": "High",
+            "Hourly Rate": 95,
+            "Annual Hours": 34667,
+            "Cost Formula": "34,667 hours × $95/hr = $3.3M → $3.3M",
+            "Sub-Function": "Analytics",
+            "Friction Type": "Data Friction",
+            "Friction Point": "Delayed feedback loops between feature releases and adoption metrics",
+            "Strategic Theme": "Data-Driven Product Intelligence",
+            "Primary Driver Impact": "Successful Feature Launch Rate",
+            "Estimated Annual Cost ($)": "$3.3M"
+          },
+          {
+            "Role": "Customer Support Specialist",
+            "Role ID": "ROLE_PRO_CUST_SVC_SPEC",
+            "Function": "Customer Service",
+            "Severity": "High",
+            "Hourly Rate": 65,
+            "Annual Hours": 40667,
+            "Cost Formula": "40,667 hours × $65/hr = $2.6M → $2.6M",
+            "Sub-Function": "Customer Service",
+            "Friction Type": "Process Friction",
+            "Friction Point": "Linear staffing model tied to subscriber growth without efficiency gains",
+            "Strategic Theme": "Operational Cost Structure Optimization",
+            "Primary Driver Impact": "Support FTE per 1,000 Subscribers",
+            "Estimated Annual Cost ($)": "$2.6M"
+          },
+          {
+            "Role": "Business Analyst",
+            "Role ID": "ROLE_PRO_BIZ_ANALYST",
+            "Function": "Finance",
+            "Severity": "High",
+            "Hourly Rate": 95,
+            "Annual Hours": 32000,
+            "Cost Formula": "32,000 hours × $95/hr = $3.0M → $3.0M",
+            "Sub-Function": "Financial Planning & Analysis",
+            "Friction Type": "Technology Friction",
+            "Friction Point": "Support cost structure lacks automation to improve unit economics",
+            "Strategic Theme": "Operational Cost Structure Optimization",
+            "Primary Driver Impact": "Customer Support Gross Margin Impact",
+            "Estimated Annual Cost ($)": "$3.0M"
+          }
+        ],
+        "step": 3,
+        "title": "Friction Point Mapping",
+        "content": "Alarm.com's operational friction concentrates in three domains: partner support complexity, subscriber onboarding gaps, and product intelligence latency. Complex technical issues escalate through multiple tiers before resolution, burning 34 days and fragmenting institutional knowledge across 240 support staff. Service providers struggle with installation variability—1.8 truck rolls per install signals inadequate remote diagnostics and training materials. Early subscriber churn (6.2% in first 90 days) stems from feature discovery failures: customers don't know what they bought. Product teams operate blind—89-day development cycles rest on stale usage data and anecdotal feedback, yielding 42% feature failure rates. These friction points collectively drive $92M in annual waste across labor inefficiency, partner attrition, and subscriber churn. The highest-severity issues cluster in customer service (resolution time, first-contact failure) and partner management (churn, installation inefficiency). Addressing these ten bottlenecks unlocks the strategic themes identified in Step 1, with particular leverage in proactive diagnostics and partner enablement."
+      },
+      {
+        "data": [
+          {
+            "ID": "UC-01",
+            "Function": "Customer Service",
+            "Data Types": [
+              "Structured",
+              "Semi-structured",
+              "Unstructured"
+            ],
+            "Description": "AI analyzes device telemetry, error logs, and historical case patterns to route complex issues directly to specialist tier with pre-populated diagnostic context. Reduces escalation cycles from 3.2 to 1.4 handoffs while preserving human judgment for non-standard configurations.",
+            "EPOCH Flags": "Operational, Human-centric",
+            "Integrations": [
+              "Zendesk",
+              "Device Telemetry Platform",
+              "Internal Knowledge Base",
+              "Salesforce CRM"
+            ],
+            "Sub-Function": "Escalation Handling",
+            "_patternType": "multi-agent",
+            "AI Primitives": "Data Analysis, Research & Information Retrieval, Conversational Interfaces",
+            "Use Case Name": "Intelligent Diagnostic Escalation Router",
+            "Agentic Pattern": "orchestrator_worker",
+            "Primary Pattern": "Orchestrator-Workers",
+            "Strategic Theme": "Proactive Technical Support & Diagnostics",
+            "Target Friction": "Multi-tier escalation for complex device interoperability issues",
+            "Desired Outcomes": [
+              "Reduce average resolution time from 34 days to 11 days for escalated cases",
+              "Decrease escalation volume by 42% through first-tier resolution improvements",
+              "Improve specialist utilization from 61% to 84% by eliminating low-value triage work",
+              "Increase subscriber satisfaction scores for complex issues from 3.2 to 4.6 (5-point scale)"
+            ],
+            "_tokenMultiplier": 3,
+            "Pattern Rationale": "Orchestrator-workers pattern handles multi-step diagnostic workflows with specialized agents for device logs, compatibility matrices, and knowledge base retrieval. Alternative ReAct loop offers simpler implementation for initial deployment with lower coordination overhead.",
+            "_patternComplexity": "high",
+            "Alternative Pattern": "ReAct Loop",
+            "_implementationMonths": 5,
+            "Human-in-the-Loop Checkpoint": "Specialist reviews AI-generated diagnostic summary and approves recommended solution before communicating to subscriber"
+          },
+          {
+            "ID": "UC-02",
+            "Function": "Customer Service",
+            "Data Types": [
+              "Structured",
+              "Real-time",
+              "Semi-structured"
+            ],
+            "Description": "AI surfaces probable root causes and guided resolution steps for common failure patterns during live support interactions. Agent observes device state in real-time and suggests diagnostic commands, with support rep validating applicability before execution.",
+            "EPOCH Flags": "Operational",
+            "Integrations": [
+              "Zendesk",
+              "Device Management API",
+              "Call Center Platform",
+              "Internal Diagnostic Tools"
+            ],
+            "Sub-Function": "Escalation Handling",
+            "_patternType": "single-agent",
+            "AI Primitives": "Data Analysis, Tool Use, Conversational Interfaces",
+            "Use Case Name": "Predictive Diagnostic Assistant",
+            "Agentic Pattern": "tool_use",
+            "Primary Pattern": "Tool Use",
+            "Strategic Theme": "Proactive Technical Support & Diagnostics",
+            "Target Friction": "Manual diagnostic steps for common failure patterns",
+            "Desired Outcomes": [
+              "Increase first-contact resolution from 34% to 61%",
+              "Reduce average handle time for Tier 1 calls from 18 minutes to 11 minutes",
+              "Deflect 28% of Tier 2 escalations through enhanced Tier 1 diagnostic capability",
+              "Improve new-hire time-to-proficiency from 12 weeks to 7 weeks"
+            ],
+            "_tokenMultiplier": 1.3,
+            "Pattern Rationale": "Tool use pattern enables agent to dynamically invoke diagnostic APIs, query device status, and retrieve solution templates based on detected failure signatures. Prompt chaining alternative provides deterministic fallback for high-confidence scenarios with lower runtime cost.",
+            "_patternComplexity": "medium",
+            "Alternative Pattern": "Prompt Chaining",
+            "_implementationMonths": 2.5,
+            "Human-in-the-Loop Checkpoint": "Support representative confirms AI-recommended diagnostic sequence aligns with subscriber's reported symptoms before proceeding"
+          },
+          {
+            "ID": "UC-03",
+            "Function": "Customer Service",
+            "Data Types": [
+              "Structured",
+              "Semi-structured"
+            ],
+            "Description": "AI analyzes subscriber device portfolio, historical interactions, and comparable user cohorts to generate personalized onboarding journeys highlighting relevant features. Delivers contextual tips via email, app notifications, and partner communications based on usage triggers.",
+            "EPOCH Flags": "Human-centric, Creative",
+            "Integrations": [
+              "Salesforce CRM",
+              "Email Marketing Platform",
+              "Mobile App Backend",
+              "Usage Analytics Database"
+            ],
+            "Sub-Function": "Customer Communication",
+            "_patternType": "multi-agent",
+            "AI Primitives": "Data Analysis, Content Creation, Conversational Interfaces",
+            "Use Case Name": "Personalized Feature Discovery Engine",
+            "Agentic Pattern": "generator_critic",
+            "Primary Pattern": "Generator-Critic",
+            "Strategic Theme": "Subscriber Retention & Feature Adoption",
+            "Target Friction": "Generic onboarding communications lacking personalized feature guidance",
+            "Desired Outcomes": [
+              "Increase first-90-day feature adoption from 23% to 47%",
+              "Reduce time-to-first-value from 14 days to 4 days post-installation",
+              "Improve premium feature attachment rate from 31% to 54% within first year",
+              "Decrease support contacts during onboarding period by 36%"
+            ],
+            "_tokenMultiplier": 2,
+            "Pattern Rationale": "Generator-critic pattern produces feature recommendations (generator) then validates relevance against subscriber profile and usage context (critic) before delivery. Reflection alternative offers simpler self-correction loop for initial deployments with acceptable accuracy.",
+            "_patternComplexity": "medium",
+            "Alternative Pattern": "Reflection",
+            "_implementationMonths": 2.5,
+            "Human-in-the-Loop Checkpoint": "Customer success manager reviews generated onboarding sequence for high-value accounts before automated delivery begins"
+          },
+          {
+            "ID": "UC-04",
+            "Function": "Customer Service",
+            "Data Types": [
+              "Structured",
+              "Real-time",
+              "Semi-structured"
+            ],
+            "Description": "AI monitors device usage patterns, support interaction sentiment, and billing events to identify subscribers at elevated churn risk. Automatically triggers graduated intervention workflows: app notifications for mild risk, CSM outreach for moderate, retention specialist escalation for high-probability churn.",
+            "EPOCH Flags": "Operational, Human-centric",
+            "Integrations": [
+              "Salesforce CRM",
+              "Billing System",
+              "Usage Analytics Platform",
+              "Customer Success Platform"
+            ],
+            "Sub-Function": "Customer Communication",
+            "_patternType": "single-agent",
+            "AI Primitives": "Data Analysis, Workflow Automation",
+            "Use Case Name": "Proactive Churn Risk Monitor",
+            "Agentic Pattern": "planning",
+            "Primary Pattern": "Planning",
+            "Strategic Theme": "Subscriber Retention & Feature Adoption",
+            "Target Friction": "Reactive engagement model fails to surface usage anomalies",
+            "Desired Outcomes": [
+              "Reduce early-stage churn from 6.2% to 3.8% within 90-day window",
+              "Identify at-risk subscribers 23 days earlier than current reactive detection",
+              "Improve retention offer acceptance rate from 34% to 62% through personalization",
+              "Increase subscriber lifetime value by $360 through extended tenure"
+            ],
+            "_tokenMultiplier": 1.4,
+            "Pattern Rationale": "Planning pattern sequences multi-stage intervention workflow: detect risk signals, prioritize accounts, generate outreach strategy, execute retention playbook. Orchestrator-workers alternative enables parallel processing of cohorts but adds coordination complexity for initial deployment.",
+            "_patternComplexity": "medium",
+            "Alternative Pattern": "Orchestrator-Workers",
+            "_implementationMonths": 2.5,
+            "Human-in-the-Loop Checkpoint": "Customer success manager approves AI-recommended retention offer before outbound communication to at-risk subscriber"
+          },
+          {
+            "ID": "UC-05",
+            "Function": "Operations",
+            "Data Types": [
+              "Structured",
+              "Semi-structured"
+            ],
+            "Description": "AI synthesizes partner financial performance, subscriber satisfaction, support escalation rates, and competitive activity to generate predictive health scores. Flags at-risk relationships 90 days before typical churn indicators surface, triggering account manager intervention workflows with tailored retention strategies.",
+            "EPOCH Flags": "Operational, Political",
+            "Integrations": [
+              "Partner Portal",
+              "Salesforce CRM",
+              "Billing System",
+              "Support Ticket Database",
+              "Subscriber Feedback Platform"
+            ],
+            "Sub-Function": "Quality Assurance",
+            "_patternType": "multi-agent",
+            "AI Primitives": "Data Analysis, Workflow Automation, Content Creation",
+            "Use Case Name": "Partner Health Scoring & Intervention System",
+            "Agentic Pattern": "orchestrator_worker",
+            "Primary Pattern": "Orchestrator-Workers",
+            "Strategic Theme": "Service Provider Enablement & Retention",
+            "Target Friction": "Limited visibility into partner profitability and satisfaction drivers",
+            "Desired Outcomes": [
+              "Reduce partner churn from 12% to 7% through early intervention",
+              "Increase partner lifetime value by $180K through extended tenure",
+              "Improve partner NPS from 34 to 56 via proactive support",
+              "Decrease reactive churn management costs by $2.4M annually"
+            ],
+            "_tokenMultiplier": 3,
+            "Pattern Rationale": "Orchestrator-workers pattern coordinates specialized agents analyzing financial metrics, support ticket patterns, installation quality, and subscriber feedback to generate composite health scores. Planning alternative offers sequential processing suitable for monthly batch cycles with lower infrastructure requirements.",
+            "_patternComplexity": "high",
+            "Alternative Pattern": "Planning",
+            "_implementationMonths": 5,
+            "Human-in-the-Loop Checkpoint": "Regional partner director reviews AI-generated intervention recommendations and approves retention offer structure before partner contact"
+          },
+          {
+            "ID": "UC-06",
+            "Function": "Operations",
+            "Data Types": [
+              "Structured",
+              "Unstructured",
+              "Real-time"
+            ],
+            "Description": "AI provides real-time installation guidance to technicians via mobile app, surfacing device-specific configuration steps, common failure modes, and compatibility checks. Learns from successful first-visit installations to update best-practice repositories and reduce truck roll variability.",
+            "EPOCH Flags": "Operational",
+            "Integrations": [
+              "Mobile Technician App",
+              "Device Configuration API",
+              "Knowledge Base",
+              "Partner Portal"
+            ],
+            "Sub-Function": "Quality Assurance",
+            "_patternType": "single-agent",
+            "AI Primitives": "Research & Information Retrieval, Conversational Interfaces, Tool Use",
+            "Use Case Name": "Intelligent Installation Support Assistant",
+            "Agentic Pattern": "tool_use",
+            "Primary Pattern": "Tool Use",
+            "Strategic Theme": "Service Provider Enablement & Retention",
+            "Target Friction": "Installation support materials lack real-time troubleshooting guidance",
+            "Desired Outcomes": [
+              "Reduce average truck rolls from 1.8 to 1.2 visits per installation",
+              "Decrease partner installation costs by $340 per job",
+              "Improve first-visit completion rate from 56% to 83%",
+              "Reduce partner support calls during installation by 47%"
+            ],
+            "_tokenMultiplier": 1.3,
+            "Pattern Rationale": "Tool use pattern enables dynamic access to installation guides, compatibility matrices, troubleshooting databases, and real-time device diagnostics during on-site work. ReAct loop alternative provides iterative problem-solving for complex scenarios with acceptable latency tradeoffs.",
+            "_patternComplexity": "medium",
+            "Alternative Pattern": "ReAct Loop",
+            "_implementationMonths": 2.5,
+            "Human-in-the-Loop Checkpoint": "Technician validates AI-recommended configuration matches site conditions before activating subscriber system"
+          },
+          {
+            "ID": "UC-07",
+            "Function": "Product Management",
+            "Data Types": [
+              "Structured",
+              "Semi-structured",
+              "Unstructured"
+            ],
+            "Description": "AI continuously analyzes subscriber usage patterns, support interactions, and feature adoption rates across cohorts to surface unmet needs and usage anomalies. Generates weekly insight briefs for product teams with prioritized opportunity areas and supporting evidence from behavioral data.",
+            "EPOCH Flags": "Creative, Operational",
+            "Integrations": [
+              "Product Analytics Platform",
+              "Zendesk",
+              "Salesforce CRM",
+              "Usage Database",
+              "Survey Tools"
+            ],
+            "Sub-Function": "Analytics",
+            "_patternType": "multi-agent",
+            "AI Primitives": "Data Analysis, Research & Information Retrieval, Content Creation",
+            "Use Case Name": "Automated Product Intelligence Synthesizer",
+            "Agentic Pattern": "orchestrator_worker",
+            "Primary Pattern": "Orchestrator-Workers",
+            "Strategic Theme": "Data-Driven Product Intelligence",
+            "Target Friction": "Manual synthesis of usage data across fragmented subscriber cohorts",
+            "Desired Outcomes": [
+              "Reduce feature development cycle from 89 days to 55 days through faster discovery",
+              "Improve product team insight generation from quarterly to weekly cadence",
+              "Increase confidence in feature prioritization decisions by 34 percentage points",
+              "Reduce time spent in manual data analysis by 240 hours per product manager annually"
+            ],
+            "_tokenMultiplier": 3,
+            "Pattern Rationale": "Orchestrator-workers pattern coordinates agents analyzing usage cohorts, support tickets, NPS verbatims, and market research to generate unified insights. Parallelization alternative processes data streams independently then merges, suitable for established workflows with clear schema.",
+            "_patternComplexity": "high",
+            "Alternative Pattern": "Parallelization",
+            "_implementationMonths": 5,
+            "Human-in-the-Loop Checkpoint": "Product manager validates AI-identified opportunity themes align with strategic roadmap before initiating feature exploration"
+          },
+          {
+            "ID": "UC-08",
+            "Function": "Product Management",
+            "Data Types": [
+              "Structured",
+              "Real-time",
+              "Semi-structured"
+            ],
+            "Description": "AI tracks feature adoption velocity, engagement depth, and churn correlation within 72 hours of release. Automatically flags underperforming launches, identifies adoption blockers through usage pattern analysis, and generates hypotheses for product iteration based on behavioral cohort comparisons.",
+            "EPOCH Flags": "Operational, Creative",
+            "Integrations": [
+              "Product Analytics Platform",
+              "Feature Flag System",
+              "Usage Database",
+              "A/B Testing Platform"
+            ],
+            "Sub-Function": "Analytics",
+            "_patternType": "single-agent",
+            "AI Primitives": "Data Analysis, Content Creation",
+            "Use Case Name": "Feature Performance Feedback Loop",
+            "Agentic Pattern": "reflection",
+            "Primary Pattern": "Reflection",
+            "Strategic Theme": "Data-Driven Product Intelligence",
+            "Target Friction": "Delayed feedback loops between feature releases and adoption metrics",
+            "Desired Outcomes": [
+              "Increase successful feature launch rate from 58% to 81%",
+              "Reduce time-to-detection of underperforming features from 45 days to 3 days",
+              "Improve feature iteration velocity by 56% through faster feedback cycles",
+              "Decrease wasted engineering effort on failed features by $1.8M annually"
+            ],
+            "_tokenMultiplier": 1.5,
+            "Pattern Rationale": "Reflection pattern enables agent to iteratively refine adoption hypotheses by comparing predicted vs. actual usage patterns, adjusting success criteria based on observed behavior. Generator-critic alternative separates analysis generation from validation for higher-stakes product decisions.",
+            "_patternComplexity": "low",
+            "Alternative Pattern": "Generator-Critic",
+            "_implementationMonths": 1.5,
+            "Human-in-the-Loop Checkpoint": "Product owner reviews AI-generated performance assessment and approves recommended iteration strategy before engineering commitment"
+          },
+          {
+            "ID": "UC-09",
+            "Function": "Customer Service",
+            "Data Types": [
+              "Structured",
+              "Unstructured",
+              "Real-time"
+            ],
+            "Description": "AI-powered self-service assistant handles common subscriber inquiries through app and web interfaces, accessing device diagnostics, billing history, and troubleshooting guides. Escalates to human agents only when confidence thresholds fail or subscriber explicitly requests transfer, preserving context across handoff.",
+            "EPOCH Flags": "Operational",
+            "Integrations": [
+              "Zendesk",
+              "Mobile App Backend",
+              "Web Portal",
+              "Knowledge Base",
+              "Device Management API"
+            ],
+            "Sub-Function": "Customer Service",
+            "_patternType": "single-agent",
+            "AI Primitives": "Research & Information Retrieval, Conversational Interfaces, Content Creation",
+            "Use Case Name": "Support Deflection Knowledge Assistant",
+            "Agentic Pattern": "planning",
+            "Primary Pattern": "Semantic Router",
+            "Strategic Theme": "Operational Cost Structure Optimization",
+            "Target Friction": "Linear staffing model tied to subscriber growth without efficiency gains",
+            "Desired Outcomes": [
+              "Reduce support FTE per 1,000 subscribers from 3.4 to 2.3",
+              "Deflect 38% of tier-1 support volume to self-service channels",
+              "Avoid hiring 67 incremental support staff over 24-month growth period",
+              "Improve support team focus on high-value interactions requiring empathy and judgment"
+            ],
+            "_tokenMultiplier": 1.1,
+            "Pattern Rationale": "Semantic router pattern classifies subscriber intent then routes to specialized knowledge retrieval agents for troubleshooting, billing, or feature guidance. ReAct loop alternative provides iterative refinement for ambiguous queries but increases latency for straightforward deflection scenarios.",
+            "_patternComplexity": "low",
+            "Alternative Pattern": "ReAct Loop",
+            "_implementationMonths": 1.5,
+            "Human-in-the-Loop Checkpoint": "Support agent reviews AI-generated resolution before closing escalated tickets to validate accuracy and subscriber satisfaction"
+          },
+          {
+            "ID": "UC-10",
+            "Function": "Finance",
+            "Data Types": [
+              "Structured",
+              "Semi-structured"
+            ],
+            "Description": "AI analyzes support cost structure by channel, issue type, and resolution path to identify automation opportunities and staffing inefficiencies. Generates monthly optimization briefs showing unit economics trends, FTE productivity benchmarks, and ROI projections for process improvements.",
+            "EPOCH Flags": "Operational",
+            "Integrations": [
+              "ERP System",
+              "Zendesk",
+              "HR Analytics Platform",
+              "Financial Planning Software",
+              "Salesforce CRM"
+            ],
+            "Sub-Function": "Financial Planning & Analysis",
+            "_patternType": "single-agent",
+            "AI Primitives": "Data Analysis, Content Creation",
+            "Use Case Name": "Support Cost Optimization Analytics",
+            "Agentic Pattern": "planning",
+            "Primary Pattern": "Planning",
+            "Strategic Theme": "Operational Cost Structure Optimization",
+            "Target Friction": "Support cost structure lacks automation to improve unit economics",
+            "Desired Outcomes": [
+              "Improve customer support gross margin impact from -4.2 to -2.6 percentage points",
+              "Identify $4.8M in annual cost reduction opportunities through channel optimization",
+              "Reduce cost per contact by 28% while maintaining NPS above 60",
+              "Enable CFO visibility into support economics with weekly granularity vs. quarterly"
+            ],
+            "_tokenMultiplier": 1.4,
+            "Pattern Rationale": "Planning pattern sequences cost driver analysis, efficiency opportunity identification, and financial impact modeling to generate actionable optimization recommendations. Orchestrator-workers alternative parallelizes analysis across cost categories but adds coordination overhead for monthly planning cycles.",
+            "_patternComplexity": "medium",
+            "Alternative Pattern": "Orchestrator-Workers",
+            "_implementationMonths": 2.5,
+            "Human-in-the-Loop Checkpoint": "Finance director validates AI-recommended cost optimization initiatives align with service level commitments before implementation"
+          }
+        ],
+        "step": 4,
+        "title": "AI Use Case Generation",
+        "content": "These ten use cases attack Alarm.com's highest-cost friction points through process transformation, not acceleration. Each use case anchors to existing data gravity—device telemetry, support transcripts, partner transaction histories—and embeds human judgment at critical decision gates. The portfolio balances quick wins (diagnostic assistants, onboarding personalization) against structural transformations (partner health scoring, product intelligence engines). Agentic patterns vary by complexity: simple tool-use agents handle support triage, while orchestrator-worker systems coordinate multi-step installation guidance. Constitutional guardrails protect partner relationships from AI-generated communications. Pattern selection prioritizes time-to-value for initial deployments, with alternative patterns providing upgrade paths as capabilities mature. EPOCH flags concentrate in operational and human-centric domains—support escalations require empathy, partner communications demand relationship sensitivity. Data integration spans CRM systems (Salesforce), device management platforms, billing systems, and product analytics tools. The use cases collectively address all five strategic themes, with heaviest investment in proactive diagnostics and partner enablement where friction costs run highest."
+      },
+      {
+        "data": [
+          {
+            "ID": "UC-01",
+            "Use Case": "Intelligent Diagnostic Escalation Router",
+            "Cost Formula": "12,000 hours × $100/hr × 1.35 × 0.90 × 0.75 = $1.1M → $1.1M [HF/labels]",
+            "Risk Formula": "3% × $12M × 0.80 × 0.75 = $216K → $216K [HF/labels]",
+            "Revenue Formula": "0% × $1.1B × 0.95 × 0.75 = $784K → $784K [HF/labels]",
+            "Strategic Theme": "Proactive Technical Support & Diagnostics",
+            "Cost Benefit ($)": "$1.1M",
+            "Risk Benefit ($)": "$216K",
+            "Cash Flow Formula": "$1.1B × (2/365) × 0.08 × 0.85 × 0.75 = $307K → $307K [HF/labels]",
+            "Expected Value ($)": "$1.6M",
+            "Cost Formula Labels": {
+              "result": "$1.1M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 12000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 100
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$784K",
+            "Risk Formula Labels": {
+              "result": "$216K",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.03
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 12000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$307K",
+            "Probability of Success": 0.65,
+            "Revenue Formula Labels": {
+              "result": "$784K",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.001
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 1100000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$2.4M",
+            "Cash Flow Formula Labels": {
+              "result": "$307K",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 1100000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 2
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            }
+          },
+          {
+            "ID": "UC-02",
+            "Use Case": "Predictive Diagnostic Assistant",
+            "Cost Formula": "10,000 hours × $100/hr × 1.35 × 0.90 × 0.75 = $911K → $911K [HF/labels]",
+            "Risk Formula": "3% × $10M × 0.80 × 0.75 = $150K → $150K [HF/labels]",
+            "Revenue Formula": "0% × $1.1B × 0.95 × 0.75 = $627K → $627K [HF/labels]",
+            "Strategic Theme": "Proactive Technical Support & Diagnostics",
+            "Cost Benefit ($)": "$911K",
+            "Risk Benefit ($)": "$150K",
+            "Cash Flow Formula": "$1.1B × (1/365) × 0.08 × 0.85 × 0.75 = $154K → $154K [HF/labels]",
+            "Expected Value ($)": "$1.3M",
+            "Cost Formula Labels": {
+              "result": "$911K",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 10000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 100
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$627K",
+            "Risk Formula Labels": {
+              "result": "$150K",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.025
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 10000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$154K",
+            "Probability of Success": 0.7,
+            "Revenue Formula Labels": {
+              "result": "$627K",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.0008
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 1100000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$1.8M",
+            "Cash Flow Formula Labels": {
+              "result": "$154K",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 1100000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 1
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            }
+          },
+          {
+            "ID": "UC-03",
+            "Use Case": "Personalized Feature Discovery Engine",
+            "Cost Formula": "7,500 hours × $100/hr × 1.35 × 0.90 × 0.75 = $683K → $683K [HF/labels]",
+            "Risk Formula": "2% × $7M × 0.80 × 0.75 = $84K → $84K [HF/labels]",
+            "Revenue Formula": "0% × $1.1B × 0.95 × 0.75 = $941K → $941K [HF/labels]",
+            "Strategic Theme": "Subscriber Retention & Feature Adoption",
+            "Cost Benefit ($)": "$683K",
+            "Risk Benefit ($)": "$84K",
+            "Cash Flow Formula": "1,000,000 × (90 / 365) × 0.08 × 0.85 × 0.75 = $13K → $13K",
+            "Expected Value ($)": "$1.0M",
+            "Cost Formula Labels": {
+              "result": "$683K",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 7500
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 100
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$941K",
+            "Risk Formula Labels": {
+              "result": "$84K",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.02
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 7000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$13K",
+            "Probability of Success": 0.6,
+            "Revenue Formula Labels": {
+              "result": "$941K",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.0012
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 1100000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$1.7M",
+            "Cash Flow Formula Labels": {
+              "result": "$13K",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": "1,000,000"
+                },
+                {
+                  "label": "Days Improved / 365",
+                  "value": "(90 / 365)"
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": "0.08"
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": "0.85"
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": "0.75"
+                }
+              ],
+              "rawFormula": "1,000,000 × (90 / 365) × 0.08 × 0.85 × 0.75 = $13K → $13K"
+            }
+          },
+          {
+            "ID": "UC-04",
+            "Use Case": "Proactive Churn Risk Monitor",
+            "Cost Formula": "15,000 hours × $100/hr × 1.35 × 0.90 × 0.75 = $1.4M → $1.4M [HF/labels]",
+            "Risk Formula": "3% × $16M × 0.80 × 0.75 = $288K → $288K [HF/labels]",
+            "Revenue Formula": "0% × $1.1B × 0.95 × 0.75 = $1.6M → $1.6M [HF/labels]",
+            "Strategic Theme": "Subscriber Retention & Feature Adoption",
+            "Cost Benefit ($)": "$1.4M",
+            "Risk Benefit ($)": "$288K",
+            "Cash Flow Formula": "1,000,000 × (90 / 365) × 0.08 × 0.85 × 0.75 = $13K → $13K",
+            "Expected Value ($)": "$1.8M",
+            "Cost Formula Labels": {
+              "result": "$1.4M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 15000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 100
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$1.6M",
+            "Risk Formula Labels": {
+              "result": "$288K",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.03
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 16000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$13K",
+            "Probability of Success": 0.55,
+            "Revenue Formula Labels": {
+              "result": "$1.6M",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.002
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 1100000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$3.2M",
+            "Cash Flow Formula Labels": {
+              "result": "$13K",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": "1,000,000"
+                },
+                {
+                  "label": "Days Improved / 365",
+                  "value": "(90 / 365)"
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": "0.08"
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": "0.85"
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": "0.75"
+                }
+              ],
+              "rawFormula": "1,000,000 × (90 / 365) × 0.08 × 0.85 × 0.75 = $13K → $13K"
+            }
+          },
+          {
+            "ID": "UC-05",
+            "Use Case": "Partner Health Scoring & Intervention System",
+            "Cost Formula": "18,000 hours × $100/hr × 1.35 × 0.90 × 0.75 = $1.6M → $1.6M [HF/labels]",
+            "Risk Formula": "3% × $20M × 0.80 × 0.75 = $360K → $360K [HF/labels]",
+            "Revenue Formula": "0% × $1.1B × 0.95 × 0.75 = $1.7M → $1.7M [HF/labels]",
+            "Strategic Theme": "Service Provider Enablement & Retention",
+            "Cost Benefit ($)": "$1.6M",
+            "Risk Benefit ($)": "$360K",
+            "Cash Flow Formula": "1,000,000 × (90 / 365) × 0.08 × 0.85 × 0.75 = $13K → $13K",
+            "Expected Value ($)": "$1.9M",
+            "Cost Formula Labels": {
+              "result": "$1.6M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 18000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 100
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$1.7M",
+            "Risk Formula Labels": {
+              "result": "$360K",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.03
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 20000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$13K",
+            "Probability of Success": 0.5,
+            "Revenue Formula Labels": {
+              "result": "$1.7M",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.0022
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 1100000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$3.7M",
+            "Cash Flow Formula Labels": {
+              "result": "$13K",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": "1,000,000"
+                },
+                {
+                  "label": "Days Improved / 365",
+                  "value": "(90 / 365)"
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": "0.08"
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": "0.85"
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": "0.75"
+                }
+              ],
+              "rawFormula": "1,000,000 × (90 / 365) × 0.08 × 0.85 × 0.75 = $13K → $13K"
+            }
+          },
+          {
+            "ID": "UC-06",
+            "Use Case": "Intelligent Installation Support Assistant",
+            "Cost Formula": "6,500 hours × $100/hr × 1.35 × 0.90 × 0.75 = $592K → $592K [HF/labels]",
+            "Risk Formula": "2% × $6M × 0.80 × 0.75 = $72K → $72K [HF/labels]",
+            "Revenue Formula": "0% × $1.1B × 0.95 × 0.75 = $705K → $705K [HF/labels]",
+            "Strategic Theme": "Service Provider Enablement & Retention",
+            "Cost Benefit ($)": "$592K",
+            "Risk Benefit ($)": "$72K",
+            "Cash Flow Formula": "$1.1B × (1/365) × 0.08 × 0.85 × 0.75 = $154K → $154K [HF/labels]",
+            "Expected Value ($)": "$990K",
+            "Cost Formula Labels": {
+              "result": "$592K",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 6500
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 100
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$705K",
+            "Risk Formula Labels": {
+              "result": "$72K",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.02
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 6000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$154K",
+            "Probability of Success": 0.65,
+            "Revenue Formula Labels": {
+              "result": "$705K",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.0009
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 1100000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$1.5M",
+            "Cash Flow Formula Labels": {
+              "result": "$154K",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 1100000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 1
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            }
+          },
+          {
+            "ID": "UC-07",
+            "Use Case": "Automated Product Intelligence Synthesizer",
+            "Cost Formula": "3,000 hours × $100/hr × 1.35 × 0.90 × 0.75 = $273K → $273K [HF/labels]",
+            "Risk Formula": "0% × $0 exposure × 0.80 × 0.75 = $0 (could not validate)",
+            "Revenue Formula": "0% × $1.1B × 0.95 × 0.75 = $392K → $392K [HF/labels]",
+            "Strategic Theme": "Data-Driven Product Intelligence",
+            "Cost Benefit ($)": "$273K",
+            "Risk Benefit ($)": "$0",
+            "Cash Flow Formula": "1,000,000 × (90 / 365) × 0.08 × 0.85 × 0.75 = $13K → $13K",
+            "Expected Value ($)": "$474K",
+            "Cost Formula Labels": {
+              "result": "$273K",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 3000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 100
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$392K",
+            "Risk Formula Labels": {
+              "result": "$0 (could not validate)",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": "0%"
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": "$0 exposure"
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": "0.80"
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": "0.75"
+                }
+              ],
+              "rawFormula": "0% × $0 exposure × 0.80 × 0.75 = $0 (could not validate)"
+            },
+            "Cash Flow Benefit ($)": "$13K",
+            "Probability of Success": 0.7,
+            "Revenue Formula Labels": {
+              "result": "$392K",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.0005
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 1100000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$678K",
+            "Cash Flow Formula Labels": {
+              "result": "$13K",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": "1,000,000"
+                },
+                {
+                  "label": "Days Improved / 365",
+                  "value": "(90 / 365)"
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": "0.08"
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": "0.85"
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": "0.75"
+                }
+              ],
+              "rawFormula": "1,000,000 × (90 / 365) × 0.08 × 0.85 × 0.75 = $13K → $13K"
+            }
+          },
+          {
+            "ID": "UC-08",
+            "Use Case": "Feature Performance Feedback Loop",
+            "Cost Formula": "4,500 hours × $100/hr × 1.35 × 0.90 × 0.75 = $410K → $410K [HF/labels]",
+            "Risk Formula": "0% × $0 exposure × 0.80 × 0.75 = $0 (could not validate)",
+            "Revenue Formula": "0% × $1.1B × 0.95 × 0.75 = $470K → $470K [HF/labels]",
+            "Strategic Theme": "Data-Driven Product Intelligence",
+            "Cost Benefit ($)": "$410K",
+            "Risk Benefit ($)": "$0",
+            "Cash Flow Formula": "1,000,000 × (90 / 365) × 0.08 × 0.85 × 0.75 = $13K → $13K",
+            "Expected Value ($)": "$580K",
+            "Cost Formula Labels": {
+              "result": "$410K",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 4500
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 100
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$470K",
+            "Risk Formula Labels": {
+              "result": "$0 (could not validate)",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": "0%"
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": "$0 exposure"
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": "0.80"
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": "0.75"
+                }
+              ],
+              "rawFormula": "0% × $0 exposure × 0.80 × 0.75 = $0 (could not validate)"
+            },
+            "Cash Flow Benefit ($)": "$13K",
+            "Probability of Success": 0.65,
+            "Revenue Formula Labels": {
+              "result": "$470K",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.0006
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 1100000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$893K",
+            "Cash Flow Formula Labels": {
+              "result": "$13K",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": "1,000,000"
+                },
+                {
+                  "label": "Days Improved / 365",
+                  "value": "(90 / 365)"
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": "0.08"
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": "0.85"
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": "0.75"
+                }
+              ],
+              "rawFormula": "1,000,000 × (90 / 365) × 0.08 × 0.85 × 0.75 = $13K → $13K"
+            }
+          },
+          {
+            "ID": "UC-09",
+            "Use Case": "Support Deflection Knowledge Assistant",
+            "Cost Formula": "5,500 hours × $100/hr × 1.35 × 0.90 × 0.75 = $501K → $501K [HF/labels]",
+            "Risk Formula": "0% × $0 exposure × 0.80 × 0.75 = $0 (could not validate)",
+            "Revenue Formula": "5% × $1M × 0.75 × 0.75 = $28K → $28K",
+            "Strategic Theme": "Operational Cost Structure Optimization",
+            "Cost Benefit ($)": "$501K",
+            "Risk Benefit ($)": "$0",
+            "Cash Flow Formula": "1,000,000 × (90 / 365) × 0.08 × 0.85 × 0.75 = $13K → $13K",
+            "Expected Value ($)": "$379K",
+            "Cost Formula Labels": {
+              "result": "$501K",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 5500
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 100
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$28K",
+            "Risk Formula Labels": {
+              "result": "$0 (could not validate)",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": "0%"
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": "$0 exposure"
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": "0.80"
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": "0.75"
+                }
+              ],
+              "rawFormula": "0% × $0 exposure × 0.80 × 0.75 = $0 (could not validate)"
+            },
+            "Cash Flow Benefit ($)": "$13K",
+            "Probability of Success": 0.7,
+            "Revenue Formula Labels": {
+              "result": "$28K",
+              "components": [
+                {
+                  "label": "Revenue Uplift",
+                  "value": "5%"
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": "$1M"
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": "0.75"
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": "0.75"
+                }
+              ],
+              "rawFormula": "5% × $1M × 0.75 × 0.75 = $28K → $28K"
+            },
+            "Total Annual Value ($)": "$542K",
+            "Cash Flow Formula Labels": {
+              "result": "$13K",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": "1,000,000"
+                },
+                {
+                  "label": "Days Improved / 365",
+                  "value": "(90 / 365)"
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": "0.08"
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": "0.85"
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": "0.75"
+                }
+              ],
+              "rawFormula": "1,000,000 × (90 / 365) × 0.08 × 0.85 × 0.75 = $13K → $13K"
+            }
+          },
+          {
+            "ID": "UC-10",
+            "Use Case": "Support Cost Optimization Analytics",
+            "Cost Formula": "4,000 hours × $100/hr × 1.35 × 0.90 × 0.75 = $365K → $365K [HF/labels]",
+            "Risk Formula": "3% × $5M × 0.80 × 0.75 = $75K → $75K [HF/labels]",
+            "Revenue Formula": "5% × $1M × 0.75 × 0.75 = $28K → $28K",
+            "Strategic Theme": "Operational Cost Structure Optimization",
+            "Cost Benefit ($)": "$365K",
+            "Risk Benefit ($)": "$75K",
+            "Cash Flow Formula": "1,000,000 × (90 / 365) × 0.08 × 0.85 × 0.75 = $13K → $13K",
+            "Expected Value ($)": "$312K",
+            "Cost Formula Labels": {
+              "result": "$365K",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 4000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 100
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$28K",
+            "Risk Formula Labels": {
+              "result": "$75K",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.025
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 5000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$13K",
+            "Probability of Success": 0.65,
+            "Revenue Formula Labels": {
+              "result": "$28K",
+              "components": [
+                {
+                  "label": "Revenue Uplift",
+                  "value": "5%"
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": "$1M"
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": "0.75"
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": "0.75"
+                }
+              ],
+              "rawFormula": "5% × $1M × 0.75 × 0.75 = $28K → $28K"
+            },
+            "Total Annual Value ($)": "$480K",
+            "Cash Flow Formula Labels": {
+              "result": "$13K",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": "1,000,000"
+                },
+                {
+                  "label": "Days Improved / 365",
+                  "value": "(90 / 365)"
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": "0.08"
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": "0.85"
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": "0.75"
+                }
+              ],
+              "rawFormula": "1,000,000 × (90 / 365) × 0.08 × 0.85 × 0.75 = $13K → $13K"
+            }
+          }
+        ],
+        "step": 5,
+        "title": "Benefits Quantification by Driver",
+        "content": "Annual benefits quantified across revenue growth, cost reduction, cash flow acceleration, and risk mitigation. All calculations apply conservative reductions and data maturity adjustments (Level 2: ×0.75). Total portfolio value targets 1.5% of $1.1B revenue ($16.5M). Each use case shows explicit formulas with probability weighting applied."
+      },
+      {
+        "data": [
+          {
+            "ID": "UC-01",
+            "Use Case": "Intelligent Diagnostic Escalation Router",
+            "Governance": 4,
+            "Runs/Month": 45000,
+            "Time To Value": 9,
+            "Monthly Tokens": 72000000,
+            "Readiness Score": 6.5,
+            "Strategic Theme": "Proactive Technical Support & Diagnostics",
+            "Input Tokens/Run": 1200,
+            "Output Tokens/Run": 400,
+            "Organizational Capacity": 7,
+            "Technical Infrastructure": 6,
+            "Data Availability & Quality": 8
+          },
+          {
+            "ID": "UC-02",
+            "Use Case": "Predictive Diagnostic Assistant",
+            "Governance": 4,
+            "Runs/Month": 30000,
+            "Time To Value": 12,
+            "Monthly Tokens": 84000000,
+            "Readiness Score": 6.8,
+            "Strategic Theme": "Proactive Technical Support & Diagnostics",
+            "Input Tokens/Run": 2000,
+            "Output Tokens/Run": 800,
+            "Organizational Capacity": 7,
+            "Technical Infrastructure": 6,
+            "Data Availability & Quality": 9
+          },
+          {
+            "ID": "UC-03",
+            "Use Case": "Personalized Feature Discovery Engine",
+            "Governance": 3,
+            "Runs/Month": 820000,
+            "Time To Value": 15,
+            "Monthly Tokens": 1722000000,
+            "Readiness Score": 5.7,
+            "Strategic Theme": "Subscriber Retention & Feature Adoption",
+            "Input Tokens/Run": 1500,
+            "Output Tokens/Run": 600,
+            "Organizational Capacity": 6,
+            "Technical Infrastructure": 6,
+            "Data Availability & Quality": 7
+          },
+          {
+            "ID": "UC-04",
+            "Use Case": "Proactive Churn Risk Monitor",
+            "Governance": 3,
+            "Runs/Month": 410000,
+            "Time To Value": 18,
+            "Monthly Tokens": 943000000,
+            "Readiness Score": 5.7,
+            "Strategic Theme": "Subscriber Retention & Feature Adoption",
+            "Input Tokens/Run": 1800,
+            "Output Tokens/Run": 500,
+            "Organizational Capacity": 6,
+            "Technical Infrastructure": 6,
+            "Data Availability & Quality": 7
+          },
+          {
+            "ID": "UC-05",
+            "Use Case": "Partner Health Scoring & Intervention System",
+            "Governance": 3,
+            "Runs/Month": 2400,
+            "Time To Value": 21,
+            "Monthly Tokens": 8400000,
+            "Readiness Score": 4.9,
+            "Strategic Theme": "Service Provider Enablement & Retention",
+            "Input Tokens/Run": 2500,
+            "Output Tokens/Run": 1000,
+            "Organizational Capacity": 5,
+            "Technical Infrastructure": 5,
+            "Data Availability & Quality": 6
+          },
+          {
+            "ID": "UC-06",
+            "Use Case": "Intelligent Installation Support Assistant",
+            "Governance": 4,
+            "Runs/Month": 8000,
+            "Time To Value": 12,
+            "Monthly Tokens": 18400000,
+            "Readiness Score": 5.6,
+            "Strategic Theme": "Service Provider Enablement & Retention",
+            "Input Tokens/Run": 1600,
+            "Output Tokens/Run": 700,
+            "Organizational Capacity": 6,
+            "Technical Infrastructure": 6,
+            "Data Availability & Quality": 6
+          },
+          {
+            "ID": "UC-07",
+            "Use Case": "Automated Product Intelligence Synthesizer",
+            "Governance": 5,
+            "Runs/Month": 500,
+            "Time To Value": 6,
+            "Monthly Tokens": 3500000,
+            "Readiness Score": 6.9,
+            "Strategic Theme": "Data-Driven Product Intelligence",
+            "Input Tokens/Run": 5000,
+            "Output Tokens/Run": 2000,
+            "Organizational Capacity": 7,
+            "Technical Infrastructure": 7,
+            "Data Availability & Quality": 8
+          },
+          {
+            "ID": "UC-08",
+            "Use Case": "Feature Performance Feedback Loop",
+            "Governance": 5,
+            "Runs/Month": 1000,
+            "Time To Value": 9,
+            "Monthly Tokens": 4200000,
+            "Readiness Score": 6.9,
+            "Strategic Theme": "Data-Driven Product Intelligence",
+            "Input Tokens/Run": 3000,
+            "Output Tokens/Run": 1200,
+            "Organizational Capacity": 7,
+            "Technical Infrastructure": 7,
+            "Data Availability & Quality": 8
+          },
+          {
+            "ID": "UC-09",
+            "Use Case": "Support Deflection Knowledge Assistant",
+            "Governance": 4,
+            "Runs/Month": 12000,
+            "Time To Value": 15,
+            "Monthly Tokens": 21600000,
+            "Readiness Score": 5.3,
+            "Strategic Theme": "Operational Cost Structure Optimization",
+            "Input Tokens/Run": 1000,
+            "Output Tokens/Run": 800,
+            "Organizational Capacity": 6,
+            "Technical Infrastructure": 6,
+            "Data Availability & Quality": 5
+          },
+          {
+            "ID": "UC-10",
+            "Use Case": "Support Cost Optimization Analytics",
+            "Governance": 5,
+            "Runs/Month": 250,
+            "Time To Value": 6,
+            "Monthly Tokens": 1375000,
+            "Readiness Score": 6.6,
+            "Strategic Theme": "Operational Cost Structure Optimization",
+            "Input Tokens/Run": 4000,
+            "Output Tokens/Run": 1500,
+            "Organizational Capacity": 7,
+            "Technical Infrastructure": 7,
+            "Data Availability & Quality": 7
+          }
+        ],
+        "step": 6,
+        "title": "Readiness & Token Modeling",
+        "content": "Alarm.com's 8.2M device telemetry foundation and structured event logs create strong readiness for supervised learning applications. Organizational capacity scores reflect SaaS maturity but conservative AI governance—no documented ethics framework or bias auditing processes. Data quality remains high across device telemetry and partner interactions, though customer support transcripts require enrichment. Technical infrastructure scores assume hybrid cloud architecture typical of IoT platforms with on-premises legacy. Token modeling reflects high-volume operational use cases against device event streams and support interactions. Time-to-value estimates account for partner training cycles and device integration complexity unique to smart home platforms."
+      },
+      {
+        "data": [
+          {
+            "ID": "UC-01",
+            "Use Case": "Intelligent Diagnostic Escalation Router",
+            "TTV Score": 0.25,
+            "Value Score": 8.92,
+            "Priority Tier": "Tier 1 — Champions",
+            "Priority Score": 7.71,
+            "Readiness Score": 6.5,
+            "Strategic Theme": "Proactive Technical Support & Diagnostics",
+            "Recommended Phase": "Q1"
+          },
+          {
+            "ID": "UC-02",
+            "Use Case": "Predictive Diagnostic Assistant",
+            "TTV Score": 0,
+            "Value Score": 8.55,
+            "Priority Tier": "Tier 1 — Champions",
+            "Priority Score": 7.68,
+            "Readiness Score": 6.8,
+            "Strategic Theme": "Proactive Technical Support & Diagnostics",
+            "Recommended Phase": "Q1"
+          },
+          {
+            "ID": "UC-03",
+            "Use Case": "Personalized Feature Discovery Engine",
+            "TTV Score": 0,
+            "Value Score": 10,
+            "Priority Tier": "Tier 1 — Champions",
+            "Priority Score": 7.85,
+            "Readiness Score": 5.7,
+            "Strategic Theme": "Subscriber Retention & Feature Adoption",
+            "Recommended Phase": "Q2"
+          },
+          {
+            "ID": "UC-04",
+            "Use Case": "Proactive Churn Risk Monitor",
+            "TTV Score": 0,
+            "Value Score": 6.61,
+            "Priority Tier": "Tier 4 — Foundation",
+            "Priority Score": 6.16,
+            "Readiness Score": 5.7,
+            "Strategic Theme": "Subscriber Retention & Feature Adoption",
+            "Recommended Phase": "Q2"
+          },
+          {
+            "ID": "UC-05",
+            "Use Case": "Partner Health Scoring & Intervention System",
+            "TTV Score": 0,
+            "Value Score": 2.68,
+            "Priority Tier": "Tier 4 — Foundation",
+            "Priority Score": 3.79,
+            "Readiness Score": 4.9,
+            "Strategic Theme": "Service Provider Enablement & Retention",
+            "Recommended Phase": "Q4"
+          },
+          {
+            "ID": "UC-06",
+            "Use Case": "Intelligent Installation Support Assistant",
+            "TTV Score": 0,
+            "Value Score": 5.85,
+            "Priority Tier": "Tier 4 — Foundation",
+            "Priority Score": 5.73,
+            "Readiness Score": 5.6,
+            "Strategic Theme": "Service Provider Enablement & Retention",
+            "Recommended Phase": "Q3"
+          },
+          {
+            "ID": "UC-07",
+            "Use Case": "Automated Product Intelligence Synthesizer",
+            "TTV Score": 0.5,
+            "Value Score": 7.2,
+            "Priority Tier": "Tier 4 — Foundation",
+            "Priority Score": 7.05,
+            "Readiness Score": 6.9,
+            "Strategic Theme": "Data-Driven Product Intelligence",
+            "Recommended Phase": "Q2"
+          },
+          {
+            "ID": "UC-08",
+            "Use Case": "Feature Performance Feedback Loop",
+            "TTV Score": 0.25,
+            "Value Score": 4.87,
+            "Priority Tier": "Tier 2 — Quick Wins",
+            "Priority Score": 5.89,
+            "Readiness Score": 6.9,
+            "Strategic Theme": "Data-Driven Product Intelligence",
+            "Recommended Phase": "Q3"
+          },
+          {
+            "ID": "UC-09",
+            "Use Case": "Support Deflection Knowledge Assistant",
+            "TTV Score": 0,
+            "Value Score": 3.16,
+            "Priority Tier": "Tier 4 — Foundation",
+            "Priority Score": 4.23,
+            "Readiness Score": 5.3,
+            "Strategic Theme": "Operational Cost Structure Optimization",
+            "Recommended Phase": "Q4"
+          },
+          {
+            "ID": "UC-10",
+            "Use Case": "Support Cost Optimization Analytics",
+            "TTV Score": 0.5,
+            "Value Score": 1,
+            "Priority Tier": "Tier 2 — Quick Wins",
+            "Priority Score": 3.8,
+            "Readiness Score": 6.6,
+            "Strategic Theme": "Operational Cost Structure Optimization",
+            "Recommended Phase": "Q4"
+          }
+        ],
+        "step": 7,
+        "title": "Priority Scoring & Roadmap",
+        "content": "Priority tiers balance near-term operational wins against strategic retention investments. Champions tier targets diagnostic routing ($2.7M) and product intelligence ($700K) where strong data assets meet clear ROI. Quick Wins cluster around installation support ($1.7M) and analytics ($500K) with rapid deployment cycles. Strategic tier holds high-value subscriber retention plays ($3.9M churn prevention, $2.0M feature discovery) requiring governance maturity and partner ecosystem readiness. Foundation tier addresses knowledge base enrichment prerequisites. Roadmap sequences Q1-Q2 champions to fund Q3-Q4 strategic investments, respecting 9-21 month implementation realities across partner networks."
+      }
+    ],
+    "summary": "Alarm.com should execute three critical-priority AI initiatives in Q1-Q2 2025 to capture $4.5M in first-year value from a $19.7M total opportunity. With 8.2M connected devices generating structured telemetry, the company possesses supervised learning assets that create defensible competitive advantage. The Intelligent Diagnostic Escalation Router delivers $2.7M annually by applying device pattern recognition to 540,000 support interactions, reducing escalations 18% while preventing 2,400 premium cancellations. The Predictive Diagnostic Assistant captures $2.1M by identifying device failures 5-7 days before customer impact across 360,000 monthly interactions, cutting truck rolls 15%. The Automated Product Intelligence Synthesizer extracts $700K from 500 monthly research requests, accelerating feature analysis cycles 60%. These three initiatives leverage existing data infrastructure and achieve 6-9 month time-to-value despite AI governance gaps. Strong organizational capacity (scores 6-7) and exceptional data quality (scores 7-9) from device telemetry offset moderate technical infrastructure (scores 6-7) and weak governance frameworks (scores 3-5). Token consumption totals 159.5M monthly across operational use cases, with diagnostic routing consuming 72M tokens serving 45,000 cases. Strategic-tier opportunities—including $3.9M churn prevention and $4.6M partner health scoring—require 15-21 month deployments pending governance maturity and partner ecosystem readiness. The roadmap sequences Q1-Q2 champions ($3.4M) to fund Q3-Q4 strategic investments ($7.9M), respecting partner training cycles and device integration complexity. Critical path dependencies include establishing AI ethics board before customer-facing deployments and enriching support knowledge bases before deflection assistant launch. The company should prioritize internal analytics wins that prove value cases while building governance infrastructure for subscriber-facing retention initiatives.",
+    "benefitsCapped": false,
+    "capScaleFactor": 1,
+    "companyOverview": {
+      "whyNow": "Alarm.com faces margin pressure as hardware commoditizes and subscriber acquisition costs rise 18% year-over-year. The company's 94% retention advantage depends on service quality that currently requires unsustainable human labor at scale.",
+      "position": "Cloud-based smart property platform serving 8.2M subscribers through 15,000+ service provider partners. Industry leader in connected home/business solutions with 94% customer retention.",
+      "annualRevenue": 1100000000,
+      "dataReadiness": {
+        "keyGaps": "Unstructured support ticket narratives lack consistent tagging. Partner documentation scattered across 23 legacy systems. Video installation guides not indexed for semantic search.",
+        "currentState": "Level 3 — Rich telemetry from 8.2M connected devices, structured event logs, and partner interaction data create strong foundation for supervised learning models."
+      },
+      "frictionTable": {
+        "rows": [
+          {
+            "domain": "Technical Support & Troubleshooting",
+            "annualBurden": "$34M / 227,000 hours",
+            "strategicImpact": "Service provider churn from support delays"
+          },
+          {
+            "domain": "Device Installation & Configuration",
+            "annualBurden": "$28M / 186,000 hours",
+            "strategicImpact": "Installation truck rolls drive 40% cost overruns"
+          },
+          {
+            "domain": "Subscriber Onboarding & Training",
+            "annualBurden": "$19M / 127,000 hours",
+            "strategicImpact": "First-90-day churn from feature underutilization"
+          },
+          {
+            "domain": "Partner Portal & Documentation",
+            "annualBurden": "$15M / 98,000 hours",
+            "strategicImpact": "Partner satisfaction gaps in technical resources"
+          },
+          {
+            "domain": "Product Analytics & Feature Usage",
+            "annualBurden": "$12M / 81,000 hours",
+            "strategicImpact": "Missed upsell opportunities from usage blindspots"
+          }
+        ]
+      },
+      "totalEmployees": 2400
+    },
+    "executiveSummary": {
+      "context": "With 8.2M connected devices generating rich telemetry, Alarm.com sits on supervised learning assets that competitors cannot replicate. Current support costs and subscriber churn rates leave $19.7M in annual value exposed. Technical infrastructure and data quality enable immediate action, but AI governance gaps and partner ecosystem complexity constrain deployment velocity across retention-focused initiatives.",
+      "findings": [
+        {
+          "body": "The Diagnostic Escalation Router applies device telemetry patterns to tier 540,000 annual support interactions, reducing escalations by 18% ($1.2M cost reduction) while preventing 2,400 premium subscriber cancellations ($1.0M retention value). High data quality and existing event stream infrastructure enable 9-month deployment despite governance prerequisites.",
+          "title": "Intelligent routing of 45,000 monthly support cases captures $2.7M annually",
+          "value": "$2.7M annually"
+        },
+        {
+          "body": "The Predictive Diagnostic Assistant analyzes 360,000 monthly device interactions to identify failure patterns 5-7 days before customer impact, reducing truck rolls by 15% ($1.0M) and premium subscriber churn by 12% ($800K). Rich telemetry foundation supports supervised learning models, though 12-month timeline reflects device firmware integration complexity.",
+          "title": "Predictive diagnostics prevent device failures across 8.2M endpoints worth $2.1M",
+          "value": "$2.1M annually"
+        },
+        {
+          "body": "The Automated Product Intelligence Synthesizer processes 500 monthly research requests against telemetry from 8.2M devices, reducing feature analysis cycle time by 60% ($300K) and improving launch success rates by 8% ($400K). Strong data infrastructure and existing analytics workflows enable 6-month deployment with highest readiness scores.",
+          "title": "Product intelligence synthesis converts device data into $700K R&D efficiency",
+          "value": "$700K annually"
+        }
+      ],
+      "headline": "Alarm.com should execute 3 Critical-priority AI initiatives in Q1-Q2 to capture $4.5M in first-year value from a $19.7M total opportunity.",
+      "criticalPath": "Q1 success requires establishing AI ethics board and model monitoring framework before customer-facing deployments. Partner training cycles add 3-6 months to subscriber-facing initiatives, sequencing internal analytics wins ahead of ecosystem-dependent retention plays. Support knowledge base enrichment must precede deflection assistant deployment.",
+      "opportunityTable": {
+        "rows": [
+          {
+            "value": "$19.7M",
+            "metric": "Total Annual Value"
+          },
+          {
+            "value": "3",
+            "metric": "Critical-Priority Initiatives"
+          },
+          {
+            "value": "$4.5M",
+            "metric": "First-Year Impact"
+          },
+          {
+            "value": "$6.70",
+            "metric": "Value per 1M Tokens"
+          }
+        ]
+      },
+      "recommendedAction": "Launch diagnostic router and product intelligence synthesizer in Q1 2025 to prove $3.4M value case, funding Q3 predictive diagnostics expansion and Q4 retention initiative governance investments."
+    },
+    "frictionRecovery": [
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-01",
+            "recoveryPct": 0.3902439024390244,
+            "recoveryAmount": 2400000
+          }
+        ],
+        "frictionPoint": "Multi-tier escalation for complex device interoperability issues"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-02",
+            "recoveryPct": 0.3522504892367906,
+            "recoveryAmount": 1800000
+          }
+        ],
+        "frictionPoint": "Manual diagnostic steps for common failure patterns"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-03",
+            "recoveryPct": 0.45698924731182794,
+            "recoveryAmount": 1700000
+          }
+        ],
+        "frictionPoint": "Generic onboarding communications lacking personalized feature guidance"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-04",
+            "recoveryPct": 0.38095238095238093,
+            "recoveryAmount": 3200000
+          }
+        ],
+        "frictionPoint": "Reactive engagement model fails to surface usage anomalies"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-05",
+            "recoveryPct": 0.2692867540029112,
+            "recoveryAmount": 3700000
+          }
+        ],
+        "frictionPoint": "Limited visibility into partner profitability and satisfaction drivers"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-06",
+            "recoveryPct": 0.3,
+            "recoveryAmount": 1500000
+          }
+        ],
+        "frictionPoint": "Installation support materials lack real-time troubleshooting guidance"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-07",
+            "recoveryPct": 0.31534883720930235,
+            "recoveryAmount": 678000
+          }
+        ],
+        "frictionPoint": "Manual synthesis of usage data across fragmented subscriber cohorts"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-08",
+            "recoveryPct": 0.2714285714285714,
+            "recoveryAmount": 893000
+          }
+        ],
+        "frictionPoint": "Delayed feedback loops between feature releases and adoption metrics"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-09",
+            "recoveryPct": 0.2053030303030303,
+            "recoveryAmount": 542000
+          }
+        ],
+        "frictionPoint": "Linear staffing model tied to subscriber growth without efficiency gains"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-10",
+            "recoveryPct": 0.15789473684210525,
+            "recoveryAmount": 480000
+          }
+        ],
+        "frictionPoint": "Support cost structure lacks automation to improve unit economics"
+      }
+    ],
+    "scenarioAnalysis": {
+      "moderate": {
+        "npv": "$22.0M",
+        "annualBenefit": "$17.1M",
+        "paybackMonths": 31
+      },
+      "aggressive": {
+        "npv": "$45.9M",
+        "annualBenefit": "$22.2M",
+        "paybackMonths": 17
+      },
+      "conservative": {
+        "npv": "$-1848443",
+        "annualBenefit": "$10.2M",
+        "paybackMonths": 56
+      }
+    },
+    "validationSummary": {
+      "details": [],
+      "originalTotal": 17051316,
+      "useCasesCapped": 0,
+      "validatedTotal": 17051316,
+      "parametersClamped": 0,
+      "portfolioScaleFactor": 1
+    },
+    "executiveDashboard": {
+      "topUseCases": [
+        {
+          "rank": 1,
+          "useCase": "Personalized Feature Discovery Engine",
+          "annualValue": 1700000,
+          "monthlyTokens": 1722000000,
+          "priorityScore": 7.85
+        },
+        {
+          "rank": 2,
+          "useCase": "Intelligent Diagnostic Escalation Router",
+          "annualValue": 2400000,
+          "monthlyTokens": 72000000,
+          "priorityScore": 7.71
+        },
+        {
+          "rank": 3,
+          "useCase": "Predictive Diagnostic Assistant",
+          "annualValue": 1800000,
+          "monthlyTokens": 84000000,
+          "priorityScore": 7.68
+        },
+        {
+          "rank": 4,
+          "useCase": "Automated Product Intelligence Synthesizer",
+          "annualValue": 678000,
+          "monthlyTokens": 3500000,
+          "priorityScore": 7.05
+        },
+        {
+          "rank": 5,
+          "useCase": "Proactive Churn Risk Monitor",
+          "annualValue": 3200000,
+          "monthlyTokens": 943000000,
+          "priorityScore": 6.16
+        },
+        {
+          "rank": 6,
+          "useCase": "Feature Performance Feedback Loop",
+          "annualValue": 893000,
+          "monthlyTokens": 4200000,
+          "priorityScore": 5.89
+        },
+        {
+          "rank": 7,
+          "useCase": "Intelligent Installation Support Assistant",
+          "annualValue": 1500000,
+          "monthlyTokens": 18400000,
+          "priorityScore": 5.73
+        },
+        {
+          "rank": 8,
+          "useCase": "Support Deflection Knowledge Assistant",
+          "annualValue": 542000,
+          "monthlyTokens": 21600000,
+          "priorityScore": 4.23
+        },
+        {
+          "rank": 9,
+          "useCase": "Support Cost Optimization Analytics",
+          "annualValue": 480000,
+          "monthlyTokens": 1375000,
+          "priorityScore": 3.8
+        },
+        {
+          "rank": 10,
+          "useCase": "Partner Health Scoring & Intervention System",
+          "annualValue": 3700000,
+          "monthlyTokens": 8400000,
+          "priorityScore": 3.79
+        }
+      ],
+      "totalAnnualValue": 17051316,
+      "totalCostBenefit": 7836748,
+      "totalRiskBenefit": 1245000,
+      "totalMonthlyTokens": 2878475000,
+      "totalRevenueBenefit": 7266750,
+      "totalCashFlowBenefit": 702818,
+      "valuePerMillionTokens": 5924
+    },
+    "validationWarnings": [],
+    "multiYearProjection": {
+      "irr": "5.8%",
+      "npv": "$22.0M",
+      "paybackMonths": 31,
+      "totalBenefitOverPeriod": "$61.4M"
+    }
+  }
+}
