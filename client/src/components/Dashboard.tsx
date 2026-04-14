@@ -3,8 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowRight, TrendingUp, Shield, Banknote, Activity,
   ChevronRight, Clock, Zap, CheckCircle2, Lock, Share2, Download, FileText, Check,
-  BarChart3, ScatterChart as ScatterIcon, X
+  BarChart3, ScatterChart as ScatterIcon, X, LogOut
 } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 import { format } from '@/lib/formatters';
 import { QuadrantBubbleChart } from '@/components/dashboard/quadrant-bubble-chart';
 import { MatrixScorecard } from '@/components/dashboard/matrix-scorecard';
@@ -269,9 +270,10 @@ interface StickyHeaderProps {
   onShareUrl?: () => void;
   onViewHTMLReport?: () => void;
   onViewEditorialReport?: () => void;
+  isSharedView?: boolean;
 }
 
-const StickyHeader = ({ clientName, onShareUrl, onViewHTMLReport, onViewEditorialReport }: StickyHeaderProps) => {
+const StickyHeader = ({ clientName, onShareUrl, onViewHTMLReport, onViewEditorialReport, isSharedView }: StickyHeaderProps) => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [copied, setCopied] = useState(false);
   const [reportMenuOpen, setReportMenuOpen] = useState(false);
@@ -362,11 +364,30 @@ const StickyHeader = ({ clientName, onShareUrl, onViewHTMLReport, onViewEditoria
               </div>
             )}
           </div>
+          {!isSharedView && <LogoutButton />}
         </div>
       </div>
     </motion.header>
   );
 };
+
+function LogoutButton() {
+  const { logout } = useAuth();
+  const handleLogout = async () => {
+    await logout();
+    window.location.href = "/login";
+  };
+  return (
+    <button
+      onClick={handleLogout}
+      className="p-2 rounded-full border border-gray-300 hover:bg-red-50 hover:border-red-300 transition-colors flex items-center gap-2 min-w-[40px] min-h-[40px] justify-center"
+      data-testid="button-dashboard-logout"
+      title="Logout"
+    >
+      <LogOut className="w-4 h-4 text-gray-600" />
+    </button>
+  );
+}
 
 interface HeroSectionProps {
   data: DashboardData['hero'];
@@ -1092,12 +1113,13 @@ interface DashboardProps {
   onDownloadWorkshopPDF?: () => void;
   onViewHTMLReport?: () => void;
   onViewEditorialReport?: () => void;
+  isSharedView?: boolean;
 }
 
-export default function Dashboard({ data = DEFAULT_DATA, onShareUrl, onDownloadWorkshopPDF, onViewHTMLReport, onViewEditorialReport }: DashboardProps) {
+export default function Dashboard({ data = DEFAULT_DATA, onShareUrl, onDownloadWorkshopPDF, onViewHTMLReport, onViewEditorialReport, isSharedView }: DashboardProps) {
   return (
     <div className="min-h-screen bg-slate-50 font-sans selection:bg-blue-200">
-      <StickyHeader clientName={data.clientName} onShareUrl={onShareUrl} onViewHTMLReport={onViewHTMLReport} onViewEditorialReport={onViewEditorialReport} />
+      <StickyHeader clientName={data.clientName} onShareUrl={onShareUrl} onViewHTMLReport={onViewHTMLReport} onViewEditorialReport={onViewEditorialReport} isSharedView={isSharedView} />
       <HeroSection data={data.hero} clientName={data.clientName} />
       <ExecutiveSummary data={data.executiveSummary} />
       {data.scenarioComparison && <FinancialSensitivityAnalysis data={data.scenarioComparison} />}

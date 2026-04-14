@@ -1,17 +1,21 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useLocation, useSearch } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Lock, Eye, EyeOff } from "lucide-react";
 
+const COOLDOWN_THRESHOLD = 5;
+const COOLDOWN_WINDOW_MS = 60 * 1000;
+const COOLDOWN_DURATION = 60;
+
 export default function Login() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [failedAttempts, setFailedAttempts] = useState(0);
   const [cooldownSeconds, setCooldownSeconds] = useState(0);
+  const failTimestampsRef = useRef<number[]>([]);
   const cooldownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const { login } = useAuth();
   const [, setLocation] = useLocation();
@@ -20,25 +24,37 @@ export default function Login() {
   const returnTo = new URLSearchParams(search).get("returnTo") || "/";
   const isCoolingDown = cooldownSeconds > 0;
 
+  const startCooldown = useCallback(() => {
+    setCooldownSeconds(COOLDOWN_DURATION);
+    if (cooldownRef.current) clearInterval(cooldownRef.current);
+    cooldownRef.current = setInterval(() => {
+      setCooldownSeconds((prev) => {
+        if (prev <= 1) {
+          if (cooldownRef.current) clearInterval(cooldownRef.current);
+          failTimestampsRef.current = [];
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }, []);
+
   useEffect(() => {
-    if (failedAttempts >= 5) {
-      setCooldownSeconds(60);
-      if (cooldownRef.current) clearInterval(cooldownRef.current);
-      cooldownRef.current = setInterval(() => {
-        setCooldownSeconds((prev) => {
-          if (prev <= 1) {
-            if (cooldownRef.current) clearInterval(cooldownRef.current);
-            setFailedAttempts(0);
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 1000);
-    }
     return () => {
       if (cooldownRef.current) clearInterval(cooldownRef.current);
     };
-  }, [failedAttempts]);
+  }, []);
+
+  const recordFailure = useCallback(() => {
+    const now = Date.now();
+    const windowStart = now - COOLDOWN_WINDOW_MS;
+    failTimestampsRef.current = failTimestampsRef.current.filter((t) => t > windowStart);
+    failTimestampsRef.current.push(now);
+
+    if (failTimestampsRef.current.length >= COOLDOWN_THRESHOLD) {
+      startCooldown();
+    }
+  }, [startCooldown]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,7 +70,7 @@ export default function Login() {
         setLocation(returnTo);
       } else {
         setError(result.message || "Invalid password");
-        setFailedAttempts((prev) => prev + 1);
+        recordFailure();
         setPassword("");
         setIsLoading(false);
       }

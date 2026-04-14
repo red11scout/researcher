@@ -161,6 +161,7 @@ export default function SharedDashboard() {
       onDownloadWorkshopPDF={handleDownloadWorkshopPDF}
       onViewHTMLReport={handleViewHTMLReport}
       onViewEditorialReport={handleViewEditorialReport}
+      isSharedView={true}
     />
   );
 }

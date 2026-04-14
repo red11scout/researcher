@@ -19,32 +19,8 @@ const PUBLIC_API_ROUTES = [
   /^\/api\/analyze\/status\//,
 ];
 
-const STATIC_EXTENSIONS = /\.(js|css|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot|map|json|webp|avif)$/i;
-
-const PUBLIC_PAGE_PREFIXES = [
-  "/login",
-  "/shared",
-  "/api/",
-  "/@",
-  "/node_modules",
-  "/__",
-  "/src/",
-  "/assets/",
-  "/attached_assets/",
-  "/public/",
-  "/static/",
-  "/favicon",
-  "/robots.txt",
-  "/manifest",
-];
-
 export function isPublicRoute(path: string): boolean {
   return PUBLIC_API_ROUTES.some((pattern) => pattern.test(path));
-}
-
-function isPublicPagePath(path: string): boolean {
-  if (STATIC_EXTENSIONS.test(path)) return true;
-  return PUBLIC_PAGE_PREFIXES.some((prefix) => path.startsWith(prefix));
 }
 
 const AUTH_ENABLED = true;
@@ -77,6 +53,24 @@ export function securityHeaders(_req: Request, res: Response, next: NextFunction
   next();
 }
 
+export function corsRestrictions(req: Request, res: Response, next: NextFunction) {
+  const origin = req.headers.origin;
+  if (req.path.startsWith("/api/") && !isPublicRoute(req.path)) {
+    if (origin) {
+      const host = req.headers.host || "";
+      const isAllowed = origin.includes(host) || origin.includes("localhost") || origin.includes("replit");
+      if (!isAllowed) {
+        return res.status(403).json({ message: "Forbidden" });
+      }
+      res.setHeader("Access-Control-Allow-Origin", origin);
+    }
+    res.setHeader("Access-Control-Allow-Credentials", "true");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  }
+  next();
+}
+
 export const loginRateLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 10,
@@ -98,6 +92,7 @@ export function setupAuth(app: import("express").Express) {
 
   app.set("trust proxy", 1);
   app.use(securityHeaders);
+  app.use(corsRestrictions);
 
   app.use(
     session({
@@ -113,13 +108,17 @@ export function setupAuth(app: import("express").Express) {
     })
   );
 
-  if (!process.env.APP_PASSWORD) {
-    console.warn("WARNING: APP_PASSWORD environment variable is not set. Using default password. Set APP_PASSWORD in secrets for production.");
+  const appPassword = process.env.APP_PASSWORD;
+  if (!appPassword) {
+    console.error("FATAL: APP_PASSWORD environment variable is not set. Login will be disabled until it is configured.");
   }
 
   app.post("/api/auth/login", loginRateLimiter, (req: Request, res: Response) => {
+    if (!appPassword) {
+      return res.status(503).json({ message: "Authentication is not configured. Set APP_PASSWORD in environment." });
+    }
+
     const { password } = req.body;
-    const appPassword = process.env.APP_PASSWORD || "BlueAlly45";
 
     if (password === appPassword) {
       req.session.authenticated = true;
