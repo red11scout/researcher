@@ -47,6 +47,18 @@ import {
 import { verifyAndNormalizeRoles, STANDARDIZED_BENEFITS_LOADING } from '../shared/standardizedRoles';
 import { resolvePatternName } from '../shared/schema';
 import { getPatternById } from '../shared/agenticPatterns';
+import {
+  VRM_SCHEMA_VERSION,
+  VRM_RUBRIC_VERSION,
+  SECTOR_PRESETS,
+  BASELINE_WEIGHTS,
+  getWeightsForPreset,
+  computeWeightedReadiness,
+  assignPortfolioQuadrants,
+  QUADRANT_LABELS,
+  type SectorPreset,
+  type UseCaseScoring,
+} from '../shared/vrm-v2';
 
 // ============================================================================
 // PER-USE-CASE CAPS — REMOVED: All calculations are now fully deterministic
@@ -910,6 +922,14 @@ export function postProcessAnalysis(analysisResult: any): any {
 
   const steps = [...analysisResult.steps];
 
+  // VRM v2.0 sector preset — analysisResult.vrm.sectorPreset takes precedence; fallback to baseline
+  const sectorPreset: SectorPreset =
+    (analysisResult.vrm?.sectorPreset && analysisResult.vrm.sectorPreset in SECTOR_PRESETS)
+      ? analysisResult.vrm.sectorPreset
+      : (analysisResult.sectorPreset && analysisResult.sectorPreset in SECTOR_PRESETS)
+        ? analysisResult.sectorPreset
+        : "baseline";
+
   // Find all steps
   const step0 = steps.find((s: any) => s.step === 0);
   const step3 = steps.find((s: any) => s.step === 3);
@@ -1613,7 +1633,7 @@ export function postProcessAnalysis(analysisResult: any): any {
       const ti = hasNewFields ? Math.min(10, Math.max(1, Math.round(techInfra as number))) : scaleToTen(techInfra as number);
       const gov = hasNewFields ? Math.min(10, Math.max(1, Math.round(governance as number))) : scaleToTen(governance as number);
 
-      // Calculate composite readiness score using weighted formula
+      // Calculate composite readiness score using weighted formula (legacy v1 = 0.30/0.30/0.20/0.20)
       const readinessResult = calculateReadinessScore({
         organizationalCapacity: oc,
         dataAvailabilityQuality: dq,
@@ -1621,23 +1641,48 @@ export function postProcessAnalysis(analysisResult: any): any {
         governance: gov,
       });
 
+      // VRM v2.0 weighted readiness using preset weights (default = baseline 0.35/0.30/0.20/0.15)
+      const readinessV2 = computeWeightedReadiness(
+        { orgCapacity: oc, dataReadiness: dq, governance: gov, techInfrastructure: ti },
+        sectorPreset,
+      );
+
+      // Knock-out fields — AI may emit these; default to null (unconfirmed) when absent
+      const sponsorRaw = record["Has Named Sponsor"];
+      const dataAvailRaw = record["Data Available For Engagement"];
+      const ttpRaw = record["Time-to-Pilot (weeks)"] ?? record["Time To Pilot Weeks"];
+      const hasNamedSponsor = typeof sponsorRaw === 'boolean' ? sponsorRaw : null;
+      const dataAvailableForEngagement = typeof dataAvailRaw === 'boolean' ? dataAvailRaw : null;
+      const timeToPilotWeeks = typeof ttpRaw === 'number' && !isNaN(ttpRaw) ? ttpRaw : null;
+
+      // Sub-component scores — pass through if AI provided them; otherwise will be null
+      const subComponents = record["Sub-Components"] && typeof record["Sub-Components"] === 'object'
+        ? record["Sub-Components"]
+        : null;
+
       const ttv = record["Time-to-Value (months)"] ?? record["Time-to-Value"] ?? 6;
 
       // Build record with new column order
       const orderedRecord: Record<string, any> = {
         "ID": record.ID,
         "Use Case": record["Use Case"],
-        "Readiness Score": readinessResult.value,
+        "Readiness Score": readinessV2,
+        "Readiness Score v1": readinessResult.value,
         "Organizational Capacity": oc,
         "Data Availability & Quality": dq,
         "Technical Infrastructure": ti,
         "Governance": gov,
+        "Has Named Sponsor": hasNamedSponsor,
+        "Data Available For Engagement": dataAvailableForEngagement,
+        "Time-to-Pilot (weeks)": timeToPilotWeeks,
         "Time To Value": ttv,
         "Monthly Tokens": tokenResult.monthlyTokens,
         "Runs/Month": record["Runs/Month"],
         "Input Tokens/Run": record["Input Tokens/Run"],
         "Output Tokens/Run": record["Output Tokens/Run"],
       };
+
+      if (subComponents) orderedRecord["Sub-Components"] = subComponents;
 
       // Preserve Strategic Theme if present
       if (record["Strategic Theme"]) {
@@ -1646,7 +1691,7 @@ export function postProcessAnalysis(analysisResult: any): any {
 
       correctedStep6Data.push(orderedRecord);
 
-      console.log(`[postProcessAnalysis] Readiness: ${record.ID} — OC=${oc} DQ=${dq} TI=${ti} GOV=${gov} → Score=${readinessResult.value}`);
+      console.log(`[postProcessAnalysis] Readiness: ${record.ID} — OC=${oc} DQ=${dq} TI=${ti} GOV=${gov} → v1=${readinessResult.value} v2=${readinessV2} (preset=${sectorPreset}) sponsor=${hasNamedSponsor} data=${dataAvailableForEngagement} ttp=${timeToPilotWeeks}`);
     }
 
     step6.data = correctedStep6Data;
@@ -1673,21 +1718,22 @@ export function postProcessAnalysis(analysisResult: any): any {
       });
       totalMonthlyTokens += monthlyTokens;
       const oc = 5, dq = 5, ti = 5, gov = 5;
-      const readinessResult = calculateReadinessScore({
-        organizationalCapacity: oc,
-        dataAvailabilityQuality: dq,
-        technicalInfrastructure: ti,
-        governance: gov,
-      });
+      const readinessV2 = computeWeightedReadiness(
+        { orgCapacity: oc, dataReadiness: dq, governance: gov, techInfrastructure: ti },
+        sectorPreset,
+      );
       const record: Record<string, any> = {
         "ID": s5.ID,
         "Use Case": s5["Use Case"],
-        "Readiness Score": readinessResult.value,
+        "Readiness Score": readinessV2,
         "Organizational Capacity": oc,
         "Data Availability & Quality": dq,
         "Technical Infrastructure": ti,
         "Governance": gov,
         "Time To Value": 6,
+        "Has Named Sponsor": false,
+        "Data Available For Engagement": false,
+        "Time-to-Pilot (weeks)": 12,
         "Monthly Tokens": monthlyTokens,
         "Runs/Month": runsPerMonth,
         "Input Tokens/Run": inputTokens,
@@ -1827,6 +1873,28 @@ export function postProcessAnalysis(analysisResult: any): any {
     // Step 2: Build corrected Step 7 data with new priority scoring
     const correctedStep7Data: any[] = [];
 
+    // VRM v2.0 — Build the portfolio scoring set first so quadrant assignment can run cross-portfolio
+    const portfolioScorings: UseCaseScoring[] = step7Records.map(record => {
+      const s6 = (step6.data as any[]).find(r => r.ID === record.ID);
+      const r2 = s6?.["Readiness Score"] ?? 5;
+      const v = normalizedByUseCase[record.ID] ?? 5.5;
+      return {
+        id: record.ID,
+        valueScore: v,
+        readinessScore: r2,
+        componentScores: {
+          orgCapacity: s6?.["Organizational Capacity"] ?? 5,
+          dataReadiness: s6?.["Data Availability & Quality"] ?? 5,
+          governance: s6?.["Governance"] ?? 5,
+          techInfrastructure: s6?.["Technical Infrastructure"] ?? 5,
+        },
+        hasNamedSponsor: typeof s6?.["Has Named Sponsor"] === 'boolean' ? s6["Has Named Sponsor"] : null,
+        dataAvailableForEngagement: typeof s6?.["Data Available For Engagement"] === 'boolean' ? s6["Data Available For Engagement"] : null,
+        timeToPilotWeeks: typeof s6?.["Time-to-Pilot (weeks)"] === 'number' ? s6["Time-to-Pilot (weeks)"] : null,
+      };
+    });
+    const quadrantMap = assignPortfolioQuadrants(portfolioScorings);
+
     for (const record of step7Records) {
       const step6Record = (step6.data as any[]).find(r => r.ID === record.ID);
       const readinessScore = step6Record?.["Readiness Score"] ?? step6Record?.["Feasibility Score"] ?? 5;
@@ -1840,21 +1908,41 @@ export function postProcessAnalysis(analysisResult: any): any {
       });
 
       const ttvScore = calculateTTVBubbleScore(ttv as number);
-      const tier = getNewPriorityTier(priorityResult.value, normalizedValue, readinessScore);
+      const v1Tier = getNewPriorityTier(priorityResult.value, normalizedValue, readinessScore);
       const phase = getNewRecommendedPhase(priorityResult.value, readinessScore);
 
+      // VRM v2.0 quadrant assignment (3-layer hybrid)
+      const v2 = quadrantMap.get(record.ID)!;
+      const v2TierLabel = v2.wave
+        ? `${QUADRANT_LABELS[v2.quadrant]} (${v2.wave})`
+        : QUADRANT_LABELS[v2.quadrant];
+
       // Build record with new column order:
-      // ID, Use Case, Priority Tier, Recommended Phase, Priority Score, Readiness Score, Value Score, TTV Score
+      // ID, Use Case, Priority Tier (v2), Recommended Phase, Priority Score, Readiness Score, Value Score, TTV Score
       const step7Entry: Record<string, any> = {
         "ID": record.ID,
         "Use Case": record["Use Case"],
-        "Priority Tier": tier,
+        "Priority Tier": v2TierLabel,
+        "Priority Tier v1": v1Tier,
+        "Quadrant v2": v2.quadrant,
+        "Quadrant Layer": v2.layer,
+        "Quadrant Rationale": v2.rationale,
         "Recommended Phase": phase,
         "Priority Score": priorityResult.value,
         "Readiness Score": readinessScore,
         "Value Score": normalizedValue,
         "TTV Score": Math.round(ttvScore * 100) / 100,
       };
+
+      if (v2.floorFailureReasons && v2.floorFailureReasons.length > 0) {
+        step7Entry["Floor Failure Reasons"] = v2.floorFailureReasons;
+      }
+      if (v2.conditionalChampionMeta) {
+        step7Entry["Conditional Champion Meta"] = v2.conditionalChampionMeta;
+      }
+      if (v2.wave) {
+        step7Entry["Wave"] = v2.wave;
+      }
 
       // Preserve Strategic Theme if present
       if (record["Strategic Theme"]) {
@@ -1863,15 +1951,17 @@ export function postProcessAnalysis(analysisResult: any): any {
 
       correctedStep7Data.push(step7Entry);
 
-      console.log(`[postProcessAnalysis] Priority: ${record.ID} — Readiness=${readinessScore} Value=${normalizedValue} → Priority=${priorityResult.value} → ${tier} (${phase})`);
+      console.log(`[postProcessAnalysis] Priority: ${record.ID} — Readiness=${readinessScore} Value=${normalizedValue} → Priority=${priorityResult.value} → v1=${v1Tier} v2=${v2.quadrant} (Layer ${v2.layer}, ${phase})`);
     }
 
     correctedStep7Data.sort((a: any, b: any) => {
       const tierRank = (t: string) => {
-        if (t?.includes('Champions')) return 1;
-        if (t?.includes('Quick Win')) return 2;
-        if (t?.includes('Strategic')) return 3;
-        return 4;
+        if (!t) return 5;
+        if (t.includes('Conditional Champion')) return 2;
+        if (t.includes('Champion')) return 1;
+        if (t.includes('Quick Win')) return 3;
+        if (t.includes('Strategic')) return 4;
+        return 5;
       };
       const ta = tierRank(a["Priority Tier"]);
       const tb = tierRank(b["Priority Tier"]);
@@ -1914,10 +2004,12 @@ export function postProcessAnalysis(analysisResult: any): any {
 
   // Get top 10 use cases sorted by Tier (descending: Champions first) then Priority Score
   const tierRankForSort = (t: string) => {
-    if (t?.includes('Champions')) return 1;
-    if (t?.includes('Quick Win')) return 2;
-    if (t?.includes('Strategic')) return 3;
-    return 4;
+    if (!t) return 5;
+    if (t.includes('Conditional Champion')) return 2;
+    if (t.includes('Champion')) return 1;
+    if (t.includes('Quick Win')) return 3;
+    if (t.includes('Strategic')) return 4;
+    return 5;
   };
   const sortedUseCases = [...(step7Active?.data || step7?.data || [])].sort(
     (a: any, b: any) => {
@@ -1952,9 +2044,21 @@ export function postProcessAnalysis(analysisResult: any): any {
 
   console.log(`[postProcessAnalysis] Validation Summary: ${useCasesCapped} UCs capped, ${parametersClamped} params clamped, portfolio scale=${capScaleFactor.toFixed(3)}, original=${formatMoney(originalTotal)}, validated=${formatMoney(validatedTotal)}`);
 
+  // VRM v2.0 metadata block — preserved through the analysis lifecycle
+  const vrmBlock = {
+    schemaVersion: VRM_SCHEMA_VERSION,
+    rubricVersion: VRM_RUBRIC_VERSION,
+    sectorPreset,
+    sectorPresetLabel: SECTOR_PRESETS[sectorPreset].label,
+    weights: getWeightsForPreset(sectorPreset),
+    baselineWeights: BASELINE_WEIGHTS,
+    quadrantThresholds: { championMin: 7.5, quickStrategicMin: 6.0, valueFloor: 6.0, maxTimeToPilotWeeks: 12 },
+  };
+
   const correctedResult = {
     ...analysisResult,
     steps,
+    vrm: vrmBlock,
     validationWarnings,
     benefitsCapped,
     capScaleFactor,

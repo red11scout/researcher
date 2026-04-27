@@ -3251,6 +3251,27 @@ export default function Report() {
             <div className="flex flex-col space-y-4 md:space-y-8">
               {data.steps?.map((step: any, index: number) => (
                 <div key={index} id={`step-${step.step}`} className="scroll-mt-32">
+                  {step.step === 7 && data.vrm && (
+                    <div
+                      className="mb-3 px-3 md:px-4 py-2.5 rounded-xl border border-blue-200 bg-blue-50 text-[11px] md:text-xs text-slate-700"
+                      data-testid="text-vrm-methodology-report"
+                    >
+                      <span className="font-semibold text-slate-900">Value-Readiness Matrix v{data.vrm.schemaVersion}</span>
+                      <span className="mx-2 text-slate-400">·</span>
+                      <span>Sector preset: <span className="font-medium text-slate-900">{data.vrm.sectorPresetLabel}</span></span>
+                      <span className="mx-2 text-slate-400">·</span>
+                      <span>
+                        Weights — Org {Math.round((data.vrm.weights?.orgCapacity ?? 0.35) * 100)}% /
+                        Data {Math.round((data.vrm.weights?.dataReadiness ?? 0.30) * 100)}% /
+                        Gov {Math.round((data.vrm.weights?.governance ?? 0.20) * 100)}% /
+                        Tech {Math.round((data.vrm.weights?.techInfrastructure ?? 0.15) * 100)}%
+                      </span>
+                      <span className="mx-2 text-slate-400">·</span>
+                      <span className="text-slate-500">
+                        Champion ≥ {data.vrm.quadrantThresholds?.championMin ?? 7.5}, Value floor {data.vrm.quadrantThresholds?.valueFloor ?? 6.0}, TTP ≤ {data.vrm.quadrantThresholds?.maxTimeToPilotWeeks ?? 12} wks
+                      </span>
+                    </div>
+                  )}
                   <StepCard step={step} />
                   {step.step === 5 && data && (
                     (() => {

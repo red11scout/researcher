@@ -108,17 +108,19 @@ function normalizeValuesToScale(values: number[]): number[] {
   return values.map(v => Math.round((1 + ((v - min) / (max - min)) * 9) * 10) / 10);
 }
 
-// Get quadrant type based on new thresholds (5.5 midpoint on 1-10 scale)
+// VRM v2.0 — Get quadrant type based on absolute thresholds (Champion 7.5, mid 6.0)
+// Falls back from Step 7 v2 data; this is the legacy 4-quadrant heuristic for old reports.
 function getQuadrantType(normalizedValue: number, readinessScore: number): string {
-  if (normalizedValue >= 5.5 && readinessScore >= 5.5) return "Champion";
-  if (normalizedValue >= 5.5 && readinessScore < 5.5) return "Strategic";
-  if (normalizedValue < 5.5 && readinessScore >= 5.5) return "Quick Win";
+  if (normalizedValue >= 7.5 && readinessScore >= 7.5) return "Champion";
+  if (normalizedValue >= 7.5 && readinessScore >= 6.0) return "Strategic";
+  if (normalizedValue >= 6.0 && readinessScore >= 7.5) return "Quick Win";
   return "Foundation";
 }
 
 function getQuadrantColor(type: string): string {
   switch (type) {
     case "Champion": return BRAND.success;
+    case "Conditional Champion": return BRAND.success;
     case "Strategic": return BRAND.primary;
     case "Quick Win": return BRAND.teal;
     case "Foundation": return BRAND.gray;
@@ -127,6 +129,7 @@ function getQuadrantColor(type: string): string {
 }
 
 function getTierColor(tier: string): string {
+  if (tier.includes('Conditional Champion')) return BRAND.accent;
   if (tier.includes('Champion')) return BRAND.success;
   if (tier.includes('Quick Win')) return BRAND.teal;
   if (tier.includes('Strategic')) return BRAND.primary;
@@ -470,6 +473,12 @@ export function mapReportToDashboardData(report: Report): DashboardData {
       let normalizedValue = 5.5;
       let readinessScore = details.readinessScore ?? 5;
       let priorityTier = "Foundation";
+      let quadrantV2: string | undefined;
+      let quadrantLayer: number | undefined;
+      let quadrantRationale: string | undefined;
+      let floorFailureReasons: string[] | undefined;
+      let conditionalChampionMeta: any | undefined;
+      let wave: string | undefined;
 
       let priorityScore = uc.priorityScore || 0;
 
@@ -482,15 +491,35 @@ export function mapReportToDashboardData(report: Report): DashboardData {
           readinessScore = step7Record["Readiness Score"] ?? step7Record["Feasibility Score"] ?? readinessScore;
           priorityTier = step7Record["Priority Tier"] ?? priorityTier;
           priorityScore = step7Record["Priority Score"] ?? step7Record["Composite Score"] ?? priorityScore;
+          quadrantV2 = step7Record["Quadrant v2"];
+          quadrantLayer = step7Record["Quadrant Layer"];
+          quadrantRationale = step7Record["Quadrant Rationale"];
+          floorFailureReasons = step7Record["Floor Failure Reasons"];
+          conditionalChampionMeta = step7Record["Conditional Champion Meta"];
+          wave = step7Record["Wave"];
         }
       }
 
-      const type = getQuadrantType(normalizedValue, readinessScore);
+      // Use the explicit v2 quadrant when present; fall back to legacy heuristic for old reports
+      const type = quadrantV2
+        ? (quadrantV2 === "conditional_champion" ? "Conditional Champion"
+          : quadrantV2 === "champion" ? "Champion"
+          : quadrantV2 === "quick_win" ? "Quick Win"
+          : quadrantV2 === "strategic" ? "Strategic"
+          : "Foundation")
+        : getQuadrantType(normalizedValue, readinessScore);
       const ttvScore = calculateTTVBubbleScore(details.timeToValue || 6);
 
       if (priorityScore === 0 && normalizedValue > 0 && readinessScore > 0) {
         priorityScore = Math.round(((normalizedValue * 0.5) + (readinessScore * 0.3) + (ttvScore * 10 * 0.2)) * 10) / 10;
       }
+
+      // Knock-out fields from Step 6
+      const step6Record = step6DataFull?.find((r: any) => r["Use Case"] === uc.useCase);
+      const hasNamedSponsor = step6Record?.["Has Named Sponsor"];
+      const dataAvailableForEngagement = step6Record?.["Data Available For Engagement"];
+      const timeToPilotWeeks = step6Record?.["Time-to-Pilot (weeks)"];
+      const subComponents = step6Record?.["Sub-Components"];
 
       matrixData.push({
         name: uc.useCase,
@@ -512,7 +541,18 @@ export function mapReportToDashboardData(report: Report): DashboardData {
         governance: details.governance,
         monthlyTokens: details.monthlyTokens || uc.monthlyTokens || 0,
         description: details.description,
-      });
+        // VRM v2.0 fields
+        quadrantV2,
+        quadrantLayer,
+        quadrantRationale,
+        floorFailureReasons,
+        conditionalChampionMeta,
+        wave,
+        hasNamedSponsor,
+        dataAvailableForEngagement,
+        timeToPilotWeeks,
+        subComponents,
+      } as any);
     });
   }
 
@@ -604,6 +644,11 @@ export function mapReportToDashboardData(report: Report): DashboardData {
   }
   if (frictionByTheme) {
     dashboardOutput.frictionByTheme = frictionByTheme;
+  }
+
+  // VRM v2.0 metadata pass-through
+  if ((analysis as any).vrm) {
+    dashboardOutput.vrm = (analysis as any).vrm;
   }
 
   return dashboardOutput;

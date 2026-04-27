@@ -92,7 +92,7 @@ interface MatrixDataPoint {
   x: number;  // Readiness Score (1-10)
   y: number;  // Normalized Annual Value (1-10)
   z: number;  // TTV bubble score (0-1, higher = faster time-to-value)
-  type: string;  // Quadrant label: Champion, Strategic, Quick Win, Foundation
+  type: string;  // Quadrant label: Champion, Conditional Champion, Strategic, Quick Win, Foundation
   color: string;
   // Enriched fields for consulting-grade bubble chart
   timeToValue?: number;       // months — used to derive TTV bubble score
@@ -105,6 +105,21 @@ interface MatrixDataPoint {
   dataAvailabilityQuality?: number;   // 1-10 component
   technicalInfrastructure?: number;   // 1-10 component
   governance?: number;                // 1-10 component
+  // VRM v2.0 fields
+  quadrantV2?: string;
+  quadrantLayer?: number;
+  quadrantRationale?: string;
+  floorFailureReasons?: string[];
+  conditionalChampionMeta?: {
+    gaps: Array<{ component: string; current: number; required: number }>;
+    proposedSprintWeeks: number;
+    reclassificationCriteria: string;
+  };
+  wave?: string;
+  hasNamedSponsor?: boolean | null;
+  dataAvailableForEngagement?: boolean | null;
+  timeToPilotWeeks?: number | null;
+  subComponents?: Record<string, Record<string, number>>;
   // Legacy fields for backward compat
   dataReadiness?: number;
   integrationComplexity?: number;
@@ -156,6 +171,16 @@ interface DashboardData {
     aggressive: { annualBenefit: string; npv: string };
   };
   frictionByTheme?: Record<string, string[]>;
+  // VRM v2.0 metadata
+  vrm?: {
+    schemaVersion: string;
+    rubricVersion: string;
+    sectorPreset: string;
+    sectorPresetLabel: string;
+    weights: { orgCapacity: number; dataReadiness: number; governance: number; techInfrastructure: number };
+    baselineWeights: { orgCapacity: number; dataReadiness: number; governance: number; techInfrastructure: number };
+    quadrantThresholds: { championMin: number; quickStrategicMin: number; valueFloor: number; maxTimeToPilotWeeks: number };
+  };
 }
 
 const DEFAULT_DATA: DashboardData = {
@@ -561,6 +586,7 @@ const ExecutiveSummary = ({ data }: ExecutiveSummaryProps) => {
 
 interface PriorityMatrixProps {
   data: DashboardData['priorityMatrix'];
+  vrm?: DashboardData['vrm'];
 }
 
 // Detail drawer for clicked use case
@@ -672,7 +698,7 @@ const UseCaseDetailDrawer = ({ point, onClose }: { point: MatrixDataPoint; onClo
   );
 };
 
-const PriorityMatrix = ({ data }: PriorityMatrixProps) => {
+const PriorityMatrix = ({ data, vrm }: PriorityMatrixProps) => {
   const [viewMode, setViewMode] = useState<'chart' | 'table'>('chart');
   const [selectedPoint, setSelectedPoint] = useState<MatrixDataPoint | null>(null);
 
@@ -714,6 +740,29 @@ const PriorityMatrix = ({ data }: PriorityMatrixProps) => {
             </button>
           </div>
         </div>
+
+        {/* VRM v2.0 — Methodology header */}
+        {vrm && (
+          <div
+            className="mb-3 md:mb-4 px-3 md:px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm text-[11px] md:text-xs text-slate-300"
+            data-testid="text-vrm-methodology"
+          >
+            <span className="font-semibold text-slate-100">Value-Readiness Matrix v{vrm.schemaVersion}</span>
+            <span className="mx-2 text-slate-500">·</span>
+            <span>Sector preset: <span className="font-medium text-slate-100">{vrm.sectorPresetLabel}</span></span>
+            <span className="mx-2 text-slate-500">·</span>
+            <span>
+              Weights — Org {Math.round(vrm.weights.orgCapacity * 100)}% /
+              Data {Math.round(vrm.weights.dataReadiness * 100)}% /
+              Gov {Math.round(vrm.weights.governance * 100)}% /
+              Tech {Math.round(vrm.weights.techInfrastructure * 100)}%
+            </span>
+            <span className="mx-2 text-slate-500">·</span>
+            <span className="text-slate-400">
+              Champion ≥ {vrm.quadrantThresholds.championMin}, Value floor {vrm.quadrantThresholds.valueFloor}, TTP ≤ {vrm.quadrantThresholds.maxTimeToPilotWeeks} wks
+            </span>
+          </div>
+        )}
 
         <div className="overflow-x-auto -mx-4 md:mx-0 px-4 md:px-0">
           <div className="min-w-[500px] md:min-w-0 w-full bg-white/5 rounded-2xl p-3 md:p-6 border border-white/10 backdrop-blur-sm">
@@ -1123,7 +1172,7 @@ export default function Dashboard({ data = DEFAULT_DATA, onShareUrl, onDownloadW
       <HeroSection data={data.hero} clientName={data.clientName} />
       <ExecutiveSummary data={data.executiveSummary} />
       {data.scenarioComparison && <FinancialSensitivityAnalysis data={data.scenarioComparison} />}
-      <PriorityMatrix data={data.priorityMatrix} />
+      <PriorityMatrix data={data.priorityMatrix} vrm={data.vrm} />
       {data.useCaseDetails && data.useCaseDetails.length > 0 ? (
         <section className="py-16 md:py-28 bg-slate-50">
           <div className="max-w-[1600px] mx-auto px-4 md:px-6">

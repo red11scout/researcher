@@ -1573,28 +1573,36 @@ ${EPOCH_FRAMEWORK_DEFINITION}
 <output_methodology>
 Generate Steps 6-7 + executiveSummary + summary.
 
-STEP 6: READINESS & TOKEN MODELING
-Score each use case on FOUR readiness components (1-10 scale each):
-1. Organizational Capacity (weight: 30%) — Leadership AI champions, AI/ML talent, change-ready culture, prior successful tech transformations. 8-10: Active AI hiring, leadership champions. 5-7: Some talent, moderate change capability. 1-4: No AI roles, leadership skepticism.
-2. Data Availability & Quality (weight: 30%) — Modern ERP/CRM, integrated clean data, data governance. 8-10: Modern systems, integrated clean data, governance established. 5-7: Partial integration, mixed quality. 1-4: Legacy silos, quality issues.
-3. Technical Infrastructure (weight: 20%) — Cloud/API readiness, biased toward on-premises reality. 8-10: Cloud-native, API-first, DevOps. 5-7: Partial cloud, some APIs. 1-4: On-premises legacy, no APIs.
-4. Governance (weight: 20%) — AI-Specific Governance: ethics board, responsible AI framework, model monitoring, bias auditing, risk assessment. 8-10: Established AI ethics board and framework. 5-7: Emerging guidelines, partial documentation. 1-4: No AI governance framework.
+STEP 6: READINESS & TOKEN MODELING (Value-Readiness Matrix v2.0)
+Score each use case on FOUR readiness components (1-10 scale each) using BARS-anchored levels (1, 3, 5, 7, 10) with interpolation:
+1. Organizational Capacity (BASELINE weight 35%) — Executive sponsorship, AI/ML talent depth, change-ready culture, structured AI training. Anchor 1=AI-naive (no sponsor, no budget); 3=Pilot-driven hero mode (one BU funds pilots, verbal exec interest); 5=Programmed-but-federated (named C-level sponsor, ExCo-approved strategy, staffed CoE 20-50 FTE, role-based training reaching 30%+ of relevant staff); 7=Embedded-and-scaling (board-reviewed strategy, embedded ML engineers in product teams, defined career ladders, ML:DS ratio ≥1:1); 10=AI-native operating model (AI presumed in every product launch, comp frameworks include AI productivity).
+2. Data Availability & Quality (BASELINE weight 30%) — Catalog/lineage coverage, data quality SLAs, contracts, RAG infrastructure. Anchor 1=Siloed/opaque (no catalog, no labeled data); 3=Centralized but raw (lakehouse exists, catalog <50% coverage, naive RAG); 5=Governed and domain-owned (named data product owners, ≥70% Tier-1 metadata, monitored DQ SLAs, data contracts on ≥1 critical interface, RBAC+PII classification, standardized embeddings); 7=Mesh-mature, RAG-industrialized (federated mesh, contracts on every cross-domain interface, enterprise feature store powering ≥3 production ML systems); 10=AI-optimized data platform (production observability over structured+unstructured+embeddings+prompts, drift detection, PETs in production).
+3. AI-Specific Governance (BASELINE weight 20%) — Standing committee, model risk tiering, EU AI Act/NIST AI RMF alignment. Anchor 1=Unaware (no policy, no inventory); 3=Policy on paper (Responsible AI policy published, informal ethics committee); 5=Active governance function (chartered standing committee meeting monthly, mandatory pre-build intake with risk classification, centralized inventory inc. vendor/embedded AI, model risk tiering drives validation depth, model cards/datasheets, fairness testing, AI incident response playbook); 7=Operationalized & auditable (independent model validation, NIST AI RMF mapped to controls with auto-evidence, EU AI Act conformity assessment, bias pipelines on every release); 10=Embedded & adaptive (policy-as-code at platform layer, real-time bias-drift/jailbreak/prompt-injection detection with auto-rollback).
+4. Technical Infrastructure (BASELINE weight 15%) — MLOps maturity, AI gateway, vector DB, LLMOps. Anchor 1=Notebook on a laptop (no registry, no monitoring, personal API keys); 3=Pilot stack, manual glue (experiment tracker, managed ML platform, one FM API procured centrally, 1-2 production models deployed manually); 5=Standardized MLOps (model registry with promotion gates, CI/CD for training/validation/deployment, canary/shadow deploys, feature store ≥1 production model, drift detection, centralized AI gateway, LLMOps tracing); 7=Production-grade MLOps & LLMOps (continuous training, champion-challenger, multi-region blue/green, FMs fine-tuned in production with monitoring, eval pipelines per release, enterprise vector DB with hybrid search & re-ranking); 10=AI-native platform (self-service templated landing zone, multi-cluster GPU orchestration, mature agent infrastructure with tool registries and end-to-end traces).
+
+Boundary discipline: 3 vs 6 is the line between "project" and "function". A 3 = a pilot lives in pockets; a 6 = the capability is enterprise-funded, named-owner, standing cadence with measured outcomes.
+
+ALSO emit knock-out fields (VRM v2.0 hard floors):
+- "Has Named Sponsor": true/false (Has executive sponsor for THIS specific use case been confirmed? Use false if uncertain.)
+- "Data Available For Engagement": true/false (Will required data be available within the engagement timeline? Use false if blocked.)
+- "Time-to-Pilot (weeks)": integer (weeks until first running pilot in production-like env). Hard floor: >12 weeks demotes to Foundation.
 - Estimate monthly runs and token consumption
 - Round UP time-to-value estimates
 - Flag prerequisite work NOT in timeline
 - Each use case must include a "Strategic Theme" column linking to Step 1
 - REQUIRED FIELD: Time-to-Value (months) is MANDATORY for every use case. Cannot be empty or null.
-Table columns: ID, Use Case, Organizational Capacity, Data Availability & Quality, Technical Infrastructure, Governance, Monthly Tokens, Runs/Month, Input Tokens/Run, Output Tokens/Run, Time-to-Value (months) [REQUIRED], Strategic Theme
-NOTE: The postprocessor computes: Readiness Score = (OrgCapacity × 0.30) + (DataQuality × 0.30) + (TechInfra × 0.20) + (Governance × 0.20). Do NOT compute this yourself.
+Table columns: ID, Use Case, Organizational Capacity, Data Availability & Quality, Technical Infrastructure, Governance, Has Named Sponsor, Data Available For Engagement, Time-to-Pilot (weeks), Monthly Tokens, Runs/Month, Input Tokens/Run, Output Tokens/Run, Time-to-Value (months) [REQUIRED], Strategic Theme
+NOTE: The postprocessor computes Readiness Score using sector-preset weights (default baseline = 35/30/20/15). Do NOT compute Readiness Score yourself.
 
-STEP 7: PRIORITY SCORING & ROADMAP
-The postprocessor computes all priority scores deterministically. Generate placeholder values that will be overwritten:
-- Priority Score: (Readiness × 0.5) + (Normalized Value × 0.5), both on 1-10 scale
-- Tiers: Champions (≥7.5), Quick Wins (value<5.5 & readiness≥5.5), Strategic (value≥5.5 & readiness<5.5), Foundation (<5.0)
+STEP 7: PRIORITY SCORING & VRM v2.0 ROADMAP
+The postprocessor applies the VRM v2.0 three-layer hybrid quadrant logic deterministically:
+- Layer 1 (hard floors → Foundation): Value Score < 6.0 OR no named sponsor OR no data OR time-to-pilot > 12 weeks
+- Layer 2 (default quadrants): Champion (V≥7.5 AND R≥7.5); Strategic (V≥7.5 AND R≥6.0); Quick Win (V≥6.0 AND R≥7.5); else Foundation
+- Layer 3 (Conditional Champion): only if zero Champions AND zero Quick Wins exist in the portfolio, top composite-scored item(s) above floor are promoted with named gaps and a 5-week readiness sprint
 - Each use case must include a "Strategic Theme" column linking to Step 1
 Table columns: ID, Use Case, Priority Tier, Recommended Phase (Q1/Q2/Q3/Q4), Priority Score, Readiness Score, Value Score, TTV Score, Strategic Theme
 
-SPEED OPTIMIZATION: For Step 7, only output the ID and Use Case name. Priority scores, readiness scores, tiers, and phases will be computed deterministically by the post-processor. Do NOT waste tokens computing Step 7 scores.
+SPEED OPTIMIZATION: For Step 7, only output the ID and Use Case name. Priority scores, readiness scores, tiers, phases, and quadrant assignments will be computed deterministically by the post-processor. Do NOT waste tokens computing Step 7 scores.
 </output_methodology>
 
 ${SHARED_FORMATTING}

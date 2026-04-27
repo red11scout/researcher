@@ -756,11 +756,11 @@ export function generateProfessionalHTMLReport(
         const epochHtml = epochFlags
           ? (() => {
               const validKeys = new Set(['E', 'P', 'O', 'C', 'H']);
-              const flags = epochFlags.split(',').map(f => f.trim().charAt(0).toUpperCase()).filter(f => validKeys.has(f));
+              const flags = epochFlags.split(',').map((f: string) => f.trim().charAt(0).toUpperCase()).filter((f: string) => validKeys.has(f));
               if (flags.length === 0) return '';
               return `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:10px;">
                 <span style="font-size:9px;font-weight:600;color:#94a3b8;text-transform:uppercase;">E.P.O.C.H.:</span>
-                ${flags.map(f => `<span style="font-size:10px;padding:2px 6px;border-radius:4px;border:1px solid;font-weight:500;${epochColorsInline[f] || ''}">${epochLabelMap[f]}</span>`).join('')}
+                ${flags.map((f: string) => `<span style="font-size:10px;padding:2px 6px;border-radius:4px;border:1px solid;font-weight:500;${epochColorsInline[f] || ''}">${epochLabelMap[f]}</span>`).join('')}
               </div>`;
             })()
           : '';
@@ -976,16 +976,55 @@ export function generateProfessionalHTMLReport(
 
     if (!data || data.length === 0) return '';
 
+    // VRM v2.0 — pull metadata block from analysis root
+    const vrm = (analysisData as any)?.vrm || (reportData as any)?.vrm;
+    const sectorPresetLabel = vrm?.sectorPresetLabel || 'Baseline';
+    const w = vrm?.weights || { orgCapacity: 0.35, dataReadiness: 0.30, governance: 0.20, techInfrastructure: 0.15 };
+    const t = vrm?.quadrantThresholds || { championMin: 7.5, quickStrategicMin: 6.0, valueFloor: 6.0, maxTimeToPilotWeeks: 12 };
+
+    // Identify Conditional Champions for highlighted block
+    const conditionalChamps = data.filter((r: any) => r['Quadrant v2'] === 'conditional_champion'
+      || (r['Priority Tier'] || '').includes('Conditional Champion'));
+
+    const conditionalChampionBlock = conditionalChamps.length === 0 ? '' : `
+        <div class="appendix-block" style="background:#fffbeb;border:1px solid #fbbf24;border-radius:8px;padding:16px;margin-top:16px;">
+          <h3 class="subsection-heading" style="color:#92400e;margin-top:0;">Conditional Champions — 5-Week Readiness Sprint</h3>
+          <p style="margin-bottom:12px;color:#78350f;">No use cases met all Champion floors today. The following items can be promoted to Champion status with a focused readiness sprint addressing the listed gaps:</p>
+          ${conditionalChamps.map((r: any) => {
+            const meta = r['Conditional Champion Meta'] || {};
+            const gaps: any[] = meta.gaps || [];
+            return `
+              <div style="background:#fff;border-radius:6px;padding:12px;margin-bottom:8px;border-left:4px solid #f59e0b;">
+                <strong style="color:#92400e;">${escapeHtml(r['Use Case'] || r['ID'] || '')}</strong>
+                <span style="font-size:11px;color:#92400e;margin-left:8px;">${meta.proposedSprintWeeks || 5}-week sprint</span>
+                ${gaps.length > 0 ? `
+                  <ul style="margin:8px 0 0 20px;font-size:13px;color:#78350f;">
+                    ${gaps.map((g: any) => `<li><strong>${escapeHtml(g.component || '')}:</strong> ${g.current} &rarr; ${g.required}</li>`).join('')}
+                  </ul>` : ''}
+              </div>
+            `;
+          }).join('')}
+        </div>`;
+
     return `
       <div class="section" id="priority-roadmap">
         <h2 class="section-heading">Priority Scoring & Roadmap</h2>
+
+        <div class="appendix-block" style="background:#f1f5f9;border-radius:8px;padding:14px;margin-bottom:16px;font-size:12px;">
+          <strong style="color:#0f172a;">Value-Readiness Matrix v${vrm?.schemaVersion || '2.0'}</strong>
+          &nbsp;|&nbsp; Sector preset: <strong>${escapeHtml(sectorPresetLabel)}</strong>
+          &nbsp;|&nbsp; Weights: Org ${Math.round(w.orgCapacity * 100)}% / Data ${Math.round(w.dataReadiness * 100)}% / Gov ${Math.round(w.governance * 100)}% / Tech ${Math.round(w.techInfrastructure * 100)}%
+          <br/>
+          <span style="color:#475569;">Champion ≥ ${t.championMin}, Strategic/Quick Win ≥ ${t.quickStrategicMin}, Value floor ${t.valueFloor}, Time-to-pilot ≤ ${t.maxTimeToPilotWeeks} wks. Floors also require named sponsor + data availability.</span>
+        </div>
+
         <div class="table-wrap scrollable">
           <table class="data-table">
             <thead>
               <tr>
                 <th>ID</th>
                 <th>Use Case</th>
-                <th>Priority Tier</th>
+                <th>Priority Tier (v2)</th>
                 <th>Recommended Phase</th>
                 <th class="text-center">Priority Score</th>
                 <th class="text-center">Readiness Score</th>
@@ -997,11 +1036,21 @@ export function generateProfessionalHTMLReport(
             <tbody>
               ${data
                 .map(
-                  (row: any) => `
+                  (row: any) => {
+                    const isConditional = row['Quadrant v2'] === 'conditional_champion'
+                      || (row['Priority Tier'] || '').includes('Conditional Champion');
+                    const reasons: string[] = row['Floor Failure Reasons'] || [];
+                    const tierBadge = isConditional
+                      ? `<span class="tag" style="background:#fef3c7;color:#92400e;border:1px dashed #b45309;">${escapeHtml(row['Priority Tier'] || 'Conditional Champion')}</span>`
+                      : escapeHtml(row['Priority Tier'] || '');
+                    return `
               <tr>
                 <td class="font-semibold">${escapeHtml(row['ID'] || '')}</td>
-                <td class="font-medium">${escapeHtml(row['Use Case'] || '')}</td>
-                <td>${escapeHtml(row['Priority Tier'] || '')}</td>
+                <td class="font-medium">
+                  ${escapeHtml(row['Use Case'] || '')}
+                  ${reasons.length > 0 ? `<div style="font-size:10px;color:#b91c1c;margin-top:2px;">⚠ ${reasons.map(escapeHtml).join('; ')}</div>` : ''}
+                </td>
+                <td>${tierBadge}</td>
                 <td><span class="tag tag-sky">${escapeHtml(row['Recommended Phase'] || '')}</span></td>
                 <td class="text-center"><span class="score-pill">${row['Priority Score'] || row['Priority Score (0-100)'] || 0}</span></td>
                 <td class="text-center">${row['Readiness Score'] || row['Feasibility Score'] || '–'}</td>
@@ -1009,7 +1058,8 @@ export function generateProfessionalHTMLReport(
                 <td class="text-center">${row['TTV Score'] || row['TTV Score (0-30)'] || 0}</td>
                 <td>${escapeHtml(row['Strategic Theme'] || '')}</td>
               </tr>
-            `
+            `;
+                  }
                 )
                 .join('')}
             </tbody>
@@ -1017,8 +1067,9 @@ export function generateProfessionalHTMLReport(
         </div>
         <p class="table-footnote">
           Priority Score = (Readiness &times; 0.5) + (Normalized Value &times; 0.5) on 1&ndash;10 scale |
-          Tiers: Champions (&ge;7), Quick Wins, Strategic, Foundation
+          Quadrants: Champion, Quick Win, Strategic, Foundation, Conditional Champion (gap-named promotion)
         </p>
+        ${conditionalChampionBlock}
       </div>
     `;
   };
@@ -1079,9 +1130,9 @@ export function generateProfessionalHTMLReport(
 
           <p style="margin-bottom: 12px;"><strong>Value Score (1&ndash;10):</strong> Expected Value (Total Annual Value &times; Probability of Success) divided by the Friction Annual Cost of the targeted friction point, then min-max normalized across all use cases to a 1&ndash;10 scale. This directly ties use case value to the friction cost it addresses, providing a deterministic measure of return on friction investment.</p>
 
-          <p style="margin-bottom: 12px;"><strong>Readiness Score (1&ndash;10):</strong> Weighted composite of four components: Organizational Capacity (30%), Data Availability &amp; Quality (30%), Technical Infrastructure (20%), and AI-Specific Governance (20%). Each component scored 1&ndash;10 based on organizational assessment.</p>
+          <p style="margin-bottom: 12px;"><strong>Readiness Score (1&ndash;10) — VRM v2.0:</strong> Weighted composite of four BARS-anchored components: Organizational Capacity (35%), Data Availability &amp; Quality (30%), AI-Specific Governance (20%), and Technical Infrastructure (15%). Each component scored 1&ndash;10 against published anchors (1, 3, 5, 7, 10) reflecting enterprise-grade thresholds. Sector presets (regulated, internal-productivity, RAG/fine-tune-heavy) re-weight components to fit context.</p>
 
-          <p style="margin-bottom: 12px;"><strong>Priority Score (1&ndash;10):</strong> Equal-weighted average of Readiness Score and Normalized Value Score: (Readiness &times; 0.5) + (Value &times; 0.5). Determines tier placement: Champions (&ge;7.5), Quick Wins, Strategic, or Foundation.</p>
+          <p style="margin-bottom: 12px;"><strong>Priority Score (1&ndash;10):</strong> Equal-weighted average of Readiness Score and Normalized Value Score: (Readiness &times; 0.5) + (Value &times; 0.5). Quadrant placement uses three-layer hybrid logic: <em>Layer 1</em> hard floors (Value &lt; 6.0, no named sponsor, no data, time-to-pilot &gt; 12 weeks &rarr; Foundation); <em>Layer 2</em> default quadrants (Champion V&ge;7.5 &amp; R&ge;7.5; Strategic V&ge;7.5 &amp; R&ge;6.0; Quick Win V&ge;6.0 &amp; R&ge;7.5); <em>Layer 3</em> Conditional Champion (only when no Champions/Quick Wins exist, top items above floor are promoted with a named 5-week readiness sprint).</p>
 
           <h4 style="margin: 16px 0 8px; font-size: 14px;">Standard Benefit Formulas</h4>
           <ul class="assumption-list">

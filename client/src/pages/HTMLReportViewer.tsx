@@ -951,8 +951,35 @@ export default function HTMLReportViewer() {
             ? Object.keys(reorderedStepData[0]).filter(k => !k.includes('Formula') && !k.includes('Labels') && k !== 'Benefit Formula' && k !== 'Strategic Theme').slice(0, isBenefitsStep ? 9 : 6)
             : [];
 
+          const vrm = (analysis as any).vrm;
+          const showVrmHeader = step.step === 7 && vrm;
           return (
             <div key={stepIdx} style={styles.card}>
+              {showVrmHeader && (
+                <div style={{
+                  margin: 16,
+                  padding: '10px 14px',
+                  borderRadius: 8,
+                  background: '#eff6ff',
+                  border: '1px solid #bfdbfe',
+                  fontSize: 12,
+                  color: '#1e293b',
+                }} data-testid="text-vrm-methodology-htmlviewer">
+                  <strong>Value-Readiness Matrix v{vrm.schemaVersion}</strong>
+                  &nbsp;·&nbsp; Sector preset: <strong>{vrm.sectorPresetLabel}</strong>
+                  &nbsp;·&nbsp; Weights — Org {Math.round((vrm.weights?.orgCapacity ?? 0.35) * 100)}% /
+                  Data {Math.round((vrm.weights?.dataReadiness ?? 0.30) * 100)}% /
+                  Gov {Math.round((vrm.weights?.governance ?? 0.20) * 100)}% /
+                  Tech {Math.round((vrm.weights?.techInfrastructure ?? 0.15) * 100)}%
+                  &nbsp;·&nbsp; <span style={{ color: '#475569' }}>
+                    Champion ≥ {vrm.quadrantThresholds?.championMin ?? 7.5},
+                    Value floor {vrm.quadrantThresholds?.valueFloor ?? 6.0},
+                    TTP ≤ {vrm.quadrantThresholds?.maxTimeToPilotWeeks ?? 12} wks.
+                    Hard floors require named sponsor + data availability.
+                    Conditional Champion promotes top items via 5-week readiness sprint when no Champions/Quick Wins exist.
+                  </span>
+                </div>
+              )}
               <div style={styles.cardHeader}>
                 <h2 style={styles.cardHeaderTitle}>
                   <span style={styles.stepBadge}>{step.step}</span>

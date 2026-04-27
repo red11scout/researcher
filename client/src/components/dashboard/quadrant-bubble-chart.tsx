@@ -27,6 +27,21 @@ interface MatrixDataPoint {
   changeMgmt?: number;
   monthlyTokens?: number;
   description?: string;
+  // VRM v2.0 fields
+  quadrantV2?: string;
+  quadrantLayer?: number;
+  quadrantRationale?: string;
+  floorFailureReasons?: string[];
+  conditionalChampionMeta?: {
+    gaps: Array<{ component: string; current: number; required: number }>;
+    proposedSprintWeeks: number;
+    reclassificationCriteria: string;
+  };
+  wave?: string;
+  hasNamedSponsor?: boolean | null;
+  dataAvailableForEngagement?: boolean | null;
+  timeToPilotWeeks?: number | null;
+  subComponents?: Record<string, Record<string, number>>;
 }
 
 interface QuadrantBubbleChartProps {
@@ -108,56 +123,14 @@ export function QuadrantBubbleChart({ data, onBubbleClick }: QuadrantBubbleChart
 
   const { width, height } = dimensions;
 
-  // Dynamic axis domains based on actual data, with padding
+  // VRM v2.0 — Fixed quadrant thresholds (Champion ≥ 7.5, mid ≥ 6.0)
+  // Domain always covers 1-10 so absolute thresholds are interpretable.
   const { xDomain, yDomain, midXValue, midYValue } = useMemo(() => {
-    if (data.length === 0) {
-      return { xDomain: [1, 10] as [number, number], yDomain: [1, 10] as [number, number], midXValue: 5.5, midYValue: 5.5 };
-    }
-
-    const xValues = data.map(d => d.x);
-    const yValues = data.map(d => d.y);
-
-    const xMin = Math.min(...xValues);
-    const xMax = Math.max(...xValues);
-    const yMin = Math.min(...yValues);
-    const yMax = Math.max(...yValues);
-
-    // Compute the data midpoint for the quadrant divider
-    const xMid = (xMin + xMax) / 2;
-    const yMid = (yMin + yMax) / 2;
-
-    // Add padding around the data range (at least 1 unit on each side)
-    const xPad = Math.max(1, (xMax - xMin) * 0.3);
-    const yPad = Math.max(1, (yMax - yMin) * 0.3);
-
-    // Ensure minimum range of 4 units so chart isn't too zoomed
-    let xLow = Math.floor(xMin - xPad);
-    let xHigh = Math.ceil(xMax + xPad);
-    if (xHigh - xLow < 4) {
-      const center = (xLow + xHigh) / 2;
-      xLow = center - 2;
-      xHigh = center + 2;
-    }
-
-    let yLow = Math.floor(yMin - yPad);
-    let yHigh = Math.ceil(yMax + yPad);
-    if (yHigh - yLow < 4) {
-      const center = (yLow + yHigh) / 2;
-      yLow = center - 2;
-      yHigh = center + 2;
-    }
-
-    // Clamp to reasonable bounds (0-11 to allow slight overflow)
-    xLow = Math.max(0, xLow);
-    xHigh = Math.min(11, xHigh);
-    yLow = Math.max(0, yLow);
-    yHigh = Math.min(11, yHigh);
-
     return {
-      xDomain: [xLow, xHigh] as [number, number],
-      yDomain: [yLow, yHigh] as [number, number],
-      midXValue: xMid,
-      midYValue: yMid,
+      xDomain: [1, 10] as [number, number],
+      yDomain: [1, 10] as [number, number],
+      midXValue: 7.5,
+      midYValue: 7.5,
     };
   }, [data]);
 
@@ -310,7 +283,7 @@ export function QuadrantBubbleChart({ data, onBubbleClick }: QuadrantBubbleChart
           Foundation
         </text>
 
-        {/* Midpoint divider lines */}
+        {/* Champion threshold dividers at 7.5 */}
         <line
           x1={midX} y1={MARGIN.top} x2={midX} y2={height - MARGIN.bottom}
           stroke="#475569" strokeDasharray="6 4" strokeWidth={1.5} opacity={0.6}
@@ -319,6 +292,32 @@ export function QuadrantBubbleChart({ data, onBubbleClick }: QuadrantBubbleChart
           x1={MARGIN.left} y1={midY} x2={width - MARGIN.right} y2={midY}
           stroke="#475569" strokeDasharray="6 4" strokeWidth={1.5} opacity={0.6}
         />
+        {/* VRM v2.0 — Quick-Strategic boundary at 6.0 (lighter, thinner) */}
+        <line
+          x1={xScale(6)} y1={MARGIN.top} x2={xScale(6)} y2={height - MARGIN.bottom}
+          stroke="#cbd5e1" strokeDasharray="3 3" strokeWidth={1} opacity={0.7}
+        />
+        <line
+          x1={MARGIN.left} y1={yScale(6)} x2={width - MARGIN.right} y2={yScale(6)}
+          stroke="#cbd5e1" strokeDasharray="3 3" strokeWidth={1} opacity={0.7}
+        />
+        {/* VRM v2.0 — Hard floor at Value < 6.0 (subtle red wash) */}
+        <rect
+          x={MARGIN.left} y={yScale(6)}
+          width={width - MARGIN.right - MARGIN.left}
+          height={height - MARGIN.bottom - yScale(6)}
+          fill="#fee2e2" opacity={0.25}
+        />
+        <text
+          x={MARGIN.left + 8}
+          y={yScale(6) + 14}
+          fontSize={9}
+          fill="#b91c1c"
+          opacity={0.7}
+          fontStyle="italic"
+        >
+          Value floor (6.0)
+        </text>
 
         {/* X-axis ticks and labels (dynamic) */}
         {xTicks.map(v => (
@@ -396,9 +395,13 @@ export function QuadrantBubbleChart({ data, onBubbleClick }: QuadrantBubbleChart
           const cx = xScale(point.x);
           const cy = yScale(point.y);
           const r = sizeScale(point.z);  // z = TTV bubble score (0-1)
-          const fillColor = point.priorityTier
-            ? getTierColorValue(point.priorityTier)
-            : point.color;
+          const isConditional = point.quadrantV2 === 'conditional_champion'
+            || (point.priorityTier ?? '').includes('Conditional Champion');
+          const fillColor = isConditional
+            ? '#fbbf24'
+            : point.priorityTier
+              ? getTierColorValue(point.priorityTier)
+              : point.color;
           const isHovered = hoveredIndex === i;
           const isDimmed = hoveredIndex !== null && hoveredIndex !== i;
 
@@ -408,12 +411,13 @@ export function QuadrantBubbleChart({ data, onBubbleClick }: QuadrantBubbleChart
               cx={cx}
               cy={cy}
               fill={fillColor}
-              stroke="rgba(255,255,255,0.8)"
+              stroke={isConditional ? '#b45309' : 'rgba(255,255,255,0.8)'}
+              strokeDasharray={isConditional ? '4 3' : undefined}
               initial={{ r: 0, opacity: 0 }}
               animate={{
                 r,
                 opacity: isDimmed ? 0.25 : 0.85,
-                strokeWidth: isHovered ? 2.5 : 1,
+                strokeWidth: isConditional ? 2 : (isHovered ? 2.5 : 1),
               }}
               transition={{ duration: 0.25, ease: 'easeOut' }}
               style={{ cursor: 'pointer' }}
@@ -502,7 +506,32 @@ export function QuadrantBubbleChart({ data, onBubbleClick }: QuadrantBubbleChart
                   </span>
                 </div>
               </div>
-              {hoveredPoint.description && (
+              {hoveredPoint.quadrantRationale && (
+                <p className="text-[10px] text-slate-500 mt-2 leading-relaxed">
+                  <span className="font-semibold text-slate-600">Why: </span>{hoveredPoint.quadrantRationale}
+                </p>
+              )}
+              {hoveredPoint.floorFailureReasons && hoveredPoint.floorFailureReasons.length > 0 && (
+                <div className="mt-2 p-2 rounded bg-red-50 border border-red-200">
+                  <p className="text-[10px] font-semibold text-red-800 mb-0.5">Floor failures</p>
+                  <ul className="text-[10px] text-red-700 list-disc list-inside leading-tight">
+                    {hoveredPoint.floorFailureReasons.slice(0, 3).map((r: string, idx: number) => (
+                      <li key={idx}>{r}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {hoveredPoint.conditionalChampionMeta && (
+                <div className="mt-2 p-2 rounded bg-amber-50 border border-amber-200">
+                  <p className="text-[10px] font-semibold text-amber-800 mb-0.5">{hoveredPoint.conditionalChampionMeta.proposedSprintWeeks}-week readiness sprint</p>
+                  <ul className="text-[10px] text-amber-700 list-disc list-inside leading-tight">
+                    {hoveredPoint.conditionalChampionMeta.gaps.slice(0, 3).map((g: { component: string; current: number; required: number }, idx: number) => (
+                      <li key={idx}>{g.component}: {g.current} → {g.required}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {!hoveredPoint.quadrantRationale && hoveredPoint.description && (
                 <p className="text-[10px] text-slate-500 mt-2 leading-relaxed line-clamp-2">
                   {hoveredPoint.description}
                 </p>
@@ -513,9 +542,9 @@ export function QuadrantBubbleChart({ data, onBubbleClick }: QuadrantBubbleChart
         )}
       </AnimatePresence>
 
-      {/* Tier legend */}
+      {/* Tier legend — VRM v2.0 with Conditional Champion */}
       <div className="flex flex-wrap justify-center gap-4 mt-3 text-[11px]">
-        {(['Champions', 'Quick Wins', 'Strategic', 'Foundations'] as const).map(tier => (
+        {(['Champion', 'Quick Win', 'Strategic', 'Foundation'] as const).map(tier => (
           <div key={tier} className="flex items-center gap-1.5 text-slate-400">
             <div
               className="w-2.5 h-2.5 rounded-full"
@@ -524,6 +553,13 @@ export function QuadrantBubbleChart({ data, onBubbleClick }: QuadrantBubbleChart
             {tier}
           </div>
         ))}
+        <div className="flex items-center gap-1.5 text-slate-400">
+          <div
+            className="w-2.5 h-2.5 rounded-full border-2 border-amber-700"
+            style={{ backgroundColor: '#fbbf24', borderStyle: 'dashed' }}
+          />
+          Conditional Champion
+        </div>
         <div className="flex items-center gap-1.5 text-slate-400 ml-2">
           <svg width="16" height="12" className="text-slate-400">
             <circle cx="4" cy="6" r="3" fill="none" stroke="currentColor" strokeWidth="1" />
