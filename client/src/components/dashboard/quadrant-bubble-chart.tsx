@@ -129,24 +129,31 @@ export function QuadrantBubbleChart({ data, onBubbleClick, vrmConfig }: Quadrant
 
   const { width, height } = dimensions;
 
-  // VRM v2.1 — Quadrant thresholds anchored at 7.5 on both axes.
+  // VRM v2.1 — Champion threshold (default 7.5) anchored on both axes.
   // Use a PIECEWISE scale so the threshold sits at the visual center of the chart,
   // producing four equally-sized quadrants regardless of the [1, 10] domain.
+  const championMin = vrmConfig?.championMin ?? 7.5;
   const { xDomain, yDomain, midXValue, midYValue } = useMemo(() => {
     return {
       xDomain: [1, 10] as [number, number],
       yDomain: [1, 10] as [number, number],
-      midXValue: 7.5,
-      midYValue: 7.5,
+      midXValue: championMin,
+      midYValue: championMin,
     };
-  }, [data]);
+  }, [data, championMin]);
+
+  // Clamp helper — guards against malformed/out-of-range data points.
+  const clamp = (v: number, lo: number, hi: number) =>
+    Number.isFinite(v) ? Math.min(hi, Math.max(lo, v)) : (lo + hi) / 2;
 
   // Piecewise X scale: domain [1, 7.5] maps to left half, [7.5, 10] maps to right half.
+  // Values outside [1, 10] are clamped so a bad data point can never escape the plot area.
   const xScale = useMemo(() => {
     const left = MARGIN.left;
     const right = width - MARGIN.right;
     const mid = (left + right) / 2;
-    const fn = (v: number) => {
+    const fn = (raw: number) => {
+      const v = clamp(raw, xDomain[0], xDomain[1]);
       if (v <= midXValue) {
         return left + ((v - xDomain[0]) / (midXValue - xDomain[0])) * (mid - left);
       }
@@ -160,12 +167,11 @@ export function QuadrantBubbleChart({ data, onBubbleClick, vrmConfig }: Quadrant
     const top = MARGIN.top;
     const bottom = height - MARGIN.bottom;
     const mid = (top + bottom) / 2;
-    const fn = (v: number) => {
+    const fn = (raw: number) => {
+      const v = clamp(raw, yDomain[0], yDomain[1]);
       if (v <= midYValue) {
-        // Lower domain values render in the bottom half (between mid and bottom)
         return bottom - ((v - yDomain[0]) / (midYValue - yDomain[0])) * (bottom - mid);
       }
-      // Upper domain values render in the top half (between top and mid)
       return mid - ((v - midYValue) / (yDomain[1] - midYValue)) * (mid - top);
     };
     return Object.assign(fn, { invert: (px: number) => px });
@@ -351,53 +357,99 @@ export function QuadrantBubbleChart({ data, onBubbleClick, vrmConfig }: Quadrant
           </g>
         )}
 
-        {/* Quadrant labels */}
+        {/* Quadrant labels with threshold subtitles. Each label is rendered just inside
+            the quadrant corner (away from the threshold dividers) so it never overlaps
+            with central bubbles. Conditional Champion overlay label remains separate. */}
         <text
-          x={midX + (width - MARGIN.right - midX) / 2}
-          y={MARGIN.top + 18}
-          textAnchor="middle"
+          x={width - MARGIN.right - 8}
+          y={MARGIN.top + 16}
+          textAnchor="end"
           fontSize={11}
           fontWeight={700}
           fill={QUADRANT_LABEL_COLORS.champion}
-          opacity={0.9}
+          opacity={0.95}
         >
           Champions
         </text>
         <text
-          x={MARGIN.left + (midX - MARGIN.left) / 2}
-          y={MARGIN.top + 18}
-          textAnchor="middle"
+          x={width - MARGIN.right - 8}
+          y={MARGIN.top + 28}
+          textAnchor="end"
+          fontSize={9}
+          fontWeight={500}
+          fill={QUADRANT_LABEL_COLORS.champion}
+          opacity={0.7}
+        >
+          Value ≥ {championMin} · Readiness ≥ {championMin}
+        </text>
+        <text
+          x={MARGIN.left + 8}
+          y={MARGIN.top + 16}
+          textAnchor="start"
           fontSize={11}
           fontWeight={700}
           fill={QUADRANT_LABEL_COLORS.strategicBet}
-          opacity={0.9}
+          opacity={0.95}
         >
-          Strategic
+          Strategic Bets
         </text>
         <text
-          x={midX + (width - MARGIN.right - midX) / 2}
-          y={height - MARGIN.bottom - 8}
-          textAnchor="middle"
+          x={MARGIN.left + 8}
+          y={MARGIN.top + 28}
+          textAnchor="start"
+          fontSize={9}
+          fontWeight={500}
+          fill={QUADRANT_LABEL_COLORS.strategicBet}
+          opacity={0.7}
+        >
+          Value ≥ {championMin} · Readiness &lt; {championMin}
+        </text>
+        <text
+          x={width - MARGIN.right - 8}
+          y={height - MARGIN.bottom - 18}
+          textAnchor="end"
+          fontSize={9}
+          fontWeight={500}
+          fill={QUADRANT_LABEL_COLORS.quickWin}
+          opacity={0.7}
+        >
+          Value &lt; {championMin} · Readiness ≥ {championMin}
+        </text>
+        <text
+          x={width - MARGIN.right - 8}
+          y={height - MARGIN.bottom - 6}
+          textAnchor="end"
           fontSize={11}
           fontWeight={700}
           fill={QUADRANT_LABEL_COLORS.quickWin}
-          opacity={0.9}
+          opacity={0.95}
         >
           Quick Wins
         </text>
         <text
-          x={MARGIN.left + (midX - MARGIN.left) / 2}
-          y={height - MARGIN.bottom - 8}
-          textAnchor="middle"
+          x={MARGIN.left + 8}
+          y={height - MARGIN.bottom - 18}
+          textAnchor="start"
+          fontSize={9}
+          fontWeight={500}
+          fill={QUADRANT_LABEL_COLORS.foundation}
+          opacity={0.7}
+        >
+          Value &lt; {championMin} · Readiness &lt; {championMin}
+        </text>
+        <text
+          x={MARGIN.left + 8}
+          y={height - MARGIN.bottom - 6}
+          textAnchor="start"
           fontSize={11}
           fontWeight={700}
           fill={QUADRANT_LABEL_COLORS.foundation}
-          opacity={0.9}
+          opacity={0.95}
         >
           Foundation
         </text>
 
-        {/* Champion threshold dividers at 7.5 */}
+        {/* Champion threshold dividers (default 7.5, dynamic via championMin) */}
         <line
           x1={midX} y1={MARGIN.top} x2={midX} y2={height - MARGIN.bottom}
           stroke="#475569" strokeDasharray="6 4" strokeWidth={1.5} opacity={0.6}
@@ -406,26 +458,26 @@ export function QuadrantBubbleChart({ data, onBubbleClick, vrmConfig }: Quadrant
           x1={MARGIN.left} y1={midY} x2={width - MARGIN.right} y2={midY}
           stroke="#475569" strokeDasharray="6 4" strokeWidth={1.5} opacity={0.6}
         />
-        {/* VRM v2.1 — hard value floor at normalized 4.0 (replaces v2.0 6.0 line) */}
+        {/* VRM v2.1 — hard value floor (default normalized 4.0, dynamic via vrmConfig.valueFloorBand) */}
         <line
-          x1={MARGIN.left} y1={yScale(4)} x2={width - MARGIN.right} y2={yScale(4)}
+          x1={MARGIN.left} y1={yScale(hardFloorY)} x2={width - MARGIN.right} y2={yScale(hardFloorY)}
           stroke="#94a3b8" strokeDasharray="3 3" strokeWidth={1} opacity={0.7}
         />
         <rect
-          x={MARGIN.left} y={yScale(4)}
+          x={MARGIN.left} y={yScale(hardFloorY)}
           width={width - MARGIN.right - MARGIN.left}
-          height={height - MARGIN.bottom - yScale(4)}
+          height={height - MARGIN.bottom - yScale(hardFloorY)}
           fill="#f1f5f9" opacity={0.5}
         />
         <text
           x={MARGIN.left + 8}
-          y={yScale(4) + 14}
+          y={yScale(hardFloorY) + 14}
           fontSize={9}
           fill="#475569"
           opacity={0.75}
           fontStyle="italic"
         >
-          Hard value floor (norm. 4.0)
+          Hard value floor (norm. {hardFloorY})
         </text>
 
         {/* X-axis ticks and labels (dynamic) */}
@@ -535,33 +587,51 @@ export function QuadrantBubbleChart({ data, onBubbleClick, vrmConfig }: Quadrant
           );
         })}
 
-        {/* Direct bubble labels (for ≤12 use cases) */}
-        {data.length <= 12 && data.map((point, i) => {
-          const cx = xScale(point.x);
-          const cy = yScale(point.y);
-          const r = sizeScale(point.z);
-          const isDimmed = hoveredIndex !== null && hoveredIndex !== i;
-          const labelText = point.name.length > 22
-            ? point.name.slice(0, 20) + '...'
-            : point.name;
+        {/* Direct bubble labels (for ≤12 use cases) — with collision-avoidance.
+            For each bubble, place the label above by default; if a previously-placed
+            label sits within COLLIDE_PX, flip below the bubble instead. */}
+        {data.length <= 12 && (() => {
+          const COLLIDE_PX = 28;
+          const placed: { x: number; y: number }[] = [];
+          return data.map((point, i) => {
+            const cx = xScale(point.x);
+            const cy = yScale(point.y);
+            const r = sizeScale(point.z);
+            const isDimmed = hoveredIndex !== null && hoveredIndex !== i;
+            const labelText = point.name.length > 22
+              ? point.name.slice(0, 20) + '…'
+              : point.name;
 
-          return (
-            <motion.text
-              key={`label-${point.name}`}
-              x={cx}
-              y={cy - r - 5}
-              textAnchor="middle"
-              fontSize={9}
-              fontWeight={500}
-              fill="#334155"
-              className="pointer-events-none select-none"
-              animate={{ opacity: isDimmed ? 0.15 : 0.8 }}
-              transition={{ duration: 0.2 }}
-            >
-              {labelText}
-            </motion.text>
-          );
-        })}
+            const aboveY = cy - r - 5;
+            const belowY = cy + r + 12;
+            const collidesAbove = placed.some(p =>
+              Math.abs(p.x - cx) < COLLIDE_PX && Math.abs(p.y - aboveY) < 12
+            );
+            const labelY = collidesAbove ? belowY : aboveY;
+            placed.push({ x: cx, y: labelY });
+
+            return (
+              <motion.text
+                key={`label-${point.name}-${i}`}
+                x={cx}
+                y={labelY}
+                textAnchor="middle"
+                fontSize={9}
+                fontWeight={500}
+                fill="#334155"
+                className="pointer-events-none select-none"
+                animate={{ opacity: isDimmed ? 0.15 : 0.85 }}
+                transition={{ duration: 0.2 }}
+                style={{ paintOrder: 'stroke' }}
+                stroke="rgba(255,255,255,0.85)"
+                strokeWidth={2.5}
+                strokeLinejoin="round"
+              >
+                {labelText}
+              </motion.text>
+            );
+          });
+        })()}
       </svg>
 
       {/* Tooltip */}
@@ -674,7 +744,7 @@ export function QuadrantBubbleChart({ data, onBubbleClick, vrmConfig }: Quadrant
             <circle cx="4" cy="6" r="3" fill="none" stroke="currentColor" strokeWidth="1" />
             <circle cx="11" cy="6" r="5" fill="none" stroke="currentColor" strokeWidth="1" />
           </svg>
-          Smaller bubble = Faster TTV
+          Larger bubble = Faster time-to-value
         </div>
       </div>
     </div>
