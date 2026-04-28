@@ -6,7 +6,11 @@ import * as formulaService from "./formula-service";
 import { dubService } from "./dub-service";
 import { insertReportSchema } from "@shared/schema";
 import { buildAssumptionExcelWorkbook, buildAssumptionJSON } from "./assumption-export";
-import { evaluateReportStaleness, backfillAllReports } from "./report-backfill";
+import {
+  evaluateReportStaleness,
+  backfillAllReports,
+  type BackfillReportResult,
+} from "./report-backfill";
 import { nanoid } from "nanoid";
 import multer from "multer";
 import { createRequire } from "module";
@@ -557,12 +561,114 @@ Return ONLY valid JSON with this structure:
   app.post("/api/admin/backfill-reports", async (req, res) => {
     const force = req.query.force === "1" || req.query.force === "true";
     const verbose = req.query.verbose === "1" || req.query.verbose === "true";
+    const stream = req.query.stream === "1" || req.query.stream === "true";
     const startedAt = Date.now();
     console.log(
-      `[admin/backfill-reports] Starting backfill (force=${force}) — initiated by ${
+      `[admin/backfill-reports] Starting backfill (force=${force}, stream=${stream}) — initiated by ${
         req.ip || "unknown"
       }`,
     );
+
+    if (stream) {
+      // Stream per-report progress as newline-delimited JSON. The browser
+      // consumes the response body incrementally so operators see live
+      // progress instead of staring at a spinner for minutes.
+      type StreamEvent =
+        | { type: "start"; total: number; force: boolean }
+        | {
+            type: "progress";
+            index: number;
+            total: number;
+            result: BackfillReportResult;
+          }
+        | {
+            type: "complete";
+            success: true;
+            force: boolean;
+            total: number;
+            updated: number;
+            skipped: number;
+            failed: number;
+            durationMs: number;
+            failures: BackfillReportResult[];
+            results?: BackfillReportResult[];
+          }
+        | { type: "error"; success: false; error: string };
+
+      res.status(200);
+      res.setHeader("Content-Type", "application/x-ndjson; charset=utf-8");
+      res.setHeader("Cache-Control", "no-cache, no-transform");
+      res.setHeader("X-Accel-Buffering", "no");
+      // Flush headers immediately so the client knows the stream is open.
+      // `flushHeaders` is part of Node's http.ServerResponse but isn't
+      // declared on Express's narrowed Response type, so guard via a
+      // type-safe interface narrowing rather than an `any` cast.
+      const maybeFlushable: { flushHeaders?: () => void } = res;
+      if (typeof maybeFlushable.flushHeaders === "function") {
+        maybeFlushable.flushHeaders();
+      }
+
+      const writeEvent = (event: StreamEvent) => {
+        res.write(JSON.stringify(event) + "\n");
+      };
+
+      try {
+        const summary = await backfillAllReports({
+          force,
+          onStart: (total) => {
+            // Emit a start frame as soon as the report list is known so the
+            // client can render the progress bar immediately, even while the
+            // first report is still being processed.
+            writeEvent({ type: "start", total, force });
+          },
+          onProgress: (i, total, result) => {
+            if (result.status !== "skipped") {
+              console.log(
+                `[admin/backfill-reports] (${i}/${total}) ${result.status.toUpperCase()} ${result.companyName} (${result.id})${
+                  result.reasons ? ` reasons=${result.reasons.join(",")}` : ""
+                }${result.error ? ` error=${result.error}` : ""} (${result.durationMs}ms)`,
+              );
+            }
+            writeEvent({ type: "progress", index: i, total, result });
+          },
+        });
+        console.log(
+          `[admin/backfill-reports] Done in ${summary.durationMs}ms — total=${summary.total}, updated=${summary.updated}, skipped=${summary.skipped}, failed=${summary.failed}`,
+        );
+        const completePayload: Extract<StreamEvent, { type: "complete" }> = {
+          type: "complete",
+          success: true,
+          force,
+          total: summary.total,
+          updated: summary.updated,
+          skipped: summary.skipped,
+          failed: summary.failed,
+          durationMs: summary.durationMs,
+          failures: summary.results.filter((r) => r.status === "failed"),
+          ...(verbose ? { results: summary.results } : {}),
+        };
+        writeEvent(completePayload);
+        res.end();
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(
+          `[admin/backfill-reports] Aborted after ${Date.now() - startedAt}ms:`,
+          err,
+        );
+        try {
+          writeEvent({
+            type: "error",
+            success: false,
+            error: message,
+          });
+        } catch {
+          // Stream may already be torn down — nothing useful to do.
+        }
+        res.end();
+      }
+      return;
+    }
+
     try {
       const summary = await backfillAllReports({
         force,

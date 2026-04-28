@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,6 +11,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import {
   AlertDialog,
@@ -37,18 +38,22 @@ import {
   Loader2,
   RefreshCw,
   ShieldAlert,
+  SkipForward,
+  XCircle,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
 
-interface BackfillFailure {
+interface BackfillReportResult {
   id: string;
   companyName: string;
   isWhatIf: boolean;
-  status: "failed";
+  status: "updated" | "skipped" | "failed";
+  reasons?: string[];
   error?: string;
   durationMs: number;
 }
+
+type BackfillFailure = BackfillReportResult & { status: "failed" };
 
 interface BackfillResponse {
   success: boolean;
@@ -60,6 +65,37 @@ interface BackfillResponse {
   durationMs: number;
   failures?: BackfillFailure[];
 }
+
+interface ProgressState {
+  total: number;
+  processed: number;
+  updated: number;
+  skipped: number;
+  failed: number;
+  recent: BackfillReportResult[];
+}
+
+type StreamEvent =
+  | { type: "start"; total: number; force: boolean }
+  | {
+      type: "progress";
+      index: number;
+      total: number;
+      result: BackfillReportResult;
+    }
+  | ({ type: "complete" } & BackfillResponse)
+  | { type: "error"; success: false; error: string };
+
+function isStreamEvent(value: unknown): value is StreamEvent {
+  if (!value || typeof value !== "object") return false;
+  const t = (value as { type?: unknown }).type;
+  return (
+    t === "start" || t === "progress" || t === "complete" || t === "error"
+  );
+}
+
+// How many recent reports to keep in the live activity feed.
+const MAX_RECENT = 25;
 
 function formatDuration(ms: number): string {
   if (ms < 1000) return `${ms}ms`;
@@ -78,20 +114,153 @@ export default function Admin() {
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [result, setResult] = useState<BackfillResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<ProgressState | null>(null);
+  // Buffer progress updates so we don't re-render on every single line of
+  // NDJSON when the stream is firing rapidly.
+  const flushTimer = useRef<number | null>(null);
+  const pendingProgress = useRef<ProgressState | null>(null);
+
+  const scheduleFlush = () => {
+    if (flushTimer.current !== null) return;
+    flushTimer.current = window.setTimeout(() => {
+      flushTimer.current = null;
+      if (pendingProgress.current) {
+        setProgress(pendingProgress.current);
+      }
+    }, 80);
+  };
 
   const runBackfill = async () => {
     setRunning(true);
     setStartedAt(Date.now());
     setResult(null);
     setError(null);
+    setProgress(null);
+    pendingProgress.current = null;
+
     try {
-      const url = `/api/admin/backfill-reports${force ? "?force=1" : ""}`;
-      const res = await apiRequest("POST", url);
-      const body: BackfillResponse = await res.json();
-      setResult(body);
+      const params = new URLSearchParams({ stream: "1" });
+      if (force) params.set("force", "1");
+      const res = await fetch(
+        `/api/admin/backfill-reports?${params.toString()}`,
+        {
+          method: "POST",
+          credentials: "include",
+        },
+      );
+
+      if (!res.ok || !res.body) {
+        const text = (await res.text()) || res.statusText;
+        throw new Error(`${res.status}: ${text}`);
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      // Wrap mutable values in a single object so TypeScript keeps the
+      // declared types after they're reassigned inside the closure below
+      // (without an indirection it narrows to `never`).
+      const state: {
+        completion: BackfillResponse | null;
+        streamError: string | null;
+      } = { completion: null, streamError: null };
+
+      const handleEvent = (event: StreamEvent) => {
+        if (event.type === "start") {
+          const initial: ProgressState = {
+            total: event.total,
+            processed: 0,
+            updated: 0,
+            skipped: 0,
+            failed: 0,
+            recent: [],
+          };
+          pendingProgress.current = initial;
+          setProgress(initial);
+        } else if (event.type === "progress") {
+          const prev =
+            pendingProgress.current ?? {
+              total: event.total,
+              processed: 0,
+              updated: 0,
+              skipped: 0,
+              failed: 0,
+              recent: [],
+            };
+          const r = event.result;
+          const next: ProgressState = {
+            total: event.total,
+            processed: event.index,
+            updated: prev.updated + (r.status === "updated" ? 1 : 0),
+            skipped: prev.skipped + (r.status === "skipped" ? 1 : 0),
+            failed: prev.failed + (r.status === "failed" ? 1 : 0),
+            recent: [r, ...prev.recent].slice(0, MAX_RECENT),
+          };
+          pendingProgress.current = next;
+          scheduleFlush();
+        } else if (event.type === "complete") {
+          const { type: _type, ...rest } = event;
+          state.completion = rest;
+        } else if (event.type === "error") {
+          state.streamError = event.error || "Unknown error";
+        }
+      };
+
+      const consumeLine = (raw: string) => {
+        const line = raw.trim();
+        if (!line) return;
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(line);
+        } catch {
+          return;
+        }
+        if (!isStreamEvent(parsed)) return;
+        handleEvent(parsed);
+      };
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        let newlineIdx = buffer.indexOf("\n");
+        while (newlineIdx !== -1) {
+          consumeLine(buffer.slice(0, newlineIdx));
+          buffer = buffer.slice(newlineIdx + 1);
+          newlineIdx = buffer.indexOf("\n");
+        }
+      }
+      // Flush any trailing bytes the decoder is still holding, plus any
+      // residual buffered line that was not newline-terminated.
+      buffer += decoder.decode();
+      if (buffer.length > 0) {
+        consumeLine(buffer);
+        buffer = "";
+      }
+
+      // Flush any pending progress updates before showing the summary.
+      if (flushTimer.current !== null) {
+        window.clearTimeout(flushTimer.current);
+        flushTimer.current = null;
+      }
+      if (pendingProgress.current) {
+        setProgress(pendingProgress.current);
+      }
+
+      if (state.streamError) {
+        throw new Error(state.streamError);
+      }
+
+      const completion = state.completion;
+      if (!completion) {
+        throw new Error("Stream ended before a completion event was received.");
+      }
+
+      setResult(completion);
       toast({
         title: "Upgrade complete",
-        description: `Updated ${body.updated} of ${body.total} reports (${body.failed} failed) in ${formatDuration(body.durationMs)}.`,
+        description: `Updated ${completion.updated} of ${completion.total} reports (${completion.failed} failed) in ${formatDuration(completion.durationMs)}.`,
       });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
@@ -102,6 +271,10 @@ export default function Admin() {
         variant: "destructive",
       });
     } finally {
+      if (flushTimer.current !== null) {
+        window.clearTimeout(flushTimer.current);
+        flushTimer.current = null;
+      }
       setRunning(false);
     }
   };
@@ -191,6 +364,10 @@ export default function Admin() {
                 </span>
               )}
             </div>
+
+            {progress && !result && (
+              <LiveProgressPanel progress={progress} running={running} />
+            )}
 
             {error && (
               <div
@@ -394,5 +571,158 @@ function SummaryStat({ label, value, tone = "default", testId }: SummaryStatProp
         {value}
       </div>
     </div>
+  );
+}
+
+interface LiveProgressPanelProps {
+  progress: ProgressState;
+  running: boolean;
+}
+
+function LiveProgressPanel({ progress, running }: LiveProgressPanelProps) {
+  const { total, processed, updated, skipped, failed, recent } = progress;
+  const pct = total > 0 ? Math.min(100, (processed / total) * 100) : 0;
+
+  return (
+    <div className="space-y-4" data-testid="panel-live-progress">
+      <Separator />
+      <div className="flex items-center gap-2">
+        {running ? (
+          <Loader2 className="h-5 w-5 text-brand-navy animate-spin" />
+        ) : (
+          <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+        )}
+        <h3 className="text-base font-semibold text-slate-900">
+          {running ? "Upgrade in progress" : "Upgrade finishing…"}
+        </h3>
+      </div>
+
+      <div>
+        <div className="flex items-center justify-between text-sm mb-2">
+          <span className="text-slate-700 font-medium" data-testid="text-progress-label">
+            {processed} of {total} reports processed
+          </span>
+          <span className="text-slate-500 tabular-nums" data-testid="text-progress-pct">
+            {Math.round(pct)}%
+          </span>
+        </div>
+        <Progress value={pct} data-testid="progress-bar-backfill" />
+        <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-600">
+          <span
+            className="flex items-center gap-1"
+            data-testid="text-live-updated"
+          >
+            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+            <span className="font-medium text-emerald-700">{updated}</span>{" "}
+            updated
+          </span>
+          <span
+            className="flex items-center gap-1"
+            data-testid="text-live-skipped"
+          >
+            <SkipForward className="h-3.5 w-3.5 text-slate-500" />
+            <span className="font-medium text-slate-700">{skipped}</span>{" "}
+            skipped
+          </span>
+          <span
+            className="flex items-center gap-1"
+            data-testid="text-live-failed"
+          >
+            <XCircle className="h-3.5 w-3.5 text-red-600" />
+            <span
+              className={`font-medium ${failed > 0 ? "text-red-700" : "text-slate-700"}`}
+            >
+              {failed}
+            </span>{" "}
+            failed
+          </span>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-slate-200 overflow-hidden">
+        <div className="bg-slate-50 px-4 py-2 flex items-center gap-2 border-b border-slate-200">
+          <Clock className="h-4 w-4 text-slate-500" />
+          <span className="text-sm font-medium text-slate-700">
+            Recent reports
+          </span>
+          <span className="text-xs text-slate-500">
+            (most recent first, last {MAX_RECENT})
+          </span>
+        </div>
+        {recent.length === 0 ? (
+          <div
+            className="px-4 py-6 text-sm text-slate-500 text-center"
+            data-testid="text-recent-empty"
+          >
+            Waiting for the first report to finish…
+          </div>
+        ) : (
+          <ul
+            className="divide-y divide-slate-100 max-h-72 overflow-y-auto"
+            data-testid="list-recent-reports"
+          >
+            {recent.map((r, idx) => (
+              <li
+                key={`${r.id}-${idx}`}
+                className="px-4 py-2 flex items-center gap-3 text-sm"
+                data-testid={`row-recent-${r.id}`}
+              >
+                <StatusIcon status={r.status} />
+                <span
+                  className="font-medium text-slate-900 truncate flex-1 min-w-0"
+                  data-testid={`text-recent-company-${r.id}`}
+                >
+                  {r.companyName}
+                </span>
+                {r.isWhatIf && (
+                  <Badge variant="outline" className="text-[10px] py-0">
+                    what-if
+                  </Badge>
+                )}
+                <StatusBadge status={r.status} />
+                <span
+                  className="text-xs text-slate-500 tabular-nums w-16 text-right"
+                  data-testid={`text-recent-duration-${r.id}`}
+                >
+                  {formatDuration(r.durationMs)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function StatusIcon({ status }: { status: BackfillReportResult["status"] }) {
+  if (status === "updated") {
+    return <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />;
+  }
+  if (status === "failed") {
+    return <XCircle className="h-4 w-4 text-red-600 shrink-0" />;
+  }
+  return <SkipForward className="h-4 w-4 text-slate-400 shrink-0" />;
+}
+
+function StatusBadge({ status }: { status: BackfillReportResult["status"] }) {
+  if (status === "updated") {
+    return (
+      <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 text-[10px] py-0">
+        updated
+      </Badge>
+    );
+  }
+  if (status === "failed") {
+    return (
+      <Badge className="bg-red-100 text-red-700 hover:bg-red-100 text-[10px] py-0">
+        failed
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="outline" className="text-[10px] py-0">
+      skipped
+    </Badge>
   );
 }

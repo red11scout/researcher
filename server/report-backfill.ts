@@ -100,6 +100,13 @@ export interface BackfillSummary {
 export interface BackfillOptions {
   /** Reprocess every report regardless of the staleness check. */
   force?: boolean;
+  /**
+   * Optional callback fired exactly once, before any report is processed,
+   * with the total number of reports the run will iterate over. Useful for
+   * streaming consumers that want to render a progress bar immediately
+   * (even before the first report finishes).
+   */
+  onStart?: (total: number) => void;
   /** Optional callback fired after each report. Useful for CLI progress logs. */
   onProgress?: (
     index: number,
@@ -116,9 +123,10 @@ export interface BackfillOptions {
 export async function backfillAllReports(
   opts: BackfillOptions = {},
 ): Promise<BackfillSummary> {
-  const { force = false, onProgress } = opts;
+  const { force = false, onStart, onProgress } = opts;
   const startedAt = Date.now();
   const allReports: Report[] = await storage.getAllReports();
+  onStart?.(allReports.length);
   const results: BackfillReportResult[] = [];
   let updated = 0;
   let skipped = 0;
