@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useLocation, Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Layout from "@/components/Layout";
+import { HowWeScoreReadiness } from "@/components/dashboard/how-we-score-readiness";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -3474,6 +3475,9 @@ export default function Report() {
                             ? `Champion ≥ ${data.vrm.quadrantThresholds.championMin}, Hard floor V<${data.vrm.quadrantThresholds.valueFloorBand.minNormalizedScore ?? data.vrm.quadrantThresholds.valueFloorBand.minNormalized ?? 4.0} & abs<$${(((data.vrm.quadrantThresholds.valueFloorBand.minAbsoluteAnnualValue ?? data.vrm.quadrantThresholds.valueFloorBand.minAbsoluteAnnual ?? 500_000)/1000)).toFixed(0)}K, TTP ≤ ${data.vrm.quadrantThresholds.maxTimeToPilotWeeks ?? 16} wks`
                             : `Champion ≥ ${data.vrm.quadrantThresholds?.championMin ?? 7.5}, Value floor ${data.vrm.quadrantThresholds?.valueFloor ?? 6.0}, TTP ≤ ${data.vrm.quadrantThresholds?.maxTimeToPilotWeeks ?? 12} wks`}
                         </span>
+                      </div>
+                      <div className="mb-4">
+                        <HowWeScoreReadiness compact />
                       </div>
                       {data.vrm.diagnostic && (
                         <div

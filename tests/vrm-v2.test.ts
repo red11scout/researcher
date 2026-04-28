@@ -498,3 +498,257 @@ describe("VRM v2.1 spec acceptance (10-use-case diagnostic fixture)", () => {
     expect(diag.warnings.some((w) => w.code === "READINESS_BUNCHED_LOW")).toBe(true);
   });
 });
+
+// ============================================================================
+// VRM v2.2 — Third corrective release acceptance tests
+// ============================================================================
+// Covers: 5.5 quadrant cut, 7.5 lead-tier cut, MIN_PROTOTYPING_CANDIDATES=3
+// safety-net promotion, retuned diagnostic warnings, conditional flag.
+
+import {
+  QUADRANT_CUT,
+  LEAD_TIER_CUT,
+  MIN_PROTOTYPING_CANDIDATES,
+  classifyQuadrantV22,
+  leadTierV22,
+  assignClassificationsV22,
+  computePortfolioDiagnosticV22,
+  classificationLabelV22,
+  VRM_SCHEMA_VERSION,
+  VRM_PRIOR_SCHEMA_VERSION_V21,
+} from "../shared/vrm-v2";
+
+function ucV22(
+  id: string,
+  valueScore: number,
+  readinessScore: number,
+  overrides: Partial<UseCaseScoringV21> = {},
+): UseCaseScoringV21 {
+  return {
+    id,
+    name: id,
+    rawAnnualValue: 1_000_000,
+    absoluteAnnualValue: 1_000_000,
+    valueScore,
+    readinessScore,
+    timeToPilotWeeks: 8,
+    hasNamedSponsor: true,
+    dataAvailableForEngagement: true,
+    legallyProhibited: false,
+    technicallyInfeasible: false,
+    ...overrides,
+  };
+}
+
+describe("VRM v2.2 — schema constants & version", () => {
+  it("VRM_SCHEMA_VERSION is 2.2 and prior version is 2.1", () => {
+    expect(VRM_SCHEMA_VERSION).toBe("2.2");
+    expect(VRM_PRIOR_SCHEMA_VERSION_V21).toBe("2.1");
+  });
+
+  it("constants match v2.2 spec", () => {
+    expect(QUADRANT_CUT).toBe(5.5);
+    expect(LEAD_TIER_CUT).toBe(7.5);
+    expect(MIN_PROTOTYPING_CANDIDATES).toBe(3);
+  });
+});
+
+describe("VRM v2.2 — classifyQuadrantV22 (5.5 quadrant cut)", () => {
+  it("V≥5.5 AND R≥5.5 → champion", () => {
+    expect(classifyQuadrantV22(5.5, 5.5)).toBe("champion");
+    expect(classifyQuadrantV22(7.0, 6.0)).toBe("champion");
+    expect(classifyQuadrantV22(9.5, 9.5)).toBe("champion");
+  });
+
+  it("V<5.5 AND R≥5.5 → quick_win", () => {
+    expect(classifyQuadrantV22(4.0, 6.0)).toBe("quick_win");
+    expect(classifyQuadrantV22(5.4, 9.0)).toBe("quick_win");
+  });
+
+  it("V≥5.5 AND R<5.5 → strategic", () => {
+    expect(classifyQuadrantV22(8.0, 4.0)).toBe("strategic");
+    expect(classifyQuadrantV22(6.0, 5.4)).toBe("strategic");
+  });
+
+  it("V<5.5 AND R<5.5 → foundation", () => {
+    expect(classifyQuadrantV22(3.0, 3.0)).toBe("foundation");
+    expect(classifyQuadrantV22(5.4, 5.4)).toBe("foundation");
+  });
+
+  it("a use case at 6.0/6.0 (which v2.1 would call Foundation) is Champion in v2.2", () => {
+    expect(classifyQuadrantV22(6.0, 6.0)).toBe("champion");
+  });
+});
+
+describe("VRM v2.2 — leadTierV22 (7.5 lead-tier sub-classification)", () => {
+  it("Champion at V≥7.5 AND R≥7.5 → lead", () => {
+    expect(leadTierV22("champion", 8.0, 8.0)).toBe("lead");
+    expect(leadTierV22("champion", 7.5, 7.5)).toBe("lead");
+  });
+
+  it("Champion below 7.5 on either axis → standard", () => {
+    expect(leadTierV22("champion", 6.0, 9.0)).toBe("standard");
+    expect(leadTierV22("champion", 9.0, 6.0)).toBe("standard");
+    expect(leadTierV22("champion", 6.0, 6.0)).toBe("standard");
+  });
+
+  it("Quick Win at R≥7.5 → lead (axis-anchored)", () => {
+    expect(leadTierV22("quick_win", 4.0, 8.0)).toBe("lead");
+  });
+
+  it("Quick Win at 5.5≤R<7.5 → standard", () => {
+    expect(leadTierV22("quick_win", 4.0, 6.0)).toBe("standard");
+  });
+
+  it("Strategic is always standard tier (lead-tier flag only applies to Champion / Quick Win)", () => {
+    expect(leadTierV22("strategic", 8.0, 4.0)).toBe("standard");
+    expect(leadTierV22("strategic", 9.5, 5.4)).toBe("standard");
+  });
+
+  it("Foundation is always standard tier", () => {
+    expect(leadTierV22("foundation", 1, 1)).toBe("standard");
+    expect(leadTierV22("foundation", 5.4, 5.4)).toBe("standard");
+  });
+});
+
+describe("VRM v2.2 — assignClassificationsV22 safety-net promotion (MIN_PROTOTYPING_CANDIDATES=3)", () => {
+  it("portfolio with 3+ natural candidates → no promotions", () => {
+    const portfolio = [
+      ucV22("UC-1", 8, 8),  // champion (lead)
+      ucV22("UC-2", 7, 7),  // champion (standard)
+      ucV22("UC-3", 4, 8),  // quick_win
+      ucV22("UC-4", 2, 2),  // foundation
+    ];
+    const result = assignClassificationsV22(portfolio);
+    const promoted = [...result.values()].filter(c => c.isConditional);
+    expect(promoted.length).toBe(0);
+  });
+
+  it("portfolio with only 1 natural candidate promotes from foundation/strategic to reach 3", () => {
+    const portfolio = [
+      ucV22("UC-1", 8, 8),  // champion — natural candidate #1
+      ucV22("UC-2", 5, 4),  // foundation (close to cut)
+      ucV22("UC-3", 4, 5),  // foundation
+      ucV22("UC-4", 6.5, 4.5), // strategic (also a natural candidate)
+      ucV22("UC-5", 1, 1),  // foundation — far from cut
+    ];
+    const result = assignClassificationsV22(portfolio);
+    const conditionals = [...result.values()].filter(c => c.isConditional);
+    // UC-1 (champion) + UC-4 (strategic) = 2 natural candidates; needs 1 promotion
+    expect(conditionals.length).toBeGreaterThanOrEqual(1);
+    // Total prototyping candidates (champions + quick_wins + strategic + conditionals) ≥ 3
+    const candidates = [...result.values()].filter(c =>
+      c.quadrant === "champion" || c.quadrant === "quick_win" ||
+      c.quadrant === "strategic" || c.isConditional
+    );
+    expect(candidates.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("conditional promotions retain their natural quadrant (plotted at actual coords)", () => {
+    const portfolio = [
+      ucV22("UC-low-1", 3, 3),  // foundation
+      ucV22("UC-low-2", 4, 4),  // foundation (closest to cut)
+      ucV22("UC-low-3", 2, 2),  // foundation
+    ];
+    const result = assignClassificationsV22(portfolio);
+    const promoted = [...result.values()].filter(c => c.isConditional);
+    expect(promoted.length).toBeGreaterThanOrEqual(MIN_PROTOTYPING_CANDIDATES);
+    // All promoted items keep quadrant === 'foundation' (or strategic) — not silently re-bucketed
+    promoted.forEach(p => {
+      expect(["foundation", "strategic", "quick_win"]).toContain(p.quadrant);
+    });
+  });
+
+  it("promoted items have a conditionalGap with positive v + r distance to QUADRANT_CUT", () => {
+    const portfolio = [
+      ucV22("UC-1", 4, 4),  // foundation, gap = 1.5/1.5
+      ucV22("UC-2", 3, 3),  // foundation, gap = 2.5/2.5
+      ucV22("UC-3", 2, 2),  // foundation, gap = 3.5/3.5
+    ];
+    const result = assignClassificationsV22(portfolio);
+    const promoted = [...result.values()].filter(c => c.isConditional);
+    expect(promoted.length).toBeGreaterThan(0);
+    promoted.forEach(p => {
+      expect(p.conditionalGap).toBeDefined();
+      const totalGap = (p.conditionalGap!.gapToChampion.v + p.conditionalGap!.gapToChampion.r);
+      expect(totalGap).toBeGreaterThan(0);
+      expect(p.conditionalGap!.fromQuadrant).toBe("foundation");
+    });
+  });
+});
+
+describe("VRM v2.2 — classificationLabelV22 ordering", () => {
+  it("Champion (Lead) sorts before Champion (Standard)", () => {
+    const lead = classificationLabelV22({ quadrant: "champion", tier: "lead", isConditional: false, conditionalGap: 0 } as any);
+    const std  = classificationLabelV22({ quadrant: "champion", tier: "standard", isConditional: false, conditionalGap: 0 } as any);
+    expect(lead).toContain("Lead");
+    expect(std).not.toContain("Lead");
+  });
+});
+
+describe("VRM v2.2 — computePortfolioDiagnosticV22 warning rules", () => {
+  it("EMPTY_MATRIX fires when portfolio is empty", () => {
+    const map = assignClassificationsV22([]);
+    const diag = computePortfolioDiagnosticV22([], map);
+    expect(diag.warnings.some(w => w.code === "EMPTY_MATRIX")).toBe(true);
+  });
+
+  it("BELOW_MIN_CANDIDATES fires when natural candidates < 3 (after promotions some will still flag)", () => {
+    const portfolio = [
+      ucV22("UC-1", 1, 1),
+      ucV22("UC-2", 1, 1),
+    ];
+    const map = assignClassificationsV22(portfolio);
+    const diag = computePortfolioDiagnosticV22(portfolio, map);
+    expect(diag.warnings.some(w => w.code === "BELOW_MIN_CANDIDATES")).toBe(true);
+  });
+
+  it("READINESS_BUNCHED_LOW fires when median readiness < 4 with zero champions", () => {
+    const portfolio = [
+      ucV22("UC-1", 7, 3),  // strategic — no champion
+      ucV22("UC-2", 7, 3),
+      ucV22("UC-3", 7, 3),
+      ucV22("UC-4", 7, 3),
+    ];
+    const map = assignClassificationsV22(portfolio);
+    const diag = computePortfolioDiagnosticV22(portfolio, map);
+    expect(diag.warnings.some(w => w.code === "READINESS_BUNCHED_LOW")).toBe(true);
+  });
+
+  it("READINESS_BUNCHED_HIGH fires when median readiness > 8 and quick wins outnumber champions", () => {
+    const portfolio = [
+      ucV22("UC-1", 4, 9),  // quick_win
+      ucV22("UC-2", 4, 9),  // quick_win
+      ucV22("UC-3", 4, 9),  // quick_win
+      ucV22("UC-4", 6, 9),  // champion
+    ];
+    const map = assignClassificationsV22(portfolio);
+    const diag = computePortfolioDiagnosticV22(portfolio, map);
+    expect(diag.warnings.some(w => w.code === "READINESS_BUNCHED_HIGH")).toBe(true);
+  });
+
+  it("STRONG_PORTFOLIO fires when ≥3 Lead Champions", () => {
+    const portfolio = [
+      ucV22("UC-1", 8, 8),
+      ucV22("UC-2", 8.5, 8.5),
+      ucV22("UC-3", 9, 9),
+      ucV22("UC-4", 7.5, 7.5),
+    ];
+    const map = assignClassificationsV22(portfolio);
+    const diag = computePortfolioDiagnosticV22(portfolio, map);
+    expect(diag.warnings.some(w => w.code === "STRONG_PORTFOLIO")).toBe(true);
+  });
+
+  it("HARD_FLOOR_DOMINANT fires when ≥40% of portfolio hard-fails", () => {
+    const portfolio = [
+      ucV22("UC-1", 8, 8, { legallyProhibited: true }),
+      ucV22("UC-2", 8, 8, { technicallyInfeasible: true }),
+      ucV22("UC-3", 8, 8, { legallyProhibited: true }),
+      ucV22("UC-4", 8, 8),
+      ucV22("UC-5", 8, 8),
+    ];
+    const map = assignClassificationsV22(portfolio);
+    const diag = computePortfolioDiagnosticV22(portfolio, map);
+    expect(diag.warnings.some(w => w.code === "HARD_FLOOR_DOMINANT")).toBe(true);
+  });
+});

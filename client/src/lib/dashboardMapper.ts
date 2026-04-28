@@ -486,6 +486,10 @@ export function mapReportToDashboardData(report: Report): DashboardData {
       let absoluteAnnualValue: number | undefined;
       let hardKnockOutReasons: string[] | undefined;
       let softBlockers: any[] | undefined;
+      // VRM v2.2
+      let quadrantV22: string | undefined;
+      let tierV22: string | undefined;
+      let isConditionalV22: boolean = false;
 
       let priorityScore = uc.priorityScore || 0;
 
@@ -498,10 +502,13 @@ export function mapReportToDashboardData(report: Report): DashboardData {
           readinessScore = step7Record["Readiness Score"] ?? step7Record["Feasibility Score"] ?? readinessScore;
           priorityTier = step7Record["Priority Tier"] ?? priorityTier;
           priorityScore = step7Record["Priority Score"] ?? step7Record["Composite Score"] ?? priorityScore;
-          // VRM v2.1 — prefer Quadrant v2.1, fall back to legacy "Quadrant v2"
+          // VRM v2.2 — prefer Quadrant v2.2; fall back to v2.1, then "Quadrant v2", then v2.0
+          quadrantV22 = step7Record["Quadrant v2.2"];
+          tierV22 = step7Record["Tier v2.2"];
+          isConditionalV22 = step7Record["Is Conditional v2.2"] === true;
           quadrantV21 = step7Record["Quadrant v2.1"];
           quadrantV20 = step7Record["Quadrant v2.0"];
-          quadrantV2 = quadrantV21 ?? step7Record["Quadrant v2"] ?? quadrantV20;
+          quadrantV2 = quadrantV22 ?? quadrantV21 ?? step7Record["Quadrant v2"] ?? quadrantV20;
           quadrantLayer = step7Record["Quadrant Layer"];
           quadrantRationale = step7Record["Quadrant Rationale"];
           // v2.1 names: Hard Knock-Out Reasons + Soft Blockers; v2.0 fallback: Floor Failure Reasons
@@ -574,6 +581,10 @@ export function mapReportToDashboardData(report: Report): DashboardData {
         absoluteAnnualValue,
         hardKnockOutReasons,
         softBlockers,
+        // VRM v2.2 fields
+        quadrantV22,
+        tierV22,
+        isConditionalV22,
       } as any);
     });
   }
@@ -644,7 +655,7 @@ export function mapReportToDashboardData(report: Report): DashboardData {
     },
     priorityMatrix: {
       title: "Value-Readiness Matrix",
-      description: "Initiatives mapped by Normalized Annual Value vs. Readiness Score.\nBubble size indicates Time-to-Value (larger = faster time-to-value).",
+      description: "Initiatives mapped by Normalized Annual Value vs. Readiness Score.\nBubble size indicates Time-to-Value (smaller = faster time-to-value).",
       data: matrixData
     },
     useCases: {

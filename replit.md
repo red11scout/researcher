@@ -3,6 +3,39 @@
 ## Overview
 BlueAlly Insight is an enterprise research and analysis platform designed to generate comprehensive AI opportunity assessments for companies. It leverages Claude AI to produce detailed reports on revenue opportunities, cost reduction, cash flow improvements, and risk mitigation through AI transformation. Users can generate reports by entering a company name, view saved analyses, and export results in various formats (PDF, Excel, Word, HTML). The platform features an intuitive interface with interactive data visualization, real-time analysis progress tracking, industry benchmarking, and advanced What-If Analysis capabilities.
 
+### Value-Readiness Matrix v2.2 (third corrective release)
+v2.2 is **additive** — the v2.0 (`assignQuadrantV2`) and v2.1 (`assignQuadrantV21`, `computePortfolioDiagnostic`) functions in `shared/vrm-v2.ts` are preserved. The postprocessor emits a `Quadrant v2.2`, `Tier v2.2`, and `Is Conditional v2.2` column on every benefit alongside the v2.0 / v2.1 shadow columns, then overrides the primary `Priority Tier` and `Quadrant v2` values with the v2.2 result. `vrm.schemaVersion` is `"2.2"`; the v2.1 diagnostic is preserved at `vrm.diagnosticV21` for traceability.
+
+Key constants (all in `shared/vrm-v2.ts`):
+- `QUADRANT_CUT = 5.5` — Champion / Quick Win / Strategic / Foundation cut on both axes.
+- `LEAD_TIER_CUT = 7.5` — Sub-classifies Champions (V≥7.5 AND R≥7.5 → "Lead Champion") and Quick Wins (R≥7.5 → "Lead Quick Win"). Strategic and Foundation are always `standard` tier.
+- `MIN_PROTOTYPING_CANDIDATES = 3` — Safety-net rule. If fewer than 3 use cases land in Champion or Quick Win naturally, `assignClassificationsV22` promotes the foundation/strategic items **nearest to QUADRANT_CUT** (smallest combined `max(0, 5.5−V) + max(0, 5.5−R)` distance) by setting `isConditional = true`. Promoted items keep their natural quadrant for plotting and render at their actual coordinates with a dashed border in the same color as the target quadrant.
+
+Diagnostic warnings (`computePortfolioDiagnosticV22`):
+- `EMPTY_MATRIX` (critical) — empty portfolio or all items in Foundation.
+- `BELOW_MIN_CANDIDATES` (warning) — < 3 prototyping candidates even after safety-net.
+- `READINESS_BUNCHED_LOW` (warning) — median R < 5.0 with zero Champions.
+- `READINESS_BUNCHED_HIGH` (info) — median R > 8.0 and Quick Wins outnumber Champions.
+- `VALUE_DISTRIBUTION_SKEWED` (warning) — median V outside 4–8 band.
+- `INTAKE_INCOMPLETE` (warning) — > 30% missing sponsor / data flags.
+- `HARD_FLOOR_DOMINANT` (warning) — > 40% hard-floor failures (lowered from 50% in v2.1).
+- `STRONG_PORTFOLIO` (info) — ≥ 3 Lead Champions.
+
+Chart visuals (`client/src/components/dashboard/quadrant-bubble-chart.tsx`):
+- 5.5 quadrant dividers, 7.5 lead-tier emerald lines (1px solid @ 30% opacity).
+- 4-color semantic palette at 8% opacity: emerald (Champion), cyan (Quick Win), indigo (Strategic), slate (Foundation).
+- Bubble size **flipped**: smaller = faster TTV (5 buckets at 8/12/16/20/24 px via `ttvBubbleRadiusV22`).
+- Conditional bubbles render with a dashed border in the same color as their natural quadrant; the dashed-orange Conditional Champion overlay zone from v2.1 was deleted.
+- Empty-quadrant text appears when a quadrant has no use cases (counted against v2.2 fields, with v2.1 / v2.0 fallbacks for legacy reports).
+
+"How We Score Readiness" (`client/src/components/dashboard/how-we-score-readiness.tsx`):
+- 4-card grid rendered verbatim from the `RUBRIC[]` array.
+- Mounted in `client/src/components/Dashboard.tsx` between `<ExecutiveSummary />` and `<PriorityMatrix />`.
+- Mounted in `client/src/pages/Report.tsx` after the diagnostic block on Step 7.
+- Rendered as HTML by `renderHowWeScoreReadinessHTML()` in `client/src/lib/htmlReportGenerator.ts`, injected into both `generateProfessionalHTMLReport` (Boardroom) and `generateEditorialHTMLReport` (Editorial) reports.
+
+Tests: `tests/vrm-v2.test.ts` carries 68 tests including the v2.2 acceptance suite — schema constants, `classifyQuadrantV22`, `leadTierV22`, safety-net promotion (with `absoluteAnnualValue` fixture so floors don't reject low-score test cases), and all eight diagnostic warning rules.
+
 ### HTML Export — Dual Format
 Two client-side HTML report generators are exported from `client/src/lib/htmlReportGenerator.ts`:
 - **`generateProfessionalHTMLReport`** — "Boardroom" design: dark navy cover, data-dense KPI cards, full 12-section analysis, tier badges, EPOCH flags, multi-year projections

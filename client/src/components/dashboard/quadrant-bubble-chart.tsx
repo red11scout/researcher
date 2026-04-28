@@ -1,6 +1,5 @@
 import { useMemo, useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { scaleLinear, scaleSqrt, scaleOrdinal } from 'd3-scale';
 import { Delaunay } from 'd3-delaunay';
 import { format } from '@/lib/formatters';
 import { chartColors } from './chart-config';
@@ -42,6 +41,57 @@ interface MatrixDataPoint {
   dataAvailableForEngagement?: boolean | null;
   timeToPilotWeeks?: number | null;
   subComponents?: Record<string, Record<string, number>>;
+  // VRM v2.2 fields
+  quadrantV22?: string;
+  tierV22?: string;
+  isConditionalV22?: boolean;
+}
+
+// VRM v2.2 — semantic palette + thresholds
+const QUADRANT_CUT_V22 = 5.5;
+const LEAD_TIER_CUT_V22 = 7.5;
+const QUADRANT_PALETTE_V22: Record<string, string> = {
+  champion:   '#10b981', // emerald
+  quick_win:  '#06b6d4', // cyan
+  strategic:  '#6366f1', // indigo
+  foundation: '#64748b', // slate
+};
+const QUADRANT_LABELS_V22: Record<string, string> = {
+  champion:   'Champions',
+  quick_win:  'Quick Wins',
+  strategic:  'Strategic',
+  foundation: 'Foundation',
+};
+
+function classifyQuadrantV22(value: number, readiness: number): string {
+  if (value >= QUADRANT_CUT_V22 && readiness >= QUADRANT_CUT_V22) return 'champion';
+  if (value < QUADRANT_CUT_V22 && readiness >= QUADRANT_CUT_V22) return 'quick_win';
+  if (value >= QUADRANT_CUT_V22 && readiness < QUADRANT_CUT_V22) return 'strategic';
+  return 'foundation';
+}
+
+function getQuadrantOfPoint(p: MatrixDataPoint): string {
+  const q = (p.quadrantV22 ?? p.quadrantV2 ?? '').toLowerCase();
+  if (q === 'champion' || q === 'quick_win' || q === 'strategic' || q === 'foundation') return q;
+  if (q === 'conditional_champion') {
+    // place at actual coords; semantic color is the natural quadrant
+    return classifyQuadrantV22(p.y, p.x);
+  }
+  return classifyQuadrantV22(p.y, p.x);
+}
+
+function getQuadrantColorV22(p: MatrixDataPoint): string {
+  return QUADRANT_PALETTE_V22[getQuadrantOfPoint(p)] ?? QUADRANT_PALETTE_V22.foundation;
+}
+
+/** Bucket TTV (weeks) → bubble radius. Smaller bubble = faster TTV (v2.2 spec). */
+function ttvBubbleRadiusV22(weeks?: number): number {
+  if (weeks == null || !Number.isFinite(weeks)) return 16;
+  if (weeks <= 4)  return 8;
+  if (weeks <= 8)  return 12;
+  if (weeks <= 12) return 16;
+  if (weeks <= 16) return 20;
+  return 24;
 }
 
 interface QuadrantBubbleChartProps {
@@ -129,18 +179,20 @@ export function QuadrantBubbleChart({ data, onBubbleClick, vrmConfig }: Quadrant
 
   const { width, height } = dimensions;
 
-  // VRM v2.1 — Champion threshold (default 7.5) anchored on both axes.
+  // VRM v2.2 — Quadrant cut at 5.5 (was 7.5 in v2.1).
   // Use a PIECEWISE scale so the threshold sits at the visual center of the chart,
   // producing four equally-sized quadrants regardless of the [1, 10] domain.
-  const championMin = vrmConfig?.championMin ?? 7.5;
+  // championMin (lead-tier 7.5) is preserved as a secondary marker line.
+  const quadrantCut = QUADRANT_CUT_V22;
+  const leadTierCut = vrmConfig?.championMin ?? LEAD_TIER_CUT_V22;
   const { xDomain, yDomain, midXValue, midYValue } = useMemo(() => {
     return {
       xDomain: [1, 10] as [number, number],
       yDomain: [1, 10] as [number, number],
-      midXValue: championMin,
-      midYValue: championMin,
+      midXValue: quadrantCut,
+      midYValue: quadrantCut,
     };
-  }, [data, championMin]);
+  }, [data, quadrantCut]);
 
   // Clamp helper — guards against malformed/out-of-range data points.
   const clamp = (v: number, lo: number, hi: number) =>
@@ -177,16 +229,11 @@ export function QuadrantBubbleChart({ data, onBubbleClick, vrmConfig }: Quadrant
     return Object.assign(fn, { invert: (px: number) => px });
   }, [height, yDomain, midYValue]);
 
-  // TTV bubble sizing: z is TTV score (0-1), where 1 = fastest time-to-value = largest bubble
-  // Minimum visible radius for TTV=0 cases
-  const MIN_BUBBLE_RADIUS = 4;
-  const MAX_BUBBLE_RADIUS = Math.min(36, width / 25);
-  const sizeScale = useMemo(() => {
-    return scaleSqrt()
-      .domain([0, 1])
-      .range([MIN_BUBBLE_RADIUS, MAX_BUBBLE_RADIUS])
-      .clamp(true);
-  }, [width]);
+  // VRM v2.2 — bubble radius is bucketed by TTV weeks; smaller = faster.
+  // Kept as a named function so existing call sites can simply pass the data point.
+  const sizeScale = useCallback((point: MatrixDataPoint | { timeToValue?: number }) => {
+    return ttvBubbleRadiusV22(point.timeToValue);
+  }, []);
 
   // Voronoi for hover detection
   const delaunay = useMemo(() => {
@@ -207,7 +254,7 @@ export function QuadrantBubbleChart({ data, onBubbleClick, vrmConfig }: Quadrant
     const bx = xScale(data[idx].x);
     const by = yScale(data[idx].y);
     const dist = Math.sqrt((mx - bx) ** 2 + (my - by) ** 2);
-    const bubbleRadius = sizeScale(data[idx].z || 0.5);
+    const bubbleRadius = sizeScale(data[idx]);
 
     if (dist < bubbleRadius + 40) {
       setHoveredIndex(idx);
@@ -239,18 +286,31 @@ export function QuadrantBubbleChart({ data, onBubbleClick, vrmConfig }: Quadrant
     );
   }
 
-  // VRM v2.1 — diagnose which quadrants are populated to render ghost-zone treatment
-  const championCount = data.filter(d => (d.quadrantV2 ?? '').toLowerCase() === 'champion' || (d.priorityTier ?? '').includes('Champion') && !(d.priorityTier ?? '').includes('Conditional')).length;
-  const quickWinCount = data.filter(d => (d.quadrantV2 ?? '').toLowerCase() === 'quick_win' || (d.priorityTier ?? '').includes('Quick Win')).length;
-  const strategicCount = data.filter(d => (d.quadrantV2 ?? '').toLowerCase() === 'strategic' || (d.priorityTier ?? '').includes('Strategic')).length;
-  const conditionalChampionCount = data.filter(d => (d.quadrantV2 ?? '').toLowerCase() === 'conditional_champion' || (d.priorityTier ?? '').includes('Conditional Champion')).length;
-  const hasAnyChampion = championCount > 0 || conditionalChampionCount > 0;
+  // VRM v2.2 — diagnose which quadrants are populated using the v2.2 fields
+  // (with v2.1 / v2.0 string fallbacks for legacy reports that haven't been re-classified).
+  const quadrantOf = (d: MatrixDataPoint): string => {
+    const q = (d.quadrantV22 ?? d.quadrantV2 ?? '').toLowerCase();
+    if (q) return q;
+    const tier = (d.priorityTier ?? '').toLowerCase();
+    if (tier.includes('champion')) return 'champion';
+    if (tier.includes('quick win')) return 'quick_win';
+    if (tier.includes('strategic')) return 'strategic';
+    return 'foundation';
+  };
+  const championCount = data.filter(d => quadrantOf(d) === 'champion').length;
+  const quickWinCount = data.filter(d => quadrantOf(d) === 'quick_win').length;
+  const strategicCount = data.filter(d => quadrantOf(d) === 'strategic').length;
+  const conditionalCount = data.filter(d => d.isConditionalV22 === true).length;
+  // Empty-quadrant messaging counts conditional bubbles toward their natural quadrant
+  // (they render at actual coordinates with a dashed border).
+  const hasAnyChampion = championCount > 0;
   const hasAnyQuickWin = quickWinCount > 0;
   const hasAnyStrategic = strategicCount > 0;
-  // Layer 3 dashed CC overlay: shown when CC bubbles exist (those are placed in the upper-right by definition)
-  const showCCOverlay = conditionalChampionCount > 0;
-  // VRM v2.1 hard floor uses normalized value < 4.0 (vs. v2.0 single-line at 6.0)
-  const hardFloorY = vrmConfig?.valueFloorBand?.minNormalized ?? 4.0;
+  // VRM v2.2 — CC overlay removed (replaced by per-bubble dashed border in same color);
+  // hard-floor band visualization removed in favor of the unified Foundation quadrant.
+  // conditionalCount is exposed for analytics consumers; the chart itself relies on
+  // per-point isConditionalV22 to render dashed borders.
+  void conditionalCount;
 
   return (
     <div ref={containerRef} className="relative w-full">
@@ -261,113 +321,123 @@ export function QuadrantBubbleChart({ data, onBubbleClick, vrmConfig }: Quadrant
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
       >
-        {/* Quadrant background fills — distinct pastel colors */}
+        {/* VRM v2.2 — semantic palette quadrant fills (8% opacity) */}
         <rect
           x={midX} y={MARGIN.top}
           width={width - MARGIN.right - midX} height={midY - MARGIN.top}
-          fill={QUADRANT_COLORS.champion} opacity={hasAnyChampion ? 0.85 : 0.35}
+          fill={QUADRANT_PALETTE_V22.champion} opacity={0.08}
+          data-testid="rect-quadrant-champion"
         />
         <rect
           x={MARGIN.left} y={MARGIN.top}
           width={midX - MARGIN.left} height={midY - MARGIN.top}
-          fill={QUADRANT_COLORS.strategicBet} opacity={hasAnyStrategic ? 0.85 : 0.35}
+          fill={QUADRANT_PALETTE_V22.strategic} opacity={0.08}
+          data-testid="rect-quadrant-strategic"
         />
         <rect
           x={midX} y={midY}
           width={width - MARGIN.right - midX} height={height - MARGIN.bottom - midY}
-          fill={QUADRANT_COLORS.quickWin} opacity={hasAnyQuickWin ? 0.85 : 0.35}
+          fill={QUADRANT_PALETTE_V22.quick_win} opacity={0.08}
+          data-testid="rect-quadrant-quick-win"
         />
-        {/* VRM v2.1 — Foundation is sub-segmented:
-            - Upper part (V≥hardFloorY): "soft Foundation" — lighter grey
-            - Lower part (V<hardFloorY): "hard Foundation / blocked" — darker grey */}
         <rect
           x={MARGIN.left} y={midY}
-          width={midX - MARGIN.left} height={yScale(hardFloorY) - midY}
-          fill={QUADRANT_COLORS.foundation} opacity={0.55}
+          width={midX - MARGIN.left} height={height - MARGIN.bottom - midY}
+          fill={QUADRANT_PALETTE_V22.foundation} opacity={0.08}
+          data-testid="rect-quadrant-foundation"
         />
-        <rect
-          x={MARGIN.left} y={yScale(hardFloorY)}
-          width={midX - MARGIN.left} height={height - MARGIN.bottom - yScale(hardFloorY)}
-          fill="#475569" opacity={0.35}
-        />
-        <text
-          x={MARGIN.left + (midX - MARGIN.left) / 2}
-          y={yScale(hardFloorY) + 14}
-          textAnchor="middle"
-          fontSize={9}
-          fill="#1e293b"
-          fontStyle="italic"
-          opacity={0.7}
-        >
-          Hard floor V&lt;{hardFloorY}
-        </text>
 
-        {/* VRM v2.1 — Ghost zones overlay diagonal stripes for empty default quadrants */}
-        <defs>
-          <pattern id="ghost-stripes" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)">
-            <line x1="0" y1="0" x2="0" y2="6" stroke="#94a3b8" strokeWidth="1" opacity="0.35" />
-          </pattern>
-        </defs>
+        {/* VRM v2.2 — empty-quadrant messaging */}
         {!hasAnyChampion && (
-          <rect
-            x={midX} y={MARGIN.top}
-            width={width - MARGIN.right - midX} height={midY - MARGIN.top}
-            fill="url(#ghost-stripes)"
-          />
+          <text
+            x={midX + (width - MARGIN.right - midX) / 2}
+            y={MARGIN.top + (midY - MARGIN.top) / 2}
+            textAnchor="middle"
+            fontSize={11}
+            fontStyle="italic"
+            fill="#94a3b8"
+            opacity={0.7}
+            data-testid="text-empty-champion"
+          >
+            No Champions yet — build readiness or value
+          </text>
         )}
         {!hasAnyStrategic && (
-          <rect
-            x={MARGIN.left} y={MARGIN.top}
-            width={midX - MARGIN.left} height={midY - MARGIN.top}
-            fill="url(#ghost-stripes)"
-          />
+          <text
+            x={MARGIN.left + (midX - MARGIN.left) / 2}
+            y={MARGIN.top + (midY - MARGIN.top) / 2}
+            textAnchor="middle"
+            fontSize={11}
+            fontStyle="italic"
+            fill="#94a3b8"
+            opacity={0.7}
+            data-testid="text-empty-strategic"
+          >
+            No Strategic bets — invest in readiness
+          </text>
         )}
         {!hasAnyQuickWin && (
-          <rect
-            x={midX} y={midY}
-            width={width - MARGIN.right - midX} height={height - MARGIN.bottom - midY}
-            fill="url(#ghost-stripes)"
-          />
+          <text
+            x={midX + (width - MARGIN.right - midX) / 2}
+            y={midY + (height - MARGIN.bottom - midY) / 2}
+            textAnchor="middle"
+            fontSize={11}
+            fontStyle="italic"
+            fill="#94a3b8"
+            opacity={0.7}
+            data-testid="text-empty-quick-win"
+          >
+            No Quick Wins — find lower-value, ready use cases
+          </text>
         )}
 
-        {/* VRM v2.1 — Conditional Champion overlay: dashed border in the Champion zone (upper-right) */}
-        {showCCOverlay && (
-          <g>
-            <rect
-              x={midX + 4} y={MARGIN.top + 4}
-              width={width - MARGIN.right - midX - 8} height={midY - MARGIN.top - 8}
-              fill="none"
-              stroke="#b45309"
-              strokeWidth={2}
-              strokeDasharray="6 4"
-              opacity={0.8}
-              rx={6}
-            />
-            <text
-              x={midX + 10}
-              y={MARGIN.top + 18}
-              fontSize={10}
-              fontWeight={700}
-              fill="#92400e"
-              opacity={0.85}
-              data-testid="text-cc-overlay-label"
-            >
-              Conditional Champion zone
-            </text>
-          </g>
-        )}
+        {/* VRM v2.2 — quadrant cut dividers at 5.5 (slate, dashed) */}
+        <line
+          x1={midX} y1={MARGIN.top} x2={midX} y2={height - MARGIN.bottom}
+          stroke="#475569" strokeDasharray="6 4" strokeWidth={1.5} opacity={0.55}
+          data-testid="line-quadrant-cut-x"
+        />
+        <line
+          x1={MARGIN.left} y1={midY} x2={width - MARGIN.right} y2={midY}
+          stroke="#475569" strokeDasharray="6 4" strokeWidth={1.5} opacity={0.55}
+          data-testid="line-quadrant-cut-y"
+        />
 
-        {/* Quadrant labels with threshold subtitles. Each label is rendered just inside
-            the quadrant corner (away from the threshold dividers) so it never overlaps
-            with central bubbles. Conditional Champion overlay label remains separate. */}
+        {/* VRM v2.2 — Lead-tier marker lines at 7.5 (emerald, solid 1px @ 30%) */}
+        <line
+          x1={xScale(leadTierCut)} y1={MARGIN.top}
+          x2={xScale(leadTierCut)} y2={height - MARGIN.bottom}
+          stroke="#10b981" strokeWidth={1} opacity={0.30}
+          data-testid="line-lead-tier-x"
+        />
+        <line
+          x1={MARGIN.left} y1={yScale(leadTierCut)}
+          x2={width - MARGIN.right} y2={yScale(leadTierCut)}
+          stroke="#10b981" strokeWidth={1} opacity={0.30}
+          data-testid="line-lead-tier-y"
+        />
+        <text
+          x={xScale(leadTierCut) + 4}
+          y={MARGIN.top + 10}
+          fontSize={9}
+          fill="#059669"
+          opacity={0.7}
+          fontStyle="italic"
+          data-testid="text-lead-tier-label"
+        >
+          Lead ≥ {leadTierCut}
+        </text>
+
+        {/* Quadrant labels — placed in each corner, color-keyed to the quadrant. */}
         <text
           x={width - MARGIN.right - 8}
           y={MARGIN.top + 16}
           textAnchor="end"
           fontSize={11}
           fontWeight={700}
-          fill={QUADRANT_LABEL_COLORS.champion}
+          fill={QUADRANT_PALETTE_V22.champion}
           opacity={0.95}
+          data-testid="text-label-champion"
         >
           Champions
         </text>
@@ -377,10 +447,10 @@ export function QuadrantBubbleChart({ data, onBubbleClick, vrmConfig }: Quadrant
           textAnchor="end"
           fontSize={9}
           fontWeight={500}
-          fill={QUADRANT_LABEL_COLORS.champion}
+          fill={QUADRANT_PALETTE_V22.champion}
           opacity={0.7}
         >
-          Value ≥ {championMin} · Readiness ≥ {championMin}
+          Value ≥ {quadrantCut} · Readiness ≥ {quadrantCut}
         </text>
         <text
           x={MARGIN.left + 8}
@@ -388,10 +458,11 @@ export function QuadrantBubbleChart({ data, onBubbleClick, vrmConfig }: Quadrant
           textAnchor="start"
           fontSize={11}
           fontWeight={700}
-          fill={QUADRANT_LABEL_COLORS.strategicBet}
+          fill={QUADRANT_PALETTE_V22.strategic}
           opacity={0.95}
+          data-testid="text-label-strategic"
         >
-          Strategic Bets
+          Strategic
         </text>
         <text
           x={MARGIN.left + 8}
@@ -399,10 +470,10 @@ export function QuadrantBubbleChart({ data, onBubbleClick, vrmConfig }: Quadrant
           textAnchor="start"
           fontSize={9}
           fontWeight={500}
-          fill={QUADRANT_LABEL_COLORS.strategicBet}
+          fill={QUADRANT_PALETTE_V22.strategic}
           opacity={0.7}
         >
-          Value ≥ {championMin} · Readiness &lt; {championMin}
+          Value ≥ {quadrantCut} · Readiness &lt; {quadrantCut}
         </text>
         <text
           x={width - MARGIN.right - 8}
@@ -410,10 +481,10 @@ export function QuadrantBubbleChart({ data, onBubbleClick, vrmConfig }: Quadrant
           textAnchor="end"
           fontSize={9}
           fontWeight={500}
-          fill={QUADRANT_LABEL_COLORS.quickWin}
+          fill={QUADRANT_PALETTE_V22.quick_win}
           opacity={0.7}
         >
-          Value &lt; {championMin} · Readiness ≥ {championMin}
+          Value &lt; {quadrantCut} · Readiness ≥ {quadrantCut}
         </text>
         <text
           x={width - MARGIN.right - 8}
@@ -421,8 +492,9 @@ export function QuadrantBubbleChart({ data, onBubbleClick, vrmConfig }: Quadrant
           textAnchor="end"
           fontSize={11}
           fontWeight={700}
-          fill={QUADRANT_LABEL_COLORS.quickWin}
+          fill={QUADRANT_PALETTE_V22.quick_win}
           opacity={0.95}
+          data-testid="text-label-quick-win"
         >
           Quick Wins
         </text>
@@ -432,10 +504,10 @@ export function QuadrantBubbleChart({ data, onBubbleClick, vrmConfig }: Quadrant
           textAnchor="start"
           fontSize={9}
           fontWeight={500}
-          fill={QUADRANT_LABEL_COLORS.foundation}
+          fill={QUADRANT_PALETTE_V22.foundation}
           opacity={0.7}
         >
-          Value &lt; {championMin} · Readiness &lt; {championMin}
+          Value &lt; {quadrantCut} · Readiness &lt; {quadrantCut}
         </text>
         <text
           x={MARGIN.left + 8}
@@ -443,41 +515,11 @@ export function QuadrantBubbleChart({ data, onBubbleClick, vrmConfig }: Quadrant
           textAnchor="start"
           fontSize={11}
           fontWeight={700}
-          fill={QUADRANT_LABEL_COLORS.foundation}
+          fill={QUADRANT_PALETTE_V22.foundation}
           opacity={0.95}
+          data-testid="text-label-foundation"
         >
           Foundation
-        </text>
-
-        {/* Champion threshold dividers (default 7.5, dynamic via championMin) */}
-        <line
-          x1={midX} y1={MARGIN.top} x2={midX} y2={height - MARGIN.bottom}
-          stroke="#475569" strokeDasharray="6 4" strokeWidth={1.5} opacity={0.6}
-        />
-        <line
-          x1={MARGIN.left} y1={midY} x2={width - MARGIN.right} y2={midY}
-          stroke="#475569" strokeDasharray="6 4" strokeWidth={1.5} opacity={0.6}
-        />
-        {/* VRM v2.1 — hard value floor (default normalized 4.0, dynamic via vrmConfig.valueFloorBand) */}
-        <line
-          x1={MARGIN.left} y1={yScale(hardFloorY)} x2={width - MARGIN.right} y2={yScale(hardFloorY)}
-          stroke="#94a3b8" strokeDasharray="3 3" strokeWidth={1} opacity={0.7}
-        />
-        <rect
-          x={MARGIN.left} y={yScale(hardFloorY)}
-          width={width - MARGIN.right - MARGIN.left}
-          height={height - MARGIN.bottom - yScale(hardFloorY)}
-          fill="#f1f5f9" opacity={0.5}
-        />
-        <text
-          x={MARGIN.left + 8}
-          y={yScale(hardFloorY) + 14}
-          fontSize={9}
-          fill="#475569"
-          opacity={0.75}
-          fontStyle="italic"
-        >
-          Hard value floor (norm. {hardFloorY})
         </text>
 
         {/* X-axis ticks and labels (dynamic) */}
@@ -551,18 +593,15 @@ export function QuadrantBubbleChart({ data, onBubbleClick, vrmConfig }: Quadrant
           stroke="#334155" strokeWidth={1}
         />
 
-        {/* Bubbles */}
+        {/* Bubbles — VRM v2.2: smaller = faster TTV; color = quadrant; dashed border = Conditional */}
         {data.map((point, i) => {
           const cx = xScale(point.x);
           const cy = yScale(point.y);
-          const r = sizeScale(point.z);  // z = TTV bubble score (0-1)
-          const isConditional = point.quadrantV2 === 'conditional_champion'
-            || (point.priorityTier ?? '').includes('Conditional Champion');
-          const fillColor = isConditional
-            ? '#fbbf24'
-            : point.priorityTier
-              ? getTierColorValue(point.priorityTier)
-              : point.color;
+          const r = sizeScale(point);
+          const isConditional = point.isConditionalV22 === true
+            || point.quadrantV2 === 'conditional_champion'
+            || (point.priorityTier ?? '').includes('Conditional');
+          const fillColor = getQuadrantColorV22(point);
           const isHovered = hoveredIndex === i;
           const isDimmed = hoveredIndex !== null && hoveredIndex !== i;
 
@@ -572,17 +611,18 @@ export function QuadrantBubbleChart({ data, onBubbleClick, vrmConfig }: Quadrant
               cx={cx}
               cy={cy}
               fill={fillColor}
-              stroke={isConditional ? '#b45309' : 'rgba(255,255,255,0.8)'}
-              strokeDasharray={isConditional ? '4 3' : undefined}
+              stroke={isConditional ? fillColor : 'rgba(255,255,255,0.85)'}
+              strokeDasharray={isConditional ? '4 2' : undefined}
               initial={{ r: 0, opacity: 0 }}
               animate={{
                 r,
-                opacity: isDimmed ? 0.25 : 0.85,
+                opacity: isDimmed ? 0.25 : 0.90,
                 strokeWidth: isConditional ? 2 : (isHovered ? 2.5 : 1),
               }}
               transition={{ duration: 0.25, ease: 'easeOut' }}
               style={{ cursor: 'pointer' }}
               onClick={() => onBubbleClick?.(point)}
+              data-testid={`bubble-${point.name.replace(/\s+/g, '-').toLowerCase()}`}
             />
           );
         })}
@@ -596,7 +636,7 @@ export function QuadrantBubbleChart({ data, onBubbleClick, vrmConfig }: Quadrant
           return data.map((point, i) => {
             const cx = xScale(point.x);
             const cy = yScale(point.y);
-            const r = sizeScale(point.z);
+            const r = sizeScale(point);
             const isDimmed = hoveredIndex !== null && hoveredIndex !== i;
             const labelText = point.name.length > 22
               ? point.name.slice(0, 20) + '…'
@@ -721,30 +761,40 @@ export function QuadrantBubbleChart({ data, onBubbleClick, vrmConfig }: Quadrant
         )}
       </AnimatePresence>
 
-      {/* Tier legend — VRM v2.0 with Conditional Champion */}
-      <div className="flex flex-wrap justify-center gap-4 mt-3 text-[11px]">
-        {(['Champion', 'Quick Win', 'Strategic', 'Foundation'] as const).map(tier => (
-          <div key={tier} className="flex items-center gap-1.5 text-slate-400">
+      {/* Legend — VRM v2.2: 4-color semantic palette + flipped TTV size + Lead-tier marker */}
+      <div className="flex flex-wrap justify-center gap-x-4 gap-y-2 mt-3 text-[11px]" data-testid="chart-legend-v22">
+        {(['champion', 'quick_win', 'strategic', 'foundation'] as const).map(q => (
+          <div key={q} className="flex items-center gap-1.5 text-slate-400">
             <div
               className="w-2.5 h-2.5 rounded-full"
-              style={{ backgroundColor: getTierColorValue(tier) }}
+              style={{ backgroundColor: QUADRANT_PALETTE_V22[q] }}
             />
-            {tier}
+            {QUADRANT_LABELS_V22[q]}
           </div>
         ))}
         <div className="flex items-center gap-1.5 text-slate-400">
           <div
-            className="w-2.5 h-2.5 rounded-full border-2 border-amber-700"
-            style={{ backgroundColor: '#fbbf24', borderStyle: 'dashed' }}
+            className="w-2.5 h-2.5 rounded-full"
+            style={{
+              backgroundColor: QUADRANT_PALETTE_V22.champion,
+              border: `1.5px dashed ${QUADRANT_PALETTE_V22.champion}`,
+              boxSizing: 'content-box',
+            }}
           />
-          Conditional Champion
+          Conditional (dashed)
+        </div>
+        <div className="flex items-center gap-1.5 text-slate-400">
+          <svg width="22" height="10" className="text-emerald-500">
+            <line x1="0" y1="5" x2="22" y2="5" stroke="currentColor" strokeWidth="1" opacity="0.6" />
+          </svg>
+          Lead tier ≥ {leadTierCut}
         </div>
         <div className="flex items-center gap-1.5 text-slate-400 ml-2">
-          <svg width="16" height="12" className="text-slate-400">
-            <circle cx="4" cy="6" r="3" fill="none" stroke="currentColor" strokeWidth="1" />
-            <circle cx="11" cy="6" r="5" fill="none" stroke="currentColor" strokeWidth="1" />
+          <svg width="22" height="14" className="text-slate-400">
+            <circle cx="5" cy="7" r="3" fill="currentColor" opacity="0.5" />
+            <circle cx="16" cy="7" r="6" fill="currentColor" opacity="0.5" />
           </svg>
-          Larger bubble = Faster time-to-value
+          Smaller bubble = Faster time-to-value
         </div>
       </div>
     </div>

@@ -11,6 +11,7 @@ import { QuadrantBubbleChart } from '@/components/dashboard/quadrant-bubble-char
 import { MatrixScorecard } from '@/components/dashboard/matrix-scorecard';
 import { MethodologySection } from '@/components/dashboard/methodology-section';
 import { UseCaseCards } from '@/components/dashboard/use-case-cards';
+import { HowWeScoreReadiness } from '@/components/dashboard/how-we-score-readiness';
 
 // Sanitize text to remove markdown artifacts for professional prose display
 function sanitizeForProse(text: string): string {
@@ -1311,6 +1312,9 @@ export default function Dashboard({ data = DEFAULT_DATA, onShareUrl, onDownloadW
       <HeroSection data={data.hero} clientName={data.clientName} />
       <ExecutiveSummary data={data.executiveSummary} />
       {data.scenarioComparison && <FinancialSensitivityAnalysis data={data.scenarioComparison} />}
+      <section className="px-4 md:px-6 max-w-[1600px] mx-auto w-full">
+        <HowWeScoreReadiness compact />
+      </section>
       <PriorityMatrix data={data.priorityMatrix} vrm={data.vrm} />
       {data.useCaseDetails && data.useCaseDetails.length > 0 ? (
         <section className="py-16 md:py-28 bg-slate-50">

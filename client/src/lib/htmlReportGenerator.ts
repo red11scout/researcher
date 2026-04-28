@@ -1,3 +1,62 @@
+import { RUBRIC, COMPONENT_NAMES, type ComponentKey } from "@shared/vrm-v2";
+
+const _rubricEscape = (text: any): string => {
+  if (text === null || text === undefined) return "";
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+};
+
+const _rubricAccents: Record<ComponentKey, { border: string; chip: string; label: string }> = {
+  orgCapacity:        { border: "#10b981", chip: "background:#ecfdf5;color:#065f46;",  label: "color:#047857;" },
+  dataReadiness:      { border: "#06b6d4", chip: "background:#ecfeff;color:#155e75;",  label: "color:#0e7490;" },
+  techInfrastructure: { border: "#6366f1", chip: "background:#eef2ff;color:#3730a3;",  label: "color:#4338ca;" },
+  governance:         { border: "#64748b", chip: "background:#f1f5f9;color:#334155;",  label: "color:#475569;" },
+};
+
+/** VRM v2.2 — "How We Score Readiness" rendered from the canonical RUBRIC[] (verbatim anchors). */
+export function renderHowWeScoreReadinessHTML(): string {
+  const order: ComponentKey[] = ["orgCapacity", "dataReadiness", "techInfrastructure", "governance"];
+  const cards = order.map((key) => {
+    const r = RUBRIC[key];
+    const accent = _rubricAccents[key];
+    const anchors = r.anchors.map(a => `
+      <li style="display:flex;gap:8px;font-size:11px;color:#334155;line-height:1.45;margin-bottom:6px;">
+        <span style="display:inline-flex;min-width:22px;height:18px;align-items:center;justify-content:center;border-radius:9999px;font-weight:700;font-size:10px;${accent.chip}">${a.level}</span>
+        <span><strong style="color:#0f172a;">${_rubricEscape(a.label)}.</strong> ${_rubricEscape(a.description)}</span>
+      </li>
+    `).join("");
+    return `
+      <article style="background:#f8fafc;border:1px solid #e2e8f0;border-left:3px solid ${accent.border};border-radius:8px;padding:14px;">
+        <h3 style="${accent.label}font-size:13px;font-weight:700;margin:0 0 10px 0;">${_rubricEscape(COMPONENT_NAMES[key])}</h3>
+        <ul style="list-style:none;padding:0;margin:0;">${anchors}</ul>
+        <p style="margin:10px 0 0 0;padding-top:10px;border-top:1px solid #e2e8f0;font-size:10.5px;color:#475569;font-style:italic;line-height:1.5;">
+          <strong style="color:#334155;font-style:normal;">3 vs 6:</strong> ${_rubricEscape(r.threeVsSixGuidance)}
+        </p>
+      </article>
+    `;
+  }).join("");
+
+  return `
+    <section class="appendix-block" style="background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;padding:18px;margin:16px 0;">
+      <header style="margin-bottom:14px;">
+        <h2 style="font-size:16px;font-weight:700;color:#0f172a;margin:0;">How We Score Readiness</h2>
+        <p style="font-size:12px;color:#475569;margin:4px 0 0 0;line-height:1.5;">
+          Every readiness component is scored 1&ndash;10 against a behaviorally anchored rubric (BARS).
+          Anchors below define levels 1, 3, 5, 7, and 10; intermediate values are interpolated.
+          The 3-vs-6 guidance marks the line between &ldquo;pilot-grade&rdquo; and &ldquo;enterprise-grade&rdquo;.
+        </p>
+      </header>
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;">
+        ${cards}
+      </div>
+    </section>
+  `;
+}
+
 export function generateProfessionalHTMLReport(
   reportData: any,
   companyName: string
@@ -1056,6 +1115,8 @@ export function generateProfessionalHTMLReport(
               : `Champion ≥ ${t.championMin}, Strategic/Quick Win ≥ ${t.quickStrategicMin}, Value floor ${t.valueFloor}, Time-to-pilot ≤ ${t.maxTimeToPilotWeeks} wks. Floors also require named sponsor + data availability.`
           }</span>
         </div>
+
+        ${renderHowWeScoreReadinessHTML()}
 
         ${diagnosticBlock}
 
@@ -2598,6 +2659,12 @@ export function generateEditorialHTMLReport(
         <div class="section-label">03 &nbsp; Priority Initiatives</div>
         ${ucCards}
       </div>` : ''}
+
+      <!-- 03.5 How We Score Readiness -->
+      <div class="section">
+        <div class="section-label">${recommendations.length > 0 ? '04' : '03'} &nbsp; How We Score Readiness</div>
+        ${renderHowWeScoreReadinessHTML()}
+      </div>
 
       <!-- 04. Financial Scenario Analysis -->
       <div class="section">

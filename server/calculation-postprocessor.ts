@@ -50,6 +50,7 @@ import { getPatternById } from '../shared/agenticPatterns';
 import {
   VRM_SCHEMA_VERSION,
   VRM_PRIOR_SCHEMA_VERSION,
+  VRM_PRIOR_SCHEMA_VERSION_V21,
   VRM_RUBRIC_VERSION,
   SECTOR_PRESETS,
   BASELINE_WEIGHTS,
@@ -58,6 +59,12 @@ import {
   assignPortfolioQuadrants,
   assignPortfolioQuadrantsV21,
   computePortfolioDiagnostic,
+  assignClassificationsV22,
+  computePortfolioDiagnosticV22,
+  classificationLabelV22,
+  QUADRANT_CUT,
+  LEAD_TIER_CUT,
+  MIN_PROTOTYPING_CANDIDATES,
   resolveEngagementConfig,
   normalizeValueScores,
   DEFAULT_ENGAGEMENT_CONFIG,
@@ -1921,11 +1928,14 @@ export function postProcessAnalysis(analysisResult: any): any {
         technicallyInfeasible: s6?.["Technically Infeasible"] === true,
       };
     });
-    // v2.1 quadrant assignment (active path); v2.0 preserved for backward-compatible JSON consumers.
+    // v2.2 is the active path; v2.1 + v2.0 are preserved as shadow columns for
+    // backward-compatible JSON consumers and any UI still keyed off them.
     const quadrantMap = assignPortfolioQuadrantsV21(portfolioScorings, engagementCfg);
     const quadrantMapV20 = assignPortfolioQuadrants(portfolioScorings as UseCaseScoring[]);
+    const classificationMapV22 = assignClassificationsV22(portfolioScorings, engagementCfg);
+    const portfolioDiagnosticV22 = computePortfolioDiagnosticV22(portfolioScorings, classificationMapV22);
     portfolioDiagnostic = computePortfolioDiagnostic(portfolioScorings, quadrantMap, engagementCfg);
-    console.log(`[postProcessAnalysis] VRM v2.1 diagnostic: ${portfolioDiagnostic.prototypingCandidatesCount} prototyping candidates / ${portfolioDiagnostic.totalUseCases} total. Warnings: ${portfolioDiagnostic.warnings.map(w => w.code).join(', ') || 'none'}.`);
+    console.log(`[postProcessAnalysis] VRM v2.2 diagnostic: ${portfolioDiagnosticV22.prototypingCandidatesCount} prototyping candidates / ${portfolioDiagnosticV22.totalUseCases} total (Champions=${portfolioDiagnosticV22.championCount}, Lead Champs=${portfolioDiagnosticV22.leadChampionCount}, QW=${portfolioDiagnosticV22.quickWinCount}, Strat=${portfolioDiagnosticV22.strategicCount}, Found=${portfolioDiagnosticV22.foundationCount}, Conditional=${portfolioDiagnosticV22.conditionalCount}). Warnings: ${portfolioDiagnosticV22.warnings.map(w => w.code).join(', ') || 'none'}.`);
 
     for (const record of step7Records) {
       const step6Record = (step6.data as any[]).find(r => r.ID === record.ID);
@@ -1943,25 +1953,36 @@ export function postProcessAnalysis(analysisResult: any): any {
       const v1Tier = getNewPriorityTier(priorityResult.value, normalizedValue, readinessScore);
       const phase = getNewRecommendedPhase(priorityResult.value, readinessScore);
 
-      // VRM v2.1 quadrant assignment (3-layer hybrid with hard/soft floor separation)
+      // VRM v2.2 classification (active path) — primary "Priority Tier" + Quadrant v2 alias.
+      // VRM v2.1 + v2.0 retained as shadow columns for backward-compatible consumers.
       const v2 = quadrantMap.get(record.ID)!;
       const v20 = quadrantMapV20.get(record.ID);
-      const v2TierLabel = v2.wave
+      const v22 = classificationMapV22.get(record.ID)!;
+      const v22Label = classificationLabelV22(v22);
+
+      // v2.1 wave label kept for shadow Priority Tier v2.1 column
+      const v21TierLabel = v2.wave
         ? `${QUADRANT_LABELS[v2.quadrant]} (${v2.wave})`
         : QUADRANT_LABELS[v2.quadrant];
 
       // Build record with new column order:
-      // ID, Use Case, Priority Tier (v2.1), Recommended Phase, Priority Score, Readiness Score, Value Score, TTV Score
+      // ID, Use Case, Priority Tier (v2.2), Recommended Phase, Priority Score, Readiness Score, Value Score, TTV Score
       const step7Entry: Record<string, any> = {
         "ID": record.ID,
         "Use Case": record["Use Case"],
-        "Priority Tier": v2TierLabel,
+        "Priority Tier": v22Label,
+        "Priority Tier v2.1": v21TierLabel,
         "Priority Tier v1": v1Tier,
+        "Quadrant v2.2": v22.quadrant,
+        "Tier v2.2": v22.tier,
+        "Is Conditional v2.2": v22.isConditional,
+        "Conditional Gap v2.2": v22.conditionalGap ?? null,
         "Quadrant v2.1": v2.quadrant,
         "Quadrant v2.0": v20?.quadrant ?? v2.quadrant,
-        "Quadrant v2": v2.quadrant, // legacy alias for v2.0 consumers; same value as v2.1 quadrant
+        "Quadrant v2": v22.quadrant, // legacy alias now reflects v2.2 (active geometry)
         "Quadrant Layer": v2.layer,
-        "Quadrant Rationale": v2.rationale,
+        "Quadrant Rationale": v22.rationale,
+        "Quadrant Rationale v2.1": v2.rationale,
         "Recommended Phase": phase,
         "Priority Score": priorityResult.value,
         "Readiness Score": readinessScore,
@@ -1971,14 +1992,38 @@ export function postProcessAnalysis(analysisResult: any): any {
         "TTV Score": Math.round(ttvScore * 100) / 100,
       };
 
-      if (v2.hardFailures && v2.hardFailures.length > 0) {
-        step7Entry["Hard Knock-Out Reasons"] = v2.hardFailures;
-        step7Entry["Floor Failure Reasons"] = v2.hardFailures; // backward compat
+      // Hard/soft floor failures: prefer v2.2 (same evaluation, more recent semantics).
+      const hardFailures = v22.hardFailures ?? v2.hardFailures ?? [];
+      const softBlockers = v22.softBlockers ?? v2.softBlockers ?? [];
+      if (hardFailures.length > 0) {
+        step7Entry["Hard Knock-Out Reasons"] = hardFailures;
+        step7Entry["Floor Failure Reasons"] = hardFailures; // backward compat
       }
-      if (v2.softBlockers && v2.softBlockers.length > 0) {
-        step7Entry["Soft Blockers"] = v2.softBlockers;
+      if (softBlockers.length > 0) {
+        step7Entry["Soft Blockers"] = softBlockers;
       }
-      if (v2.conditionalChampionMeta) {
+
+      // Conditional Champion Meta — synthesize from v2.2 safety-net promotion if applicable;
+      // otherwise fall back to v2.1's metadata. Sprint sized 4-12 weeks based on largest gap.
+      if (v22.isConditional && v22.conditionalGap) {
+        const gv = v22.conditionalGap.gapToChampion.v;
+        const gr = v22.conditionalGap.gapToChampion.r;
+        const maxGap = Math.max(gv, gr);
+        const sprintWeeks = Math.max(4, Math.min(12, 4 + Math.ceil(maxGap * 2)));
+        const gaps: { component: string; current: number; required: number }[] = [];
+        if (gv > 0) {
+          gaps.push({ component: "Value Score", current: Math.round(normalizedValue * 10) / 10, required: QUADRANT_CUT });
+        }
+        if (gr > 0) {
+          gaps.push({ component: "Readiness Score", current: Math.round(readinessScore * 10) / 10, required: QUADRANT_CUT });
+        }
+        step7Entry["Conditional Champion Meta"] = {
+          proposedSprintWeeks: sprintWeeks,
+          gaps,
+          fromQuadrant: v22.conditionalGap.fromQuadrant,
+          source: "v2.2-safety-net",
+        };
+      } else if (v2.conditionalChampionMeta) {
         step7Entry["Conditional Champion Meta"] = v2.conditionalChampionMeta;
       }
       if (v2.wave) {
@@ -1996,13 +2041,16 @@ export function postProcessAnalysis(analysisResult: any): any {
     }
 
     correctedStep7Data.sort((a: any, b: any) => {
+      // v2.2 ordering: Lead Champion → Champion → Champion (Conditional) → Lead Quick Win → Quick Win → Strategic → Foundation
       const tierRank = (t: string) => {
-        if (!t) return 5;
-        if (t.includes('Conditional Champion')) return 2;
-        if (t.includes('Champion')) return 1;
-        if (t.includes('Quick Win')) return 3;
-        if (t.includes('Strategic')) return 4;
-        return 5;
+        if (!t) return 99;
+        if (t.includes('Champion (Lead)')) return 1;
+        if (t.includes('Champion (Conditional)') || t.includes('Conditional Champion')) return 3;
+        if (t.includes('Champion')) return 2;
+        if (t.includes('Quick Win (Lead)')) return 4;
+        if (t.includes('Quick Win')) return 5;
+        if (t.includes('Strategic')) return 6;
+        return 7;
       };
       const ta = tierRank(a["Priority Tier"]);
       const tb = tierRank(b["Priority Tier"]);
@@ -2085,11 +2133,12 @@ export function postProcessAnalysis(analysisResult: any): any {
 
   console.log(`[postProcessAnalysis] Validation Summary: ${useCasesCapped} UCs capped, ${parametersClamped} params clamped, portfolio scale=${capScaleFactor.toFixed(3)}, original=${formatMoney(originalTotal)}, validated=${formatMoney(validatedTotal)}`);
 
-  // VRM v2.1 metadata block — preserved through the analysis lifecycle.
-  // schemaVersion is bumped to 2.1; v2.0 consumers can still read the legacy quadrantThresholds.
+  // VRM v2.2 metadata block — active geometry uses 5.5 quadrant cut + 7.5 lead-tier marker.
+  // schemaVersion = 2.2; v2.1 + v2.0 readers can still pull legacy thresholds from this block.
   const vrmBlock = {
     schemaVersion: VRM_SCHEMA_VERSION,
-    priorSchemaVersion: VRM_PRIOR_SCHEMA_VERSION,
+    priorSchemaVersion: VRM_PRIOR_SCHEMA_VERSION_V21,
+    priorSchemaVersionV20: VRM_PRIOR_SCHEMA_VERSION,
     rubricVersion: VRM_RUBRIC_VERSION,
     sectorPreset,
     sectorPresetLabel: SECTOR_PRESETS[sectorPreset].label,
@@ -2097,6 +2146,11 @@ export function postProcessAnalysis(analysisResult: any): any {
     baselineWeights: BASELINE_WEIGHTS,
     engagementConfig: engagementCfg,
     quadrantThresholds: {
+      // v2.2 active geometry
+      cut: QUADRANT_CUT,
+      leadTierCut: LEAD_TIER_CUT,
+      minPrototypingCandidates: MIN_PROTOTYPING_CANDIDATES,
+      // v2.1 / v2.0 shadow values for back-compat readers
       championMin: engagementCfg.championMin,
       quickStrategicMin: engagementCfg.quickStrategicMin,
       valueFloor: 6.0, // legacy alias for v2.0 readers
@@ -2104,10 +2158,22 @@ export function postProcessAnalysis(analysisResult: any): any {
       valueFloorBand: engagementCfg.valueFloor,
     },
     valueNormalization: "log10-min-max",
-    diagnostic: portfolioDiagnostic
+    diagnostic: portfolioDiagnosticV22
+      ? {
+          ...portfolioDiagnosticV22,
+          // Convenience aliases the existing UI is keyed off (v2.1 names)
+          conditionalChampionCount: portfolioDiagnosticV22.conditionalCount,
+          // Map to UI-friendly key names for the warnings (the UI reads `remediation`)
+          warnings: (portfolioDiagnosticV22.warnings || []).map((w) => ({
+            ...w,
+            remediation: (w as any).recommendedAction ?? (w as any).remediation,
+          })),
+        }
+      : null,
+    // v2.1 diagnostic kept for any downstream consumer still reading the prior shape
+    diagnosticV21: portfolioDiagnostic
       ? {
           ...portfolioDiagnostic,
-          // Convenience flat fields consumed by the dashboard / HTML / report UIs
           championCount: portfolioDiagnostic.byQuadrant.champion ?? 0,
           conditionalChampionCount: portfolioDiagnostic.byQuadrant.conditional_champion ?? 0,
           quickWinCount: portfolioDiagnostic.byQuadrant.quick_win ?? 0,
@@ -2125,7 +2191,6 @@ export function postProcessAnalysis(analysisResult: any): any {
             portfolioDiagnostic.totalUseCases > 0
               ? Math.round((portfolioDiagnostic.prototypingCandidatesCount / portfolioDiagnostic.totalUseCases) * 100)
               : 0,
-          // Map to UI-friendly key names for the warnings (the UI reads `remediation`, the schema field is `recommendedAction`)
           warnings: (portfolioDiagnostic.warnings || []).map((w) => ({
             ...w,
             remediation: (w as any).recommendedAction ?? (w as any).remediation,

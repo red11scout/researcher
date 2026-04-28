@@ -9,10 +9,11 @@
 // Layer-3 activation, dynamic Conditional-Champion sprint sizing, and a
 // portfolio diagnostic with structured warnings.
 
-export const VRM_SCHEMA_VERSION = "2.1";
+export const VRM_SCHEMA_VERSION = "2.2";
 export const VRM_RUBRIC_VERSION = "2.0";
-// Earlier wire format we still need to round-trip for backward-compatible consumers.
+// Earlier wire formats we still need to round-trip for backward-compatible consumers.
 export const VRM_PRIOR_SCHEMA_VERSION = "2.0";
+export const VRM_PRIOR_SCHEMA_VERSION_V21 = "2.1";
 
 // ---------------------------------------------------------------------------
 // SECTOR PRESETS — top-level component weights per engagement
@@ -1020,4 +1021,397 @@ export function computePortfolioDiagnostic(
     intakeIncompletionRate: round1(intakeRate * 100) / 100,
     warnings,
   };
+}
+
+// ===========================================================================
+// VRM v2.2 — Third Corrective Release
+// ---------------------------------------------------------------------------
+// Geometry change: quadrant cut moves from 7.5 to 5.5 to keep the matrix
+// usable for typical mid-market portfolios where most use cases score 4-7.
+// The 7.5 line is preserved as a *lead-tier* indicator inside Champions
+// and Quick Wins. A safety-net guarantees ≥3 prototyping candidates.
+// All v2.0/v2.1 functions remain exported for back-compat — postprocessor
+// runs both pipelines and emits shadow columns.
+// ===========================================================================
+
+export const QUADRANT_CUT = 5.5;
+export const LEAD_TIER_CUT = 7.5;
+export const MIN_PROTOTYPING_CANDIDATES = 3;
+
+export type QuadrantV22 = "champion" | "quick_win" | "strategic" | "foundation";
+export type TierV22 = "lead" | "standard";
+
+export const QUADRANT_LABELS_V22: Record<QuadrantV22, string> = {
+  champion: "Champion",
+  quick_win: "Quick Win",
+  strategic: "Strategic",
+  foundation: "Foundation",
+};
+
+export interface ConditionalGapV22 {
+  fromQuadrant: QuadrantV22;
+  /** How far the use case is from crossing the QUADRANT_CUT on each axis. */
+  gapToChampion: { v: number; r: number };
+}
+
+export interface ClassificationV22 {
+  quadrant: QuadrantV22;
+  tier: TierV22;
+  /** True when the use case was promoted as a prototyping candidate by the
+   * MIN_PROTOTYPING_CANDIDATES safety net. Renders with dashed border at
+   * actual coordinates. */
+  isConditional: boolean;
+  conditionalGap?: ConditionalGapV22;
+  hardFailures?: string[];
+  softBlockers?: string[];
+  rationale: string;
+}
+
+export interface ClassifiedUseCaseV22 extends ClassificationV22 {
+  id: string;
+  valueScore: number;
+  readinessScore: number;
+}
+
+/** Pure quadrant function — operates on already-rounded scores. */
+export function classifyQuadrantV22(v: number, r: number): QuadrantV22 {
+  if (v >= QUADRANT_CUT && r >= QUADRANT_CUT) return "champion";
+  if (v < QUADRANT_CUT && r >= QUADRANT_CUT) return "quick_win";
+  if (v >= QUADRANT_CUT && r < QUADRANT_CUT) return "strategic";
+  return "foundation";
+}
+
+/** Lead-tier flag — only meaningful inside Champions and Quick Wins.
+ * Champion: needs both V≥7.5 AND R≥7.5.
+ * Quick Win: needs R≥7.5 (V is by definition < 5.5 in this quadrant).
+ * Strategic / Foundation: never lead.
+ */
+export function leadTierV22(quadrant: QuadrantV22, v: number, r: number): TierV22 {
+  if (quadrant === "champion" && v >= LEAD_TIER_CUT && r >= LEAD_TIER_CUT) return "lead";
+  if (quadrant === "quick_win" && r >= LEAD_TIER_CUT) return "lead";
+  return "standard";
+}
+
+/** Distance from the QUADRANT_CUT for safety-net promotion ranking.
+ *  Smaller distance = closer to crossing into Champion/Quick Win/Strategic.
+ *  v2.2 spec ranks promotable items by *nearest-to-cut* (not composite score)
+ *  so that the items most plausibly upgradable are preferred. */
+function distanceToQuadrantCutV22(uc: UseCaseScoringV21): number {
+  const v = round1(uc.valueScore);
+  const r = round1(uc.readinessScore);
+  const dv = Math.max(0, QUADRANT_CUT - v);
+  const dr = Math.max(0, QUADRANT_CUT - r);
+  return dv + dr;
+}
+
+/**
+ * v2.2 portfolio classification.
+ * - Hard floor failures → foundation (with full failure list).
+ * - Otherwise classify by 5.5 cut, then assign lead-tier flag at 7.5.
+ * - If natural prototyping candidates (champion + quick_win) < MIN, promote
+ *   the next best foundation/strategic items (by composite score) to
+ *   isConditional=true so the portfolio always surfaces ≥ MIN candidates.
+ *   Promoted items keep their natural quadrant for plotting; the chart
+ *   renders them with a dashed border at actual coordinates.
+ */
+export function assignClassificationsV22(
+  portfolio: UseCaseScoringV21[],
+  cfg: EngagementConfig = DEFAULT_ENGAGEMENT_CONFIG,
+): Map<string, ClassificationV22> {
+  const out = new Map<string, ClassificationV22>();
+
+  for (const uc of portfolio) {
+    const evalRes = evaluateFloors(uc, cfg);
+    const v = round1(uc.valueScore);
+    const r = round1(uc.readinessScore);
+
+    if (evalRes.hardFailures.length > 0) {
+      out.set(uc.id, {
+        quadrant: "foundation",
+        tier: "standard",
+        isConditional: false,
+        hardFailures: evalRes.hardFailures,
+        softBlockers: evalRes.softBlockers,
+        rationale: `Hard floor failure: ${evalRes.hardFailures.join("; ")}`,
+      });
+      continue;
+    }
+
+    const q = classifyQuadrantV22(v, r);
+    const tier = leadTierV22(q, v, r);
+    const baseRationale =
+      tier === "lead"
+        ? `Lead ${QUADRANT_LABELS_V22[q]} — V ${v}, R ${r} (above lead-tier ${LEAD_TIER_CUT})`
+        : `${QUADRANT_LABELS_V22[q]} — V ${v}, R ${r}`;
+
+    out.set(uc.id, {
+      quadrant: q,
+      tier,
+      isConditional: false,
+      softBlockers: evalRes.softBlockers,
+      rationale: baseRationale,
+    });
+  }
+
+  // Phase 2: Safety-net promotion to MIN_PROTOTYPING_CANDIDATES.
+  const naturalCandidates = portfolio.filter((uc) => {
+    const c = out.get(uc.id);
+    return c && (c.quadrant === "champion" || c.quadrant === "quick_win");
+  });
+
+  if (naturalCandidates.length < MIN_PROTOTYPING_CANDIDATES) {
+    const needed = MIN_PROTOTYPING_CANDIDATES - naturalCandidates.length;
+    const promotable = portfolio
+      .filter((uc) => {
+        const c = out.get(uc.id);
+        if (!c) return false;
+        if ((c.hardFailures ?? []).length > 0) return false;
+        return c.quadrant === "strategic" || c.quadrant === "foundation";
+      })
+      .sort((a, b) => {
+        // Nearest-to-cut first (smallest distance wins).
+        const da = distanceToQuadrantCutV22(a);
+        const db = distanceToQuadrantCutV22(b);
+        if (da !== db) return da - db;
+        // Tie-break: higher V then higher R then stable id order.
+        const va = round1(a.valueScore);
+        const vb = round1(b.valueScore);
+        if (vb !== va) return vb - va;
+        const ra = round1(a.readinessScore);
+        const rb = round1(b.readinessScore);
+        if (rb !== ra) return rb - ra;
+        return (a.id || "").localeCompare(b.id || "");
+      })
+      .slice(0, needed);
+
+    for (const uc of promotable) {
+      const c = out.get(uc.id)!;
+      const v = round1(uc.valueScore);
+      const r = round1(uc.readinessScore);
+      c.isConditional = true;
+      c.conditionalGap = {
+        fromQuadrant: c.quadrant,
+        gapToChampion: {
+          v: round1(Math.max(0, QUADRANT_CUT - v)),
+          r: round1(Math.max(0, QUADRANT_CUT - r)),
+        },
+      };
+      c.rationale = `Conditional ${QUADRANT_LABELS_V22.champion} (safety-net promotion) — natural ${QUADRANT_LABELS_V22[c.quadrant]} at V ${v}, R ${r}; portfolio had only ${naturalCandidates.length} natural candidate${naturalCandidates.length !== 1 ? "s" : ""} so promoted to meet the minimum-${MIN_PROTOTYPING_CANDIDATES} prototyping rule.`;
+    }
+  }
+
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// VRM v2.2 — Portfolio diagnostic with retuned warning rules
+// ---------------------------------------------------------------------------
+
+export interface PortfolioDiagnosticV22 {
+  schemaVersion: string;
+  totalUseCases: number;
+  prototypingCandidatesCount: number;
+  prototypingCandidatesPct: number;
+  championCount: number;
+  leadChampionCount: number;
+  quickWinCount: number;
+  leadQuickWinCount: number;
+  strategicCount: number;
+  foundationCount: number;
+  foundationHardCount: number;
+  foundationSoftCount: number;
+  conditionalCount: number;
+  medianValueScore: number;
+  medianReadinessScore: number;
+  hardFloorFailureRate: number;
+  intakeIncompletionRate: number;
+  warnings: PortfolioWarning[];
+}
+
+function medianV22(xs: number[]): number {
+  if (xs.length === 0) return 0;
+  const sorted = [...xs].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0
+    ? round1((sorted[mid - 1] + sorted[mid]) / 2)
+    : round1(sorted[mid]);
+}
+
+export function computePortfolioDiagnosticV22(
+  portfolio: UseCaseScoringV21[],
+  classifications: Map<string, ClassificationV22>,
+): PortfolioDiagnosticV22 {
+  const total = portfolio.length;
+  const warnings: PortfolioWarning[] = [];
+
+  const classified = portfolio.map((uc) => ({ uc, c: classifications.get(uc.id)! }));
+
+  let championCount = 0;
+  let leadChampionCount = 0;
+  let quickWinCount = 0;
+  let leadQuickWinCount = 0;
+  let strategicCount = 0;
+  let foundationCount = 0;
+  let foundationHardCount = 0;
+  let foundationSoftCount = 0;
+  let conditionalCount = 0;
+  let intakeMissing = 0;
+  let hardFails = 0;
+
+  for (const { uc, c } of classified) {
+    if (c.quadrant === "champion") {
+      championCount += 1;
+      if (c.tier === "lead") leadChampionCount += 1;
+    } else if (c.quadrant === "quick_win") {
+      quickWinCount += 1;
+      if (c.tier === "lead") leadQuickWinCount += 1;
+    } else if (c.quadrant === "strategic") {
+      strategicCount += 1;
+    } else {
+      foundationCount += 1;
+      if ((c.hardFailures ?? []).length > 0) {
+        foundationHardCount += 1;
+        hardFails += 1;
+      } else {
+        foundationSoftCount += 1;
+      }
+    }
+    if (c.isConditional) conditionalCount += 1;
+    if (uc.hasNamedSponsor === null || uc.dataAvailableForEngagement === null) {
+      intakeMissing += 1;
+    }
+  }
+
+  // Prototyping candidates = natural champions + natural quick_wins + conditionals
+  const prototypingCandidatesCount = championCount + quickWinCount + conditionalCount;
+  const prototypingCandidatesPct =
+    total === 0 ? 0 : Math.round((prototypingCandidatesCount / total) * 100);
+
+  const medianValueScore = medianV22(portfolio.map((uc) => round1(uc.valueScore)));
+  const medianReadinessScore = medianV22(portfolio.map((uc) => round1(uc.readinessScore)));
+  const hardFloorFailureRate = total === 0 ? 0 : hardFails / total;
+  const intakeIncompletionRate = total === 0 ? 0 : intakeMissing / total;
+
+  // -------- Warning rules (v2.2 retuned for 5.5 geometry) --------
+
+  // EMPTY_MATRIX (critical) — portfolio is empty, or all use cases land in Foundation.
+  if (total === 0) {
+    warnings.push({
+      code: "EMPTY_MATRIX",
+      severity: "critical",
+      message: "No use cases supplied — the matrix is empty.",
+      remediation: "Capture at least one use case at intake before generating the Value-Readiness Matrix.",
+    });
+  } else if (championCount + quickWinCount + strategicCount === 0 && foundationCount === total) {
+    warnings.push({
+      code: "EMPTY_MATRIX",
+      severity: "critical",
+      message: "All use cases land in Foundation. The matrix has no Champions, Quick Wins, or Strategic items.",
+      remediation: "Re-examine intake quality and floor criteria; consider whether any use cases were over-penalized by hard floors that could be relaxed for this engagement.",
+    });
+  }
+
+  // BELOW_MIN_CANDIDATES (warning) — even after safety-net promotion, fewer
+  // than MIN_PROTOTYPING_CANDIDATES exist (only possible when portfolio < 3
+  // or all non-champion items hard-failed).
+  if (total > 0 && prototypingCandidatesCount < MIN_PROTOTYPING_CANDIDATES) {
+    warnings.push({
+      code: "BELOW_MIN_CANDIDATES",
+      severity: "warning",
+      message: `Portfolio surfaces only ${prototypingCandidatesCount} prototyping candidate${prototypingCandidatesCount !== 1 ? "s" : ""} (target: ${MIN_PROTOTYPING_CANDIDATES}). Hard-floor failures may be excluding viable items.`,
+      remediation: "Review hard-floor failure reasons; if 'technically infeasible' or 'legally prohibited' flags are over-applied, revisit intake to confirm.",
+    });
+  }
+
+  // READINESS_BUNCHED_LOW — most readiness scores cluster below the 5.0 threshold (v2.2 retune).
+  if (total > 0 && medianReadinessScore < 5.0 && championCount === 0) {
+    warnings.push({
+      code: "READINESS_BUNCHED_LOW",
+      severity: "warning",
+      message: `Median readiness is ${medianReadinessScore.toFixed(1)} with zero Champions. The portfolio's readiness distribution skews low and may not yet support production-ready bets.`,
+      remediation: "Invest in the four BARS components (Org Capacity, Data, Governance, Tech Infra) before launching pilots; consider a readiness-uplift sprint.",
+    });
+  }
+
+  // READINESS_BUNCHED_HIGH — most readiness scores cluster high but value isn't there.
+  if (total > 0 && medianReadinessScore > 8.0 && quickWinCount > championCount) {
+    warnings.push({
+      code: "READINESS_BUNCHED_HIGH",
+      severity: "info",
+      message: `Median readiness is ${medianReadinessScore.toFixed(1)} but Quick Wins (${quickWinCount}) outnumber Champions (${championCount}). The portfolio is technically ready but value-light.`,
+      remediation: "Re-scope use cases toward higher-value workflows, or pursue a portfolio expansion that targets larger friction pools.",
+    });
+  }
+
+  // VALUE_DISTRIBUTION_SKEWED — median normalized value is at the extremes.
+  if (total > 0 && (medianValueScore < 4.0 || medianValueScore > 8.0)) {
+    warnings.push({
+      code: "VALUE_DISTRIBUTION_SKEWED",
+      severity: "warning",
+      message: `Median normalized Value Score is ${medianValueScore.toFixed(1)}, outside the typical 4-8 band. Min-max normalization may be over- or under-spreading the portfolio.`,
+      remediation: "Sanity-check friction-cost denominators and EV inputs; consider whether one or two outlier use cases are compressing the rest of the distribution.",
+    });
+  }
+
+  // INTAKE_INCOMPLETE — > 30% of use cases have null sponsor or null data flags.
+  if (total > 0 && intakeIncompletionRate > 0.30) {
+    warnings.push({
+      code: "INTAKE_INCOMPLETE",
+      severity: "warning",
+      message: `${Math.round(intakeIncompletionRate * 100)}% of use cases are missing sponsor and/or data-availability information.`,
+      remediation: "Complete intake fields before relying on quadrant placement; missing data is treated as 'unknown', not 'unavailable'.",
+    });
+  }
+
+  // HARD_FLOOR_DOMINANT — > 40% of use cases hard-failed (down from 50% in v2.1).
+  if (total > 0 && hardFloorFailureRate > 0.40) {
+    warnings.push({
+      code: "HARD_FLOOR_DOMINANT",
+      severity: "warning",
+      message: `${Math.round(hardFloorFailureRate * 100)}% of use cases were hard-floor-failed (legal/technical/de-minimis). The portfolio is dominated by Foundation items.`,
+      remediation: "Review hard-floor failure reasons in detail. If 'technically infeasible' is over-applied, re-evaluate against current AI capability frontier.",
+    });
+  }
+
+  // STRONG_PORTFOLIO — Lead Champions ≥ 3 (positive signal).
+  if (leadChampionCount >= 3) {
+    warnings.push({
+      code: "STRONG_PORTFOLIO",
+      severity: "info",
+      message: `${leadChampionCount} Lead Champions identified (V≥${LEAD_TIER_CUT} AND R≥${LEAD_TIER_CUT}). Portfolio is positioned for an aggressive multi-track rollout.`,
+      remediation: "Consider parallelizing top Lead Champions across two pilot pods to compress time-to-value.",
+    });
+  }
+
+  return {
+    schemaVersion: VRM_SCHEMA_VERSION,
+    totalUseCases: total,
+    prototypingCandidatesCount,
+    prototypingCandidatesPct,
+    championCount,
+    leadChampionCount,
+    quickWinCount,
+    leadQuickWinCount,
+    strategicCount,
+    foundationCount,
+    foundationHardCount,
+    foundationSoftCount,
+    conditionalCount,
+    medianValueScore,
+    medianReadinessScore,
+    hardFloorFailureRate: round1(hardFloorFailureRate * 100) / 100,
+    intakeIncompletionRate: round1(intakeIncompletionRate * 100) / 100,
+    warnings,
+  };
+}
+
+/** Convenience helper used by the postprocessor and UI: derives the human
+ * label that combines quadrant + lead/conditional flags. */
+export function classificationLabelV22(c: ClassificationV22): string {
+  const base = QUADRANT_LABELS_V22[c.quadrant];
+  if (c.isConditional) return `${QUADRANT_LABELS_V22.champion} (Conditional)`;
+  if (c.tier === "lead" && (c.quadrant === "champion" || c.quadrant === "quick_win")) {
+    return `${base} (Lead)`;
+  }
+  return base;
 }
