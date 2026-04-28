@@ -60,3 +60,7 @@ CREWAI_PORT = "5001"
 [userenv.production]
 NO_PROXY = "api.anthropic.com"
 no_proxy = "api.anthropic.com"
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 180000
