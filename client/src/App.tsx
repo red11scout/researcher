@@ -18,6 +18,7 @@ import DashboardPage from "@/pages/DashboardPage";
 import SharedDashboard from "@/pages/SharedDashboard";
 import CrewAI from "@/pages/CrewAI";
 import BatchResearch from "@/pages/BatchResearch";
+import Admin from "@/pages/Admin";
 import Login from "@/pages/Login";
 import type { ComponentType } from "react";
 
@@ -60,6 +61,7 @@ function AppRoutes() {
       <Route path="/whatif/:reportId">{() => <ProtectedRoute component={WhatIfAnalysis} />}</Route>
       <Route path="/assumptions">{() => <ProtectedRoute component={Assumptions} />}</Route>
       <Route path="/assumptions/:reportId">{() => <ProtectedRoute component={AssumptionPanel} />}</Route>
+      <Route path="/admin">{() => <ProtectedRoute component={Admin} />}</Route>
       <Route component={NotFound} />
     </Switch>
   );

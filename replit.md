@@ -50,6 +50,7 @@ Password-based authentication using `express-session`. Configured in `server/aut
 - **Public routes**: `/login`, `/shared/:shareId` — no auth required. Shared dashboards have isolated layout with no navigation to protected routes.
 - **Login page** (`client/src/pages/Login.tsx`): Password input with 5-attempt cooldown (60s), error display, `returnTo` redirect after success.
 - **Logout**: Button in Layout header and mobile menu, posts to `/api/auth/logout`.
+- **Admin page** (`client/src/pages/Admin.tsx`, route `/admin`): Operator-only UI exposing the `POST /api/admin/backfill-reports` endpoint as a one-click "Upgrade all reports" button. Includes a `force=1` toggle, confirmation dialog, summary stats (total / updated / skipped / failed / duration), and a per-failure table for any reports that failed to upgrade.
 - **Rate limiting**: `express-rate-limit` — 10 req/min on `/api/auth/login`, 30 req/min on `/api/share/*`.
 - **Security headers**: `X-Content-Type-Options`, `X-Frame-Options`, `X-XSS-Protection`, `Referrer-Policy` on all responses.
 - **Environment variables**: `APP_PASSWORD` (default: BlueAlly45), `SESSION_SECRET` (auto-generated if missing).
