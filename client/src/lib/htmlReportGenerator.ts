@@ -962,7 +962,7 @@ export function generateProfessionalHTMLReport(
           </table>
         </div>
         <p class="table-footnote">
-          Scoring Scale: All components scored 1&ndash;10 (weighted: Org Capacity 30%, Data Quality 30%, Tech Infra 20%, Governance 20%) |
+          Scoring Scale: All components scored 1&ndash;10 (weighted: Org Capacity 35%, Data Quality 30%, Governance 20%, Tech Infra 15%) |
           TTV = Time-to-Value in months
         </p>
       </div>

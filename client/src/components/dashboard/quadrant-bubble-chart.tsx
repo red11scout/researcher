@@ -129,8 +129,9 @@ export function QuadrantBubbleChart({ data, onBubbleClick, vrmConfig }: Quadrant
 
   const { width, height } = dimensions;
 
-  // VRM v2.0 — Fixed quadrant thresholds (Champion ≥ 7.5, mid ≥ 6.0)
-  // Domain always covers 1-10 so absolute thresholds are interpretable.
+  // VRM v2.1 — Quadrant thresholds anchored at 7.5 on both axes.
+  // Use a PIECEWISE scale so the threshold sits at the visual center of the chart,
+  // producing four equally-sized quadrants regardless of the [1, 10] domain.
   const { xDomain, yDomain, midXValue, midYValue } = useMemo(() => {
     return {
       xDomain: [1, 10] as [number, number],
@@ -140,15 +141,35 @@ export function QuadrantBubbleChart({ data, onBubbleClick, vrmConfig }: Quadrant
     };
   }, [data]);
 
-  // D3 scales with dynamic domains
-  const xScale = useMemo(
-    () => scaleLinear().domain(xDomain).range([MARGIN.left, width - MARGIN.right]),
-    [width, xDomain]
-  );
-  const yScale = useMemo(
-    () => scaleLinear().domain(yDomain).range([height - MARGIN.bottom, MARGIN.top]),
-    [height, yDomain]
-  );
+  // Piecewise X scale: domain [1, 7.5] maps to left half, [7.5, 10] maps to right half.
+  const xScale = useMemo(() => {
+    const left = MARGIN.left;
+    const right = width - MARGIN.right;
+    const mid = (left + right) / 2;
+    const fn = (v: number) => {
+      if (v <= midXValue) {
+        return left + ((v - xDomain[0]) / (midXValue - xDomain[0])) * (mid - left);
+      }
+      return mid + ((v - midXValue) / (xDomain[1] - midXValue)) * (right - mid);
+    };
+    return Object.assign(fn, { invert: (px: number) => px });
+  }, [width, xDomain, midXValue]);
+
+  // Piecewise Y scale: domain [1, 7.5] maps to bottom half, [7.5, 10] maps to top half (inverted SVG y).
+  const yScale = useMemo(() => {
+    const top = MARGIN.top;
+    const bottom = height - MARGIN.bottom;
+    const mid = (top + bottom) / 2;
+    const fn = (v: number) => {
+      if (v <= midYValue) {
+        // Lower domain values render in the bottom half (between mid and bottom)
+        return bottom - ((v - yDomain[0]) / (midYValue - yDomain[0])) * (bottom - mid);
+      }
+      // Upper domain values render in the top half (between top and mid)
+      return mid - ((v - midYValue) / (yDomain[1] - midYValue)) * (mid - top);
+    };
+    return Object.assign(fn, { invert: (px: number) => px });
+  }, [height, yDomain, midYValue]);
 
   // TTV bubble sizing: z is TTV score (0-1), where 1 = fastest time-to-value = largest bubble
   // Minimum visible radius for TTV=0 cases

@@ -37,7 +37,7 @@ const METHODOLOGY_ITEMS: MethodologyItem[] = [
   {
     title: "Readiness Score",
     range: "1–10",
-    description: "Weighted composite of four components: Organizational Capacity (30%), Data Availability & Quality (30%), Technical Infrastructure (20%), and AI-Specific Governance (20%). Each component scored 1–10 based on organizational assessment.",
+    description: "Weighted composite of four components: Organizational Capacity (35%), Data Availability & Quality (30%), AI-Specific Governance (20%), and Technical Infrastructure (15%). Each component scored 1–10 based on organizational assessment.",
   },
   {
     title: "Priority Score",
