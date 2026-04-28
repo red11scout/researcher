@@ -10,9 +10,9 @@
 //   - computePortfolioDiagnostic
 //                          (median scores + structured warnings)
 //
-// The final `describe` block lifts the 6 acceptance criteria from
-// scripts/diagnostic-vrm-v21.ts so the manual diagnostic now runs as part of
-// the regular test suite.
+// The final `describe` block runs the 6 acceptance criteria for the v2.1
+// corrective release as part of the regular test suite. (This replaces the
+// retired manual harness that previously lived at scripts/diagnostic-vrm-v21.ts.)
 
 import { describe, it, expect } from "vitest";
 import {
@@ -410,8 +410,10 @@ describe("computePortfolioDiagnostic (warnings & medians)", () => {
 });
 
 // ---------------------------------------------------------------------------
-// SPEC ACCEPTANCE SUITE — lifted from scripts/diagnostic-vrm-v21.ts so the
-// six acceptance criteria run automatically.
+// SPEC ACCEPTANCE SUITE — the six v2.1 corrective-release acceptance criteria,
+// run automatically (replaces the retired scripts/diagnostic-vrm-v21.ts).
+// To run this suite in isolation:
+//     npx vitest run tests/vrm-v2.test.ts -t "VRM v2.1 spec acceptance"
 // ---------------------------------------------------------------------------
 describe("VRM v2.1 spec acceptance (10-use-case diagnostic fixture)", () => {
   type FixtureRow = {
