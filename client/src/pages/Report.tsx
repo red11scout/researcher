@@ -1675,6 +1675,69 @@ export default function Report() {
       dashSheet.getColumn(5).width = 18;
     }
 
+    // VRM v2.1 — Methodology Integrity Sheet
+    if (data.vrm?.diagnostic) {
+      const diag = data.vrm.diagnostic;
+      const schemaVersion = data.vrm.schemaVersion || '2.1';
+      const integritySheet = wb.addWorksheet('Methodology Integrity');
+
+      const totalUseCases = diag.totalUseCases ?? 0;
+      const protoCount = diag.prototypingCandidatesCount ?? 0;
+      const protoPct = diag.prototypingCandidatesPct ??
+        (totalUseCases > 0 ? Math.round((protoCount / totalUseCases) * 100) : 0);
+      const foundationHard = diag.foundationHardCount ?? 0;
+      const foundationSoft = diag.foundationSoftCount ?? 0;
+
+      const integrityData: (string | number)[][] = [
+        [""],
+        [`METHODOLOGY INTEGRITY (v${schemaVersion})`],
+        [""],
+        ["SUMMARY"],
+        [""],
+        ["Metric", "Value"],
+        ["Total Use Cases", totalUseCases],
+        ["Prototyping Candidates", `${protoCount} (${protoPct}%)`],
+        ["Median Value Score", diag.medianValueScore ?? 0],
+        ["Median Readiness Score", diag.medianReadinessScore ?? 0],
+        [""],
+        [""],
+        ["QUADRANT BREAKDOWN"],
+        [""],
+        ["Quadrant", "Count"],
+        ["Champion", diag.championCount ?? 0],
+        ["Conditional Champion", diag.conditionalChampionCount ?? 0],
+        ["Quick Win", diag.quickWinCount ?? 0],
+        ["Strategic", diag.strategicCount ?? 0],
+        [`Foundation (${foundationHard} hard / ${foundationSoft} soft)`, diag.foundationCount ?? 0],
+        [""],
+        [""],
+        ["WARNINGS"],
+        [""],
+      ];
+
+      const warnings = diag.warnings || [];
+      if (warnings.length === 0) {
+        integrityData.push(["No methodology integrity warnings — portfolio passes all v2.1 checks."]);
+      } else {
+        integrityData.push(["Severity", "Code", "Message", "Recommendation"]);
+        warnings.forEach((wn: any) => {
+          integrityData.push([
+            String(wn.severity || '').toUpperCase(),
+            wn.code || '',
+            wn.message || '',
+            wn.remediation || wn.recommendedAction || '',
+          ]);
+        });
+      }
+
+      integrityData.forEach((row) => integritySheet.addRow(row));
+
+      integritySheet.getColumn(1).width = 30;
+      integritySheet.getColumn(2).width = 30;
+      integritySheet.getColumn(3).width = 60;
+      integritySheet.getColumn(4).width = 60;
+    }
+
     // Step sheets with proper column widths and data handling
     data.steps.forEach((step: any) => {
       if (step.data && step.data.length > 0) {
@@ -1979,6 +2042,144 @@ export default function Report() {
         );
       }
     });
+
+    // VRM v2.1 — Methodology Integrity (Appendix)
+    if (data.vrm?.diagnostic) {
+      const diag = data.vrm.diagnostic;
+      const schemaVersion = data.vrm.schemaVersion || '2.1';
+      const totalUseCases = diag.totalUseCases ?? 0;
+      const protoCount = diag.prototypingCandidatesCount ?? 0;
+      const protoPct = diag.prototypingCandidatesPct ??
+        (totalUseCases > 0 ? Math.round((protoCount / totalUseCases) * 100) : 0);
+      const foundationHard = diag.foundationHardCount ?? 0;
+      const foundationSoft = diag.foundationSoftCount ?? 0;
+
+      children.push(
+        new Paragraph({
+          text: `METHODOLOGY INTEGRITY (v${schemaVersion})`,
+          heading: HeadingLevel.HEADING_1,
+          alignment: AlignmentType.CENTER,
+          spacing: { before: 400, after: 200 },
+        }),
+        new Paragraph({
+          text: `${totalUseCases} use cases analyzed · ${protoCount} prototyping candidates (${protoPct}%)`,
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 200 },
+        }),
+        new Paragraph({
+          text: "Quadrant Breakdown",
+          heading: HeadingLevel.HEADING_2,
+          alignment: AlignmentType.CENTER,
+          spacing: { before: 200, after: 120 },
+        })
+      );
+
+      const quadrantTable = new DocxTable({
+        rows: [
+          new DocxTableRow({
+            children: [
+              new DocxTableCell({
+                children: [new Paragraph({ text: "Quadrant", alignment: AlignmentType.CENTER })],
+                shading: { fill: "001278" },
+              }),
+              new DocxTableCell({
+                children: [new Paragraph({ text: "Count", alignment: AlignmentType.CENTER })],
+                shading: { fill: "001278" },
+              }),
+            ],
+          }),
+          new DocxTableRow({
+            children: [
+              new DocxTableCell({ children: [new Paragraph({ text: "Champion", alignment: AlignmentType.CENTER })] }),
+              new DocxTableCell({ children: [new Paragraph({ text: String(diag.championCount ?? 0), alignment: AlignmentType.CENTER })] }),
+            ],
+          }),
+          new DocxTableRow({
+            children: [
+              new DocxTableCell({ children: [new Paragraph({ text: "Conditional Champion", alignment: AlignmentType.CENTER })] }),
+              new DocxTableCell({ children: [new Paragraph({ text: String(diag.conditionalChampionCount ?? 0), alignment: AlignmentType.CENTER })] }),
+            ],
+          }),
+          new DocxTableRow({
+            children: [
+              new DocxTableCell({ children: [new Paragraph({ text: "Quick Win", alignment: AlignmentType.CENTER })] }),
+              new DocxTableCell({ children: [new Paragraph({ text: String(diag.quickWinCount ?? 0), alignment: AlignmentType.CENTER })] }),
+            ],
+          }),
+          new DocxTableRow({
+            children: [
+              new DocxTableCell({ children: [new Paragraph({ text: "Strategic", alignment: AlignmentType.CENTER })] }),
+              new DocxTableCell({ children: [new Paragraph({ text: String(diag.strategicCount ?? 0), alignment: AlignmentType.CENTER })] }),
+            ],
+          }),
+          new DocxTableRow({
+            children: [
+              new DocxTableCell({ children: [new Paragraph({ text: `Foundation (${foundationHard} hard / ${foundationSoft} soft)`, alignment: AlignmentType.CENTER })] }),
+              new DocxTableCell({ children: [new Paragraph({ text: String(diag.foundationCount ?? 0), alignment: AlignmentType.CENTER })] }),
+            ],
+          }),
+        ],
+        width: { size: 100, type: WidthType.PERCENTAGE },
+      });
+      children.push(quadrantTable);
+
+      children.push(
+        new Paragraph({
+          text: "Warnings",
+          heading: HeadingLevel.HEADING_2,
+          alignment: AlignmentType.CENTER,
+          spacing: { before: 300, after: 120 },
+        })
+      );
+
+      const warnings = diag.warnings || [];
+      if (warnings.length === 0) {
+        children.push(
+          new Paragraph({
+            text: "No methodology integrity warnings — portfolio passes all v2.1 checks.",
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 200 },
+          })
+        );
+      } else {
+        const warningsTable = new DocxTable({
+          rows: [
+            new DocxTableRow({
+              children: [
+                new DocxTableCell({
+                  children: [new Paragraph({ text: "Severity", alignment: AlignmentType.CENTER })],
+                  shading: { fill: "001278" },
+                }),
+                new DocxTableCell({
+                  children: [new Paragraph({ text: "Code", alignment: AlignmentType.CENTER })],
+                  shading: { fill: "001278" },
+                }),
+                new DocxTableCell({
+                  children: [new Paragraph({ text: "Message", alignment: AlignmentType.CENTER })],
+                  shading: { fill: "001278" },
+                }),
+                new DocxTableCell({
+                  children: [new Paragraph({ text: "Recommendation", alignment: AlignmentType.CENTER })],
+                  shading: { fill: "001278" },
+                }),
+              ],
+            }),
+            ...warnings.map((wn: any) =>
+              new DocxTableRow({
+                children: [
+                  new DocxTableCell({ children: [new Paragraph({ text: String(wn.severity || '').toUpperCase(), alignment: AlignmentType.CENTER })] }),
+                  new DocxTableCell({ children: [new Paragraph({ text: String(wn.code || ''), alignment: AlignmentType.CENTER })] }),
+                  new DocxTableCell({ children: [new Paragraph({ text: String(wn.message || ''), alignment: AlignmentType.LEFT })] }),
+                  new DocxTableCell({ children: [new Paragraph({ text: String(wn.remediation || wn.recommendedAction || ''), alignment: AlignmentType.LEFT })] }),
+                ],
+              })
+            ),
+          ],
+          width: { size: 100, type: WidthType.PERCENTAGE },
+        });
+        children.push(warningsTable);
+      }
+    }
 
     const doc = new Document({
       sections: [{ children }],
