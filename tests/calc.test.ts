@@ -79,15 +79,18 @@ describe('calculateCostBenefit (SPEC: Hours × Rate × BenefitsLoading × Realiz
       loadedHourlyRate: 100,
     });
 
+    // INTENTIONAL: default scenario is 'moderate' (see DEFAULT_MULTIPLIERS / Scenario defaults
+    // in src/calc/formulas.ts and the matching default in src/calc/hyperformulaEngine.ts).
     const expectedRaw = 1000 * 100 *
       DEFAULT_MULTIPLIERS.benefitsLoading *
       DEFAULT_MULTIPLIERS.costRealizationMultiplier *
       DEFAULT_MULTIPLIERS.dataMaturityMultiplier *
-      SCENARIO_MULTIPLIERS.conservative; // default scenario
+      SCENARIO_MULTIPLIERS.moderate; // default scenario
     expect(result.trace.output).toBeCloseTo(expectedRaw, 5);
     expect(result.trace.inputs.benefitsLoading).toBe(DEFAULT_MULTIPLIERS.benefitsLoading);
     expect(result.trace.inputs.costRealizationMultiplier).toBe(DEFAULT_MULTIPLIERS.costRealizationMultiplier);
     expect(result.trace.inputs.dataMaturityMultiplier).toBe(DEFAULT_MULTIPLIERS.dataMaturityMultiplier);
+    expect(result.trace.inputs.scenarioMultiplier).toBe(SCENARIO_MULTIPLIERS.moderate);
   });
 
   it('generates complete trace with spec formula string', () => {
@@ -112,7 +115,7 @@ describe('calculateCostBenefit (SPEC: Hours × Rate × BenefitsLoading × Realiz
     expect(result.trace.intermediates?.rawValue).toBeCloseTo(2000 * 150 * 1.35 * 0.90 * 0.75 * 1.0, 5);
   });
 
-  it('rounds down to nearest $100K per spec', () => {
+  it('returns exact deterministic value (BENEFIT_PRECISION = 1, no rounding)', () => {
     const result = calculateCostBenefit({
       hoursSaved: 1500,
       loadedHourlyRate: 100,
@@ -122,8 +125,12 @@ describe('calculateCostBenefit (SPEC: Hours × Rate × BenefitsLoading × Realiz
       scenario: 'moderate',
     });
 
-    // 1500 × 100 × 1.0 × 1.0 × 1.0 × 1.0 = 150,000 → rounded to 100,000
-    expect(result.value).toBe(100000);
+    // INTENTIONAL: ROUNDING.BENEFIT_PRECISION was changed to 1 so benefit values are
+    // exact deterministic figures (matches src/calc/hyperformulaEngine.ts FLOOR step).
+    // 1500 × 100 × 1.0 × 1.0 × 1.0 × 1.0 = 150,000 → no rounding applied
+    expect(ROUNDING.BENEFIT_PRECISION).toBe(1);
+    expect(result.value).toBe(150000);
+    expect(result.trace.output).toBe(150000);
   });
 });
 
@@ -153,14 +160,16 @@ describe('calculateRevenueBenefit (SPEC: UpliftPct × BaselineRevenue × Margin 
     expect(result.trace.inputs.marginPct).toBe(1.0);
   });
 
-  it('generates complete trace with formula', () => {
+  it('generates complete trace with formula and caps upliftPct to INPUT_BOUNDS.upliftPct.max', () => {
+    // INTENTIONAL: calculateRevenueBenefit caps upliftPct at INPUT_BOUNDS.upliftPct.max (0.05 = 5%)
+    // per src/calc/formulas.ts. Inputs above the cap are clamped before being recorded in the trace.
     const result = calculateRevenueBenefit({
       upliftPct: 0.08,
       baselineRevenueAtRisk: 2_000_000,
     });
 
     expect(result.trace.formula).toBe('UpliftPct × BaselineRevenue × Margin × Realization × DataMaturity × Scenario');
-    expect(result.trace.inputs.upliftPct).toBe(0.08);
+    expect(result.trace.inputs.upliftPct).toBe(0.05); // capped from 0.08 → 0.05
     expect(result.trace.inputs.baselineRevenueAtRisk).toBe(2_000_000);
   });
 });

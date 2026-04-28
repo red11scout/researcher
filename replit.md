@@ -47,8 +47,11 @@ All monetary calculations use **HyperFormula** (spreadsheet-grade deterministic 
 Base formulas use **moderate** scenario (1.0 multiplier). Conservative (0.60) and aggressive (1.30) are for what-if analysis only. The post-processor (`server/calculation-postprocessor.ts`) prioritizes **structured formula labels** from the AI over formula string parsing, and derives missing Revenue/CashFlow/Risk benefits from Step 3 friction data when the AI returns $0.
 
 **Key calculation design decisions:**
-- **No artificial rounding**: BENEFIT_PRECISION = 1 (exact deterministic values, no $100K floor rounding)
-- **No per-driver or per-use-case caps**: All benefit values reflect the raw deterministic formula result
+- **No artificial rounding**: BENEFIT_PRECISION = 1 (exact deterministic values, no $100K floor rounding). The legacy spec in `docs/formula_library.md` mentions "round down to nearest $100K"; that is intentionally superseded by the exact-value approach.
+- **Default scenario is `moderate`**: every benefit formula in `src/calc/formulas.ts` and `src/calc/hyperformulaEngine.ts` defaults `scenario` to `'moderate'` (multiplier 1.0). Conservative/aggressive are reserved for what-if analysis only.
+- **`upliftPct` is capped at `INPUT_BOUNDS.upliftPct.max` (0.05 = 5%)**: `calculateRevenueBenefit` clamps the input via `Math.min(upliftPct, INPUT_BOUNDS.upliftPct.max)` and records the *clamped* value in the trace.
+- **`tests/calc.test.ts` is the source of truth for these decisions**: the v2.1 cleanup (April 2026) realigned the three pre-existing failing fixtures (default scenario, $100K rounding, uplift cap) with the intentional behavior above so `npx vitest run` stays green.
+- **No per-driver or per-use-case caps** beyond the documented input bounds: all benefit values reflect the raw deterministic formula result.
 - **Portfolio-level validation is advisory only**: crossValidateUseCases warns but does not scale down values
 - **Label matching uses longest-match-first**: `extractFromStructuredLabels` sorts label map entries by key length descending to prevent greedy short-key matches (e.g., 'rate' catching 'Adoption Rate')
 - **Formula labels include result field**: Each benefit's labels object includes a `result` field with the formatted calculated value for UI display
