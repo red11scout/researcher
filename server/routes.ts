@@ -6,6 +6,7 @@ import * as formulaService from "./formula-service";
 import { dubService } from "./dub-service";
 import { insertReportSchema } from "@shared/schema";
 import { buildAssumptionExcelWorkbook, buildAssumptionJSON } from "./assumption-export";
+import { evaluateReportStaleness, backfillAllReports } from "./report-backfill";
 import { nanoid } from "nanoid";
 import multer from "multer";
 import { createRequire } from "module";
@@ -164,24 +165,15 @@ export async function registerRoutes(
       // Re-run post-processing to ensure Step 6 recovery, correct column order, and current VRM schema
       const analysis = report.analysisData as any;
       if (analysis?.steps && Array.isArray(analysis.steps)) {
-        const step6 = analysis.steps.find((s: any) => s.step === 6 && s.data && Array.isArray(s.data) && s.data.length > 0);
-        const hasStep6 = !!step6;
-        const vrmSchemaVersion = analysis?.vrm?.schemaVersion;
-        const diag = analysis?.vrm?.diagnostic;
-        const hasV21Diagnostic = !!diag;
-        // Diagnostic must include the v2.1 convenience flat fields the UI consumes
-        const hasFlatFields = diag && typeof diag.championCount === "number" && typeof diag.prototypingCandidatesPct === "number";
-        // Step 6 must include preserved hard knock-out fields (legal/technical)
-        const hasStep6KOFields = step6 && step6.data[0] && ("Legally Prohibited" in step6.data[0]) && ("Technically Infeasible" in step6.data[0]);
-        const stale = !hasStep6 || vrmSchemaVersion !== "2.1" || !hasV21Diagnostic || !hasFlatFields || !hasStep6KOFields;
-        if (stale) {
+        const staleness = evaluateReportStaleness(analysis);
+        if (staleness.stale) {
           try {
             const { postProcessAnalysis } = await import("./calculation-postprocessor");
             const reprocessed = await postProcessAnalysis(analysis);
             report.analysisData = reprocessed;
             // Persist so future loads don't need reprocessing
             await storage.updateReport(reportId, { analysisData: reprocessed });
-            console.log(`[routes] Re-processed report ${reportId} (hasStep6=${hasStep6}, vrm=${vrmSchemaVersion ?? 'missing'} → 2.1)`);
+            console.log(`[routes] Re-processed report ${reportId} (reasons: ${staleness.reasons.join(', ')})`);
           } catch (ppErr) {
             console.warn(`[routes] Post-processing failed for report ${reportId}:`, ppErr);
           }
@@ -524,19 +516,18 @@ Return ONLY valid JSON with this structure:
       if (existing) {
         // Refresh stale v2.0 reports to current v2.1 schema on the fly
         let analysis: any = existing.analysisData;
-        const vrmSchemaVersion = analysis?.vrm?.schemaVersion;
-        const diag = analysis?.vrm?.diagnostic;
-        const hasV21Diagnostic = !!diag;
-        const hasFlatFields = diag && typeof diag.championCount === "number" && typeof diag.prototypingCandidatesPct === "number";
-        if (analysis?.steps && (vrmSchemaVersion !== "2.1" || !hasV21Diagnostic || !hasFlatFields)) {
-          try {
-            const { postProcessAnalysis } = await import("./calculation-postprocessor");
-            const reprocessed = await postProcessAnalysis(analysis);
-            analysis = reprocessed;
-            await storage.updateReport(existing.id, { analysisData: reprocessed });
-            console.log(`[analyze/check] Refreshed ${companyName} (vrm=${vrmSchemaVersion ?? 'missing'} → 2.1)`);
-          } catch (ppErr) {
-            console.warn(`[analyze/check] Refresh failed for ${companyName}:`, ppErr);
+        if (analysis?.steps) {
+          const staleness = evaluateReportStaleness(analysis);
+          if (staleness.stale) {
+            try {
+              const { postProcessAnalysis } = await import("./calculation-postprocessor");
+              const reprocessed = await postProcessAnalysis(analysis);
+              analysis = reprocessed;
+              await storage.updateReport(existing.id, { analysisData: reprocessed });
+              console.log(`[analyze/check] Refreshed ${companyName} (reasons: ${staleness.reasons.join(', ')})`);
+            } catch (ppErr) {
+              console.warn(`[analyze/check] Refresh failed for ${companyName}:`, ppErr);
+            }
           }
         }
         return res.json({
@@ -553,6 +544,68 @@ Return ONLY valid JSON with this structure:
     } catch (err: any) {
       console.error("[analyze/check] Error:", err.message);
       res.status(500).json({ exists: false, error: err.message });
+    }
+  });
+
+  // One-shot admin backfill: re-run postProcessAnalysis over every report so
+  // they all carry the v2.1 schema, diagnostic flat fields, and Step 6 hard
+  // knockout fields without waiting for a user to open them. Protected by the
+  // session auth middleware (registered in setupAuth).
+  // Query params:
+  //   force=1  → reprocess every report regardless of staleness
+  //   verbose=1 → include the per-report results array in the response
+  app.post("/api/admin/backfill-reports", async (req, res) => {
+    const force = req.query.force === "1" || req.query.force === "true";
+    const verbose = req.query.verbose === "1" || req.query.verbose === "true";
+    const startedAt = Date.now();
+    console.log(
+      `[admin/backfill-reports] Starting backfill (force=${force}) — initiated by ${
+        req.ip || "unknown"
+      }`,
+    );
+    try {
+      const summary = await backfillAllReports({
+        force,
+        onProgress: (i, total, result) => {
+          if (result.status !== "skipped") {
+            console.log(
+              `[admin/backfill-reports] (${i}/${total}) ${result.status.toUpperCase()} ${result.companyName} (${result.id})${
+                result.reasons ? ` reasons=${result.reasons.join(",")}` : ""
+              }${result.error ? ` error=${result.error}` : ""} (${result.durationMs}ms)`,
+            );
+          }
+        },
+      });
+      console.log(
+        `[admin/backfill-reports] Done in ${summary.durationMs}ms — total=${summary.total}, updated=${summary.updated}, skipped=${summary.skipped}, failed=${summary.failed}`,
+      );
+      const responseBody: any = {
+        success: true,
+        force,
+        total: summary.total,
+        updated: summary.updated,
+        skipped: summary.skipped,
+        failed: summary.failed,
+        durationMs: summary.durationMs,
+      };
+      if (verbose) {
+        responseBody.results = summary.results;
+      } else {
+        // Always surface failures so the operator can act on them without re-running with verbose
+        responseBody.failures = summary.results.filter(
+          (r) => r.status === "failed",
+        );
+      }
+      res.json(responseBody);
+    } catch (err: any) {
+      console.error(
+        `[admin/backfill-reports] Aborted after ${Date.now() - startedAt}ms:`,
+        err,
+      );
+      res.status(500).json({
+        success: false,
+        error: err?.message ?? String(err),
+      });
     }
   });
 
