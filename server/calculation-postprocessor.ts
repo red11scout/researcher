@@ -1832,6 +1832,12 @@ export function postProcessAnalysis(analysisResult: any): any {
     (analysisResult as any).engagementConfig,
   );
   let portfolioDiagnostic: ReturnType<typeof computePortfolioDiagnostic> | null = null;
+  // Hoisted to outer scope so the v2.2 vrm metadata block (built below) can
+  // reference it even when the conditional that populates it is skipped — and
+  // so it's defined under strict mode regardless of code path.
+  let portfolioDiagnosticV22:
+    | ReturnType<typeof computePortfolioDiagnosticV22>
+    | null = null;
 
   let step7Active = step7;
   if ((!step7Active || !step7Active.data || (step7Active.data as any[]).length === 0) && correctedStep5Data.length > 0) {
@@ -1933,7 +1939,7 @@ export function postProcessAnalysis(analysisResult: any): any {
     const quadrantMap = assignPortfolioQuadrantsV21(portfolioScorings, engagementCfg);
     const quadrantMapV20 = assignPortfolioQuadrants(portfolioScorings as UseCaseScoring[]);
     const classificationMapV22 = assignClassificationsV22(portfolioScorings, engagementCfg);
-    const portfolioDiagnosticV22 = computePortfolioDiagnosticV22(portfolioScorings, classificationMapV22);
+    portfolioDiagnosticV22 = computePortfolioDiagnosticV22(portfolioScorings, classificationMapV22);
     portfolioDiagnostic = computePortfolioDiagnostic(portfolioScorings, quadrantMap, engagementCfg);
     console.log(`[postProcessAnalysis] VRM v2.2 diagnostic: ${portfolioDiagnosticV22.prototypingCandidatesCount} prototyping candidates / ${portfolioDiagnosticV22.totalUseCases} total (Champions=${portfolioDiagnosticV22.championCount}, Lead Champs=${portfolioDiagnosticV22.leadChampionCount}, QW=${portfolioDiagnosticV22.quickWinCount}, Strat=${portfolioDiagnosticV22.strategicCount}, Found=${portfolioDiagnosticV22.foundationCount}, Conditional=${portfolioDiagnosticV22.conditionalCount}). Warnings: ${portfolioDiagnosticV22.warnings.map(w => w.code).join(', ') || 'none'}.`);
 
