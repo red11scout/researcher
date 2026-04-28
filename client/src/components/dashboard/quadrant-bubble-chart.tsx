@@ -47,6 +47,12 @@ interface MatrixDataPoint {
 interface QuadrantBubbleChartProps {
   data: MatrixDataPoint[];
   onBubbleClick?: (point: MatrixDataPoint) => void;
+  // VRM v2.1 — engagement config used to render the hard-floor band visually
+  vrmConfig?: {
+    valueFloorBand?: { minNormalized: number; minAbsoluteAnnual: number };
+    championMin?: number;
+    quickStrategicMin?: number;
+  };
 }
 
 const MARGIN = { top: 30, right: 30, bottom: 50, left: 55 };
@@ -99,7 +105,7 @@ function generateTicks(min: number, max: number): number[] {
   return ticks;
 }
 
-export function QuadrantBubbleChart({ data, onBubbleClick }: QuadrantBubbleChartProps) {
+export function QuadrantBubbleChart({ data, onBubbleClick, vrmConfig }: QuadrantBubbleChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 800, height: 500 });
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
@@ -206,6 +212,19 @@ export function QuadrantBubbleChart({ data, onBubbleClick }: QuadrantBubbleChart
     );
   }
 
+  // VRM v2.1 — diagnose which quadrants are populated to render ghost-zone treatment
+  const championCount = data.filter(d => (d.quadrantV2 ?? '').toLowerCase() === 'champion' || (d.priorityTier ?? '').includes('Champion') && !(d.priorityTier ?? '').includes('Conditional')).length;
+  const quickWinCount = data.filter(d => (d.quadrantV2 ?? '').toLowerCase() === 'quick_win' || (d.priorityTier ?? '').includes('Quick Win')).length;
+  const strategicCount = data.filter(d => (d.quadrantV2 ?? '').toLowerCase() === 'strategic' || (d.priorityTier ?? '').includes('Strategic')).length;
+  const conditionalChampionCount = data.filter(d => (d.quadrantV2 ?? '').toLowerCase() === 'conditional_champion' || (d.priorityTier ?? '').includes('Conditional Champion')).length;
+  const hasAnyChampion = championCount > 0 || conditionalChampionCount > 0;
+  const hasAnyQuickWin = quickWinCount > 0;
+  const hasAnyStrategic = strategicCount > 0;
+  // Layer 3 dashed CC overlay: shown when CC bubbles exist (those are placed in the upper-right by definition)
+  const showCCOverlay = conditionalChampionCount > 0;
+  // VRM v2.1 hard floor uses normalized value < 4.0 (vs. v2.0 single-line at 6.0)
+  const hardFloorY = vrmConfig?.valueFloorBand?.minNormalized ?? 4.0;
+
   return (
     <div ref={containerRef} className="relative w-full">
       <svg
@@ -219,23 +238,97 @@ export function QuadrantBubbleChart({ data, onBubbleClick }: QuadrantBubbleChart
         <rect
           x={midX} y={MARGIN.top}
           width={width - MARGIN.right - midX} height={midY - MARGIN.top}
-          fill={QUADRANT_COLORS.champion} opacity={0.85}
+          fill={QUADRANT_COLORS.champion} opacity={hasAnyChampion ? 0.85 : 0.35}
         />
         <rect
           x={MARGIN.left} y={MARGIN.top}
           width={midX - MARGIN.left} height={midY - MARGIN.top}
-          fill={QUADRANT_COLORS.strategicBet} opacity={0.85}
+          fill={QUADRANT_COLORS.strategicBet} opacity={hasAnyStrategic ? 0.85 : 0.35}
         />
         <rect
           x={midX} y={midY}
           width={width - MARGIN.right - midX} height={height - MARGIN.bottom - midY}
-          fill={QUADRANT_COLORS.quickWin} opacity={0.85}
+          fill={QUADRANT_COLORS.quickWin} opacity={hasAnyQuickWin ? 0.85 : 0.35}
         />
+        {/* VRM v2.1 — Foundation is sub-segmented:
+            - Upper part (V≥hardFloorY): "soft Foundation" — lighter grey
+            - Lower part (V<hardFloorY): "hard Foundation / blocked" — darker grey */}
         <rect
           x={MARGIN.left} y={midY}
-          width={midX - MARGIN.left} height={height - MARGIN.bottom - midY}
-          fill={QUADRANT_COLORS.foundation} opacity={0.85}
+          width={midX - MARGIN.left} height={yScale(hardFloorY) - midY}
+          fill={QUADRANT_COLORS.foundation} opacity={0.55}
         />
+        <rect
+          x={MARGIN.left} y={yScale(hardFloorY)}
+          width={midX - MARGIN.left} height={height - MARGIN.bottom - yScale(hardFloorY)}
+          fill="#475569" opacity={0.35}
+        />
+        <text
+          x={MARGIN.left + (midX - MARGIN.left) / 2}
+          y={yScale(hardFloorY) + 14}
+          textAnchor="middle"
+          fontSize={9}
+          fill="#1e293b"
+          fontStyle="italic"
+          opacity={0.7}
+        >
+          Hard floor V&lt;{hardFloorY}
+        </text>
+
+        {/* VRM v2.1 — Ghost zones overlay diagonal stripes for empty default quadrants */}
+        <defs>
+          <pattern id="ghost-stripes" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)">
+            <line x1="0" y1="0" x2="0" y2="6" stroke="#94a3b8" strokeWidth="1" opacity="0.35" />
+          </pattern>
+        </defs>
+        {!hasAnyChampion && (
+          <rect
+            x={midX} y={MARGIN.top}
+            width={width - MARGIN.right - midX} height={midY - MARGIN.top}
+            fill="url(#ghost-stripes)"
+          />
+        )}
+        {!hasAnyStrategic && (
+          <rect
+            x={MARGIN.left} y={MARGIN.top}
+            width={midX - MARGIN.left} height={midY - MARGIN.top}
+            fill="url(#ghost-stripes)"
+          />
+        )}
+        {!hasAnyQuickWin && (
+          <rect
+            x={midX} y={midY}
+            width={width - MARGIN.right - midX} height={height - MARGIN.bottom - midY}
+            fill="url(#ghost-stripes)"
+          />
+        )}
+
+        {/* VRM v2.1 — Conditional Champion overlay: dashed border in the Champion zone (upper-right) */}
+        {showCCOverlay && (
+          <g>
+            <rect
+              x={midX + 4} y={MARGIN.top + 4}
+              width={width - MARGIN.right - midX - 8} height={midY - MARGIN.top - 8}
+              fill="none"
+              stroke="#b45309"
+              strokeWidth={2}
+              strokeDasharray="6 4"
+              opacity={0.8}
+              rx={6}
+            />
+            <text
+              x={midX + 10}
+              y={MARGIN.top + 18}
+              fontSize={10}
+              fontWeight={700}
+              fill="#92400e"
+              opacity={0.85}
+              data-testid="text-cc-overlay-label"
+            >
+              Conditional Champion zone
+            </text>
+          </g>
+        )}
 
         {/* Quadrant labels */}
         <text
@@ -292,31 +385,26 @@ export function QuadrantBubbleChart({ data, onBubbleClick }: QuadrantBubbleChart
           x1={MARGIN.left} y1={midY} x2={width - MARGIN.right} y2={midY}
           stroke="#475569" strokeDasharray="6 4" strokeWidth={1.5} opacity={0.6}
         />
-        {/* VRM v2.0 — Quick-Strategic boundary at 6.0 (lighter, thinner) */}
+        {/* VRM v2.1 — hard value floor at normalized 4.0 (replaces v2.0 6.0 line) */}
         <line
-          x1={xScale(6)} y1={MARGIN.top} x2={xScale(6)} y2={height - MARGIN.bottom}
-          stroke="#cbd5e1" strokeDasharray="3 3" strokeWidth={1} opacity={0.7}
+          x1={MARGIN.left} y1={yScale(4)} x2={width - MARGIN.right} y2={yScale(4)}
+          stroke="#94a3b8" strokeDasharray="3 3" strokeWidth={1} opacity={0.7}
         />
-        <line
-          x1={MARGIN.left} y1={yScale(6)} x2={width - MARGIN.right} y2={yScale(6)}
-          stroke="#cbd5e1" strokeDasharray="3 3" strokeWidth={1} opacity={0.7}
-        />
-        {/* VRM v2.0 — Hard floor at Value < 6.0 (subtle red wash) */}
         <rect
-          x={MARGIN.left} y={yScale(6)}
+          x={MARGIN.left} y={yScale(4)}
           width={width - MARGIN.right - MARGIN.left}
-          height={height - MARGIN.bottom - yScale(6)}
-          fill="#fee2e2" opacity={0.25}
+          height={height - MARGIN.bottom - yScale(4)}
+          fill="#f1f5f9" opacity={0.5}
         />
         <text
           x={MARGIN.left + 8}
-          y={yScale(6) + 14}
+          y={yScale(4) + 14}
           fontSize={9}
-          fill="#b91c1c"
-          opacity={0.7}
+          fill="#475569"
+          opacity={0.75}
           fontStyle="italic"
         >
-          Value floor (6.0)
+          Hard value floor (norm. 4.0)
         </text>
 
         {/* X-axis ticks and labels (dynamic) */}
@@ -565,7 +653,7 @@ export function QuadrantBubbleChart({ data, onBubbleClick }: QuadrantBubbleChart
             <circle cx="4" cy="6" r="3" fill="none" stroke="currentColor" strokeWidth="1" />
             <circle cx="11" cy="6" r="5" fill="none" stroke="currentColor" strokeWidth="1" />
           </svg>
-          Faster TTV = Larger
+          Smaller bubble = Faster TTV
         </div>
       </div>
     </div>

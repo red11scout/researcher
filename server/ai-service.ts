@@ -1573,7 +1573,7 @@ ${EPOCH_FRAMEWORK_DEFINITION}
 <output_methodology>
 Generate Steps 6-7 + executiveSummary + summary.
 
-STEP 6: READINESS & TOKEN MODELING (Value-Readiness Matrix v2.0)
+STEP 6: READINESS & TOKEN MODELING (Value-Readiness Matrix v2.1)
 Score each use case on FOUR readiness components (1-10 scale each) using BARS-anchored levels (1, 3, 5, 7, 10) with interpolation:
 1. Organizational Capacity (BASELINE weight 35%) — Executive sponsorship, AI/ML talent depth, change-ready culture, structured AI training. Anchor 1=AI-naive (no sponsor, no budget); 3=Pilot-driven hero mode (one BU funds pilots, verbal exec interest); 5=Programmed-but-federated (named C-level sponsor, ExCo-approved strategy, staffed CoE 20-50 FTE, role-based training reaching 30%+ of relevant staff); 7=Embedded-and-scaling (board-reviewed strategy, embedded ML engineers in product teams, defined career ladders, ML:DS ratio ≥1:1); 10=AI-native operating model (AI presumed in every product launch, comp frameworks include AI productivity).
 2. Data Availability & Quality (BASELINE weight 30%) — Catalog/lineage coverage, data quality SLAs, contracts, RAG infrastructure. Anchor 1=Siloed/opaque (no catalog, no labeled data); 3=Centralized but raw (lakehouse exists, catalog <50% coverage, naive RAG); 5=Governed and domain-owned (named data product owners, ≥70% Tier-1 metadata, monitored DQ SLAs, data contracts on ≥1 critical interface, RBAC+PII classification, standardized embeddings); 7=Mesh-mature, RAG-industrialized (federated mesh, contracts on every cross-domain interface, enterprise feature store powering ≥3 production ML systems); 10=AI-optimized data platform (production observability over structured+unstructured+embeddings+prompts, drift detection, PETs in production).
@@ -1582,23 +1582,27 @@ Score each use case on FOUR readiness components (1-10 scale each) using BARS-an
 
 Boundary discipline: 3 vs 6 is the line between "project" and "function". A 3 = a pilot lives in pockets; a 6 = the capability is enterprise-funded, named-owner, standing cadence with measured outcomes.
 
-ALSO emit knock-out fields (VRM v2.0 hard floors):
-- "Has Named Sponsor": true/false (Has executive sponsor for THIS specific use case been confirmed? Use false if uncertain.)
-- "Data Available For Engagement": true/false (Will required data be available within the engagement timeline? Use false if blocked.)
-- "Time-to-Pilot (weeks)": integer (weeks until first running pilot in production-like env). Hard floor: >12 weeks demotes to Foundation.
+ALSO emit intake / knock-out fields (VRM v2.1 — hard knock-outs send to Foundation; soft blockers flag remediation but do NOT block prototyping):
+- "Has Named Sponsor": true/false/null (true ONLY if a specific executive sponsor for THIS use case is named in the intake. Use false if explicitly absent. Use null if intake is silent — this surfaces as an intake-incomplete soft blocker.)
+- "Data Available For Engagement": true/false/null (true if the required data is currently accessible within the engagement timeline. false if a data-access sprint is required. null if intake is silent.)
+- "Time-to-Pilot (weeks)": integer (weeks until first running pilot in production-like env). Soft blocker if > 16 weeks (sequencing concern, not a knock-out).
+- "Legally Prohibited": true/false (HARD knock-out — true ONLY when the use case is unambiguously banned in the client's jurisdiction by a current regulator. Default false.)
+- "Technically Infeasible": true/false (HARD knock-out — true ONLY when the state-of-the-art cannot deliver this use case at production quality today. Default false.)
 - Estimate monthly runs and token consumption
 - Round UP time-to-value estimates
 - Flag prerequisite work NOT in timeline
 - Each use case must include a "Strategic Theme" column linking to Step 1
 - REQUIRED FIELD: Time-to-Value (months) is MANDATORY for every use case. Cannot be empty or null.
-Table columns: ID, Use Case, Organizational Capacity, Data Availability & Quality, Technical Infrastructure, Governance, Has Named Sponsor, Data Available For Engagement, Time-to-Pilot (weeks), Monthly Tokens, Runs/Month, Input Tokens/Run, Output Tokens/Run, Time-to-Value (months) [REQUIRED], Strategic Theme
+Table columns: ID, Use Case, Organizational Capacity, Data Availability & Quality, Technical Infrastructure, Governance, Has Named Sponsor, Data Available For Engagement, Time-to-Pilot (weeks), Legally Prohibited, Technically Infeasible, Monthly Tokens, Runs/Month, Input Tokens/Run, Output Tokens/Run, Time-to-Value (months) [REQUIRED], Strategic Theme
 NOTE: The postprocessor computes Readiness Score using sector-preset weights (default baseline = 35/30/20/15). Do NOT compute Readiness Score yourself.
 
-STEP 7: PRIORITY SCORING & VRM v2.0 ROADMAP
-The postprocessor applies the VRM v2.0 three-layer hybrid quadrant logic deterministically:
-- Layer 1 (hard floors → Foundation): Value Score < 6.0 OR no named sponsor OR no data OR time-to-pilot > 12 weeks
-- Layer 2 (default quadrants): Champion (V≥7.5 AND R≥7.5); Strategic (V≥7.5 AND R≥6.0); Quick Win (V≥6.0 AND R≥7.5); else Foundation
-- Layer 3 (Conditional Champion): only if zero Champions AND zero Quick Wins exist in the portfolio, top composite-scored item(s) above floor are promoted with named gaps and a 5-week readiness sprint
+STEP 7: PRIORITY SCORING & VRM v2.1 ROADMAP
+The postprocessor applies the VRM v2.1 three-layer hybrid quadrant logic deterministically:
+- Value Score is computed via log10-transformed min-max normalization of (Expected Value × Probability of Success ÷ Friction Annual Cost) across the portfolio (1–10 scale).
+- Layer 1 (hard floors → Foundation): Legally Prohibited OR Technically Infeasible OR (Value Score < 4.0 AND absolute annual value < $500K). Both value conditions must fail to knock out.
+- Layer 1 soft blockers (do NOT relegate to Foundation; surface as remediation): no named sponsor, data not available (data-access sprint required, default 6 weeks), time-to-pilot > 16 weeks (sequencing concern).
+- Layer 2 (default quadrants): Champion (V≥7.5 AND R≥7.5); Strategic (V≥7.5 AND R≥6.0); Quick Win (V≥6.0 AND R≥7.5); else Foundation.
+- Layer 3 (Conditional Champion): only if zero Champions AND zero Quick Wins AND zero Strategic exist in the portfolio, top composite-scored item(s) above hard floor are promoted with named gaps, soft-blocker remediation, and a 4–12 week readiness sprint sized to the gap.
 - Each use case must include a "Strategic Theme" column linking to Step 1
 Table columns: ID, Use Case, Priority Tier, Recommended Phase (Q1/Q2/Q3/Q4), Priority Score, Readiness Score, Value Score, TTV Score, Strategic Theme
 

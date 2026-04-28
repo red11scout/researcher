@@ -1,11 +1,18 @@
 // shared/vrm-v2.ts
-// Value-Readiness Matrix v2.0 — Single source of truth for the upgraded methodology.
+// Value-Readiness Matrix v2.1 — Single source of truth for the upgraded methodology.
 // All weights, sector presets, sub-components, rubric anchors, and quadrant logic
 // live here so that the calculation engine, AI prompts, dashboard mapper,
 // matrix chart, and HTML report generators stay in lock-step.
+//
+// v2.1 corrective release adds: log-transformed value normalization, dual
+// (normalized + absolute) value floor, hard/soft floor distinction, broader
+// Layer-3 activation, dynamic Conditional-Champion sprint sizing, and a
+// portfolio diagnostic with structured warnings.
 
-export const VRM_SCHEMA_VERSION = "2.0";
+export const VRM_SCHEMA_VERSION = "2.1";
 export const VRM_RUBRIC_VERSION = "2.0";
+// Earlier wire format we still need to round-trip for backward-compatible consumers.
+export const VRM_PRIOR_SCHEMA_VERSION = "2.0";
 
 // ---------------------------------------------------------------------------
 // SECTOR PRESETS — top-level component weights per engagement
@@ -521,4 +528,496 @@ export function rubricForPrompt(): string {
     lines.push(`  3 vs 6: ${r.threeVsSixGuidance}`);
   }
   return lines.join("\n");
+}
+
+// ===========================================================================
+// v2.1 EXTENSIONS — corrective release
+// ---------------------------------------------------------------------------
+// All v2.1 logic is additive. v2.0 functions (assignQuadrant /
+// assignPortfolioQuadrants / getFloorFailures / passesFloor) remain
+// unchanged so existing JSON consumers can still read the v2.0 shape from the
+// `quadrantV20` shadow field emitted by the postprocessor.
+// ===========================================================================
+
+export interface ValueFloorConfig {
+  /** Use case fails the value floor only when BOTH conditions are true. */
+  minNormalizedScore: number;       // default 4.0
+  minAbsoluteAnnualValue: number;   // default 500_000
+}
+
+export interface EngagementConfig {
+  valueFloor: ValueFloorConfig;
+  championMin: number;              // default 7.5
+  quickStrategicMin: number;        // default 6.0
+  maxTimeToPilotWeeks: number;      // default 16
+  dataAccessSprintWeeks: number;    // default 6 — surfaces in remediation guidance
+}
+
+export const DEFAULT_ENGAGEMENT_CONFIG: EngagementConfig = {
+  valueFloor: { minNormalizedScore: 4.0, minAbsoluteAnnualValue: 500_000 },
+  championMin: 7.5,
+  quickStrategicMin: 6.0,
+  maxTimeToPilotWeeks: 16,
+  dataAccessSprintWeeks: 6,
+};
+
+export function resolveEngagementConfig(overrides?: Partial<EngagementConfig>): EngagementConfig {
+  if (!overrides) return { ...DEFAULT_ENGAGEMENT_CONFIG, valueFloor: { ...DEFAULT_ENGAGEMENT_CONFIG.valueFloor } };
+  return {
+    ...DEFAULT_ENGAGEMENT_CONFIG,
+    ...overrides,
+    valueFloor: {
+      ...DEFAULT_ENGAGEMENT_CONFIG.valueFloor,
+      ...(overrides.valueFloor || {}),
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// CHANGE 1 — Log-transformed value normalization
+// ---------------------------------------------------------------------------
+/**
+ * Map raw EV/Friction ratios to a 1–10 Value Score using log-transformed
+ * min-max normalization. Smooths heavy-tailed distributions that produced
+ * the v2.0 "everything bunches at the low end" failure mode.
+ *
+ * Behaviour:
+ *  - Single use case → 5.5 (neutral)
+ *  - All ratios identical → 5.5 across the portfolio
+ *  - Ratio < 1 or non-finite → log floored at log10(1) = 0
+ *  - Output range is clamped to [1, 10] to be defensive against rounding.
+ */
+export function normalizeValueScores(rawRatios: number[]): number[] {
+  if (rawRatios.length === 0) return [];
+  if (rawRatios.length === 1) return [5.5];
+
+  const logRatios = rawRatios.map((r) => {
+    if (!Number.isFinite(r) || r <= 0) return 0;
+    return Math.log10(Math.max(r, 1));
+  });
+
+  const lo = Math.min(...logRatios);
+  const hi = Math.max(...logRatios);
+  if (hi === lo) return rawRatios.map(() => 5.5);
+
+  return logRatios.map((lr) => {
+    const v = 1 + 9 * ((lr - lo) / (hi - lo));
+    return Math.max(1, Math.min(10, Math.round(v * 100) / 100));
+  });
+}
+
+// ---------------------------------------------------------------------------
+// CHANGE 2 + 3 — Floor evaluation: hard knock-outs vs soft blockers
+// ---------------------------------------------------------------------------
+export interface UseCaseScoringV21 extends UseCaseScoring {
+  /** Raw EV × P / Friction ratio, preserved for reports. */
+  valueScoreRaw?: number;
+  /** Annual projected value (= TotalAnnualValue × ProbabilityOfSuccess) in dollars. */
+  absoluteAnnualValue?: number;
+  /** Hard knock-outs (always send to Foundation). */
+  legallyProhibited?: boolean;
+  technicallyInfeasible?: boolean;
+}
+
+export interface FloorEvaluation {
+  hardFailures: string[];
+  softBlockers: string[];
+}
+
+export function evaluateFloors(
+  uc: UseCaseScoringV21,
+  cfg: EngagementConfig = DEFAULT_ENGAGEMENT_CONFIG,
+): FloorEvaluation {
+  const hard: string[] = [];
+  const soft: string[] = [];
+
+  // --- Hard knock-outs --------------------------------------------------
+  if (uc.legallyProhibited === true) {
+    hard.push("Legally prohibited in client jurisdiction");
+  }
+  if (uc.technicallyInfeasible === true) {
+    hard.push("Beyond current technical capability");
+  }
+  const v = round1(uc.valueScore);
+  const abs = uc.absoluteAnnualValue ?? 0;
+  const failsNorm = v < cfg.valueFloor.minNormalizedScore;
+  const failsAbs = abs < cfg.valueFloor.minAbsoluteAnnualValue;
+  if (failsNorm && failsAbs) {
+    const absK = Math.round(abs / 1000);
+    hard.push(
+      `Value below floor (${v.toFixed(1)} normalized, $${absK}K absolute — both below thresholds ${cfg.valueFloor.minNormalizedScore} / $${Math.round(cfg.valueFloor.minAbsoluteAnnualValue / 1000)}K)`,
+    );
+  }
+
+  // --- Soft blockers (do NOT relegate to Foundation) --------------------
+  if (uc.hasNamedSponsor === false) {
+    soft.push("No named business sponsor — confirm at intake");
+  } else if (uc.hasNamedSponsor === null || uc.hasNamedSponsor === undefined) {
+    soft.push("Sponsor field not captured — intake incomplete");
+  }
+  if (uc.dataAvailableForEngagement === false) {
+    soft.push(`Data access sprint required (${cfg.dataAccessSprintWeeks} weeks default)`);
+  } else if (uc.dataAvailableForEngagement === null || uc.dataAvailableForEngagement === undefined) {
+    soft.push("Data availability not confirmed — intake incomplete");
+  }
+  if (typeof uc.timeToPilotWeeks === "number" && uc.timeToPilotWeeks > cfg.maxTimeToPilotWeeks) {
+    soft.push(
+      `Time-to-pilot ${uc.timeToPilotWeeks} weeks exceeds ${cfg.maxTimeToPilotWeeks}-week target — sequencing concern`,
+    );
+  }
+
+  return { hardFailures: hard, softBlockers: soft };
+}
+
+// ---------------------------------------------------------------------------
+// v2.1 quadrant assignment with hard/soft separation + broader Layer 3
+// ---------------------------------------------------------------------------
+export interface QuadrantAssignmentV21 extends QuadrantAssignment {
+  hardFailures?: string[];
+  softBlockers?: string[];
+  conditionalChampionMeta?: {
+    gaps: Array<{ component: string; current: number; required: number }>;
+    softBlockers: string[];
+    proposedSprintWeeks: number;
+    reclassificationCriteria: string;
+  };
+}
+
+function buildGapMetaV21(
+  uc: UseCaseScoringV21,
+  softBlockers: string[],
+  cfg: EngagementConfig,
+): NonNullable<QuadrantAssignmentV21["conditionalChampionMeta"]> {
+  const gaps: Array<{ component: string; current: number; required: number }> = [];
+  const componentLabels: Record<keyof ReadinessComponentScores, string> = {
+    orgCapacity: "Organizational Capacity",
+    dataReadiness: "Data Availability & Quality",
+    governance: "AI-Specific Governance",
+    techInfrastructure: "Technical Infrastructure",
+  };
+  const required = 7;
+  const componentKey: Record<keyof ReadinessComponentScores, string> = {
+    orgCapacity: "orgCapacity",
+    dataReadiness: "dataReadiness",
+    governance: "governance",
+    techInfrastructure: "techInfrastructure",
+  };
+  (Object.keys(componentLabels) as Array<keyof ReadinessComponentScores>).forEach((k) => {
+    const current = uc.componentScores[k];
+    if (typeof current === "number" && current < required) {
+      gaps.push({ component: componentKey[k], current: round1(current), required });
+    }
+  });
+  if (gaps.length === 0) {
+    let lowestKey: keyof ReadinessComponentScores = "orgCapacity";
+    let lowest = Infinity;
+    (Object.keys(componentLabels) as Array<keyof ReadinessComponentScores>).forEach((k) => {
+      if (uc.componentScores[k] < lowest) {
+        lowest = uc.componentScores[k];
+        lowestKey = k;
+      }
+    });
+    gaps.push({ component: componentKey[lowestKey], current: round1(lowest), required });
+  }
+
+  const proposedSprintWeeks = proposeSprintWeeks({ scoreGaps: gaps, softBlockers });
+
+  const gapDescriptors = gaps.map((g) => {
+    const label = componentLabels[g.component as keyof ReadinessComponentScores] ?? g.component;
+    return `${label} reaches ${g.required}.0+`;
+  });
+  const reclassParts: string[] = [...gapDescriptors];
+  if (softBlockers.some((b) => b.toLowerCase().includes("sponsor"))) reclassParts.push("named sponsor confirmed");
+  if (softBlockers.some((b) => b.toLowerCase().includes("data access"))) reclassParts.push("data access secured");
+  const reclassificationCriteria = `Promote to unconditional Champion when ${reclassParts.join(" AND ")}.`;
+
+  return {
+    gaps: gaps.map((g) => ({
+      component: componentLabels[g.component as keyof ReadinessComponentScores] ?? g.component,
+      current: g.current,
+      required: g.required,
+    })),
+    softBlockers,
+    proposedSprintWeeks,
+    reclassificationCriteria,
+  };
+}
+
+// CHANGE 5 — dynamic sprint sizing, hard ceiling 12
+export function proposeSprintWeeks(meta: {
+  scoreGaps: Array<{ component: string; current: number; required: number }>;
+  softBlockers: string[];
+}): number {
+  let weeks = 4; // base
+  if (meta.scoreGaps.some((g) => g.component === "dataReadiness" && g.required - g.current >= 2)) weeks += 4;
+  if (meta.softBlockers.some((b) => b.toLowerCase().includes("data access"))) weeks += 4;
+  if (meta.softBlockers.some((b) => b.toLowerCase().includes("sponsor"))) weeks += 1;
+  if (meta.scoreGaps.some((g) => g.component === "orgCapacity" && g.required - g.current >= 2)) weeks += 2;
+  return Math.min(weeks, 12);
+}
+
+export function assignQuadrantV21(
+  uc: UseCaseScoringV21,
+  portfolio: UseCaseScoringV21[],
+  cfg: EngagementConfig = DEFAULT_ENGAGEMENT_CONFIG,
+): QuadrantAssignmentV21 {
+  const evalRes = evaluateFloors(uc, cfg);
+
+  // Layer 1 — only HARD failures send to Foundation
+  if (evalRes.hardFailures.length > 0) {
+    return {
+      quadrant: "foundation",
+      layer: 1,
+      rationale: `Hard floor failure: ${evalRes.hardFailures.join("; ")}`,
+      hardFailures: evalRes.hardFailures,
+      softBlockers: evalRes.softBlockers,
+      floorFailureReasons: evalRes.hardFailures,
+    };
+  }
+
+  const v = round1(uc.valueScore);
+  const r = round1(uc.readinessScore);
+
+  // Layer 2 — default absolute quadrants
+  if (v >= cfg.championMin && r >= cfg.championMin) {
+    return {
+      quadrant: "champion",
+      layer: 2,
+      rationale: `Value ${v} and Readiness ${r} both meet Champion threshold (≥${cfg.championMin}).`,
+      softBlockers: evalRes.softBlockers,
+    };
+  }
+  if (v >= cfg.championMin && r >= cfg.quickStrategicMin) {
+    return {
+      quadrant: "strategic",
+      layer: 2,
+      rationale: `Value ${v} ≥ ${cfg.championMin} but Readiness ${r} below Champion threshold; classified Strategic.`,
+      softBlockers: evalRes.softBlockers,
+    };
+  }
+  if (v >= cfg.quickStrategicMin && r >= cfg.championMin) {
+    return {
+      quadrant: "quick_win",
+      layer: 2,
+      rationale: `Readiness ${r} ≥ ${cfg.championMin} with moderate Value ${v}; classified Quick Win.`,
+      softBlockers: evalRes.softBlockers,
+    };
+  }
+
+  const layer2Foundation: QuadrantAssignmentV21 = {
+    quadrant: "foundation",
+    layer: 2,
+    rationale: `Above floor but below Champion / Strategic / Quick Win thresholds (Value ${v}, Readiness ${r}).`,
+    softBlockers: evalRes.softBlockers,
+  };
+
+  // CHANGE 4 — Layer 3 fires only when the portfolio has zero of all three above-floor quadrants.
+  const portfolioHasChampion = portfolio.some((p) => {
+    const e = evaluateFloors(p, cfg);
+    if (e.hardFailures.length > 0) return false;
+    return round1(p.valueScore) >= cfg.championMin && round1(p.readinessScore) >= cfg.championMin;
+  });
+  const portfolioHasQuickWin = portfolio.some((p) => {
+    const e = evaluateFloors(p, cfg);
+    if (e.hardFailures.length > 0) return false;
+    const pv = round1(p.valueScore);
+    const pr = round1(p.readinessScore);
+    return pv >= cfg.quickStrategicMin && pv < cfg.championMin && pr >= cfg.championMin;
+  });
+  const portfolioHasStrategic = portfolio.some((p) => {
+    const e = evaluateFloors(p, cfg);
+    if (e.hardFailures.length > 0) return false;
+    const pv = round1(p.valueScore);
+    const pr = round1(p.readinessScore);
+    return pv >= cfg.championMin && pr >= cfg.quickStrategicMin && pr < cfg.championMin;
+  });
+
+  if (portfolioHasChampion || portfolioHasQuickWin || portfolioHasStrategic) {
+    return layer2Foundation;
+  }
+
+  // No above-floor quadrants populated anywhere — promote top 2 by composite (subject to hard floor).
+  const eligible = portfolio.filter((p) => evaluateFloors(p, cfg).hardFailures.length === 0);
+  if (eligible.length === 0) return layer2Foundation;
+
+  const ranked = [...eligible].sort((a, b) => {
+    const ca = compositeScore(a);
+    const cb = compositeScore(b);
+    if (cb !== ca) return cb - ca;
+    if (round1(b.valueScore) !== round1(a.valueScore)) return round1(b.valueScore) - round1(a.valueScore);
+    if (round1(b.readinessScore) !== round1(a.readinessScore)) return round1(b.readinessScore) - round1(a.readinessScore);
+    return (a.createdAt || "").localeCompare(b.createdAt || "");
+  });
+  const promoteCount = Math.min(2, ranked.length);
+  const promotedIds = new Set(ranked.slice(0, promoteCount).map((p) => p.id));
+
+  if (promotedIds.has(uc.id)) {
+    return {
+      quadrant: "conditional_champion",
+      layer: 3,
+      rationale:
+        "Top composite score in a portfolio with no above-floor candidates; promoted with named readiness gaps and remediation plan.",
+      softBlockers: evalRes.softBlockers,
+      conditionalChampionMeta: buildGapMetaV21(uc, evalRes.softBlockers, cfg),
+    };
+  }
+  return layer2Foundation;
+}
+
+export function assignPortfolioQuadrantsV21(
+  portfolio: UseCaseScoringV21[],
+  cfg: EngagementConfig = DEFAULT_ENGAGEMENT_CONFIG,
+): Map<string, QuadrantAssignmentV21> {
+  const result = new Map<string, QuadrantAssignmentV21>();
+  for (const uc of portfolio) {
+    result.set(uc.id, assignQuadrantV21(uc, portfolio, cfg));
+  }
+  // Wave assignment for Layer 2 Champions (top 30% = Wave 1)
+  const champions = portfolio
+    .filter((uc) => result.get(uc.id)?.quadrant === "champion")
+    .sort((a, b) => compositeScore(b) - compositeScore(a));
+  if (champions.length >= 2) {
+    const cutoff = Math.max(1, Math.ceil(champions.length * 0.3));
+    champions.forEach((uc, idx) => {
+      const a = result.get(uc.id);
+      if (a) a.wave = idx < cutoff ? "Wave 1" : "Wave 2";
+    });
+  }
+  return result;
+}
+
+// ---------------------------------------------------------------------------
+// CHANGE 6 — Portfolio diagnostic
+// ---------------------------------------------------------------------------
+export type WarningSeverity = "info" | "warning" | "critical";
+
+export interface PortfolioWarning {
+  severity: WarningSeverity;
+  code: string;
+  message: string;
+  recommendedAction: string;
+}
+
+export interface PortfolioDiagnostic {
+  totalUseCases: number;
+  byQuadrant: Record<Quadrant, number>;
+  prototypingCandidatesCount: number;
+  medianValueScore: number;
+  medianReadinessScore: number;
+  hardFloorFailureRate: number;
+  intakeIncompletionRate: number;
+  warnings: PortfolioWarning[];
+}
+
+function median(values: number[]): number {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  if (sorted.length % 2 === 0) return round1((sorted[mid - 1] + sorted[mid]) / 2);
+  return round1(sorted[mid]);
+}
+
+export function computePortfolioDiagnostic(
+  portfolio: UseCaseScoringV21[],
+  assignments: Map<string, QuadrantAssignmentV21>,
+  cfg: EngagementConfig = DEFAULT_ENGAGEMENT_CONFIG,
+): PortfolioDiagnostic {
+  const total = portfolio.length;
+  const byQuadrant: Record<Quadrant, number> = {
+    champion: 0,
+    conditional_champion: 0,
+    strategic: 0,
+    quick_win: 0,
+    foundation: 0,
+  };
+  let prototypingCandidates = 0;
+  let hardFails = 0;
+  let intakeIncomplete = 0;
+
+  for (const uc of portfolio) {
+    const a = assignments.get(uc.id);
+    if (!a) continue;
+    byQuadrant[a.quadrant] = (byQuadrant[a.quadrant] || 0) + 1;
+    if (
+      a.quadrant === "champion" ||
+      a.quadrant === "conditional_champion" ||
+      a.quadrant === "quick_win"
+    ) {
+      prototypingCandidates += 1;
+    }
+    if ((a.hardFailures && a.hardFailures.length > 0) || (a.layer === 1 && a.floorFailureReasons && a.floorFailureReasons.length > 0)) {
+      hardFails += 1;
+    }
+    if (uc.hasNamedSponsor === null || uc.hasNamedSponsor === undefined ||
+        uc.dataAvailableForEngagement === null || uc.dataAvailableForEngagement === undefined) {
+      intakeIncomplete += 1;
+    }
+  }
+
+  const medV = median(portfolio.map((p) => p.valueScore));
+  const medR = median(portfolio.map((p) => p.readinessScore));
+  const hardRate = total > 0 ? hardFails / total : 0;
+  const intakeRate = total > 0 ? intakeIncomplete / total : 0;
+
+  const warnings: PortfolioWarning[] = [];
+
+  if (prototypingCandidates === 0) {
+    warnings.push({
+      severity: "critical",
+      code: "EMPTY_MATRIX",
+      message: "No prototyping candidates produced.",
+      recommendedAction: "Review value assumptions and intake data; verify EV/Friction ratios are realistic and rerun scoring.",
+    });
+  }
+  if (medV < cfg.valueFloor.minNormalizedScore) {
+    warnings.push({
+      severity: "warning",
+      code: "VALUE_DISTRIBUTION_SKEWED",
+      message: `Median normalized Value Score ${medV.toFixed(1)} is below the ${cfg.valueFloor.minNormalizedScore} floor.`,
+      recommendedAction: "Verify EV and Friction values were captured correctly. Consider whether friction baselines include realistic loaded labor rates.",
+    });
+  }
+  if (medR < 5.0 && byQuadrant.conditional_champion === 0) {
+    warnings.push({
+      severity: "warning",
+      code: "READINESS_BUNCHED_LOW",
+      message: `Median Readiness ${medR.toFixed(1)} is low across the portfolio with no Conditional Champions promoted.`,
+      recommendedAction: "Consider proposing a Readiness Uplift roadmap as Wave 0 before any prototyping wave.",
+    });
+  }
+  if (intakeRate > 0.30) {
+    warnings.push({
+      severity: "warning",
+      code: "INTAKE_INCOMPLETE",
+      message: `${Math.round(intakeRate * 100)}% of use cases have unconfirmed sponsor or data availability.`,
+      recommendedAction: "Sponsor and data availability must be confirmed during intake before prototyping.",
+    });
+  }
+  if (hardRate > 0.50) {
+    warnings.push({
+      severity: "warning",
+      code: "HARD_FLOOR_DOMINANT",
+      message: `${Math.round(hardRate * 100)}% of use cases hard-failed Layer 1.`,
+      recommendedAction: "Check if friction baselines are realistic and whether absolute-value floors match the engagement scale.",
+    });
+  }
+  if (byQuadrant.champion > 5) {
+    warnings.push({
+      severity: "info",
+      code: "STRONG_PORTFOLIO",
+      message: `Strong portfolio: ${byQuadrant.champion} unconditional Champions detected.`,
+      recommendedAction: "Apply Wave 1 / Wave 2 sequencing — the top 30% by composite become Wave 1.",
+    });
+  }
+
+  return {
+    totalUseCases: total,
+    byQuadrant,
+    prototypingCandidatesCount: prototypingCandidates,
+    medianValueScore: medV,
+    medianReadinessScore: medR,
+    hardFloorFailureRate: round1(hardRate * 100) / 100,
+    intakeIncompletionRate: round1(intakeRate * 100) / 100,
+    warnings,
+  };
 }

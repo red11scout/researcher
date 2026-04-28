@@ -161,18 +161,27 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Report not found" });
       }
 
-      // Re-run post-processing to ensure Step 6 recovery and correct column order
+      // Re-run post-processing to ensure Step 6 recovery, correct column order, and current VRM schema
       const analysis = report.analysisData as any;
       if (analysis?.steps && Array.isArray(analysis.steps)) {
-        const hasStep6 = analysis.steps.some((s: any) => s.step === 6 && s.data && Array.isArray(s.data) && s.data.length > 0);
-        if (!hasStep6) {
+        const step6 = analysis.steps.find((s: any) => s.step === 6 && s.data && Array.isArray(s.data) && s.data.length > 0);
+        const hasStep6 = !!step6;
+        const vrmSchemaVersion = analysis?.vrm?.schemaVersion;
+        const diag = analysis?.vrm?.diagnostic;
+        const hasV21Diagnostic = !!diag;
+        // Diagnostic must include the v2.1 convenience flat fields the UI consumes
+        const hasFlatFields = diag && typeof diag.championCount === "number" && typeof diag.prototypingCandidatesPct === "number";
+        // Step 6 must include preserved hard knock-out fields (legal/technical)
+        const hasStep6KOFields = step6 && step6.data[0] && ("Legally Prohibited" in step6.data[0]) && ("Technically Infeasible" in step6.data[0]);
+        const stale = !hasStep6 || vrmSchemaVersion !== "2.1" || !hasV21Diagnostic || !hasFlatFields || !hasStep6KOFields;
+        if (stale) {
           try {
             const { postProcessAnalysis } = await import("./calculation-postprocessor");
             const reprocessed = await postProcessAnalysis(analysis);
             report.analysisData = reprocessed;
-            // Persist the fix so future loads don't need reprocessing
+            // Persist so future loads don't need reprocessing
             await storage.updateReport(reportId, { analysisData: reprocessed });
-            console.log(`[routes] Re-processed report ${reportId} to recover missing Step 6`);
+            console.log(`[routes] Re-processed report ${reportId} (hasStep6=${hasStep6}, vrm=${vrmSchemaVersion ?? 'missing'} → 2.1)`);
           } catch (ppErr) {
             console.warn(`[routes] Post-processing failed for report ${reportId}:`, ppErr);
           }
@@ -513,11 +522,28 @@ Return ONLY valid JSON with this structure:
       if (!companyName) return res.status(400).json({ exists: false });
       const existing = await storage.getReportByCompany(companyName);
       if (existing) {
+        // Refresh stale v2.0 reports to current v2.1 schema on the fly
+        let analysis: any = existing.analysisData;
+        const vrmSchemaVersion = analysis?.vrm?.schemaVersion;
+        const diag = analysis?.vrm?.diagnostic;
+        const hasV21Diagnostic = !!diag;
+        const hasFlatFields = diag && typeof diag.championCount === "number" && typeof diag.prototypingCandidatesPct === "number";
+        if (analysis?.steps && (vrmSchemaVersion !== "2.1" || !hasV21Diagnostic || !hasFlatFields)) {
+          try {
+            const { postProcessAnalysis } = await import("./calculation-postprocessor");
+            const reprocessed = await postProcessAnalysis(analysis);
+            analysis = reprocessed;
+            await storage.updateReport(existing.id, { analysisData: reprocessed });
+            console.log(`[analyze/check] Refreshed ${companyName} (vrm=${vrmSchemaVersion ?? 'missing'} → 2.1)`);
+          } catch (ppErr) {
+            console.warn(`[analyze/check] Refresh failed for ${companyName}:`, ppErr);
+          }
+        }
         return res.json({
           exists: true,
           report: {
             id: existing.id,
-            data: existing.analysisData,
+            data: analysis,
             createdAt: existing.createdAt,
             updatedAt: existing.updatedAt,
           },

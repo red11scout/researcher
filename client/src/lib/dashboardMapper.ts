@@ -479,6 +479,13 @@ export function mapReportToDashboardData(report: Report): DashboardData {
       let floorFailureReasons: string[] | undefined;
       let conditionalChampionMeta: any | undefined;
       let wave: string | undefined;
+      // VRM v2.1
+      let quadrantV21: string | undefined;
+      let quadrantV20: string | undefined;
+      let valueScoreRaw: number | undefined;
+      let absoluteAnnualValue: number | undefined;
+      let hardKnockOutReasons: string[] | undefined;
+      let softBlockers: any[] | undefined;
 
       let priorityScore = uc.priorityScore || 0;
 
@@ -491,10 +498,18 @@ export function mapReportToDashboardData(report: Report): DashboardData {
           readinessScore = step7Record["Readiness Score"] ?? step7Record["Feasibility Score"] ?? readinessScore;
           priorityTier = step7Record["Priority Tier"] ?? priorityTier;
           priorityScore = step7Record["Priority Score"] ?? step7Record["Composite Score"] ?? priorityScore;
-          quadrantV2 = step7Record["Quadrant v2"];
+          // VRM v2.1 — prefer Quadrant v2.1, fall back to legacy "Quadrant v2"
+          quadrantV21 = step7Record["Quadrant v2.1"];
+          quadrantV20 = step7Record["Quadrant v2.0"];
+          quadrantV2 = quadrantV21 ?? step7Record["Quadrant v2"] ?? quadrantV20;
           quadrantLayer = step7Record["Quadrant Layer"];
           quadrantRationale = step7Record["Quadrant Rationale"];
-          floorFailureReasons = step7Record["Floor Failure Reasons"];
+          // v2.1 names: Hard Knock-Out Reasons + Soft Blockers; v2.0 fallback: Floor Failure Reasons
+          hardKnockOutReasons = step7Record["Hard Knock-Out Reasons"] ?? step7Record["Floor Failure Reasons"];
+          floorFailureReasons = hardKnockOutReasons; // legacy alias
+          softBlockers = step7Record["Soft Blockers"];
+          valueScoreRaw = step7Record["Value Score Raw"];
+          absoluteAnnualValue = step7Record["Absolute Annual Value ($)"] ?? step7Record["Absolute Annual Value"];
           conditionalChampionMeta = step7Record["Conditional Champion Meta"];
           wave = step7Record["Wave"];
         }
@@ -552,6 +567,13 @@ export function mapReportToDashboardData(report: Report): DashboardData {
         dataAvailableForEngagement,
         timeToPilotWeeks,
         subComponents,
+        // VRM v2.1 fields
+        quadrantV21,
+        quadrantV20,
+        valueScoreRaw,
+        absoluteAnnualValue,
+        hardKnockOutReasons,
+        softBlockers,
       } as any);
     });
   }

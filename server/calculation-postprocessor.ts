@@ -49,15 +49,23 @@ import { resolvePatternName } from '../shared/schema';
 import { getPatternById } from '../shared/agenticPatterns';
 import {
   VRM_SCHEMA_VERSION,
+  VRM_PRIOR_SCHEMA_VERSION,
   VRM_RUBRIC_VERSION,
   SECTOR_PRESETS,
   BASELINE_WEIGHTS,
   getWeightsForPreset,
   computeWeightedReadiness,
   assignPortfolioQuadrants,
+  assignPortfolioQuadrantsV21,
+  computePortfolioDiagnostic,
+  resolveEngagementConfig,
+  normalizeValueScores,
+  DEFAULT_ENGAGEMENT_CONFIG,
   QUADRANT_LABELS,
   type SectorPreset,
   type UseCaseScoring,
+  type UseCaseScoringV21,
+  type EngagementConfig,
 } from '../shared/vrm-v2';
 
 // ============================================================================
@@ -1689,6 +1697,10 @@ export function postProcessAnalysis(analysisResult: any): any {
         orderedRecord["Strategic Theme"] = record["Strategic Theme"];
       }
 
+      // Preserve v2.1 hard knockout fields from Step 6 so Step 7 can read them
+      orderedRecord["Legally Prohibited"] = record["Legally Prohibited"] === true;
+      orderedRecord["Technically Infeasible"] = record["Technically Infeasible"] === true;
+
       correctedStep6Data.push(orderedRecord);
 
       console.log(`[postProcessAnalysis] Readiness: ${record.ID} — OC=${oc} DQ=${dq} TI=${ti} GOV=${gov} → v1=${readinessResult.value} v2=${readinessV2} (preset=${sectorPreset}) sponsor=${hasNamedSponsor} data=${dataAvailableForEngagement} ttp=${timeToPilotWeeks}`);
@@ -1807,6 +1819,13 @@ export function postProcessAnalysis(analysisResult: any): any {
   }
 
   // Case 2: Step 7 is missing entirely or empty — create from Step 5
+  // VRM v2.1 — engagement config + portfolio diagnostic outer scope so the
+  // vrm metadata block at the end of postprocessing always has well-defined values.
+  let engagementCfg: EngagementConfig = resolveEngagementConfig(
+    (analysisResult as any).engagementConfig,
+  );
+  let portfolioDiagnostic: ReturnType<typeof computePortfolioDiagnostic> | null = null;
+
   let step7Active = step7;
   if ((!step7Active || !step7Active.data || (step7Active.data as any[]).length === 0) && correctedStep5Data.length > 0) {
     const synthesizedStep7: Step7Record[] = correctedStep5Data.map(s5 => ({
@@ -1853,34 +1872,41 @@ export function postProcessAnalysis(analysisResult: any): any {
       ratioByUseCase[record.ID] = ratio;
     }
 
-    // Min-max normalize all ratios to 1-10 scale
-    const minRatio = allRatios.length > 0 ? Math.min(...allRatios) : 0;
-    const maxRatio = allRatios.length > 0 ? Math.max(...allRatios) : 0;
-    const normalizedByUseCase: Record<string, number> = {};
+    // VRM v2.1 — log-transformed min-max normalization (replaces v2.0 plain min-max).
+    // Smooths heavy-tailed EV/Friction distributions so a strong portfolio doesn't bunch at the low end.
     const step7Records = step7Active.data as Step7Record[];
-    step7Records.forEach((record) => {
-      const ratio = ratioByUseCase[record.ID] ?? 0;
-      let normalizedValue: number;
-      if (maxRatio === minRatio) {
-        normalizedValue = 5.5;
-      } else {
-        normalizedValue = Math.round((1 + ((ratio - minRatio) / (maxRatio - minRatio)) * 9) * 100) / 100;
-      }
-      normalizedByUseCase[record.ID] = normalizedValue;
+    const orderedIds = step7Records.map(r => r.ID);
+    const orderedRatios = orderedIds.map(id => ratioByUseCase[id] ?? 0);
+    const normalizedArray = normalizeValueScores(orderedRatios);
+    const normalizedByUseCase: Record<string, number> = {};
+    const rawRatioByUseCase: Record<string, number> = {};
+    orderedIds.forEach((id, idx) => {
+      normalizedByUseCase[id] = normalizedArray[idx];
+      rawRatioByUseCase[id] = orderedRatios[idx];
     });
-    console.log(`[postProcessAnalysis] Value Scores: EV/Friction ratio range [${minRatio.toFixed(2)} - ${maxRatio.toFixed(2)}], normalized to 1-10`);
+    const minRatio = orderedRatios.length > 0 ? Math.min(...orderedRatios) : 0;
+    const maxRatio = orderedRatios.length > 0 ? Math.max(...orderedRatios) : 0;
+    console.log(`[postProcessAnalysis] Value Scores (v2.1 log-norm): raw EV/Friction range [${minRatio.toFixed(2)} - ${maxRatio.toFixed(2)}] → normalized [${Math.min(...normalizedArray).toFixed(2)} - ${Math.max(...normalizedArray).toFixed(2)}]`);
 
     // Step 2: Build corrected Step 7 data with new priority scoring
     const correctedStep7Data: any[] = [];
 
-    // VRM v2.0 — Build the portfolio scoring set first so quadrant assignment can run cross-portfolio
-    const portfolioScorings: UseCaseScoring[] = step7Records.map(record => {
+    // VRM v2.1 — Build the portfolio scoring set first so quadrant assignment can run cross-portfolio.
+    // We carry forward absoluteAnnualValue, valueScoreRaw, and the new hard knock-out fields.
+    const portfolioScorings: UseCaseScoringV21[] = step7Records.map(record => {
+      const s5 = correctedStep5Data.find(r => r.ID === record.ID);
       const s6 = (step6.data as any[]).find(r => r.ID === record.ID);
       const r2 = s6?.["Readiness Score"] ?? 5;
       const v = normalizedByUseCase[record.ID] ?? 5.5;
+      const totalAnnualValue = parseNumber(s5?.["Total Annual Value ($)"]);
+      const probabilityRaw = parseNumber(s5?.["Probability of Success"]);
+      const probabilityOfSuccess = probabilityRaw > 1 ? probabilityRaw / 100 : probabilityRaw;
+      const absoluteAnnualValue = totalAnnualValue * (probabilityOfSuccess || 0);
       return {
         id: record.ID,
         valueScore: v,
+        valueScoreRaw: rawRatioByUseCase[record.ID] ?? 0,
+        absoluteAnnualValue,
         readinessScore: r2,
         componentScores: {
           orgCapacity: s6?.["Organizational Capacity"] ?? 5,
@@ -1891,9 +1917,15 @@ export function postProcessAnalysis(analysisResult: any): any {
         hasNamedSponsor: typeof s6?.["Has Named Sponsor"] === 'boolean' ? s6["Has Named Sponsor"] : null,
         dataAvailableForEngagement: typeof s6?.["Data Available For Engagement"] === 'boolean' ? s6["Data Available For Engagement"] : null,
         timeToPilotWeeks: typeof s6?.["Time-to-Pilot (weeks)"] === 'number' ? s6["Time-to-Pilot (weeks)"] : null,
+        legallyProhibited: s6?.["Legally Prohibited"] === true,
+        technicallyInfeasible: s6?.["Technically Infeasible"] === true,
       };
     });
-    const quadrantMap = assignPortfolioQuadrants(portfolioScorings);
+    // v2.1 quadrant assignment (active path); v2.0 preserved for backward-compatible JSON consumers.
+    const quadrantMap = assignPortfolioQuadrantsV21(portfolioScorings, engagementCfg);
+    const quadrantMapV20 = assignPortfolioQuadrants(portfolioScorings as UseCaseScoring[]);
+    portfolioDiagnostic = computePortfolioDiagnostic(portfolioScorings, quadrantMap, engagementCfg);
+    console.log(`[postProcessAnalysis] VRM v2.1 diagnostic: ${portfolioDiagnostic.prototypingCandidatesCount} prototyping candidates / ${portfolioDiagnostic.totalUseCases} total. Warnings: ${portfolioDiagnostic.warnings.map(w => w.code).join(', ') || 'none'}.`);
 
     for (const record of step7Records) {
       const step6Record = (step6.data as any[]).find(r => r.ID === record.ID);
@@ -1911,31 +1943,40 @@ export function postProcessAnalysis(analysisResult: any): any {
       const v1Tier = getNewPriorityTier(priorityResult.value, normalizedValue, readinessScore);
       const phase = getNewRecommendedPhase(priorityResult.value, readinessScore);
 
-      // VRM v2.0 quadrant assignment (3-layer hybrid)
+      // VRM v2.1 quadrant assignment (3-layer hybrid with hard/soft floor separation)
       const v2 = quadrantMap.get(record.ID)!;
+      const v20 = quadrantMapV20.get(record.ID);
       const v2TierLabel = v2.wave
         ? `${QUADRANT_LABELS[v2.quadrant]} (${v2.wave})`
         : QUADRANT_LABELS[v2.quadrant];
 
       // Build record with new column order:
-      // ID, Use Case, Priority Tier (v2), Recommended Phase, Priority Score, Readiness Score, Value Score, TTV Score
+      // ID, Use Case, Priority Tier (v2.1), Recommended Phase, Priority Score, Readiness Score, Value Score, TTV Score
       const step7Entry: Record<string, any> = {
         "ID": record.ID,
         "Use Case": record["Use Case"],
         "Priority Tier": v2TierLabel,
         "Priority Tier v1": v1Tier,
-        "Quadrant v2": v2.quadrant,
+        "Quadrant v2.1": v2.quadrant,
+        "Quadrant v2.0": v20?.quadrant ?? v2.quadrant,
+        "Quadrant v2": v2.quadrant, // legacy alias for v2.0 consumers; same value as v2.1 quadrant
         "Quadrant Layer": v2.layer,
         "Quadrant Rationale": v2.rationale,
         "Recommended Phase": phase,
         "Priority Score": priorityResult.value,
         "Readiness Score": readinessScore,
         "Value Score": normalizedValue,
+        "Value Score Raw": Math.round((rawRatioByUseCase[record.ID] ?? 0) * 100) / 100,
+        "Absolute Annual Value ($)": Math.round((portfolioScorings.find(p => p.id === record.ID)?.absoluteAnnualValue) ?? 0),
         "TTV Score": Math.round(ttvScore * 100) / 100,
       };
 
-      if (v2.floorFailureReasons && v2.floorFailureReasons.length > 0) {
-        step7Entry["Floor Failure Reasons"] = v2.floorFailureReasons;
+      if (v2.hardFailures && v2.hardFailures.length > 0) {
+        step7Entry["Hard Knock-Out Reasons"] = v2.hardFailures;
+        step7Entry["Floor Failure Reasons"] = v2.hardFailures; // backward compat
+      }
+      if (v2.softBlockers && v2.softBlockers.length > 0) {
+        step7Entry["Soft Blockers"] = v2.softBlockers;
       }
       if (v2.conditionalChampionMeta) {
         step7Entry["Conditional Champion Meta"] = v2.conditionalChampionMeta;
@@ -2044,15 +2085,53 @@ export function postProcessAnalysis(analysisResult: any): any {
 
   console.log(`[postProcessAnalysis] Validation Summary: ${useCasesCapped} UCs capped, ${parametersClamped} params clamped, portfolio scale=${capScaleFactor.toFixed(3)}, original=${formatMoney(originalTotal)}, validated=${formatMoney(validatedTotal)}`);
 
-  // VRM v2.0 metadata block — preserved through the analysis lifecycle
+  // VRM v2.1 metadata block — preserved through the analysis lifecycle.
+  // schemaVersion is bumped to 2.1; v2.0 consumers can still read the legacy quadrantThresholds.
   const vrmBlock = {
     schemaVersion: VRM_SCHEMA_VERSION,
+    priorSchemaVersion: VRM_PRIOR_SCHEMA_VERSION,
     rubricVersion: VRM_RUBRIC_VERSION,
     sectorPreset,
     sectorPresetLabel: SECTOR_PRESETS[sectorPreset].label,
     weights: getWeightsForPreset(sectorPreset),
     baselineWeights: BASELINE_WEIGHTS,
-    quadrantThresholds: { championMin: 7.5, quickStrategicMin: 6.0, valueFloor: 6.0, maxTimeToPilotWeeks: 12 },
+    engagementConfig: engagementCfg,
+    quadrantThresholds: {
+      championMin: engagementCfg.championMin,
+      quickStrategicMin: engagementCfg.quickStrategicMin,
+      valueFloor: 6.0, // legacy alias for v2.0 readers
+      maxTimeToPilotWeeks: engagementCfg.maxTimeToPilotWeeks,
+      valueFloorBand: engagementCfg.valueFloor,
+    },
+    valueNormalization: "log10-min-max",
+    diagnostic: portfolioDiagnostic
+      ? {
+          ...portfolioDiagnostic,
+          // Convenience flat fields consumed by the dashboard / HTML / report UIs
+          championCount: portfolioDiagnostic.byQuadrant.champion ?? 0,
+          conditionalChampionCount: portfolioDiagnostic.byQuadrant.conditional_champion ?? 0,
+          quickWinCount: portfolioDiagnostic.byQuadrant.quick_win ?? 0,
+          strategicCount: portfolioDiagnostic.byQuadrant.strategic ?? 0,
+          foundationCount: portfolioDiagnostic.byQuadrant.foundation ?? 0,
+          foundationHardCount: Math.round(
+            (portfolioDiagnostic.hardFloorFailureRate ?? 0) * (portfolioDiagnostic.totalUseCases ?? 0),
+          ),
+          foundationSoftCount: Math.max(
+            0,
+            (portfolioDiagnostic.byQuadrant.foundation ?? 0) -
+              Math.round((portfolioDiagnostic.hardFloorFailureRate ?? 0) * (portfolioDiagnostic.totalUseCases ?? 0)),
+          ),
+          prototypingCandidatesPct:
+            portfolioDiagnostic.totalUseCases > 0
+              ? Math.round((portfolioDiagnostic.prototypingCandidatesCount / portfolioDiagnostic.totalUseCases) * 100)
+              : 0,
+          // Map to UI-friendly key names for the warnings (the UI reads `remediation`, the schema field is `recommendedAction`)
+          warnings: (portfolioDiagnostic.warnings || []).map((w) => ({
+            ...w,
+            remediation: (w as any).recommendedAction ?? (w as any).remediation,
+          })),
+        }
+      : null,
   };
 
   const correctedResult = {

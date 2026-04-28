@@ -171,17 +171,135 @@ interface DashboardData {
     aggressive: { annualBenefit: string; npv: string };
   };
   frictionByTheme?: Record<string, string[]>;
-  // VRM v2.0 metadata
+  // VRM v2.0 / v2.1 metadata
   vrm?: {
     schemaVersion: string;
+    priorSchemaVersion?: string;
     rubricVersion: string;
     sectorPreset: string;
     sectorPresetLabel: string;
     weights: { orgCapacity: number; dataReadiness: number; governance: number; techInfrastructure: number };
     baselineWeights: { orgCapacity: number; dataReadiness: number; governance: number; techInfrastructure: number };
-    quadrantThresholds: { championMin: number; quickStrategicMin: number; valueFloor: number; maxTimeToPilotWeeks: number };
+    quadrantThresholds: { championMin: number; quickStrategicMin: number; valueFloor: number; maxTimeToPilotWeeks: number; valueFloorBand?: { minNormalized: number; minAbsoluteAnnual: number } };
+    engagementConfig?: any;
+    valueNormalization?: string;
+    diagnostic?: {
+      totalUseCases: number;
+      prototypingCandidatesCount: number;
+      prototypingCandidatesPct: number;
+      championCount: number;
+      conditionalChampionCount: number;
+      quickWinCount: number;
+      strategicCount: number;
+      foundationHardCount: number;
+      foundationSoftCount: number;
+      foundationCount: number;
+      medianValueScore: number;
+      medianReadinessScore: number;
+      hardKnockOutBreakdown: Record<string, number>;
+      softBlockerBreakdown: Record<string, number>;
+      warnings: Array<{ code: string; severity: string; message: string; remediation?: string }>;
+    };
   };
 }
+
+// VRM v2.1 — Methodology Integrity Panel
+const MethodologyIntegrityPanel = ({ diagnostic, schemaVersion }: { diagnostic: NonNullable<NonNullable<DashboardData['vrm']>['diagnostic']>; schemaVersion: string }) => {
+  if (!diagnostic) return null;
+
+  const severityStyle = (sev: string) => {
+    switch (sev) {
+      case 'critical': return { bg: 'bg-red-900/40', border: 'border-red-500/50', text: 'text-red-200', dot: 'bg-red-400', label: 'Critical' };
+      case 'warning': return { bg: 'bg-amber-900/40', border: 'border-amber-500/50', text: 'text-amber-100', dot: 'bg-amber-400', label: 'Warning' };
+      case 'info':
+      default: return { bg: 'bg-blue-900/30', border: 'border-blue-500/40', text: 'text-blue-100', dot: 'bg-blue-400', label: 'Info' };
+    }
+  };
+
+  return (
+    <section
+      className="mb-4 md:mb-6 px-4 md:px-5 py-4 rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm"
+      data-testid="panel-methodology-integrity"
+    >
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <h3 className="text-sm md:text-base font-semibold text-white">Methodology Integrity</h3>
+          <p className="text-[11px] md:text-xs text-slate-400 mt-0.5">Schema v{schemaVersion} · {diagnostic.totalUseCases} use cases analyzed</p>
+        </div>
+        <div className="text-right">
+          <p className="text-[11px] text-slate-400 uppercase tracking-wider">Prototyping Candidates</p>
+          <p className="text-lg md:text-xl font-bold text-white tabular-nums" data-testid="text-prototyping-candidates">
+            {diagnostic.prototypingCandidatesCount}
+            <span className="text-xs text-slate-500 ml-1">/ {diagnostic.totalUseCases}</span>
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mb-3 text-[11px]">
+        <div className="rounded-lg bg-emerald-900/30 border border-emerald-700/40 px-2 py-1.5">
+          <div className="text-emerald-300/80">Champions</div>
+          <div className="font-semibold text-emerald-100 tabular-nums">{diagnostic.championCount}</div>
+        </div>
+        <div className="rounded-lg bg-amber-900/30 border border-amber-700/40 px-2 py-1.5">
+          <div className="text-amber-300/80">Conditional Champ.</div>
+          <div className="font-semibold text-amber-100 tabular-nums">{diagnostic.conditionalChampionCount}</div>
+        </div>
+        <div className="rounded-lg bg-teal-900/30 border border-teal-700/40 px-2 py-1.5">
+          <div className="text-teal-300/80">Quick Wins</div>
+          <div className="font-semibold text-teal-100 tabular-nums">{diagnostic.quickWinCount}</div>
+        </div>
+        <div className="rounded-lg bg-blue-900/30 border border-blue-700/40 px-2 py-1.5">
+          <div className="text-blue-300/80">Strategic</div>
+          <div className="font-semibold text-blue-100 tabular-nums">{diagnostic.strategicCount}</div>
+        </div>
+        <div className="rounded-lg bg-slate-700/40 border border-slate-600/40 px-2 py-1.5">
+          <div className="text-slate-300/80">Foundation</div>
+          <div className="font-semibold text-slate-100 tabular-nums">
+            {diagnostic.foundationCount}
+            <span className="text-[10px] text-slate-400 font-normal ml-1">
+              ({diagnostic.foundationHardCount} hard · {diagnostic.foundationSoftCount} soft)
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {diagnostic.warnings && diagnostic.warnings.length > 0 ? (
+        <div className="space-y-2" data-testid="list-diagnostic-warnings">
+          {diagnostic.warnings.map((w, i) => {
+            const s = severityStyle(w.severity);
+            return (
+              <div
+                key={`${w.code}-${i}`}
+                className={`rounded-lg border ${s.border} ${s.bg} px-3 py-2`}
+                data-testid={`warning-${w.code}`}
+              >
+                <div className="flex items-start gap-2">
+                  <span className={`mt-1.5 inline-block w-1.5 h-1.5 rounded-full ${s.dot} flex-shrink-0`} />
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`text-[10px] font-semibold uppercase tracking-wider ${s.text}`}>{s.label}</span>
+                      <span className="text-[10px] text-slate-400 font-mono">{w.code}</span>
+                    </div>
+                    <p className={`text-xs ${s.text} mt-0.5 leading-relaxed`}>{w.message}</p>
+                    {w.remediation && (
+                      <p className="text-[11px] text-slate-300 mt-1 leading-relaxed">
+                        <span className="font-semibold">Recommendation: </span>{w.remediation}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="rounded-lg bg-emerald-900/20 border border-emerald-700/40 px-3 py-2 text-xs text-emerald-100">
+          No methodology integrity warnings — portfolio passes all v2.1 diagnostic checks.
+        </div>
+      )}
+    </section>
+  );
+};
 
 const DEFAULT_DATA: DashboardData = {
   clientName: "Synovus Bank",
@@ -741,7 +859,7 @@ const PriorityMatrix = ({ data, vrm }: PriorityMatrixProps) => {
           </div>
         </div>
 
-        {/* VRM v2.0 — Methodology header */}
+        {/* VRM v2.0/v2.1 — Methodology header */}
         {vrm && (
           <div
             className="mb-3 md:mb-4 px-3 md:px-4 py-2.5 rounded-xl border border-white/10 bg-white/5 backdrop-blur-sm text-[11px] md:text-xs text-slate-300"
@@ -759,9 +877,25 @@ const PriorityMatrix = ({ data, vrm }: PriorityMatrixProps) => {
             </span>
             <span className="mx-2 text-slate-500">·</span>
             <span className="text-slate-400">
-              Champion ≥ {vrm.quadrantThresholds.championMin}, Value floor {vrm.quadrantThresholds.valueFloor}, TTP ≤ {vrm.quadrantThresholds.maxTimeToPilotWeeks} wks
+              {vrm.quadrantThresholds.valueFloorBand
+                ? `Champion ≥ ${vrm.quadrantThresholds.championMin}, Hard floor V<${vrm.quadrantThresholds.valueFloorBand.minNormalizedScore ?? vrm.quadrantThresholds.valueFloorBand.minNormalized ?? 4.0} & abs<$${(((vrm.quadrantThresholds.valueFloorBand.minAbsoluteAnnualValue ?? vrm.quadrantThresholds.valueFloorBand.minAbsoluteAnnual ?? 500_000)/1000)).toFixed(0)}K, TTP ≤ ${vrm.quadrantThresholds.maxTimeToPilotWeeks ?? 16} wks`
+                : `Champion ≥ ${vrm.quadrantThresholds.championMin}, Value floor ${vrm.quadrantThresholds.valueFloor}, TTP ≤ ${vrm.quadrantThresholds.maxTimeToPilotWeeks} wks`}
             </span>
+            {vrm.valueNormalization && (
+              <>
+                <span className="mx-2 text-slate-500">·</span>
+                <span className="text-slate-400">Value norm: {vrm.valueNormalization}</span>
+              </>
+            )}
           </div>
+        )}
+
+        {/* VRM v2.1 — Methodology Integrity Panel (renders only when diagnostic exists) */}
+        {vrm?.diagnostic && (
+          <MethodologyIntegrityPanel
+            diagnostic={vrm.diagnostic}
+            schemaVersion={vrm.schemaVersion}
+          />
         )}
 
         <div className="overflow-x-auto -mx-4 md:mx-0 px-4 md:px-0">
@@ -770,6 +904,11 @@ const PriorityMatrix = ({ data, vrm }: PriorityMatrixProps) => {
               <QuadrantBubbleChart
                 data={data.data}
                 onBubbleClick={(point) => setSelectedPoint(point)}
+                vrmConfig={vrm ? {
+                  valueFloorBand: vrm.quadrantThresholds.valueFloorBand,
+                  championMin: vrm.quadrantThresholds.championMin,
+                  quickStrategicMin: vrm.quadrantThresholds.quickStrategicMin,
+                } : undefined}
               />
             ) : (
               <MatrixScorecard

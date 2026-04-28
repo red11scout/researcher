@@ -972,12 +972,53 @@ export default function HTMLReportViewer() {
                   Gov {Math.round((vrm.weights?.governance ?? 0.20) * 100)}% /
                   Tech {Math.round((vrm.weights?.techInfrastructure ?? 0.15) * 100)}%
                   &nbsp;·&nbsp; <span style={{ color: '#475569' }}>
-                    Champion ≥ {vrm.quadrantThresholds?.championMin ?? 7.5},
-                    Value floor {vrm.quadrantThresholds?.valueFloor ?? 6.0},
-                    TTP ≤ {vrm.quadrantThresholds?.maxTimeToPilotWeeks ?? 12} wks.
-                    Hard floors require named sponsor + data availability.
-                    Conditional Champion promotes top items via 5-week readiness sprint when no Champions/Quick Wins exist.
+                    {vrm.quadrantThresholds?.valueFloorBand
+                      ? `Champion ≥ ${vrm.quadrantThresholds.championMin}, Hard floor: legally prohibited OR technically infeasible OR (V<${vrm.quadrantThresholds.valueFloorBand.minNormalizedScore ?? vrm.quadrantThresholds.valueFloorBand.minNormalized ?? 4.0} AND abs<$${(((vrm.quadrantThresholds.valueFloorBand.minAbsoluteAnnualValue ?? vrm.quadrantThresholds.valueFloorBand.minAbsoluteAnnual ?? 500_000)/1000)).toFixed(0)}K), TTP ≤ ${vrm.quadrantThresholds.maxTimeToPilotWeeks ?? 16} wks.`
+                      : `Champion ≥ ${vrm.quadrantThresholds?.championMin ?? 7.5}, Value floor ${vrm.quadrantThresholds?.valueFloor ?? 6.0}, TTP ≤ ${vrm.quadrantThresholds?.maxTimeToPilotWeeks ?? 12} wks.`}
+                    {' '}Soft blockers (no sponsor / data unavailable / TTP exceeded) flag remediation but do not relegate to Foundation.
+                    Conditional Champion activates only when zero Champions, Quick Wins, AND Strategic exist.
                   </span>
+                </div>
+              )}
+              {showVrmHeader && vrm?.diagnostic && (
+                <div style={{
+                  margin: '0 16px 16px',
+                  padding: '10px 14px',
+                  borderRadius: 8,
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  fontSize: 11,
+                  color: '#1e293b',
+                }} data-testid="text-vrm-diagnostic-htmlviewer">
+                  <strong style={{ fontSize: 12 }}>Methodology Integrity</strong> ·
+                  {' '}Prototyping Candidates: <strong>{vrm.diagnostic.prototypingCandidatesCount}</strong> / {vrm.diagnostic.totalUseCases} ({vrm.diagnostic.prototypingCandidatesPct}%) ·
+                  {' '}Champ {vrm.diagnostic.championCount} / CC {vrm.diagnostic.conditionalChampionCount} / QW {vrm.diagnostic.quickWinCount} / Strat {vrm.diagnostic.strategicCount} / Found {vrm.diagnostic.foundationCount} ({vrm.diagnostic.foundationHardCount}h+{vrm.diagnostic.foundationSoftCount}s)
+                  {(vrm.diagnostic.warnings || []).length > 0 && (
+                    <div style={{ marginTop: 8 }}>
+                      {vrm.diagnostic.warnings.map((wn: any, wi: number) => {
+                        const palette = wn.severity === 'critical'
+                          ? { bg: '#fef2f2', border: '#fca5a5', color: '#7f1d1d' }
+                          : wn.severity === 'warning'
+                            ? { bg: '#fffbeb', border: '#fcd34d', color: '#78350f' }
+                            : { bg: '#eff6ff', border: '#93c5fd', color: '#1e3a8a' };
+                        return (
+                          <div key={wi} style={{
+                            background: palette.bg,
+                            border: `1px solid ${palette.border}`,
+                            color: palette.color,
+                            borderRadius: 6,
+                            padding: '6px 8px',
+                            marginTop: 4,
+                          }}>
+                            <strong style={{ textTransform: 'uppercase', fontSize: 10 }}>{wn.severity}</strong>
+                            <span style={{ fontFamily: 'monospace', fontSize: 10, marginLeft: 6, opacity: 0.7 }}>{wn.code}</span>
+                            <div style={{ marginTop: 2 }}>{wn.message}</div>
+                            {wn.remediation && <div style={{ marginTop: 2, fontSize: 10 }}><strong>Recommendation:</strong> {wn.remediation}</div>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
               <div style={styles.cardHeader}>

@@ -976,15 +976,50 @@ export function generateProfessionalHTMLReport(
 
     if (!data || data.length === 0) return '';
 
-    // VRM v2.0 — pull metadata block from analysis root
+    // VRM v2.1 — pull metadata block from analysis root (back-compat with v2.0)
     const vrm = (analysisData as any)?.vrm || (reportData as any)?.vrm;
     const sectorPresetLabel = vrm?.sectorPresetLabel || 'Baseline';
     const w = vrm?.weights || { orgCapacity: 0.35, dataReadiness: 0.30, governance: 0.20, techInfrastructure: 0.15 };
-    const t = vrm?.quadrantThresholds || { championMin: 7.5, quickStrategicMin: 6.0, valueFloor: 6.0, maxTimeToPilotWeeks: 12 };
+    const t = vrm?.quadrantThresholds || { championMin: 7.5, quickStrategicMin: 6.0, valueFloor: 6.0, maxTimeToPilotWeeks: 16 };
+    const diagnostic = vrm?.diagnostic;
+    const isV21 = (vrm?.schemaVersion || '').startsWith('2.1');
 
-    // Identify Conditional Champions for highlighted block
-    const conditionalChamps = data.filter((r: any) => r['Quadrant v2'] === 'conditional_champion'
+    // Identify Conditional Champions for highlighted block (Quadrant v2.1 first, then legacy)
+    const conditionalChamps = data.filter((r: any) =>
+      r['Quadrant v2.1'] === 'conditional_champion'
+      || r['Quadrant v2'] === 'conditional_champion'
       || (r['Priority Tier'] || '').includes('Conditional Champion'));
+
+    // VRM v2.1 — Methodology Integrity diagnostic block
+    const severityBackground: Record<string, string> = {
+      critical: 'background:#fef2f2;border:1px solid #fca5a5;color:#7f1d1d;',
+      warning: 'background:#fffbeb;border:1px solid #fcd34d;color:#78350f;',
+      info: 'background:#eff6ff;border:1px solid #93c5fd;color:#1e3a8a;',
+    };
+    const diagnosticBlock = !diagnostic ? '' : `
+        <div class="appendix-block" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:14px;margin-bottom:16px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+            <div>
+              <strong style="color:#0f172a;font-size:13px;">Methodology Integrity (v${vrm?.schemaVersion || '2.1'})</strong>
+              <div style="font-size:11px;color:#64748b;margin-top:2px;">${diagnostic.totalUseCases} use cases · ${diagnostic.prototypingCandidatesCount} prototyping candidates (${diagnostic.prototypingCandidatesPct}%)</div>
+            </div>
+            <div style="font-size:11px;color:#475569;text-align:right;">
+              Champions ${diagnostic.championCount} · CC ${diagnostic.conditionalChampionCount} · QW ${diagnostic.quickWinCount} · Strat ${diagnostic.strategicCount} · Found ${diagnostic.foundationCount}
+              <div style="color:#94a3b8;margin-top:2px;">(${diagnostic.foundationHardCount} hard / ${diagnostic.foundationSoftCount} soft)</div>
+            </div>
+          </div>
+          ${(diagnostic.warnings || []).length === 0
+            ? `<div style="${severityBackground.info};border-radius:6px;padding:8px;font-size:12px;">No methodology integrity warnings — portfolio passes all v2.1 checks.</div>`
+            : (diagnostic.warnings || []).map((wn: any) => `
+              <div style="${severityBackground[wn.severity] || severityBackground.info};border-radius:6px;padding:8px 10px;margin-bottom:6px;font-size:12px;">
+                <span style="font-weight:700;text-transform:uppercase;font-size:10px;letter-spacing:0.04em;">${escapeHtml(wn.severity || 'info')}</span>
+                <span style="font-family:monospace;font-size:10px;margin-left:6px;opacity:0.7;">${escapeHtml(wn.code || '')}</span>
+                <div style="margin-top:3px;">${escapeHtml(wn.message || '')}</div>
+                ${wn.remediation ? `<div style="margin-top:3px;font-size:11px;opacity:0.85;"><strong>Recommendation:</strong> ${escapeHtml(wn.remediation)}</div>` : ''}
+              </div>
+            `).join('')}
+        </div>
+    `;
 
     const conditionalChampionBlock = conditionalChamps.length === 0 ? '' : `
         <div class="appendix-block" style="background:#fffbeb;border:1px solid #fbbf24;border-radius:8px;padding:16px;margin-top:16px;">
@@ -1015,8 +1050,14 @@ export function generateProfessionalHTMLReport(
           &nbsp;|&nbsp; Sector preset: <strong>${escapeHtml(sectorPresetLabel)}</strong>
           &nbsp;|&nbsp; Weights: Org ${Math.round(w.orgCapacity * 100)}% / Data ${Math.round(w.dataReadiness * 100)}% / Gov ${Math.round(w.governance * 100)}% / Tech ${Math.round(w.techInfrastructure * 100)}%
           <br/>
-          <span style="color:#475569;">Champion ≥ ${t.championMin}, Strategic/Quick Win ≥ ${t.quickStrategicMin}, Value floor ${t.valueFloor}, Time-to-pilot ≤ ${t.maxTimeToPilotWeeks} wks. Floors also require named sponsor + data availability.</span>
+          <span style="color:#475569;">${
+            isV21 && t.valueFloorBand
+              ? `Champion ≥ ${t.championMin}, Strategic/Quick Win ≥ ${t.quickStrategicMin}. Hard floor: legally prohibited OR technically infeasible OR (V&lt;${t.valueFloorBand.minNormalizedScore ?? t.valueFloorBand.minNormalized ?? 4.0} AND abs.&lt;$${(((t.valueFloorBand.minAbsoluteAnnualValue ?? t.valueFloorBand.minAbsoluteAnnual ?? 500000)/1000)).toFixed(0)}K). Soft blockers (no sponsor / data unavailable / TTP&gt;${t.maxTimeToPilotWeeks} wks) flag remediation but do not relegate to Foundation.`
+              : `Champion ≥ ${t.championMin}, Strategic/Quick Win ≥ ${t.quickStrategicMin}, Value floor ${t.valueFloor}, Time-to-pilot ≤ ${t.maxTimeToPilotWeeks} wks. Floors also require named sponsor + data availability.`
+          }</span>
         </div>
+
+        ${diagnosticBlock}
 
         <div class="table-wrap scrollable">
           <table class="data-table">
@@ -1037,9 +1078,11 @@ export function generateProfessionalHTMLReport(
               ${data
                 .map(
                   (row: any) => {
-                    const isConditional = row['Quadrant v2'] === 'conditional_champion'
+                    const isConditional = row['Quadrant v2.1'] === 'conditional_champion'
+                      || row['Quadrant v2'] === 'conditional_champion'
                       || (row['Priority Tier'] || '').includes('Conditional Champion');
-                    const reasons: string[] = row['Floor Failure Reasons'] || [];
+                    const hardReasons: string[] = row['Hard Knock-Out Reasons'] || row['Floor Failure Reasons'] || [];
+                    const softBlockers: any[] = row['Soft Blockers'] || [];
                     const tierBadge = isConditional
                       ? `<span class="tag" style="background:#fef3c7;color:#92400e;border:1px dashed #b45309;">${escapeHtml(row['Priority Tier'] || 'Conditional Champion')}</span>`
                       : escapeHtml(row['Priority Tier'] || '');
@@ -1048,7 +1091,8 @@ export function generateProfessionalHTMLReport(
                 <td class="font-semibold">${escapeHtml(row['ID'] || '')}</td>
                 <td class="font-medium">
                   ${escapeHtml(row['Use Case'] || '')}
-                  ${reasons.length > 0 ? `<div style="font-size:10px;color:#b91c1c;margin-top:2px;">⚠ ${reasons.map(escapeHtml).join('; ')}</div>` : ''}
+                  ${hardReasons.length > 0 ? `<div style="font-size:10px;color:#b91c1c;margin-top:2px;"><strong>⛔ Hard:</strong> ${hardReasons.map(escapeHtml).join('; ')}</div>` : ''}
+                  ${softBlockers.length > 0 ? `<div style="font-size:10px;color:#b45309;margin-top:2px;"><strong>⚠ Soft:</strong> ${softBlockers.map((sb: any) => escapeHtml(typeof sb === 'string' ? sb : (sb.message || sb.code || ''))).join('; ')}</div>` : ''}
                 </td>
                 <td>${tierBadge}</td>
                 <td><span class="tag tag-sky">${escapeHtml(row['Recommended Phase'] || '')}</span></td>
@@ -1130,9 +1174,9 @@ export function generateProfessionalHTMLReport(
 
           <p style="margin-bottom: 12px;"><strong>Value Score (1&ndash;10):</strong> Expected Value (Total Annual Value &times; Probability of Success) divided by the Friction Annual Cost of the targeted friction point, then min-max normalized across all use cases to a 1&ndash;10 scale. This directly ties use case value to the friction cost it addresses, providing a deterministic measure of return on friction investment.</p>
 
-          <p style="margin-bottom: 12px;"><strong>Readiness Score (1&ndash;10) — VRM v2.0:</strong> Weighted composite of four BARS-anchored components: Organizational Capacity (35%), Data Availability &amp; Quality (30%), AI-Specific Governance (20%), and Technical Infrastructure (15%). Each component scored 1&ndash;10 against published anchors (1, 3, 5, 7, 10) reflecting enterprise-grade thresholds. Sector presets (regulated, internal-productivity, RAG/fine-tune-heavy) re-weight components to fit context.</p>
+          <p style="margin-bottom: 12px;"><strong>Readiness Score (1&ndash;10) — VRM v2.1:</strong> Weighted composite of four BARS-anchored components: Organizational Capacity (35%), Data Availability &amp; Quality (30%), AI-Specific Governance (20%), and Technical Infrastructure (15%). Each component scored 1&ndash;10 against published anchors (1, 3, 5, 7, 10) reflecting enterprise-grade thresholds. Sector presets (regulated, internal-productivity, RAG/fine-tune-heavy) re-weight components to fit context.</p>
 
-          <p style="margin-bottom: 12px;"><strong>Priority Score (1&ndash;10):</strong> Equal-weighted average of Readiness Score and Normalized Value Score: (Readiness &times; 0.5) + (Value &times; 0.5). Quadrant placement uses three-layer hybrid logic: <em>Layer 1</em> hard floors (Value &lt; 6.0, no named sponsor, no data, time-to-pilot &gt; 12 weeks &rarr; Foundation); <em>Layer 2</em> default quadrants (Champion V&ge;7.5 &amp; R&ge;7.5; Strategic V&ge;7.5 &amp; R&ge;6.0; Quick Win V&ge;6.0 &amp; R&ge;7.5); <em>Layer 3</em> Conditional Champion (only when no Champions/Quick Wins exist, top items above floor are promoted with a named 5-week readiness sprint).</p>
+          <p style="margin-bottom: 12px;"><strong>Priority Score (1&ndash;10) — VRM v2.1 Three-Layer Logic:</strong> Equal-weighted average of Readiness Score and log-normalized Value Score: (Readiness &times; 0.5) + (Value &times; 0.5). Quadrant placement: <em>Layer 1 hard floors</em> &mdash; legally prohibited OR technically infeasible OR (Value &lt; 4.0 AND absolute annual value &lt; $500K) &rarr; Foundation. <em>Layer 1 soft blockers</em> &mdash; missing sponsor, data unavailable (data-access sprint required), or time-to-pilot &gt; 16 weeks DO NOT relegate to Foundation; they surface as remediation flags so the use case still proceeds to prototyping. <em>Layer 2 default quadrants</em>: Champion (V&ge;7.5 &amp; R&ge;7.5); Strategic (V&ge;7.5 &amp; R&ge;6.0); Quick Win (V&ge;6.0 &amp; R&ge;7.5); else Foundation. <em>Layer 3 Conditional Champion</em> activates only when zero Champions AND zero Quick Wins AND zero Strategic exist; the top above-floor items are promoted with a 4&ndash;12 week readiness sprint sized to their named gaps.</p>
 
           <h4 style="margin: 16px 0 8px; font-size: 14px;">Standard Benefit Formulas</h4>
           <ul class="assumption-list">

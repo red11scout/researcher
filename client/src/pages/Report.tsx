@@ -3252,25 +3252,64 @@ export default function Report() {
               {data.steps?.map((step: any, index: number) => (
                 <div key={index} id={`step-${step.step}`} className="scroll-mt-32">
                   {step.step === 7 && data.vrm && (
-                    <div
-                      className="mb-3 px-3 md:px-4 py-2.5 rounded-xl border border-blue-200 bg-blue-50 text-[11px] md:text-xs text-slate-700"
-                      data-testid="text-vrm-methodology-report"
-                    >
-                      <span className="font-semibold text-slate-900">Value-Readiness Matrix v{data.vrm.schemaVersion}</span>
-                      <span className="mx-2 text-slate-400">·</span>
-                      <span>Sector preset: <span className="font-medium text-slate-900">{data.vrm.sectorPresetLabel}</span></span>
-                      <span className="mx-2 text-slate-400">·</span>
-                      <span>
-                        Weights — Org {Math.round((data.vrm.weights?.orgCapacity ?? 0.35) * 100)}% /
-                        Data {Math.round((data.vrm.weights?.dataReadiness ?? 0.30) * 100)}% /
-                        Gov {Math.round((data.vrm.weights?.governance ?? 0.20) * 100)}% /
-                        Tech {Math.round((data.vrm.weights?.techInfrastructure ?? 0.15) * 100)}%
-                      </span>
-                      <span className="mx-2 text-slate-400">·</span>
-                      <span className="text-slate-500">
-                        Champion ≥ {data.vrm.quadrantThresholds?.championMin ?? 7.5}, Value floor {data.vrm.quadrantThresholds?.valueFloor ?? 6.0}, TTP ≤ {data.vrm.quadrantThresholds?.maxTimeToPilotWeeks ?? 12} wks
-                      </span>
-                    </div>
+                    <>
+                      <div
+                        className="mb-3 px-3 md:px-4 py-2.5 rounded-xl border border-blue-200 bg-blue-50 text-[11px] md:text-xs text-slate-700"
+                        data-testid="text-vrm-methodology-report"
+                      >
+                        <span className="font-semibold text-slate-900">Value-Readiness Matrix v{data.vrm.schemaVersion}</span>
+                        <span className="mx-2 text-slate-400">·</span>
+                        <span>Sector preset: <span className="font-medium text-slate-900">{data.vrm.sectorPresetLabel}</span></span>
+                        <span className="mx-2 text-slate-400">·</span>
+                        <span>
+                          Weights — Org {Math.round((data.vrm.weights?.orgCapacity ?? 0.35) * 100)}% /
+                          Data {Math.round((data.vrm.weights?.dataReadiness ?? 0.30) * 100)}% /
+                          Gov {Math.round((data.vrm.weights?.governance ?? 0.20) * 100)}% /
+                          Tech {Math.round((data.vrm.weights?.techInfrastructure ?? 0.15) * 100)}%
+                        </span>
+                        <span className="mx-2 text-slate-400">·</span>
+                        <span className="text-slate-500">
+                          {data.vrm.quadrantThresholds?.valueFloorBand
+                            ? `Champion ≥ ${data.vrm.quadrantThresholds.championMin}, Hard floor V<${data.vrm.quadrantThresholds.valueFloorBand.minNormalizedScore ?? data.vrm.quadrantThresholds.valueFloorBand.minNormalized ?? 4.0} & abs<$${(((data.vrm.quadrantThresholds.valueFloorBand.minAbsoluteAnnualValue ?? data.vrm.quadrantThresholds.valueFloorBand.minAbsoluteAnnual ?? 500_000)/1000)).toFixed(0)}K, TTP ≤ ${data.vrm.quadrantThresholds.maxTimeToPilotWeeks ?? 16} wks`
+                            : `Champion ≥ ${data.vrm.quadrantThresholds?.championMin ?? 7.5}, Value floor ${data.vrm.quadrantThresholds?.valueFloor ?? 6.0}, TTP ≤ ${data.vrm.quadrantThresholds?.maxTimeToPilotWeeks ?? 12} wks`}
+                        </span>
+                      </div>
+                      {data.vrm.diagnostic && (
+                        <div
+                          className="mb-3 px-3 md:px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-[11px] md:text-xs text-slate-700"
+                          data-testid="text-vrm-diagnostic-report"
+                        >
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="font-semibold text-slate-900">Methodology Integrity (v{data.vrm.schemaVersion})</span>
+                            <span className="text-slate-500">
+                              Prototyping: <strong className="text-slate-900 tabular-nums">{data.vrm.diagnostic.prototypingCandidatesCount}</strong>/{data.vrm.diagnostic.totalUseCases}
+                              {' · '}Champ {data.vrm.diagnostic.championCount} / CC {data.vrm.diagnostic.conditionalChampionCount} / QW {data.vrm.diagnostic.quickWinCount} / Strat {data.vrm.diagnostic.strategicCount} / Found {data.vrm.diagnostic.foundationCount}
+                            </span>
+                          </div>
+                          {(data.vrm.diagnostic.warnings || []).length > 0 ? (
+                            <div className="space-y-1.5 mt-2">
+                              {data.vrm.diagnostic.warnings.map((wn: any, wi: number) => {
+                                const cls = wn.severity === 'critical'
+                                  ? 'bg-red-50 border-red-300 text-red-800'
+                                  : wn.severity === 'warning'
+                                    ? 'bg-amber-50 border-amber-300 text-amber-800'
+                                    : 'bg-blue-50 border-blue-300 text-blue-800';
+                                return (
+                                  <div key={wi} className={`rounded-md px-2 py-1.5 border text-[11px] ${cls}`} data-testid={`warning-report-${wn.code}`}>
+                                    <span className="font-bold uppercase tracking-wider text-[9px]">{wn.severity}</span>
+                                    <span className="font-mono text-[9px] ml-1.5 opacity-70">{wn.code}</span>
+                                    <div className="mt-0.5">{wn.message}</div>
+                                    {wn.remediation && <div className="mt-0.5 text-[10px] opacity-80"><strong>Recommendation:</strong> {wn.remediation}</div>}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div className="mt-1 text-emerald-700">No methodology integrity warnings.</div>
+                          )}
+                        </div>
+                      )}
+                    </>
                   )}
                   <StepCard step={step} />
                   {step.step === 5 && data && (
