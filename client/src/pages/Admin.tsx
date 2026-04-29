@@ -47,12 +47,23 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 
+interface ReportUpgrade {
+  code:
+    | "added-step6"
+    | "bumped-schema"
+    | "added-diagnostic"
+    | "added-flat-fields"
+    | "added-step6-ko-fields";
+  label: string;
+}
+
 interface BackfillReportResult {
   id: string;
   companyName: string;
   isWhatIf: boolean;
   status: "updated" | "skipped" | "failed";
   reasons?: string[];
+  upgrades?: ReportUpgrade[];
   error?: string;
   durationMs: number;
 }
@@ -254,12 +265,19 @@ function AdminPanel() {
   const [running, setRunning] = useState(false);
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [result, setResult] = useState<BackfillResponse | null>(null);
+  const [updatedReports, setUpdatedReports] = useState<BackfillReportResult[]>(
+    [],
+  );
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<ProgressState | null>(null);
   // Buffer progress updates so we don't re-render on every single line of
   // NDJSON when the stream is firing rapidly.
   const flushTimer = useRef<number | null>(null);
   const pendingProgress = useRef<ProgressState | null>(null);
+  // Accumulate every "updated" result (uncapped) so the post-run summary
+  // can group reports by which upgrade was applied. The progress feed only
+  // keeps the last MAX_RECENT entries, which is too narrow for grouping.
+  const updatedReportsRef = useRef<BackfillReportResult[]>([]);
 
   const scheduleFlush = () => {
     if (flushTimer.current !== null) return;
@@ -275,9 +293,11 @@ function AdminPanel() {
     setRunning(true);
     setStartedAt(Date.now());
     setResult(null);
+    setUpdatedReports([]);
     setError(null);
     setProgress(null);
     pendingProgress.current = null;
+    updatedReportsRef.current = [];
 
     try {
       const params = new URLSearchParams({ stream: "1" });
@@ -329,6 +349,9 @@ function AdminPanel() {
               recent: [],
             };
           const r = event.result;
+          if (r.status === "updated") {
+            updatedReportsRef.current.push(r);
+          }
           const next: ProgressState = {
             total: event.total,
             processed: event.index,
@@ -399,6 +422,7 @@ function AdminPanel() {
       }
 
       setResult(completion);
+      setUpdatedReports(updatedReportsRef.current.slice());
       toast({
         title: "Upgrade complete",
         description: `Updated ${completion.updated} of ${completion.total} reports (${completion.failed} failed) in ${formatDuration(completion.durationMs)}.`,
@@ -595,6 +619,10 @@ function AdminPanel() {
                     testId="stat-duration"
                   />
                 </div>
+
+                {updatedReports.length > 0 && (
+                  <UpgradesAppliedPanel updated={updatedReports} />
+                )}
 
                 {result.failures && result.failures.length > 0 ? (
                   <div className="rounded-lg border border-red-200 overflow-hidden">
@@ -832,28 +860,51 @@ function LiveProgressPanel({ progress, running }: LiveProgressPanelProps) {
             {recent.map((r, idx) => (
               <li
                 key={`${r.id}-${idx}`}
-                className="px-4 py-2 flex items-center gap-3 text-sm"
+                className="px-4 py-2 text-sm"
                 data-testid={`row-recent-${r.id}`}
               >
-                <StatusIcon status={r.status} />
-                <span
-                  className="font-medium text-slate-900 truncate flex-1 min-w-0"
-                  data-testid={`text-recent-company-${r.id}`}
-                >
-                  {r.companyName}
-                </span>
-                {r.isWhatIf && (
-                  <Badge variant="outline" className="text-[10px] py-0">
-                    what-if
-                  </Badge>
-                )}
-                <StatusBadge status={r.status} />
-                <span
-                  className="text-xs text-slate-500 tabular-nums w-16 text-right"
-                  data-testid={`text-recent-duration-${r.id}`}
-                >
-                  {formatDuration(r.durationMs)}
-                </span>
+                <div className="flex items-center gap-3">
+                  <StatusIcon status={r.status} />
+                  <span
+                    className="font-medium text-slate-900 truncate flex-1 min-w-0"
+                    data-testid={`text-recent-company-${r.id}`}
+                  >
+                    {r.companyName}
+                  </span>
+                  {r.isWhatIf && (
+                    <Badge variant="outline" className="text-[10px] py-0">
+                      what-if
+                    </Badge>
+                  )}
+                  <StatusBadge status={r.status} />
+                  <span
+                    className="text-xs text-slate-500 tabular-nums w-16 text-right"
+                    data-testid={`text-recent-duration-${r.id}`}
+                  >
+                    {formatDuration(r.durationMs)}
+                  </span>
+                </div>
+                {r.status === "updated" &&
+                  r.upgrades &&
+                  r.upgrades.length > 0 && (
+                    <div
+                      className="mt-1 ml-7 flex flex-wrap gap-1"
+                      data-testid={`upgrades-recent-${r.id}`}
+                    >
+                      {r.upgrades.map((u) => (
+                        <UpgradeChip key={u.code} upgrade={u} />
+                      ))}
+                    </div>
+                  )}
+                {r.status === "updated" &&
+                  (!r.upgrades || r.upgrades.length === 0) && (
+                    <div
+                      className="mt-1 ml-7 text-[11px] text-slate-500 italic"
+                      data-testid={`upgrades-recent-empty-${r.id}`}
+                    >
+                      Reprocessed (no schema changes)
+                    </div>
+                  )}
               </li>
             ))}
           </ul>
@@ -871,6 +922,146 @@ function StatusIcon({ status }: { status: BackfillReportResult["status"] }) {
     return <XCircle className="h-4 w-4 text-red-600 shrink-0" />;
   }
   return <SkipForward className="h-4 w-4 text-slate-400 shrink-0" />;
+}
+
+/**
+ * Compact pill summarizing one schema-level upgrade applied during backfill
+ * (e.g. "Bumped schema 2.0 → 2.2"). Used both in the live recent-reports feed
+ * and in the post-run grouping panel.
+ */
+function UpgradeChip({ upgrade }: { upgrade: ReportUpgrade }) {
+  return (
+    <Badge
+      variant="outline"
+      className="text-[10px] py-0 px-1.5 border-emerald-200 bg-emerald-50 text-emerald-700 font-normal"
+      data-testid={`chip-upgrade-${upgrade.code}`}
+    >
+      {upgrade.label}
+    </Badge>
+  );
+}
+
+interface UpgradesAppliedPanelProps {
+  updated: BackfillReportResult[];
+}
+
+/**
+ * Post-run summary panel that groups every "updated" report by which schema
+ * upgrades were applied. Each upgrade code lists its count and a few example
+ * companies so admins can spot patterns (e.g. "every legacy report needed
+ * the diagnostic added"). Reports that got `force=true`-reprocessed without
+ * any schema-level diff are surfaced in their own bucket so they don't look
+ * like a missing case.
+ */
+function UpgradesAppliedPanel({ updated }: UpgradesAppliedPanelProps) {
+  // Aggregate by upgrade code. One report can contribute to multiple buckets
+  // (e.g. a v2.0 → v2.2 migration usually adds the diagnostic AND bumps the
+  // schema AND synthesizes Step 6 KO fields).
+  const buckets = new Map<
+    string,
+    { label: string; reports: BackfillReportResult[] }
+  >();
+  let reprocessedNoChange = 0;
+
+  for (const r of updated) {
+    const upgrades = r.upgrades ?? [];
+    if (upgrades.length === 0) {
+      reprocessedNoChange++;
+      continue;
+    }
+    for (const u of upgrades) {
+      const existing = buckets.get(u.code);
+      if (existing) {
+        existing.reports.push(r);
+      } else {
+        buckets.set(u.code, { label: u.label, reports: [r] });
+      }
+    }
+  }
+
+  // Sort by frequency desc so the most common upgrade is at the top — that's
+  // the "pattern" the admin most likely wants to see first.
+  const sorted = Array.from(buckets.entries())
+    .map(([code, value]) => ({ code, ...value }))
+    .sort((a, b) => b.reports.length - a.reports.length);
+
+  if (sorted.length === 0 && reprocessedNoChange === 0) return null;
+
+  return (
+    <div
+      className="rounded-lg border border-slate-200 overflow-hidden"
+      data-testid="panel-upgrades-applied"
+    >
+      <div className="bg-slate-50 px-4 py-2 flex items-center gap-2 border-b border-slate-200">
+        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+        <span className="text-sm font-medium text-slate-700">
+          Upgrades applied
+        </span>
+        <span className="text-xs text-slate-500">
+          (grouped by change, most common first)
+        </span>
+      </div>
+      <ul className="divide-y divide-slate-100">
+        {sorted.map((bucket) => {
+          const examples = bucket.reports.slice(0, 3);
+          const remaining = bucket.reports.length - examples.length;
+          return (
+            <li
+              key={bucket.code}
+              className="px-4 py-3 flex items-start gap-3"
+              data-testid={`row-upgrade-bucket-${bucket.code}`}
+            >
+              <Badge
+                variant="outline"
+                className="border-emerald-200 bg-emerald-50 text-emerald-700 font-medium tabular-nums shrink-0"
+                data-testid={`count-upgrade-${bucket.code}`}
+              >
+                {bucket.reports.length}
+              </Badge>
+              <div className="flex-1 min-w-0">
+                <div
+                  className="text-sm font-medium text-slate-900"
+                  data-testid={`label-upgrade-${bucket.code}`}
+                >
+                  {bucket.label}
+                </div>
+                <div
+                  className="text-xs text-slate-500 mt-0.5 truncate"
+                  data-testid={`examples-upgrade-${bucket.code}`}
+                >
+                  {examples.map((r) => r.companyName).join(", ")}
+                  {remaining > 0 && ` and ${remaining} more`}
+                </div>
+              </div>
+            </li>
+          );
+        })}
+        {reprocessedNoChange > 0 && (
+          <li
+            className="px-4 py-3 flex items-start gap-3"
+            data-testid="row-upgrade-bucket-no-change"
+          >
+            <Badge
+              variant="outline"
+              className="border-slate-200 bg-slate-50 text-slate-600 font-medium tabular-nums shrink-0"
+              data-testid="count-upgrade-no-change"
+            >
+              {reprocessedNoChange}
+            </Badge>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium text-slate-700">
+                Reprocessed (no schema changes)
+              </div>
+              <div className="text-xs text-slate-500 mt-0.5">
+                Re-ran the post-processor without changing the staleness
+                signals — typical for forced reruns of already-fresh reports.
+              </div>
+            </div>
+          </li>
+        )}
+      </ul>
+    </div>
+  );
 }
 
 function StatusBadge({ status }: { status: BackfillReportResult["status"] }) {

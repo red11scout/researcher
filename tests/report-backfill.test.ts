@@ -56,9 +56,8 @@ vi.mock("../server/storage", () => ({
 }));
 
 // Imported AFTER the mock above so the mock takes effect.
-const { evaluateReportStaleness, backfillAllReports } = await import(
-  "../server/report-backfill"
-);
+const { evaluateReportStaleness, backfillAllReports, computeUpgradesApplied } =
+  await import("../server/report-backfill");
 
 // ---------------------------------------------------------------------------
 // Fixture builders
@@ -263,6 +262,56 @@ describe("evaluateReportStaleness", () => {
 });
 
 // ---------------------------------------------------------------------------
+// computeUpgradesApplied — diff the staleness signals before vs. after backfill
+// to surface exactly which schema-level upgrades were applied to a report.
+// ---------------------------------------------------------------------------
+describe("computeUpgradesApplied", () => {
+  it("returns an empty list when nothing changed", () => {
+    const fresh = evaluateReportStaleness(makeFreshAnalysis());
+    expect(computeUpgradesApplied(fresh, fresh)).toEqual([]);
+  });
+
+  it("flags every upgrade when migrating a legacy v2.0 → v2.x report", () => {
+    const before = evaluateReportStaleness(makeLegacyV20Analysis());
+    const after = evaluateReportStaleness(makeFreshAnalysis());
+    const upgrades = computeUpgradesApplied(before, after);
+    const codes = upgrades.map((u) => u.code).sort();
+    expect(codes).toEqual([
+      "added-diagnostic",
+      "added-flat-fields",
+      "added-step6-ko-fields",
+      "bumped-schema",
+    ]);
+    const bumped = upgrades.find((u) => u.code === "bumped-schema");
+    expect(bumped?.label).toBe(`Bumped schema 2.0 → ${VRM_SCHEMA_VERSION}`);
+  });
+
+  it("emits 'Generated Step 6' when Step 6 first appears", () => {
+    const beforeAnalysis = makeFreshAnalysis();
+    beforeAnalysis.steps = beforeAnalysis.steps.filter(
+      (s: any) => s.step !== 6,
+    );
+    const before = evaluateReportStaleness(beforeAnalysis);
+    const after = evaluateReportStaleness(makeFreshAnalysis());
+    const upgrades = computeUpgradesApplied(before, after);
+    expect(upgrades.find((u) => u.code === "added-step6")?.label).toBe(
+      "Generated Step 6",
+    );
+  });
+
+  it("uses 'missing' as the previous schema label when none was set", () => {
+    const beforeAnalysis = makeFreshAnalysis();
+    delete beforeAnalysis.vrm.schemaVersion;
+    const before = evaluateReportStaleness(beforeAnalysis);
+    const after = evaluateReportStaleness(makeFreshAnalysis());
+    const bumped = computeUpgradesApplied(before, after).find(
+      (u) => u.code === "bumped-schema",
+    );
+    expect(bumped?.label).toBe(`Bumped schema missing → ${VRM_SCHEMA_VERSION}`);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // backfillAllReports — integration test against the real postProcessAnalysis
 // ---------------------------------------------------------------------------
 describe("backfillAllReports", () => {
@@ -294,6 +343,20 @@ describe("backfillAllReports", () => {
     expect(summary.failed).toBe(0);
     expect(summary.results[0].status).toBe("updated");
     expect(summary.results[0].id).toBe("report-legacy-1");
+
+    // The per-report result must surface the schema-level changes the
+    // post-processor actually applied, so admins don't have to diff JSON.
+    const upgradeCodes = (summary.results[0].upgrades ?? [])
+      .map((u) => u.code)
+      .sort();
+    expect(upgradeCodes).toEqual(
+      expect.arrayContaining([
+        "added-diagnostic",
+        "added-flat-fields",
+        "added-step6-ko-fields",
+        "bumped-schema",
+      ]),
+    );
 
     // The mock storage records the persist call.
     expect(storageState.updates).toHaveLength(1);

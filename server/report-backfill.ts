@@ -78,12 +78,76 @@ export function evaluateReportStaleness(analysis: any): StalenessResult {
   };
 }
 
+/**
+ * A single concrete change applied to a report by the backfill, derived by
+ * diffing the staleness signals before and after `postProcessAnalysis` runs.
+ * `code` is a stable machine id (safe for grouping/aggregation in the UI),
+ * `label` is the short human-readable summary the admin sees.
+ */
+export interface ReportUpgrade {
+  code:
+    | "added-step6"
+    | "bumped-schema"
+    | "added-diagnostic"
+    | "added-flat-fields"
+    | "added-step6-ko-fields";
+  label: string;
+}
+
+/**
+ * Compute the list of upgrades the backfill applied to one report by
+ * comparing the staleness signals before vs. after `postProcessAnalysis`.
+ * Returns an empty array when nothing schema-relevant changed (e.g. a forced
+ * reprocess of an already-fresh report).
+ */
+export function computeUpgradesApplied(
+  before: StalenessResult,
+  after: StalenessResult,
+): ReportUpgrade[] {
+  const upgrades: ReportUpgrade[] = [];
+  if (!before.hasStep6 && after.hasStep6) {
+    upgrades.push({ code: "added-step6", label: "Generated Step 6" });
+  }
+  if (before.vrmSchemaVersion !== after.vrmSchemaVersion) {
+    upgrades.push({
+      code: "bumped-schema",
+      label: `Bumped schema ${before.vrmSchemaVersion ?? "missing"} → ${after.vrmSchemaVersion ?? "missing"}`,
+    });
+  }
+  if (!before.hasV21Diagnostic && after.hasV21Diagnostic) {
+    upgrades.push({
+      code: "added-diagnostic",
+      label: "Added VRM diagnostic",
+    });
+  }
+  if (!before.hasFlatFields && after.hasFlatFields) {
+    upgrades.push({
+      code: "added-flat-fields",
+      label: "Added diagnostic flat fields",
+    });
+  }
+  if (!before.hasStep6KOFields && after.hasStep6KOFields) {
+    upgrades.push({
+      code: "added-step6-ko-fields",
+      label: "Synthesized Step 6 KO fields",
+    });
+  }
+  return upgrades;
+}
+
 export interface BackfillReportResult {
   id: string;
   companyName: string;
   isWhatIf: boolean;
   status: "updated" | "skipped" | "failed";
   reasons?: string[];
+  /**
+   * For status="updated": the concrete schema-level changes the post-processor
+   * applied, computed by diffing the staleness signals before vs. after.
+   * Empty when the report was force-reprocessed but already on the latest
+   * shape. Omitted entirely for skipped/failed results.
+   */
+  upgrades?: ReportUpgrade[];
   error?: string;
   durationMs: number;
 }
@@ -166,12 +230,20 @@ export async function backfillAllReports(
           await storage.updateReport(report.id, {
             analysisData: reprocessed,
           });
+          // Diff the staleness signals to surface exactly which schema-level
+          // upgrades the post-processor applied (e.g. bumped schema, added
+          // VRM diagnostic, synthesized Step 6 KO fields). The diff is
+          // computed off the in-memory reprocessed analysis to avoid a
+          // second storage round-trip.
+          const afterStaleness = evaluateReportStaleness(reprocessed);
+          const upgrades = computeUpgradesApplied(staleness, afterStaleness);
           result = {
             id: report.id,
             companyName: report.companyName,
             isWhatIf: !!report.isWhatIf,
             status: "updated",
             reasons: force && !staleness.stale ? ["forced"] : staleness.reasons,
+            upgrades,
             durationMs: Date.now() - reportStartedAt,
           };
           updated++;
