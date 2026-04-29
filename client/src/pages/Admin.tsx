@@ -380,6 +380,11 @@ function AdminPanel() {
   // can group reports by which upgrade was applied. The progress feed only
   // keeps the last MAX_RECENT entries, which is too narrow for grouping.
   const updatedReportsRef = useRef<BackfillReportResult[]>([]);
+  // Report IDs that are currently being retried via a per-row "Retry"
+  // button. We track them so the affected row can show a spinner without
+  // wiping the rest of the failures table out from under the operator
+  // (which is what happens for the batch "Retry these" button).
+  const [retryingIds, setRetryingIds] = useState<Set<string>>(new Set());
 
   // "Recent admin activity" panel — fetched on mount and refreshed after
   // every backfill run so the operator can immediately see their own action
@@ -497,7 +502,13 @@ function AdminPanel() {
         } = await res.json();
         if (cancelled || !data.summary) return;
         setResult(data.summary);
-        setUpdatedReports(data.updatedReports ?? []);
+        const hydratedUpdated = data.updatedReports ?? [];
+        setUpdatedReports(hydratedUpdated);
+        // Keep the ref in sync with hydrated state so that any code which
+        // appends to it later (e.g. a preserve-mode per-row retry that
+        // surfaces a newly-fixed report) doesn't overwrite the hydrated
+        // upgrades history with only the newly-appended entries.
+        updatedReportsRef.current = hydratedUpdated.slice();
         setHydratedAt(data.completedAt ?? null);
       } catch {
         // Hydration is a nice-to-have — if the GET fails, the page still
@@ -521,7 +532,10 @@ function AdminPanel() {
     }, 80);
   };
 
-  const runBackfill = async (opts?: { onlyIds?: string[] }) => {
+  const runBackfill = async (opts?: {
+    onlyIds?: string[];
+    preserveResult?: boolean;
+  }) => {
     const onlyIds = opts?.onlyIds;
     // A retry-only run always forces reprocessing — the operator just saw
     // these reports fail, so respecting the staleness short-circuit (which
@@ -529,19 +543,37 @@ function AdminPanel() {
     // whole point of the button.
     const isRetry = !!onlyIds && onlyIds.length > 0;
     const useForce = force || isRetry;
+    // Preserve mode is used by per-row retries. The operator is triaging
+    // failures one at a time and would lose the rest of the failures table
+    // (and the live progress / upgrades panels) if we wiped state at the
+    // start of the run. Instead, we keep the current `result`/`updatedReports`
+    // in place, just mark the row as retrying, and merge the per-ID result
+    // back into the existing `result.failures` once the stream completes.
+    const preserve = !!opts?.preserveResult && isRetry;
+    // Per-ID results accumulated from this run's progress events, used in
+    // preserve mode to splice the new statuses back into the existing
+    // failures table.
+    const perIdResults: BackfillReportResult[] = [];
 
     setRunning(true);
     setStartedAt(Date.now());
-    setResult(null);
-    setUpdatedReports([]);
-    // We're about to produce a fresh result — once this run completes, the
-    // displayed summary is "live" again, not a hydrated snapshot from the
-    // previous run, so drop the "from previous run completed …" hint.
-    setHydratedAt(null);
+    if (preserve) {
+      // Mark the targeted rows as retrying so their per-row Retry button
+      // can show a spinner without disturbing anything else on the page.
+      setRetryingIds(new Set(onlyIds));
+    } else {
+      setResult(null);
+      setUpdatedReports([]);
+      // We're about to produce a fresh result — once this run completes,
+      // the displayed summary is "live" again, not a hydrated snapshot
+      // from the previous run, so drop the "from previous run completed …"
+      // hint.
+      setHydratedAt(null);
+      setProgress(null);
+      pendingProgress.current = null;
+      updatedReportsRef.current = [];
+    }
     setError(null);
-    setProgress(null);
-    pendingProgress.current = null;
-    updatedReportsRef.current = [];
 
     try {
       const params = new URLSearchParams({ stream: "1" });
@@ -574,6 +606,10 @@ function AdminPanel() {
 
       const handleEvent = (event: StreamEvent) => {
         if (event.type === "start") {
+          // In preserve mode the live progress panel is intentionally not
+          // shown (the existing summary stays in place), so there's no
+          // reason to seed `progress` state from this run.
+          if (preserve) return;
           const initial: ProgressState = {
             total: event.total,
             processed: 0,
@@ -585,6 +621,11 @@ function AdminPanel() {
           pendingProgress.current = initial;
           setProgress(initial);
         } else if (event.type === "progress") {
+          const r = event.result;
+          // Always capture per-ID results so preserve mode can merge them
+          // back into the failures table once the stream completes.
+          perIdResults.push(r);
+          if (preserve) return;
           const prev =
             pendingProgress.current ?? {
               total: event.total,
@@ -594,7 +635,6 @@ function AdminPanel() {
               failed: 0,
               recent: [],
             };
-          const r = event.result;
           if (r.status === "updated") {
             updatedReportsRef.current.push(r);
           }
@@ -667,27 +707,113 @@ function AdminPanel() {
         throw new Error("Stream ended before a completion event was received.");
       }
 
-      setResult(completion);
-      setUpdatedReports(updatedReportsRef.current.slice());
-      toast({
-        title: "Upgrade complete",
-        description: `Updated ${completion.updated} of ${completion.total} reports (${completion.failed} failed) in ${formatDuration(completion.durationMs)}.`,
-      });
+      if (preserve) {
+        // Per-row retry: splice the per-ID results back into the existing
+        // failures table instead of replacing the whole summary. Rows that
+        // weren't part of this retry stay exactly where they were.
+        const resultsById = new Map(perIdResults.map((r) => [r.id, r]));
+        let updatedDelta = 0;
+        let skippedDelta = 0;
+        let failedDelta = 0;
+        const newlyUpdated: BackfillReportResult[] = [];
+        setResult((prev) => {
+          if (!prev) return prev;
+          const nextFailures: BackfillFailure[] = [];
+          for (const f of prev.failures ?? []) {
+            const r = resultsById.get(f.id);
+            if (!r) {
+              // Not retried in this run — leave the failure row untouched.
+              nextFailures.push(f);
+              continue;
+            }
+            if (r.status === "failed") {
+              // Still failing, but with possibly-new error text/duration.
+              nextFailures.push(r as BackfillFailure);
+            } else if (r.status === "updated") {
+              updatedDelta += 1;
+              failedDelta -= 1;
+              newlyUpdated.push(r);
+            } else {
+              skippedDelta += 1;
+              failedDelta -= 1;
+            }
+          }
+          return {
+            ...prev,
+            failures: nextFailures,
+            updated: prev.updated + updatedDelta,
+            skipped: prev.skipped + skippedDelta,
+            failed: prev.failed + failedDelta,
+          };
+        });
+        if (newlyUpdated.length > 0) {
+          // Surface the newly-fixed reports in the "Upgrades applied" and
+          // "Headline number changes" panels alongside whatever was already
+          // there from the original run. Use a functional setState so we
+          // append to the latest committed `updatedReports` (including any
+          // hydrated history from the persisted last run) instead of relying
+          // solely on the ref, which is only kept in sync from the streaming
+          // path.
+          updatedReportsRef.current = [
+            ...updatedReportsRef.current,
+            ...newlyUpdated,
+          ];
+          setUpdatedReports((prev) => [...prev, ...newlyUpdated]);
+        }
+        setRetryingIds(new Set());
+        const succeeded = perIdResults.filter(
+          (r) => r.status === "updated" || r.status === "skipped",
+        ).length;
+        const failedAgain = perIdResults.filter(
+          (r) => r.status === "failed",
+        ).length;
+        toast({
+          title: "Retry complete",
+          description:
+            failedAgain === 0
+              ? `Retried ${perIdResults.length} report${perIdResults.length === 1 ? "" : "s"} — all succeeded.`
+              : `Retried ${perIdResults.length} report${perIdResults.length === 1 ? "" : "s"} — ${succeeded} succeeded, ${failedAgain} still failing.`,
+        });
+      } else {
+        setResult(completion);
+        setUpdatedReports(updatedReportsRef.current.slice());
+        toast({
+          title: "Upgrade complete",
+          description: `Updated ${completion.updated} of ${completion.total} reports (${completion.failed} failed) in ${formatDuration(completion.durationMs)}.`,
+        });
+      }
       // Pull the audit log again so the run we just finished shows up at the
       // top of the "Recent admin activity" panel.
       refreshAuditLog();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
-      setError(message);
-      toast({
-        title: "Upgrade failed",
-        description: message,
-        variant: "destructive",
-      });
+      if (preserve) {
+        // Don't surface an inline page-level "Upgrade failed" banner for a
+        // single-row retry — that would obscure the failures table the
+        // operator is still trying to read. The toast is enough.
+        toast({
+          title: "Retry failed",
+          description: message,
+          variant: "destructive",
+        });
+      } else {
+        setError(message);
+        toast({
+          title: "Upgrade failed",
+          description: message,
+          variant: "destructive",
+        });
+      }
     } finally {
       if (flushTimer.current !== null) {
         window.clearTimeout(flushTimer.current);
         flushTimer.current = null;
+      }
+      if (preserve) {
+        // Always clear the per-row spinner state on the way out, even if
+        // the network request errored mid-flight, so a stuck row can't
+        // permanently disable its own Retry button.
+        setRetryingIds(new Set());
       }
       setRunning(false);
     }
@@ -969,13 +1095,28 @@ function AdminPanel() {
                                   // Per-row retry: re-run the upgrade for
                                   // just this one report ID so operators can
                                   // skip a known-broken legacy report and
-                                  // triage the rest one at a time.
-                                  void runBackfill({ onlyIds: [f.id] });
+                                  // triage the rest one at a time. Pass
+                                  // `preserveResult` so the rest of the
+                                  // failures table stays visible while this
+                                  // single row is re-run.
+                                  void runBackfill({
+                                    onlyIds: [f.id],
+                                    preserveResult: true,
+                                  });
                                 }}
                                 data-testid={`button-retry-failure-${f.id}`}
                               >
-                                <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-                                Retry
+                                {retryingIds.has(f.id) ? (
+                                  <>
+                                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                                    Retrying…
+                                  </>
+                                ) : (
+                                  <>
+                                    <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                                    Retry
+                                  </>
+                                )}
                               </Button>
                             </TableCell>
                           </TableRow>
