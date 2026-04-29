@@ -67,6 +67,7 @@ import {
   MIN_PROTOTYPING_CANDIDATES,
   resolveEngagementConfig,
   normalizeValueScores,
+  VALUE_NORMALIZATION_VERSION,
   DEFAULT_ENGAGEMENT_CONFIG,
   QUADRANT_LABELS,
   type SectorPreset,
@@ -2202,7 +2203,8 @@ export function postProcessAnalysis(analysisResult: any): any {
       maxTimeToPilotWeeks: engagementCfg.maxTimeToPilotWeeks,
       valueFloorBand: engagementCfg.valueFloor,
     },
-    valueNormalization: "log10-min-max",
+    valueNormalization: "log10-percentile-winsorized",
+    valueNormalizationVersion: VALUE_NORMALIZATION_VERSION,
     diagnostic: portfolioDiagnosticV22
       ? {
           ...portfolioDiagnosticV22,

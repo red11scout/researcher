@@ -89,6 +89,7 @@ function makeFreshAnalysis(): any {
     ],
     vrm: {
       schemaVersion: VRM_SCHEMA_VERSION,
+      valueNormalizationVersion: "v2",
       diagnostic: {
         championCount: 2,
         prototypingCandidatesPct: 50,
@@ -240,6 +241,27 @@ describe("evaluateReportStaleness", () => {
     expect(result.hasStep6).toBe(true);
     expect(result.hasStep6KOFields).toBe(false);
     expect(result.reasons).toContain("missing-step6-knockout-fields");
+  });
+
+  it("flags reports whose vrm.valueNormalizationVersion is missing or 'v1' (pre-percentile patch)", () => {
+    // Pre-patch report — explicitly remove the field to simulate persisted data
+    // from before April 2026. (The fresh fixture sets it to "v2" by default.)
+    const missing = makeFreshAnalysis();
+    delete missing.vrm.valueNormalizationVersion;
+    const r1 = evaluateReportStaleness(missing);
+    expect(r1.stale).toBe(true);
+    expect(r1.reasons).toContain("value-norm-version=missing");
+
+    // Legacy "v1" → flagged with explicit version in the reason.
+    const v1 = makeFreshAnalysis();
+    v1.vrm.valueNormalizationVersion = "v1";
+    const r2 = evaluateReportStaleness(v1);
+    expect(r2.reasons).toContain("value-norm-version=v1");
+
+    // Current "v2" (the fresh fixture's default) → no reason fired.
+    const v2 = makeFreshAnalysis();
+    const r3 = evaluateReportStaleness(v2);
+    expect(r3.reasons.some((x: string) => x.startsWith("value-norm-version="))).toBe(false);
   });
 
   it("flags Step 7 rows that still carry the legacy Q1-Q4 phase labels", () => {

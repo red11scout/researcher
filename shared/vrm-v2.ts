@@ -578,14 +578,68 @@ export function resolveEngagementConfig(overrides?: Partial<EngagementConfig>): 
 // CHANGE 1 — Log-transformed value normalization
 // ---------------------------------------------------------------------------
 /**
- * Map raw EV/Friction ratios to a 1–10 Value Score using log-transformed
- * min-max normalization. Smooths heavy-tailed distributions that produced
- * the v2.0 "everything bunches at the low end" failure mode.
+ * Tag stamped onto every analysis the postprocessor emits so the staleness
+ * checker can detect reports that were normalized with an older formula and
+ * needs a re-run. Bumped with every behaviour change to `normalizeValueScores`.
+ *
+ *  - "v1" — the original log10 min-max (April 2026 v2.2). One large outlier
+ *           crushes every other use case to ~1, producing the "all bubbles
+ *           on the bottom row" failure mode reported in the screenshot.
+ *  - "v2" — winsorized percentile normalization (current). Anchors the
+ *           1↔10 band to the 10th and 90th percentile of log ratios for
+ *           portfolios of 5+ use cases, so a single outlier can no longer
+ *           collapse the rest of the portfolio.
+ */
+export const VALUE_NORMALIZATION_VERSION = "v2" as const;
+
+/**
+ * Lower / upper percentile cutoffs used for winsorization (in [0, 1]).
+ * 0.10 / 0.90 is the standard "10/90 trim" for robust statistics.
+ */
+const VALUE_NORMALIZATION_LOWER_PCT = 0.10;
+const VALUE_NORMALIZATION_UPPER_PCT = 0.90;
+
+/**
+ * Below this portfolio size, percentile estimates become unreliable
+ * (with 4 points the 90th percentile is essentially the max anyway).
+ * For tiny portfolios we keep the original log min-max so tests and small
+ * pilots behave as before.
+ */
+const VALUE_NORMALIZATION_PERCENTILE_MIN_N = 5;
+
+/**
+ * Linear-interpolated percentile (Type-7, the R / Excel default), so a 10/90
+ * percentile on a 5-element sample is well-defined.
+ */
+function percentile(sorted: number[], p: number): number {
+  if (sorted.length === 0) return 0;
+  if (sorted.length === 1) return sorted[0];
+  const idx = (sorted.length - 1) * p;
+  const lo = Math.floor(idx);
+  const hi = Math.ceil(idx);
+  if (lo === hi) return sorted[lo];
+  const frac = idx - lo;
+  return sorted[lo] * (1 - frac) + sorted[hi] * frac;
+}
+
+/**
+ * Map raw EV/Friction ratios to a 1–10 Value Score using winsorized,
+ * log-transformed percentile normalization. Smooths heavy-tailed
+ * distributions that produced the v2.0/v2.1 "everything bunches at the
+ * low end" failure mode.
  *
  * Behaviour:
- *  - Single use case → 5.5 (neutral)
+ *  - Empty input → []
+ *  - Single use case → [5.5] (neutral)
  *  - All ratios identical → 5.5 across the portfolio
  *  - Ratio < 1 or non-finite → log floored at log10(1) = 0
+ *  - For ≥ 5 use cases: anchor 1↔10 band to the 10th/90th percentile of the
+ *    log10 ratios; ratios above the 90th pct clamp to 10, ratios below the
+ *    10th pct clamp to 1. This makes the spread robust to a single outlier
+ *    (e.g. one $50M opportunity and ten $200K ones no longer pin the small
+ *    ones to 1).
+ *  - For 2–4 use cases: keep the original log min-max behaviour, since
+ *    percentile estimates aren't meaningful at that sample size.
  *  - Output range is clamped to [1, 10] to be defensive against rounding.
  */
 export function normalizeValueScores(rawRatios: number[]): number[] {
@@ -597,8 +651,24 @@ export function normalizeValueScores(rawRatios: number[]): number[] {
     return Math.log10(Math.max(r, 1));
   });
 
-  const lo = Math.min(...logRatios);
-  const hi = Math.max(...logRatios);
+  // Pick the anchor band: percentile-based for big portfolios, min-max for tiny ones.
+  let lo: number;
+  let hi: number;
+  if (rawRatios.length >= VALUE_NORMALIZATION_PERCENTILE_MIN_N) {
+    const sorted = [...logRatios].sort((a, b) => a - b);
+    lo = percentile(sorted, VALUE_NORMALIZATION_LOWER_PCT);
+    hi = percentile(sorted, VALUE_NORMALIZATION_UPPER_PCT);
+    // Guard: if winsorized lo===hi (e.g., bottom 10% are zero AND top 10% are zero),
+    // fall back to true min/max so we still get a usable spread.
+    if (hi === lo) {
+      lo = Math.min(...logRatios);
+      hi = Math.max(...logRatios);
+    }
+  } else {
+    lo = Math.min(...logRatios);
+    hi = Math.max(...logRatios);
+  }
+
   if (hi === lo) return rawRatios.map(() => 5.5);
 
   return logRatios.map((lr) => {

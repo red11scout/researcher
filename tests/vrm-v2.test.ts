@@ -101,6 +101,56 @@ describe("normalizeValueScores (log10 min-max)", () => {
       expect(v).toBeLessThanOrEqual(10);
     }
   });
+
+  // -------------------------------------------------------------------------
+  // April 2026 patch — winsorized 10/90 percentile normalization protects
+  // the bulk of the portfolio from a single dominant outlier. The bug fix:
+  // before the patch, one big EV/Friction ratio crushed every other use case
+  // to ~1, producing the "all bubbles on the bottom row" failure mode in the
+  // shared dashboard screenshot.
+  // -------------------------------------------------------------------------
+  it("does NOT crush a 10-use-case portfolio to 1 when one dominant outlier exists", () => {
+    // Realistic-looking portfolio: nine moderate-sized opportunities and one
+    // 100x larger one (e.g., a $50M churn-prevention use case alongside ten
+    // $200K back-office automations). Pre-patch this would have pinned all
+    // nine moderate items to ~1.
+    const ratios = [10, 12, 15, 18, 20, 25, 30, 35, 40, 5000];
+    const out = normalizeValueScores(ratios);
+    // The outlier still pegs at 10.
+    expect(out[out.length - 1]).toBe(10);
+    // The next-largest "non-outlier" item (index 8, ratio=40) must score
+    // meaningfully ABOVE 1 — pre-patch it would have been ~2; post-patch
+    // it should be 6+ because the 90th percentile anchor is at log10(40),
+    // not log10(5000).
+    expect(out[8]).toBeGreaterThanOrEqual(6);
+    // At least 3 of the 10 items must score ≥ 5 (i.e., not bunched at the bottom).
+    const aboveMid = out.filter((v) => v >= 5).length;
+    expect(aboveMid).toBeGreaterThanOrEqual(3);
+  });
+
+  it("uses min/max (not percentile) for portfolios under 5 use cases", () => {
+    // 4-element array: percentile would be unreliable; verify behavior
+    // matches pre-patch min/max so small pilots see no surprise change.
+    const out = normalizeValueScores([1, 10, 100, 10000]);
+    // min ratio → 1, max ratio → 10 (true min-max, no winsorization).
+    expect(out[0]).toBe(1);
+    expect(out[out.length - 1]).toBe(10);
+  });
+
+  it("uses winsorized percentile for portfolios of 5+ use cases", () => {
+    // 5-element array with a single huge outlier — verify the bottom items
+    // get a real spread instead of all flooring to 1.
+    const out = normalizeValueScores([5, 8, 12, 18, 100000]);
+    // Outlier is well above the 90th pct → clamps to 10.
+    expect(out[out.length - 1]).toBe(10);
+    // The 4 non-outliers should span at least 1.5 points of the scale.
+    // (Pure min-max gives ~1.17; winsorized at N=5 gives ~1.57. The protection
+    // grows substantially as N grows — see the 10-use-case test above for the
+    // real-world case where the spread jumps to 6+ points.)
+    const nonOutliers = out.slice(0, -1);
+    const spread = Math.max(...nonOutliers) - Math.min(...nonOutliers);
+    expect(spread).toBeGreaterThanOrEqual(1.5);
+  });
 });
 
 // ---------------------------------------------------------------------------

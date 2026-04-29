@@ -85,6 +85,21 @@ export function evaluateReportStaleness(analysis: any): StalenessResult {
   if (!hasStep6KOFields) reasons.push("missing-step6-knockout-fields");
   if (step7UsesLegacyQuarterLabels) reasons.push("step7-uses-legacy-Q-phase-labels");
 
+  // April 2026 patch — Value Score normalization was upgraded from naive log
+  // min-max ("v1") to winsorized 10/90-percentile log normalization ("v2") so
+  // a single high-EV outlier no longer crushes every other use case to ~1
+  // (the "all bubbles on the bottom row" symptom). Reports that were
+  // postprocessed before the patch carry no `valueNormalizationVersion` field
+  // (or carry "v1"); flag those so the next admin "Upgrade all reports" run
+  // re-normalizes them automatically.
+  const valueNormVersion: string | null =
+    typeof analysis?.vrm?.valueNormalizationVersion === "string"
+      ? analysis.vrm.valueNormalizationVersion
+      : null;
+  if (valueNormVersion !== "v2") {
+    reasons.push(`value-norm-version=${valueNormVersion ?? "missing"}`);
+  }
+
   const stale = reasons.length > 0;
   return {
     stale,
