@@ -1,6 +1,6 @@
 import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { storage, AUDIT_EXPORT_MAX_ROWS, type AdminAuditLogQuery } from "./storage";
 import { generateCompanyAnalysis, generateWhatIfSuggestion, checkProductionConfig, executePipelineCall } from "./ai-service";
 import * as formulaService from "./formula-service";
 import { dubService } from "./dub-service";
@@ -77,6 +77,90 @@ setInterval(() => {
     }
   }
 }, 5 * 60 * 1000); // Check every 5 minutes
+
+// Escape a value for inclusion in a CSV cell. Per RFC 4180: any cell
+// containing a comma, double-quote, CR, or LF must be wrapped in double
+// quotes, with embedded double-quotes escaped by doubling. Plain-text
+// cells (no special chars) are emitted verbatim so common cases like
+// timestamps and action codes don't produce noisy quoting that breaks
+// `cut`-style command-line analysis on the resulting file.
+function csvEscape(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  const s = typeof value === "string" ? value : String(value);
+  if (/[",\r\n]/.test(s)) {
+    return `"${s.replace(/"/g, '""')}"`;
+  }
+  return s;
+}
+
+// Format one audit-log entry as a CSV row matching the header
+//   when,action,status,statusCode,actorIp,path,errorMessage,outcome
+// `outcome` is JSON-stringified so structured fields like
+// `{ updated: 12, skipped: 0, failed: 1 }` survive round-tripping into
+// a spreadsheet without losing their shape.
+function formatAuditEntryAsCsvRow(entry: {
+  createdAt: Date;
+  action: string;
+  status: string;
+  statusCode: number | null;
+  actorIp: string | null;
+  path: string | null;
+  errorMessage: string | null;
+  outcome: unknown;
+}): string {
+  const when =
+    entry.createdAt instanceof Date
+      ? entry.createdAt.toISOString()
+      : String(entry.createdAt ?? "");
+  const outcomeStr =
+    entry.outcome === null || entry.outcome === undefined
+      ? ""
+      : JSON.stringify(entry.outcome);
+  return (
+    [
+      csvEscape(when),
+      csvEscape(entry.action),
+      csvEscape(entry.status),
+      csvEscape(entry.statusCode),
+      csvEscape(entry.actorIp),
+      csvEscape(entry.path),
+      csvEscape(entry.errorMessage),
+      csvEscape(outcomeStr),
+    ].join(",") + "\n"
+  );
+}
+
+// Build a self-describing filename for the CSV download so an operator
+// who archives the file (e.g. attaches it to an incident ticket) can
+// later recover what filter slice it represents without re-running the
+// query. Format: `admin-audit-<UTC timestamp>[-<filter tags>].csv`
+// where filter tags only appear for active filters. Sanitised to
+// filesystem-safe characters because operators routinely save these to
+// shared drives where Windows paths reject `:`, `/`, etc.
+function buildAuditExportFilename(opts: AdminAuditLogQuery): string {
+  const stamp = new Date()
+    .toISOString()
+    .replace(/[:.]/g, "-")
+    .replace(/Z$/, "Z");
+  const tags: string[] = [];
+  const safe = (s: string) =>
+    s.replace(/[^A-Za-z0-9_.-]/g, "_").replace(/_+/g, "_");
+  if (opts.action) tags.push(`action_${safe(opts.action)}`);
+  if (opts.status === "success" || opts.status === "failure") {
+    tags.push(`status_${opts.status}`);
+  }
+  if (opts.since instanceof Date && !Number.isNaN(opts.since.getTime())) {
+    tags.push(`from_${opts.since.toISOString().slice(0, 10)}`);
+  }
+  if (opts.until instanceof Date && !Number.isNaN(opts.until.getTime())) {
+    tags.push(`to_${opts.until.toISOString().slice(0, 10)}`);
+  }
+  if (opts.ip && opts.ip.trim().length > 0) {
+    tags.push(`ip_${safe(opts.ip.trim())}`);
+  }
+  const suffix = tags.length === 0 ? "" : `-${tags.join("-")}`;
+  return `admin-audit-${stamp}${suffix}.csv`;
+}
 
 export async function registerRoutes(
   httpServer: Server,
@@ -884,37 +968,113 @@ Return ONLY valid JSON with this structure:
   //   ignored at the storage layer.
   // - `ip` is treated as a case-insensitive substring (operators rarely
   //   know the full IPv6 address; "10.0." is a common partial query).
+  //
+  // The same filter shape is shared with `/api/admin/audit-log/export`
+  // (CSV download), via `parseAuditLogQuery` below — so a future filter
+  // addition only has to be wired in one place.
+  const parseAuditLogQuery = (
+    q: Record<string, unknown>,
+    defaultLimit: number,
+  ) => {
+    const asString = (v: unknown): string | undefined =>
+      typeof v === "string" && v.trim().length > 0 ? v : undefined;
+    const asInt = (v: unknown, fallback: number): number => {
+      if (typeof v !== "string") return fallback;
+      const n = parseInt(v, 10);
+      return Number.isFinite(n) ? n : fallback;
+    };
+    const asDate = (v: unknown): Date | undefined => {
+      const s = asString(v);
+      if (!s) return undefined;
+      const d = new Date(s);
+      return Number.isNaN(d.getTime()) ? undefined : d;
+    };
+    return {
+      limit: asInt(q.limit, defaultLimit),
+      offset: asInt(q.offset, 0),
+      action: asString(q.action),
+      status: asString(q.status),
+      since: asDate(q.since),
+      until: asDate(q.until),
+      ip: asString(q.ip),
+    };
+  };
+
   app.get("/api/admin/audit-log", async (req, res) => {
     try {
-      const q = req.query as Record<string, unknown>;
-      const asString = (v: unknown): string | undefined =>
-        typeof v === "string" && v.trim().length > 0 ? v : undefined;
-      const asInt = (v: unknown, fallback: number): number => {
-        if (typeof v !== "string") return fallback;
-        const n = parseInt(v, 10);
-        return Number.isFinite(n) ? n : fallback;
-      };
-      const asDate = (v: unknown): Date | undefined => {
-        const s = asString(v);
-        if (!s) return undefined;
-        const d = new Date(s);
-        return Number.isNaN(d.getTime()) ? undefined : d;
-      };
-      const result = await storage.getRecentAdminAuditEntries({
-        limit: asInt(q.limit, 25),
-        offset: asInt(q.offset, 0),
-        action: asString(q.action),
-        status: asString(q.status),
-        since: asDate(q.since),
-        until: asDate(q.until),
-        ip: asString(q.ip),
-      });
+      const result = await storage.getRecentAdminAuditEntries(
+        parseAuditLogQuery(req.query as Record<string, unknown>, 25),
+      );
       res.json({ entries: result.entries, total: result.total });
     } catch (err: any) {
       console.error("[admin/audit-log] Failed to read audit log:", err);
       res
         .status(500)
         .json({ entries: [], total: 0, error: err?.message ?? String(err) });
+    }
+  });
+
+  // CSV export of the filtered audit trail. Mirrors the same filter
+  // semantics as `/api/admin/audit-log` so an operator's "Download CSV"
+  // pulls exactly the slice they're currently viewing in the panel.
+  // Capped at `AUDIT_EXPORT_MAX_ROWS` rows in the storage layer; if the
+  // filter selects more, the response includes an `X-Audit-Export-Truncated`
+  // header so the UI can warn the operator they need to narrow further.
+  // Filename includes the timestamp + active filters for archival —
+  // operators routinely attach these to incident tickets.
+  app.get("/api/admin/audit-log/export", async (req, res) => {
+    try {
+      const opts = parseAuditLogQuery(
+        req.query as Record<string, unknown>,
+        AUDIT_EXPORT_MAX_ROWS,
+      );
+      const result = await storage.exportAdminAuditEntries(opts);
+
+      const filename = buildAuditExportFilename(opts);
+      res.setHeader("Content-Type", "text/csv; charset=utf-8");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${filename}"`,
+      );
+      // Custom headers so the client can show "exported N of M rows" /
+      // "results were truncated" toast feedback without re-fetching.
+      res.setHeader("X-Audit-Export-Total", String(result.total));
+      res.setHeader("X-Audit-Export-Rows", String(result.entries.length));
+      res.setHeader(
+        "X-Audit-Export-Truncated",
+        result.truncated ? "1" : "0",
+      );
+      // Expose the custom headers to the browser fetch layer — without
+      // this, the Admin page can't read them off the Response object.
+      res.setHeader(
+        "Access-Control-Expose-Headers",
+        "Content-Disposition, X-Audit-Export-Total, X-Audit-Export-Rows, X-Audit-Export-Truncated",
+      );
+
+      // Stream row-by-row so we don't buffer the entire CSV in memory
+      // before the first byte hits the wire. At the 10k cap with ~1KB
+      // rows the buffered approach would still be fine, but streaming
+      // is the same code and gives us headroom if the cap ever rises.
+      res.write(
+        "when,action,status,statusCode,actorIp,path,errorMessage,outcome\n",
+      );
+      for (const entry of result.entries) {
+        res.write(formatAuditEntryAsCsvRow(entry));
+      }
+      res.end();
+    } catch (err: any) {
+      console.error("[admin/audit-log/export] Failed to export audit log:", err);
+      // If headers haven't gone out yet, surface the error as JSON so the
+      // browser fetch can display it. Once we've started writing CSV
+      // bytes we can't switch content types — best we can do is hang up
+      // mid-stream and log the failure.
+      if (!res.headersSent) {
+        res
+          .status(500)
+          .json({ error: err?.message ?? String(err) });
+      } else {
+        res.end();
+      }
     }
   });
 

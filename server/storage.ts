@@ -69,6 +69,42 @@ export interface AdminAuditLogQuery {
   ip?: string;
 }
 
+// Hard cap on a single CSV export. The Admin "Download CSV" button asks
+// for this many rows in one shot; multi-year exports past the cap get
+// truncated with a `truncated: true` flag so the UI can warn the
+// operator. Sized so a worst-case row (~1KB JSON outcome) keeps the
+// total payload under ~10MB — comfortable for a browser download and
+// well under the typical Node heap budget.
+export const AUDIT_EXPORT_MAX_ROWS = 10_000;
+
+// Shared WHERE-clause builder for the admin-audit read + export paths.
+// Kept module-private so the read endpoint and the CSV export endpoint
+// can never drift on filter semantics: a "Download CSV" must export
+// exactly the slice the operator is currently seeing in the panel.
+function buildAdminAuditWhereClause(options: AdminAuditLogQuery) {
+  const conditions = [] as ReturnType<typeof eq>[];
+  if (options.action && options.action.trim().length > 0) {
+    conditions.push(eq(adminAuditLog.action, options.action.trim()));
+  }
+  if (options.status === "success" || options.status === "failure") {
+    conditions.push(eq(adminAuditLog.status, options.status));
+  }
+  if (options.since instanceof Date && !Number.isNaN(options.since.getTime())) {
+    conditions.push(gte(adminAuditLog.createdAt, options.since));
+  }
+  if (options.until instanceof Date && !Number.isNaN(options.until.getTime())) {
+    conditions.push(lte(adminAuditLog.createdAt, options.until));
+  }
+  if (options.ip && options.ip.trim().length > 0) {
+    // Substring match — operators routinely know only the network prefix
+    // ("10.0.", "192.168.", an IPv6 fragment), not the full address.
+    conditions.push(ilike(adminAuditLog.actorIp, `%${options.ip.trim()}%`));
+  }
+  if (conditions.length === 0) return undefined;
+  if (conditions.length === 1) return conditions[0];
+  return and(...conditions);
+}
+
 export interface IStorage {
   // Report operations
   createReport(report: InsertReport): Promise<Report>;
@@ -154,6 +190,18 @@ export interface IStorage {
   getRecentAdminAuditEntries(
     options?: AdminAuditLogQuery,
   ): Promise<{ entries: AdminAuditLogEntry[]; total: number }>;
+  // Bulk read of audit entries matching the same filter shape as
+  // `getRecentAdminAuditEntries`, but unbounded by the read-page limit.
+  // Used by the CSV-export endpoint so an operator can pull a slice of the
+  // trail (e.g. "every failed admin-login from last quarter") into a
+  // spreadsheet for offline analysis. The implementation enforces an
+  // upper cap (`AUDIT_EXPORT_MAX_ROWS`, currently 10_000) to keep a
+  // multi-year export from OOM-ing the server. The returned object also
+  // includes the total matching count so the caller can warn the
+  // operator when their filter slice was truncated.
+  exportAdminAuditEntries(
+    options?: AdminAuditLogQuery,
+  ): Promise<{ entries: AdminAuditLogEntry[]; total: number; truncated: boolean }>;
   // Delete admin_audit_log rows older than the supplied cutoff date and
   // return how many rows were removed. Used by the retention scheduler so
   // the audit table doesn't grow unbounded — particularly important
@@ -948,33 +996,7 @@ export class DatabaseStorage implements IStorage {
     );
     const safeOffset = Math.max(0, Math.floor(options.offset ?? 0) || 0);
 
-    // Build the WHERE clause from whichever filters the caller supplied.
-    // An unspecified filter must not constrain the query — that's how the
-    // default "show me the most recent N" view stays cheap.
-    const conditions = [] as ReturnType<typeof eq>[];
-    if (options.action && options.action.trim().length > 0) {
-      conditions.push(eq(adminAuditLog.action, options.action.trim()));
-    }
-    if (options.status === "success" || options.status === "failure") {
-      conditions.push(eq(adminAuditLog.status, options.status));
-    }
-    if (options.since instanceof Date && !Number.isNaN(options.since.getTime())) {
-      conditions.push(gte(adminAuditLog.createdAt, options.since));
-    }
-    if (options.until instanceof Date && !Number.isNaN(options.until.getTime())) {
-      conditions.push(lte(adminAuditLog.createdAt, options.until));
-    }
-    if (options.ip && options.ip.trim().length > 0) {
-      // Substring match — operators routinely know only the network prefix
-      // ("10.0.", "192.168.", an IPv6 fragment), not the full address.
-      conditions.push(ilike(adminAuditLog.actorIp, `%${options.ip.trim()}%`));
-    }
-    const whereClause =
-      conditions.length === 0
-        ? undefined
-        : conditions.length === 1
-          ? conditions[0]
-          : and(...conditions);
+    const whereClause = buildAdminAuditWhereClause(options);
 
     // Run the page query and the COUNT(*) in parallel — both hit the same
     // filtered set, so paying for one round-trip each is fine.
@@ -994,6 +1016,45 @@ export class DatabaseStorage implements IStorage {
     ]);
     const total = Number(countRows[0]?.count ?? 0);
     return { entries, total };
+  }
+
+  async exportAdminAuditEntries(
+    options: AdminAuditLogQuery = {},
+  ): Promise<{ entries: AdminAuditLogEntry[]; total: number; truncated: boolean }> {
+    // Reuse the exact same filter semantics as the read endpoint so an
+    // operator's "Download CSV" pulls the slice they're currently looking
+    // at — no chance of a divergent WHERE clause silently exporting more
+    // (or fewer) rows than the panel shows.
+    const whereClause = buildAdminAuditWhereClause(options);
+
+    // Hard cap to keep a multi-year export from OOM-ing the server. We
+    // ask for `cap + 1` rows so we can detect "the filter selected more
+    // than the cap" without paying for a separate COUNT(*) round-trip on
+    // the happy path (small portfolios export well under 10k rows).
+    const pageQuery = db
+      .select()
+      .from(adminAuditLog)
+      .orderBy(desc(adminAuditLog.createdAt))
+      .limit(AUDIT_EXPORT_MAX_ROWS + 1);
+
+    const rows = await (whereClause ? pageQuery.where(whereClause) : pageQuery);
+    const truncated = rows.length > AUDIT_EXPORT_MAX_ROWS;
+    const entries = truncated ? rows.slice(0, AUDIT_EXPORT_MAX_ROWS) : rows;
+
+    // Only pay for COUNT(*) when we actually hit the cap — otherwise the
+    // export already has every row and `total === entries.length`. This
+    // keeps the common case to a single round-trip.
+    let total = entries.length;
+    if (truncated) {
+      const countQuery = db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(adminAuditLog);
+      const countRows = await (whereClause
+        ? countQuery.where(whereClause)
+        : countQuery);
+      total = Number(countRows[0]?.count ?? entries.length);
+    }
+    return { entries, total, truncated };
   }
 
   async pruneOldAdminAuditEntries(olderThan: Date): Promise<number> {

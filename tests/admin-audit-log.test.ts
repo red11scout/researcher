@@ -325,6 +325,15 @@ let routeReturn: { entries: AdminAuditLogEntry[]; total: number } = {
   entries: [],
   total: 0,
 };
+// Configurable return for the export endpoint mock. Defaults to an empty,
+// non-truncated slice so the route registration itself never trips on
+// undefined fields. Each export-route test overrides this with its own
+// fixture before issuing the request.
+let exportReturn: {
+  entries: AdminAuditLogEntry[];
+  total: number;
+  truncated: boolean;
+} = { entries: [], total: 0, truncated: false };
 // Error injection knob — set to a non-null Error to make the next
 // route invocations throw from inside `getRecentAdminAuditEntries`,
 // so the real handler's catch branch is exercised end-to-end.
@@ -342,6 +351,15 @@ vi.mock("../server/storage", async () => {
         routeCalls.push({ options });
         if (routeThrow) throw routeThrow;
         return routeReturn;
+      },
+      exportAdminAuditEntries: async (options: unknown) => {
+        // Same call ledger as the read endpoint so a single test list
+        // can assert exactly what shape the route handed in. Returns the
+        // configured `exportReturn` so each test can inject its own
+        // entries / total / truncated flag.
+        routeCalls.push({ options });
+        if (routeThrow) throw routeThrow;
+        return exportReturn;
       },
       // Other methods touched by unrelated routes loaded alongside;
       // stubbed so the handler module doesn't trip during registration.
@@ -866,5 +884,303 @@ describe("GET /api/admin/audit-log — query-param parsing", () => {
     expect((opts.until as Date).toISOString()).toBe(
       "2026-04-05T00:00:00.000Z",
     );
+  });
+});
+
+// ===========================================================================
+// 3. DatabaseStorage.exportAdminAuditEntries — bulk read for CSV export
+// ===========================================================================
+describe("DatabaseStorage.exportAdminAuditEntries", () => {
+  beforeEach(async () => {
+    dbState.entries = [];
+    await seed();
+  });
+
+  it("returns every matching row when below the cap, ordered newest-first", async () => {
+    const storage = new DatabaseStorage();
+    const out = await storage.exportAdminAuditEntries();
+    expect(out.entries).toHaveLength(5);
+    expect(out.total).toBe(5);
+    expect(out.truncated).toBe(false);
+    // Same desc(createdAt) order as the read endpoint — operators
+    // expect the CSV to mirror the panel.
+    expect(out.entries[0].action).toBe("admin-access-denied");
+    expect(out.entries[4].action).toBe("admin-login");
+  });
+
+  it("applies the same filter semantics as getRecentAdminAuditEntries", async () => {
+    const storage = new DatabaseStorage();
+    const out = await storage.exportAdminAuditEntries({
+      action: "backfill-reports",
+      status: "failure",
+      ip: "10.0.0.6",
+    });
+    expect(out.entries).toHaveLength(1);
+    expect(out.total).toBe(1);
+    expect(out.truncated).toBe(false);
+    expect(out.entries[0].action).toBe("backfill-reports");
+    expect(out.entries[0].status).toBe("failure");
+    expect(out.entries[0].actorIp).toBe("10.0.0.6");
+  });
+
+  it("flags truncated:true and reports the full unfiltered total when over the cap", async () => {
+    // Cap is 10_000; seeding 10_002 rows lets us prove both that the
+    // returned page is exactly cap rows AND that `total` reflects the
+    // full filter match (not just what was returned). We don't actually
+    // insert 10_002 rows of audit data — that'd be slow; we monkey-
+    // patch AUDIT_EXPORT_MAX_ROWS via a stub seed indirectly. Instead
+    // we add 10_002 minimal rows directly to the in-memory db.
+    dbState.entries = [];
+    const t0 = Date.now();
+    const cap = 10_000;
+    for (let i = 0; i < cap + 2; i++) {
+      dbState.entries.push({
+        id: `synthetic-${i}`,
+        action: "synthetic",
+        status: "success",
+        statusCode: 200,
+        actorIp: "127.0.0.1",
+        actorUserAgent: "ua",
+        path: "/api/admin/synthetic",
+        params: null,
+        outcome: null,
+        errorMessage: null,
+        // Distinct timestamps so desc(createdAt) is well-defined.
+        createdAt: new Date(t0 + i),
+      });
+    }
+    const storage = new DatabaseStorage();
+    const out = await storage.exportAdminAuditEntries();
+    expect(out.entries).toHaveLength(cap);
+    expect(out.truncated).toBe(true);
+    // total must reflect the full filter-match count, not the page size,
+    // so the CSV-download UI can warn "exported 10000 of 10002 rows".
+    expect(out.total).toBe(cap + 2);
+    // Ordering is preserved at the cap boundary — the cap takes the
+    // newest 10k, not the oldest.
+    expect(out.entries[0].id).toBe(`synthetic-${cap + 1}`);
+  });
+
+  it("exact-cap match does NOT report truncated", async () => {
+    // Boundary case: when the filter matches exactly the cap, we must
+    // NOT flag truncated — the operator already has every row.
+    dbState.entries = [];
+    const cap = 10_000;
+    const t0 = Date.now();
+    for (let i = 0; i < cap; i++) {
+      dbState.entries.push({
+        id: `exact-${i}`,
+        action: "synthetic",
+        status: "success",
+        statusCode: 200,
+        actorIp: "127.0.0.1",
+        actorUserAgent: "ua",
+        path: "/api/admin/synthetic",
+        params: null,
+        outcome: null,
+        errorMessage: null,
+        createdAt: new Date(t0 + i),
+      });
+    }
+    const storage = new DatabaseStorage();
+    const out = await storage.exportAdminAuditEntries();
+    expect(out.entries).toHaveLength(cap);
+    expect(out.truncated).toBe(false);
+    expect(out.total).toBe(cap);
+  });
+});
+
+// ===========================================================================
+// 4. GET /api/admin/audit-log/export — CSV emission + headers
+// ===========================================================================
+describe("GET /api/admin/audit-log/export — CSV response", () => {
+  beforeEach(() => {
+    routeCalls.length = 0;
+    routeThrow = null;
+    exportReturn = { entries: [], total: 0, truncated: false };
+  });
+
+  function fakeEntry(overrides: Partial<AdminAuditLogEntry>): AdminAuditLogEntry {
+    return {
+      id: "id-1",
+      action: "admin-login",
+      status: "success",
+      statusCode: 200,
+      actorIp: "10.0.0.5",
+      actorUserAgent: "Mozilla/5.0",
+      path: "/api/auth/admin-login",
+      params: null,
+      outcome: null,
+      errorMessage: null,
+      createdAt: new Date("2026-04-29T12:34:56.000Z"),
+      ...overrides,
+    };
+  }
+
+  it("emits text/csv with the documented header row and one CSV row per entry", async () => {
+    const app = await buildRealApp();
+    exportReturn = {
+      entries: [
+        fakeEntry({
+          id: "a",
+          action: "backfill-reports",
+          status: "success",
+          statusCode: 200,
+          actorIp: "10.0.0.5",
+          path: "/api/admin/backfill-reports",
+          outcome: { updated: 3, skipped: 0, failed: 0 },
+          createdAt: new Date("2026-04-29T12:00:00.000Z"),
+        }),
+      ],
+      total: 1,
+      truncated: false,
+    };
+    const res = await request(app).get("/api/admin/audit-log/export");
+    expect(res.status).toBe(200);
+    expect(res.headers["content-type"]).toMatch(/^text\/csv/);
+    // Filename should encode the timestamp so an archived download is
+    // unambiguous on disk.
+    expect(res.headers["content-disposition"]).toMatch(
+      /attachment; filename="admin-audit-.*\.csv"/,
+    );
+    const lines = res.text.trim().split("\n");
+    expect(lines[0]).toBe(
+      "when,action,status,statusCode,actorIp,path,errorMessage,outcome",
+    );
+    expect(lines).toHaveLength(2);
+    // One row, with `outcome` JSON-stringified per the contract. The
+    // JSON contains a comma so it must be wrapped in double quotes.
+    expect(lines[1]).toBe(
+      '2026-04-29T12:00:00.000Z,backfill-reports,success,200,10.0.0.5,/api/admin/backfill-reports,,"{""updated"":3,""skipped"":0,""failed"":0}"',
+    );
+  });
+
+  it("escapes commas, double-quotes, and newlines per RFC 4180", async () => {
+    const app = await buildRealApp();
+    exportReturn = {
+      entries: [
+        fakeEntry({
+          // errorMessage contains all three special chars so we exercise
+          // every branch of csvEscape in one row.
+          errorMessage: 'Boom: "x" failed, see\nlogs',
+          path: "/api/admin/with,comma",
+          outcome: null,
+        }),
+      ],
+      total: 1,
+      truncated: false,
+    };
+    const res = await request(app).get("/api/admin/audit-log/export");
+    expect(res.status).toBe(200);
+    const lines = res.text.trim().split(/\r?\n/);
+    // Strip the header. The errorMessage cell wraps in quotes (because
+    // it contains a quote and a newline) and doubles its inner quotes.
+    // The path cell wraps in quotes because it contains a comma.
+    // We can't simply split the body by `\n` because the embedded
+    // newline lives inside a quoted cell, so we re-join the trailing
+    // lines back together and use a substring assertion.
+    const body = res.text.split("\n").slice(1).join("\n");
+    expect(body).toContain('"/api/admin/with,comma"');
+    expect(body).toContain('"Boom: ""x"" failed, see\nlogs"');
+    // Header still emitted verbatim.
+    expect(lines[0]).toBe(
+      "when,action,status,statusCode,actorIp,path,errorMessage,outcome",
+    );
+  });
+
+  it("emits an empty body (just the header) when the filter matches nothing", async () => {
+    const app = await buildRealApp();
+    exportReturn = { entries: [], total: 0, truncated: false };
+    const res = await request(app).get(
+      "/api/admin/audit-log/export?action=does-not-exist",
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers["content-type"]).toMatch(/^text\/csv/);
+    expect(res.text).toBe(
+      "when,action,status,statusCode,actorIp,path,errorMessage,outcome\n",
+    );
+  });
+
+  it("emits truncation headers so the UI can warn the operator", async () => {
+    const app = await buildRealApp();
+    exportReturn = {
+      entries: [fakeEntry({ id: "only-one-on-the-page" })],
+      total: 25_000,
+      truncated: true,
+    };
+    const res = await request(app).get("/api/admin/audit-log/export");
+    expect(res.status).toBe(200);
+    expect(res.headers["x-audit-export-truncated"]).toBe("1");
+    expect(res.headers["x-audit-export-total"]).toBe("25000");
+    expect(res.headers["x-audit-export-rows"]).toBe("1");
+    // CORS expose so the browser fetch can read the custom headers off
+    // the Response — without this the Admin page can't surface the
+    // truncation toast.
+    expect(res.headers["access-control-expose-headers"]).toMatch(
+      /X-Audit-Export-Truncated/i,
+    );
+  });
+
+  it("encodes active filters into the suggested filename for archival", async () => {
+    const app = await buildRealApp();
+    exportReturn = { entries: [], total: 0, truncated: false };
+    const res = await request(app).get(
+      "/api/admin/audit-log/export?action=backfill-reports&status=failure&since=2026-04-01T00:00:00Z&until=2026-04-30T00:00:00Z&ip=10.0.0.6",
+    );
+    expect(res.status).toBe(200);
+    const cd = res.headers["content-disposition"] as string;
+    // Filter tags appear in the filename so an operator who archives
+    // the file can later recover the slice it represents.
+    expect(cd).toMatch(/action_backfill-reports/);
+    expect(cd).toMatch(/status_failure/);
+    expect(cd).toMatch(/from_2026-04-01/);
+    expect(cd).toMatch(/to_2026-04-30/);
+    expect(cd).toMatch(/ip_10\.0\.0\.6/);
+  });
+
+  it("emits a plain timestamp-only filename when no filters are active", async () => {
+    const app = await buildRealApp();
+    exportReturn = { entries: [], total: 0, truncated: false };
+    const res = await request(app).get("/api/admin/audit-log/export");
+    expect(res.status).toBe(200);
+    const cd = res.headers["content-disposition"] as string;
+    // No filter suffix, just `admin-audit-<stamp>.csv`.
+    expect(cd).toMatch(/filename="admin-audit-[0-9TZ.-]+\.csv"/);
+    expect(cd).not.toMatch(/action_/);
+    expect(cd).not.toMatch(/status_/);
+  });
+
+  it("forwards the same filter parameters to the storage layer as the read endpoint", async () => {
+    const app = await buildRealApp();
+    exportReturn = { entries: [], total: 0, truncated: false };
+    await request(app).get(
+      "/api/admin/audit-log/export?action=backfill-reports&status=failure&since=2026-04-04T00:00:00Z&until=2026-04-05T00:00:00Z&ip=10.0.0.6",
+    );
+    const opts = lastCall();
+    expect(opts.action).toBe("backfill-reports");
+    expect(opts.status).toBe("failure");
+    expect(opts.ip).toBe("10.0.0.6");
+    expect((opts.since as Date).toISOString()).toBe(
+      "2026-04-04T00:00:00.000Z",
+    );
+    expect((opts.until as Date).toISOString()).toBe(
+      "2026-04-05T00:00:00.000Z",
+    );
+  });
+
+  it("falls back to JSON 500 when the storage layer throws before writing CSV", async () => {
+    const app = await buildRealApp();
+    routeThrow = new Error("db down");
+    try {
+      const res = await request(app).get("/api/admin/audit-log/export");
+      expect(res.status).toBe(500);
+      // Pre-stream failures use JSON so the browser can surface a
+      // meaningful toast instead of "[object Blob]".
+      expect(res.headers["content-type"]).toMatch(/application\/json/);
+      expect(typeof res.body.error).toBe("string");
+      expect(res.body.error).toContain("db down");
+    } finally {
+      routeThrow = null;
+    }
   });
 });

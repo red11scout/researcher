@@ -47,6 +47,7 @@ import {
   ChevronRight,
   Clock,
   Copy,
+  Download,
   Filter,
   History,
   Loader2,
@@ -478,6 +479,99 @@ function AdminPanel() {
   const refreshAuditLog = useCallback(() => {
     void loadAuditLog(auditFilters, auditOffset);
   }, [loadAuditLog, auditFilters, auditOffset]);
+
+  // CSV-export handler — downloads every row matching the current filters
+  // (not just the visible page), capped server-side at 10k rows. Used by
+  // the "Download CSV" button next to Refresh on the audit panel so an
+  // operator can attach a slice of the trail to an incident ticket or
+  // pivot it in a spreadsheet without screenshotting page-by-page.
+  const [auditExporting, setAuditExporting] = useState(false);
+  const exportAuditLog = useCallback(async () => {
+    setAuditExporting(true);
+    try {
+      // Mirror the same filter→query-param translation as `loadAuditLog`
+      // so the download contains exactly what the panel is showing.
+      // No `limit`/`offset` — the server caps at AUDIT_EXPORT_MAX_ROWS
+      // (10k) rather than the read endpoint's per-page limit.
+      const params = new URLSearchParams();
+      if (auditFilters.action && auditFilters.action !== "all") {
+        params.set("action", auditFilters.action);
+      }
+      if (auditFilters.status && auditFilters.status !== "all") {
+        params.set("status", auditFilters.status);
+      }
+      if (auditFilters.since) {
+        const d = new Date(`${auditFilters.since}T00:00:00`);
+        if (!Number.isNaN(d.getTime())) params.set("since", d.toISOString());
+      }
+      if (auditFilters.until) {
+        const d = new Date(`${auditFilters.until}T23:59:59.999`);
+        if (!Number.isNaN(d.getTime())) params.set("until", d.toISOString());
+      }
+      if (auditFilters.ip.trim()) params.set("ip", auditFilters.ip.trim());
+
+      const res = await fetch(
+        `/api/admin/audit-log/export?${params.toString()}`,
+        { credentials: "include" },
+      );
+      if (!res.ok) {
+        // The server emits JSON on pre-stream failures so we can surface
+        // a meaningful toast instead of "[object Blob]".
+        let message = `${res.status}: ${res.statusText}`;
+        try {
+          const body = await res.json();
+          if (body && typeof body.error === "string") message = body.error;
+        } catch {
+          /* response wasn't JSON; fall back to status text */
+        }
+        throw new Error(message);
+      }
+      // Pull the server-suggested filename out of Content-Disposition so
+      // the file lands with the timestamp + filter tags baked in.
+      const cd = res.headers.get("content-disposition") ?? "";
+      const match = /filename="([^"]+)"/.exec(cd);
+      const filename = match?.[1] ?? "admin-audit.csv";
+      const truncated = res.headers.get("x-audit-export-truncated") === "1";
+      const rows = res.headers.get("x-audit-export-rows");
+      const total = res.headers.get("x-audit-export-total");
+
+      const blob = await res.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      try {
+        const a = document.createElement("a");
+        a.href = objectUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } finally {
+        URL.revokeObjectURL(objectUrl);
+      }
+
+      if (truncated && rows && total) {
+        // Warn (not error) — they got a file, just not the whole slice.
+        toast({
+          title: "CSV download truncated",
+          description: `Exported the first ${rows} of ${total} matching rows. Narrow the filters to capture more.`,
+          variant: "destructive",
+        });
+      } else if (rows) {
+        toast({
+          title: "CSV downloaded",
+          description: `${rows} row${rows === "1" ? "" : "s"} saved as ${filename}`,
+        });
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      toast({
+        title: "CSV download failed",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setAuditExporting(false);
+    }
+  }, [auditFilters, toast]);
 
   // Hydrate the post-run summary from the server on page load. The Admin
   // page used to keep `result` and `updatedReports` purely in component
@@ -1150,6 +1244,8 @@ function AdminPanel() {
           onResetFilters={resetAuditFilters}
           onChangeOffset={setAuditOffset}
           onRefresh={refreshAuditLog}
+          onExport={() => void exportAuditLog()}
+          exporting={auditExporting}
         />
       </div>
 
@@ -2339,6 +2435,11 @@ interface RecentAdminActivityProps {
   onResetFilters: () => void;
   onChangeOffset: (next: number) => void;
   onRefresh: () => void;
+  // CSV export of the currently-filtered slice. The button next to
+  // Refresh triggers `onExport`; `exporting` drives the spinner so the
+  // operator can't queue a second download while one is in flight.
+  onExport: () => void;
+  exporting: boolean;
 }
 
 /**
@@ -2361,6 +2462,8 @@ function RecentAdminActivity({
   onResetFilters,
   onChangeOffset,
   onRefresh,
+  onExport,
+  exporting,
 }: RecentAdminActivityProps) {
   // Local mirror of the IP filter so we can debounce keystrokes — without
   // this, every typed character would fire a fresh /api/admin/audit-log
@@ -2411,20 +2514,41 @@ function RecentAdminActivity({
               brute-force attempts on the admin password.
             </CardDescription>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onRefresh}
-            disabled={loading}
-            data-testid="button-refresh-audit-log"
-          >
-            {loading ? (
-              <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
-            ) : (
-              <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
-            )}
-            Refresh
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onExport}
+              disabled={exporting || total === 0}
+              title={
+                total === 0
+                  ? "No rows match the current filters"
+                  : "Download every row matching the current filters as CSV"
+              }
+              data-testid="button-download-audit-csv"
+            >
+              {exporting ? (
+                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+              ) : (
+                <Download className="h-3.5 w-3.5 mr-1.5" />
+              )}
+              Download CSV
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onRefresh}
+              disabled={loading}
+              data-testid="button-refresh-audit-log"
+            >
+              {loading ? (
+                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+              ) : (
+                <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+              )}
+              Refresh
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
