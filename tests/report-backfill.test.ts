@@ -56,8 +56,12 @@ vi.mock("../server/storage", () => ({
 }));
 
 // Imported AFTER the mock above so the mock takes effect.
-const { evaluateReportStaleness, backfillAllReports, computeUpgradesApplied } =
-  await import("../server/report-backfill");
+const {
+  evaluateReportStaleness,
+  backfillAllReports,
+  computeUpgradesApplied,
+  parseOnlyIdsFromBody,
+} = await import("../server/report-backfill");
 
 // ---------------------------------------------------------------------------
 // Fixture builders
@@ -398,6 +402,106 @@ describe("backfillAllReports", () => {
     expect(storageState.updates).toHaveLength(0);
   });
 
+  it("processes only the whitelisted IDs when onlyIds is provided", async () => {
+    // Seed three reports — two stale, one fresh. onlyIds should narrow the
+    // run to just the requested subset (size + identity), and reports
+    // outside the allow-list must not contribute to total/skipped/updated
+    // counts and must not be persisted.
+    storageState.reports = [
+      {
+        id: "report-a",
+        companyName: "Alpha",
+        isWhatIf: false,
+        analysisData: makeLegacyV20Analysis(),
+      },
+      {
+        id: "report-b",
+        companyName: "Bravo",
+        isWhatIf: false,
+        analysisData: makeLegacyV20Analysis(),
+      },
+      {
+        id: "report-c",
+        companyName: "Charlie",
+        isWhatIf: false,
+        analysisData: makeFreshAnalysis(),
+      },
+    ];
+
+    const summary = await backfillAllReports({
+      onlyIds: ["report-a", "report-c"],
+    });
+
+    // Only the two whitelisted reports should be iterated. report-b must
+    // have been filtered out before the loop — it does not show up in any
+    // bucket of the summary.
+    expect(summary.total).toBe(2);
+    const seenIds = summary.results.map((r) => r.id).sort();
+    expect(seenIds).toEqual(["report-a", "report-c"]);
+
+    // report-a was stale → upgraded; report-c was fresh → skipped.
+    expect(summary.updated).toBe(1);
+    expect(summary.skipped).toBe(1);
+    expect(summary.failed).toBe(0);
+
+    // Persistence must mirror the iteration set: only report-a (the upgraded
+    // one) is written, never report-b (filtered out) or report-c (skipped).
+    expect(storageState.updates.map((u) => u.id)).toEqual(["report-a"]);
+  });
+
+  it("emits an onStart total that reflects the onlyIds filter, not the full dataset", async () => {
+    // Streaming consumers (the Admin progress bar) rely on onStart firing
+    // with the count they're actually going to iterate over. If onStart
+    // leaked the unfiltered dataset size the progress bar would stall at a
+    // tiny percentage forever.
+    storageState.reports = [
+      {
+        id: "report-a",
+        companyName: "Alpha",
+        isWhatIf: false,
+        analysisData: makeLegacyV20Analysis(),
+      },
+      {
+        id: "report-b",
+        companyName: "Bravo",
+        isWhatIf: false,
+        analysisData: makeLegacyV20Analysis(),
+      },
+      {
+        id: "report-c",
+        companyName: "Charlie",
+        isWhatIf: false,
+        analysisData: makeLegacyV20Analysis(),
+      },
+    ];
+
+    let onStartTotal: number | null = null;
+    await backfillAllReports({
+      onlyIds: ["report-b"],
+      onStart: (total) => {
+        onStartTotal = total;
+      },
+    });
+
+    expect(onStartTotal).toBe(1);
+  });
+
+  it("ignores onlyIds when the array is empty (falls back to processing all reports)", async () => {
+    storageState.reports = [
+      {
+        id: "report-a",
+        companyName: "Alpha",
+        isWhatIf: false,
+        analysisData: makeLegacyV20Analysis(),
+      },
+    ];
+
+    const summary = await backfillAllReports({ onlyIds: [] });
+
+    expect(summary.total).toBe(1);
+    expect(summary.results[0].id).toBe("report-a");
+  });
+
   it("forces reprocessing of already-fresh reports when force=true", async () => {
     storageState.reports = [
       {
@@ -416,6 +520,151 @@ describe("backfillAllReports", () => {
     expect(summary.updated).toBe(1);
     expect(summary.skipped).toBe(0);
     expect(storageState.updates).toHaveLength(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// parseOnlyIdsFromBody — unit tests for the request-body validation helper
+// that backs the POST /api/admin/backfill-reports route. The helper exists
+// so the wire-format contract — "onlyIds, when present, must be a non-empty
+// array of non-empty strings" — can be locked in tests without needing to
+// stand up the full route's heavy dependency graph.
+// ---------------------------------------------------------------------------
+describe("parseOnlyIdsFromBody", () => {
+  it("returns onlyIds=undefined when the body is missing or has no onlyIds key", () => {
+    expect(parseOnlyIdsFromBody(undefined)).toEqual({
+      ok: true,
+      onlyIds: undefined,
+    });
+    expect(parseOnlyIdsFromBody(null)).toEqual({
+      ok: true,
+      onlyIds: undefined,
+    });
+    expect(parseOnlyIdsFromBody({})).toEqual({
+      ok: true,
+      onlyIds: undefined,
+    });
+  });
+
+  it("accepts a valid non-empty array of non-empty strings", () => {
+    expect(parseOnlyIdsFromBody({ onlyIds: ["a", "b"] })).toEqual({
+      ok: true,
+      onlyIds: ["a", "b"],
+    });
+  });
+
+  it("dedupes repeated ids (so a double-clicked retry doesn't double-count)", () => {
+    expect(parseOnlyIdsFromBody({ onlyIds: ["a", "a", "b"] })).toEqual({
+      ok: true,
+      onlyIds: ["a", "b"],
+    });
+  });
+
+  it("rejects an empty array", () => {
+    const result = parseOnlyIdsFromBody({ onlyIds: [] });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toMatch(/non-empty array/);
+    }
+  });
+
+  it("rejects a non-array onlyIds value", () => {
+    expect(parseOnlyIdsFromBody({ onlyIds: "report-1" }).ok).toBe(false);
+    expect(parseOnlyIdsFromBody({ onlyIds: 42 }).ok).toBe(false);
+    expect(parseOnlyIdsFromBody({ onlyIds: { foo: "bar" } }).ok).toBe(false);
+  });
+
+  it("rejects an array containing a non-string entry", () => {
+    expect(parseOnlyIdsFromBody({ onlyIds: ["a", 1] }).ok).toBe(false);
+    expect(parseOnlyIdsFromBody({ onlyIds: ["a", null] }).ok).toBe(false);
+    expect(parseOnlyIdsFromBody({ onlyIds: [{ id: "a" }] }).ok).toBe(false);
+  });
+
+  it("rejects an array containing an empty string", () => {
+    const result = parseOnlyIdsFromBody({ onlyIds: ["valid", ""] });
+    expect(result.ok).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Route-level integration test — POST /api/admin/backfill-reports
+// Locks the wire-format contract: how onlyIds is parsed off the request body
+// and forwarded to backfillAllReports, and what a 400 response looks like.
+// We mount a tiny Express app that registers the same handler shape so we
+// can exercise it end-to-end through supertest without dragging in the full
+// 3.8k-line server/routes.ts (multer, ai-service, pdf-parse, …).
+// ---------------------------------------------------------------------------
+describe("POST /api/admin/backfill-reports — onlyIds wire contract", () => {
+  function buildApp(): {
+    app: express.Express;
+    captured: { force: boolean; onlyIds?: string[] }[];
+  } {
+    const captured: { force: boolean; onlyIds?: string[] }[] = [];
+    const app = express();
+    app.use(express.json());
+    app.post("/api/admin/backfill-reports", async (req, res) => {
+      const force = req.query.force === "1" || req.query.force === "true";
+      const parsed = parseOnlyIdsFromBody(req.body);
+      if (!parsed.ok) {
+        return res.status(400).json({ success: false, error: parsed.error });
+      }
+      captured.push({ force, onlyIds: parsed.onlyIds });
+      // Mimic the real handler's success shape.
+      return res.json({
+        success: true,
+        force,
+        total: parsed.onlyIds?.length ?? 0,
+        updated: 0,
+        skipped: 0,
+        failed: 0,
+        durationMs: 0,
+        failures: [],
+      });
+    });
+    return { app, captured };
+  }
+
+  it("forwards a valid onlyIds body to the handler and echoes the count", async () => {
+    const { app, captured } = buildApp();
+    const res = await request(app)
+      .post("/api/admin/backfill-reports?stream=0&force=1")
+      .send({ onlyIds: ["report-a", "report-b"] });
+    expect(res.status).toBe(200);
+    expect(res.body.success).toBe(true);
+    expect(res.body.total).toBe(2);
+    expect(captured).toEqual([
+      { force: true, onlyIds: ["report-a", "report-b"] },
+    ]);
+  });
+
+  it("falls through to a full run when no body is sent", async () => {
+    const { app, captured } = buildApp();
+    const res = await request(app).post("/api/admin/backfill-reports").send();
+    expect(res.status).toBe(200);
+    expect(captured).toEqual([{ force: false, onlyIds: undefined }]);
+  });
+
+  it("returns 400 with a stable error message for an empty onlyIds array", async () => {
+    const { app, captured } = buildApp();
+    const res = await request(app)
+      .post("/api/admin/backfill-reports")
+      .send({ onlyIds: [] });
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual({
+      success: false,
+      error: "onlyIds must be a non-empty array of report id strings",
+    });
+    // Crucially the run was NOT initiated when validation failed.
+    expect(captured).toEqual([]);
+  });
+
+  it("returns 400 for non-string entries", async () => {
+    const { app, captured } = buildApp();
+    const res = await request(app)
+      .post("/api/admin/backfill-reports")
+      .send({ onlyIds: ["valid", 42] });
+    expect(res.status).toBe(400);
+    expect(captured).toEqual([]);
   });
 });
 

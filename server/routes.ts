@@ -9,6 +9,7 @@ import { buildAssumptionExcelWorkbook, buildAssumptionJSON } from "./assumption-
 import {
   evaluateReportStaleness,
   backfillAllReports,
+  parseOnlyIdsFromBody,
   type BackfillReportResult,
 } from "./report-backfill";
 import { nanoid } from "nanoid";
@@ -558,15 +559,32 @@ Return ONLY valid JSON with this structure:
   // Query params:
   //   force=1  → reprocess every report regardless of staleness
   //   verbose=1 → include the per-report results array in the response
+  //   stream=1 → stream per-report progress as newline-delimited JSON
+  // Body (JSON, optional):
+  //   { onlyIds: string[] } → restrict the run to just those report IDs
+  //   (used by the "Retry these" button on /admin to re-run only the
+  //   failures from the previous run instead of the whole dataset).
   app.post("/api/admin/backfill-reports", async (req, res) => {
     const force = req.query.force === "1" || req.query.force === "true";
     const verbose = req.query.verbose === "1" || req.query.verbose === "true";
     const stream = req.query.stream === "1" || req.query.stream === "true";
+
+    // Parse and validate the optional onlyIds whitelist from the JSON body.
+    // We intentionally accept it from the body (not query string) so the
+    // request does not bump into URL-length limits when retrying dozens of
+    // failed reports. The validation is in `parseOnlyIdsFromBody` so the
+    // wire-format contract is unit-testable without standing up the route.
+    const parsed = parseOnlyIdsFromBody(req.body);
+    if (!parsed.ok) {
+      return res.status(400).json({ success: false, error: parsed.error });
+    }
+    const onlyIds = parsed.onlyIds;
+
     const startedAt = Date.now();
     console.log(
-      `[admin/backfill-reports] Starting backfill (force=${force}, stream=${stream}) — initiated by ${
-        req.ip || "unknown"
-      }`,
+      `[admin/backfill-reports] Starting backfill (force=${force}, stream=${stream}${
+        onlyIds ? `, onlyIds=${onlyIds.length}` : ""
+      }) — initiated by ${req.ip || "unknown"}`,
     );
 
     if (stream) {
@@ -615,6 +633,7 @@ Return ONLY valid JSON with this structure:
       try {
         const summary = await backfillAllReports({
           force,
+          onlyIds,
           onStart: (total) => {
             // Emit a start frame as soon as the report list is known so the
             // client can render the progress bar immediately, even while the
@@ -672,6 +691,7 @@ Return ONLY valid JSON with this structure:
     try {
       const summary = await backfillAllReports({
         force,
+        onlyIds,
         onProgress: (i, total, result) => {
           if (result.status !== "skipped") {
             console.log(

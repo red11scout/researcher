@@ -79,6 +79,46 @@ export function evaluateReportStaleness(analysis: any): StalenessResult {
 }
 
 /**
+ * Result of parsing a request body's optional `onlyIds` field for the admin
+ * backfill route. `ok=false` carries the operator-facing error string the
+ * route should send back as 400; `ok=true` carries the deduped allow-list
+ * (or `undefined` when the caller didn't request a subset, i.e. full run).
+ */
+export type ParsedOnlyIds =
+  | { ok: true; onlyIds: string[] | undefined }
+  | { ok: false; error: string };
+
+/**
+ * Validate the optional `onlyIds` whitelist on the admin backfill request
+ * body and return either the deduped string array (or `undefined` for full
+ * runs) or a 400-style error message. Pulled into its own helper so the
+ * wire-format contract — "must be a non-empty array of non-empty strings" —
+ * can be unit-tested without standing up the full route. Two call sites
+ * use this: the streaming and non-streaming branches of the
+ * `/api/admin/backfill-reports` handler in `server/routes.ts`.
+ */
+export function parseOnlyIdsFromBody(body: unknown): ParsedOnlyIds {
+  const ERR = "onlyIds must be a non-empty array of report id strings";
+  const raw = (body as { onlyIds?: unknown } | null | undefined)?.onlyIds;
+  if (raw === undefined) {
+    return { ok: true, onlyIds: undefined };
+  }
+  if (!Array.isArray(raw)) {
+    return { ok: false, error: ERR };
+  }
+  if (raw.length === 0) {
+    return { ok: false, error: ERR };
+  }
+  if (!raw.every((v) => typeof v === "string" && v.length > 0)) {
+    return { ok: false, error: ERR };
+  }
+  // De-duplicate so the same id passed twice doesn't double the
+  // total/processed counts during the run.
+  const deduped = Array.from(new Set(raw as string[]));
+  return { ok: true, onlyIds: deduped };
+}
+
+/**
  * A single concrete change applied to a report by the backfill, derived by
  * diffing the staleness signals before and after `postProcessAnalysis` runs.
  * `code` is a stable machine id (safe for grouping/aggregation in the UI),
@@ -165,6 +205,24 @@ export interface BackfillOptions {
   /** Reprocess every report regardless of the staleness check. */
   force?: boolean;
   /**
+   * Optional whitelist of report IDs to process. When provided as a non-empty
+   * array, every report outside this set is silently filtered out before the
+   * run begins (it does not contribute to total/skipped counts). The
+   * retry-failures path on the Admin page uses this to re-run only the
+   * report IDs that failed in the previous backfill, so a 5-failure retry
+   * doesn't pay the cost of iterating over hundreds of healthy reports
+   * again.
+   *
+   * An empty array is treated as "no filter" (i.e. full run) at this layer
+   * so internal callers (e.g. the CLI script in
+   * `scripts/backfill-reports-v21.ts`) don't have to special-case it. The
+   * HTTP route layer (`POST /api/admin/backfill-reports`, see
+   * `parseOnlyIdsFromBody`) is stricter and rejects an empty array with 400
+   * because the only legitimate way to request a full run from the wire is
+   * to omit the `onlyIds` key entirely.
+   */
+  onlyIds?: string[];
+  /**
    * Optional callback fired exactly once, before any report is processed,
    * with the total number of reports the run will iterate over. Useful for
    * streaming consumers that want to render a progress bar immediately
@@ -187,9 +245,21 @@ export interface BackfillOptions {
 export async function backfillAllReports(
   opts: BackfillOptions = {},
 ): Promise<BackfillSummary> {
-  const { force = false, onStart, onProgress } = opts;
+  const { force = false, onlyIds, onStart, onProgress } = opts;
   const startedAt = Date.now();
-  const allReports: Report[] = await storage.getAllReports();
+  const fetched: Report[] = await storage.getAllReports();
+  // When the caller passes an explicit allow-list (e.g. the "Retry these"
+  // button on /admin), narrow the iteration set to just those IDs so the
+  // total/processed counts and the streamed progress events reflect only
+  // the work the operator actually asked for. We preserve storage order so
+  // the run is deterministic regardless of input ordering.
+  const allReports: Report[] =
+    onlyIds && onlyIds.length > 0
+      ? (() => {
+          const allow = new Set(onlyIds);
+          return fetched.filter((r) => allow.has(r.id));
+        })()
+      : fetched;
   onStart?.(allReports.length);
   const results: BackfillReportResult[] = [];
   let updated = 0;

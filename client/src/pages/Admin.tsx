@@ -289,7 +289,15 @@ function AdminPanel() {
     }, 80);
   };
 
-  const runBackfill = async () => {
+  const runBackfill = async (opts?: { onlyIds?: string[] }) => {
+    const onlyIds = opts?.onlyIds;
+    // A retry-only run always forces reprocessing — the operator just saw
+    // these reports fail, so respecting the staleness short-circuit (which
+    // could mark them as "already-v2.1" and skip them) would defeat the
+    // whole point of the button.
+    const isRetry = !!onlyIds && onlyIds.length > 0;
+    const useForce = force || isRetry;
+
     setRunning(true);
     setStartedAt(Date.now());
     setResult(null);
@@ -301,12 +309,14 @@ function AdminPanel() {
 
     try {
       const params = new URLSearchParams({ stream: "1" });
-      if (force) params.set("force", "1");
+      if (useForce) params.set("force", "1");
       const res = await fetch(
         `/api/admin/backfill-reports?${params.toString()}`,
         {
           method: "POST",
           credentials: "include",
+          headers: isRetry ? { "Content-Type": "application/json" } : undefined,
+          body: isRetry ? JSON.stringify({ onlyIds }) : undefined,
         },
       );
 
@@ -628,11 +638,30 @@ function AdminPanel() {
                   <div className="rounded-lg border border-red-200 overflow-hidden">
                     <div className="bg-red-50 px-4 py-2 flex items-center gap-2 border-b border-red-200">
                       <AlertCircle className="h-4 w-4 text-red-600" />
-                      <span className="text-sm font-medium text-red-700">
+                      <span className="text-sm font-medium text-red-700 flex-1">
                         {result.failures.length} failure
                         {result.failures.length === 1 ? "" : "s"} — review and
                         retry as needed
                       </span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-red-300 text-red-700 hover:bg-red-100 hover:text-red-800"
+                        disabled={running}
+                        onClick={() => {
+                          // Capture the failure IDs before kicking off the
+                          // retry — `runBackfill` clears `result` immediately
+                          // so the failures table disappears while the live
+                          // progress panel takes over.
+                          const ids = (result.failures ?? []).map((f) => f.id);
+                          if (ids.length === 0) return;
+                          void runBackfill({ onlyIds: ids });
+                        }}
+                        data-testid="button-retry-failures"
+                      >
+                        <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                        Retry these
+                      </Button>
                     </div>
                     <Table>
                       <TableHeader>
