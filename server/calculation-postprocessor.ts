@@ -1939,7 +1939,7 @@ export function postProcessAnalysis(analysisResult: any): any {
     });
     const minRatio = orderedRatios.length > 0 ? Math.min(...orderedRatios) : 0;
     const maxRatio = orderedRatios.length > 0 ? Math.max(...orderedRatios) : 0;
-    console.log(`[postProcessAnalysis] Value Scores (v2.1 log-norm): raw EV/Friction range [${minRatio.toFixed(2)} - ${maxRatio.toFixed(2)}] → normalized [${Math.min(...normalizedArray).toFixed(2)} - ${Math.max(...normalizedArray).toFixed(2)}]`);
+    console.log(`[postProcessAnalysis] Value Scores (v3 winsorized-percentile log-norm): raw EV/Friction range [${minRatio.toFixed(2)} - ${maxRatio.toFixed(2)}] → normalized [${Math.min(...normalizedArray).toFixed(2)} - ${Math.max(...normalizedArray).toFixed(2)}]`);
 
     // Step 2: Build corrected Step 7 data with new priority scoring
     const correctedStep7Data: any[] = [];

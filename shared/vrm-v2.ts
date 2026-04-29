@@ -585,12 +585,36 @@ export function resolveEngagementConfig(overrides?: Partial<EngagementConfig>): 
  *  - "v1" — the original log10 min-max (April 2026 v2.2). One large outlier
  *           crushes every other use case to ~1, producing the "all bubbles
  *           on the bottom row" failure mode reported in the screenshot.
- *  - "v2" — winsorized percentile normalization (current). Anchors the
- *           1↔10 band to the 10th and 90th percentile of log ratios for
- *           portfolios of 5+ use cases, so a single outlier can no longer
- *           collapse the rest of the portfolio.
+ *  - "v2" — winsorized percentile normalization (April 2026, mid-month). Robust to
+ *           a single big outlier, but still pinned every sub-1 EV/Friction ratio
+ *           to value=1 because the calculation took log10(max(r, 1)) — every
+ *           ratio less than 1 collapsed to log=0. In real portfolios most use
+ *           cases have EV/Friction in (0, 1) (friction often dominates first-year
+ *           projections), so the chart still showed all-but-one bubble pinned to
+ *           the floor when the portfolio contained one big champion.
+ *  - "v3" — sub-1 ratios are now allowed to take negative log values (with a
+ *           floor of log10(0.01) = -2 for zero / unmeasured ratios), so the
+ *           percentile spread actually distinguishes "barely underwater"
+ *           (ratio ≈ 0.9) from "deeply underwater" (ratio ≈ 0.1). Combined
+ *           with v2's percentile band this finally separates the bottom-row
+ *           bubbles in the matrix.
  */
-export const VALUE_NORMALIZATION_VERSION = "v2" as const;
+export const VALUE_NORMALIZATION_VERSION = "v3" as const;
+
+/**
+ * Floor for non-finite / zero / negative ratios. log10(0.01) = -2.
+ *
+ * Sentinel-policy choice: a finite measured ratio below 0.01 (log < -2) will
+ * sort *below* the sentinel. This is intentional. A measured ratio of 0.001
+ * means "EV is 0.1% of friction" — that's a real, terrible value bet that
+ * should be at the very bottom of the matrix. A ratio of 0 from
+ * `frictionCost === 0` means "we couldn't compute a ratio at all" — those
+ * are not actually known to be worse than 0.001, so they sit at the
+ * sentinel above. In practice EV/Friction ratios below 0.01 are vanishingly
+ * rare in real reports (we'd need EV ~ $1k against Friction ~ $100k+),
+ * so this ordering only matters for adversarial inputs / tests.
+ */
+const VALUE_NORMALIZATION_LOG_FLOOR = -2;
 
 /**
  * Lower / upper percentile cutoffs used for winsorization (in [0, 1]).
@@ -625,30 +649,44 @@ function percentile(sorted: number[], p: number): number {
 /**
  * Map raw EV/Friction ratios to a 1–10 Value Score using winsorized,
  * log-transformed percentile normalization. Smooths heavy-tailed
- * distributions that produced the v2.0/v2.1 "everything bunches at the
- * low end" failure mode.
+ * distributions that produced the v2.0 "everything bunches at the
+ * low end" failure mode and the v2 "all sub-1 ratios pinned to value=1"
+ * failure mode.
  *
- * Behaviour:
+ * Behaviour (v3):
  *  - Empty input → []
  *  - Single use case → [5.5] (neutral)
  *  - All ratios identical → 5.5 across the portfolio
- *  - Ratio < 1 or non-finite → log floored at log10(1) = 0
+ *  - Finite positive ratio → real log10(r). A ratio of 0.5 produces log=-0.3,
+ *    a ratio of 0.001 produces log=-3, etc. This means a sub-1 ratio
+ *    correctly gets a low score (because EV < Friction) without being
+ *    indistinguishable from every other sub-1 ratio (the v2 bug).
+ *  - Non-finite / zero / negative ratio → sentinel floor of -2
+ *    (= log10(0.01)). Treats "unmeasurable" as a single bucket. NOTE:
+ *    a measured ratio below 0.01 (log < -2) will sort *below* the
+ *    sentinel — see VALUE_NORMALIZATION_LOG_FLOOR's comment for why
+ *    that's intentional (a ratio of 0.001 really IS worse than "we
+ *    couldn't compute a ratio").
  *  - For ≥ 5 use cases: anchor 1↔10 band to the 10th/90th percentile of the
  *    log10 ratios; ratios above the 90th pct clamp to 10, ratios below the
  *    10th pct clamp to 1. This makes the spread robust to a single outlier
  *    (e.g. one $50M opportunity and ten $200K ones no longer pin the small
  *    ones to 1).
- *  - For 2–4 use cases: keep the original log min-max behaviour, since
- *    percentile estimates aren't meaningful at that sample size.
+ *  - For 2–4 use cases: use plain log min-max, since percentile estimates
+ *    aren't meaningful at that sample size.
  *  - Output range is clamped to [1, 10] to be defensive against rounding.
  */
 export function normalizeValueScores(rawRatios: number[]): number[] {
   if (rawRatios.length === 0) return [];
   if (rawRatios.length === 1) return [5.5];
 
+  // v3: don't floor sub-1 ratios to log=0 — that pinned every "EV < Friction"
+  // use case to value=1 in the chart and made bottom-row bunching unfixable
+  // by any normalization. Allow negative log values; only zero / non-finite
+  // ratios fall back to a sentinel floor.
   const logRatios = rawRatios.map((r) => {
-    if (!Number.isFinite(r) || r <= 0) return 0;
-    return Math.log10(Math.max(r, 1));
+    if (!Number.isFinite(r) || r <= 0) return VALUE_NORMALIZATION_LOG_FLOOR;
+    return Math.log10(r);
   });
 
   // Pick the anchor band: percentile-based for big portfolios, min-max for tiny ones.

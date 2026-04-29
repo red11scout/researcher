@@ -86,12 +86,31 @@ describe("normalizeValueScores (log10 min-max)", () => {
     expect(linearGap).toBeGreaterThan(900_000); // sanity check the fixture
   });
 
-  it("floors ratios < 1 and non-finite values at log10(1) = 0", () => {
-    const out = normalizeValueScores([0.001, 0, -5, Number.NaN, Number.POSITIVE_INFINITY, 100]);
-    // Only the last entry has a positive log; all others should map to the floor.
-    const floor = out[0];
-    expect(out.slice(0, 5).every((v) => v === floor)).toBe(true);
-    expect(out[5]).toBeGreaterThan(floor);
+  it("only floors non-finite / zero / negative ratios (v3) — finite sub-1 ratios keep their real log magnitude", () => {
+    // v3 change: 0.001 is a real measured ratio (EV is much smaller than friction
+    // but it's measurable), so it should NOT collapse to the same bucket as
+    // 0 / NaN / Infinity (which are "unmeasurable"). Pre-v3 every sub-1 ratio
+    // got log10(max(r,1)) = 0, indistinguishable from the unmeasurable ones.
+    const out = normalizeValueScores([
+      0.001, // measured but tiny → very low log
+      0, // unmeasured → sentinel floor
+      -5, // garbage → sentinel floor
+      Number.NaN, // garbage → sentinel floor
+      Number.POSITIVE_INFINITY, // unbounded → sentinel floor
+      100, // big positive → high log
+    ]);
+    // 0.001 has the smallest log (log10(0.001) = -3, below the -2 sentinel) so
+    // it clamps to 1 — but importantly the four "unmeasurable" entries land at
+    // the SAME score as each other (the sentinel) and that score is strictly
+    // higher than 0.001's score. This proves the sub-1 spread is preserved.
+    expect(out[0]).toBe(1);
+    const sentinelScore = out[1];
+    expect(out[2]).toBe(sentinelScore);
+    expect(out[3]).toBe(sentinelScore);
+    expect(out[4]).toBe(sentinelScore);
+    expect(sentinelScore).toBeGreaterThan(out[0]);
+    // The big ratio still pegs to 10.
+    expect(out[5]).toBe(10);
   });
 
   it("clamps every output to the [1, 10] band", () => {
@@ -135,6 +154,53 @@ describe("normalizeValueScores (log10 min-max)", () => {
     // min ratio → 1, max ratio → 10 (true min-max, no winsorization).
     expect(out[0]).toBe(1);
     expect(out[out.length - 1]).toBe(10);
+  });
+
+  it("v3 sentinel policy: a measured ratio < 0.01 sorts BELOW unmeasurable zero/NaN ratios", () => {
+    // Documents the documented sentinel-ordering choice: a measured 0.001 is a
+    // real, terrible value bet (EV is 0.1% of friction) and should land at the
+    // very bottom of the matrix. A 0 from `frictionCost === 0` means we
+    // couldn't compute the ratio at all, which is no worse than 0.001 — so
+    // those land at the sentinel above. If the team ever wants to flip this
+    // (e.g., treat unmeasured as the worst case), this is the test to update.
+    const out = normalizeValueScores([
+      0.001, // measured, log = -3 (below sentinel of -2)
+      0, // unmeasurable, log = -2 (sentinel)
+      Number.NaN, // unmeasurable, log = -2 (sentinel)
+      100, // big, log = 2
+      1, // log = 0
+    ]);
+    expect(out[0]).toBeLessThan(out[1]);
+    expect(out[1]).toBe(out[2]); // both unmeasurables score equally
+    expect(out[3]).toBeGreaterThan(out[4]);
+  });
+
+  it("v3 regression: spreads sub-1 EV/Friction ratios in the bottom row instead of pinning them all to value=1", () => {
+    // The actual user-reported bug: a portfolio of 7 use cases where 6 of them
+    // have EV/Friction in (0, 1) (friction dominates first-year projection) and
+    // one has a 50x EV/Friction ratio. Pre-v3 the calculation took
+    // log10(max(r, 1)) so all six sub-1 ratios collapsed to log=0,
+    // indistinguishable from each other → all six bunched at value=1 in the
+    // matrix chart with one bubble at value=10. The user's screenshot of
+    // /shared/vy3NKE2gyKbV is exactly this case.
+    const ratios = [0.12, 0.25, 0.38, 0.55, 0.71, 0.92, 50];
+    const out = normalizeValueScores(ratios);
+    // The outlier still pegs at 10.
+    expect(out[out.length - 1]).toBe(10);
+    // The six sub-1 ratios must produce DISTINCT (or at least monotonically
+    // non-decreasing and not all-identical) value scores. The whole point of
+    // v3 is they are no longer collapsed to a single floor.
+    const subOne = out.slice(0, 6);
+    const distinctValues = new Set(subOne).size;
+    expect(distinctValues).toBeGreaterThanOrEqual(4); // most should be distinct
+    // The spread across the six sub-1 ratios must be at least 1 point of the
+    // 1–10 scale (pre-v3 the spread was 0).
+    const subOneSpread = Math.max(...subOne) - Math.min(...subOne);
+    expect(subOneSpread).toBeGreaterThanOrEqual(1);
+    // Monotonicity: sorted-by-ratio order should match sorted-by-score order.
+    for (let i = 1; i < subOne.length; i++) {
+      expect(subOne[i]).toBeGreaterThanOrEqual(subOne[i - 1]);
+    }
   });
 
   it("uses winsorized percentile for portfolios of 5+ use cases", () => {

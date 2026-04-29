@@ -89,7 +89,7 @@ function makeFreshAnalysis(): any {
     ],
     vrm: {
       schemaVersion: VRM_SCHEMA_VERSION,
-      valueNormalizationVersion: "v2",
+      valueNormalizationVersion: "v3",
       diagnostic: {
         championCount: 2,
         prototypingCandidatesPct: 50,
@@ -243,9 +243,9 @@ describe("evaluateReportStaleness", () => {
     expect(result.reasons).toContain("missing-step6-knockout-fields");
   });
 
-  it("flags reports whose vrm.valueNormalizationVersion is missing or 'v1' (pre-percentile patch)", () => {
+  it("flags reports whose vrm.valueNormalizationVersion is not the active version (pre-percentile / pre-sub-1-fix patches)", () => {
     // Pre-patch report — explicitly remove the field to simulate persisted data
-    // from before April 2026. (The fresh fixture sets it to "v2" by default.)
+    // from before April 2026. (The fresh fixture sets it to "v3" by default.)
     const missing = makeFreshAnalysis();
     delete missing.vrm.valueNormalizationVersion;
     const r1 = evaluateReportStaleness(missing);
@@ -258,9 +258,16 @@ describe("evaluateReportStaleness", () => {
     const r2 = evaluateReportStaleness(v1);
     expect(r2.reasons).toContain("value-norm-version=v1");
 
-    // Current "v2" (the fresh fixture's default) → no reason fired.
+    // Mid-month "v2" (winsorized but still floored sub-1 ratios) → also flagged
+    // so the next admin upgrade pass re-normalizes it with the v3 sub-1 fix.
     const v2 = makeFreshAnalysis();
-    const r3 = evaluateReportStaleness(v2);
+    v2.vrm.valueNormalizationVersion = "v2";
+    const r2b = evaluateReportStaleness(v2);
+    expect(r2b.reasons).toContain("value-norm-version=v2");
+
+    // Current "v3" (the fresh fixture's default) → no reason fired.
+    const v3 = makeFreshAnalysis();
+    const r3 = evaluateReportStaleness(v3);
     expect(r3.reasons.some((x: string) => x.startsWith("value-norm-version="))).toBe(false);
   });
 

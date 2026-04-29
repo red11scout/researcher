@@ -7,7 +7,7 @@
 
 import { storage } from "./storage";
 import { postProcessAnalysis } from "./calculation-postprocessor";
-import { VRM_SCHEMA_VERSION } from "@shared/vrm-v2";
+import { VRM_SCHEMA_VERSION, VALUE_NORMALIZATION_VERSION } from "@shared/vrm-v2";
 import type { Report } from "@shared/schema";
 
 export interface StalenessResult {
@@ -85,18 +85,21 @@ export function evaluateReportStaleness(analysis: any): StalenessResult {
   if (!hasStep6KOFields) reasons.push("missing-step6-knockout-fields");
   if (step7UsesLegacyQuarterLabels) reasons.push("step7-uses-legacy-Q-phase-labels");
 
-  // April 2026 patch — Value Score normalization was upgraded from naive log
-  // min-max ("v1") to winsorized 10/90-percentile log normalization ("v2") so
-  // a single high-EV outlier no longer crushes every other use case to ~1
-  // (the "all bubbles on the bottom row" symptom). Reports that were
-  // postprocessed before the patch carry no `valueNormalizationVersion` field
-  // (or carry "v1"); flag those so the next admin "Upgrade all reports" run
-  // re-normalizes them automatically.
+  // April 2026 patch — Value Score normalization has been revised three times:
+  //   v1 — naive log min-max (one big EV use case crushed everyone else to ~1).
+  //   v2 — winsorized 10/90-percentile log normalization (better against
+  //        outliers, but still pinned every sub-1 EV/Friction ratio to value=1
+  //        because it took log10(max(r, 1)) and floored sub-1 ratios).
+  //   v3 — sub-1 ratios are now allowed to take negative log values so the
+  //        bottom-row bubbles actually spread out in the matrix. This is the
+  //        active version (see VALUE_NORMALIZATION_VERSION in shared/vrm-v2.ts).
+  // Reports stamped with anything other than the active version get flagged
+  // so the next admin "Upgrade all reports" run re-normalizes them.
   const valueNormVersion: string | null =
     typeof analysis?.vrm?.valueNormalizationVersion === "string"
       ? analysis.vrm.valueNormalizationVersion
       : null;
-  if (valueNormVersion !== "v2") {
+  if (valueNormVersion !== VALUE_NORMALIZATION_VERSION) {
     reasons.push(`value-norm-version=${valueNormVersion ?? "missing"}`);
   }
 
