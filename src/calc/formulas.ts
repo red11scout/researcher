@@ -270,7 +270,9 @@ export function calculateRevenueBenefit(inputs: {
     scenario = 'moderate',
   } = inputs;
 
-  // Cap uplift at 0.5% per use case (conservative)
+  // Cap uplift at INPUT_BOUNDS.upliftPct.max (5%) per use case — conservative.
+  // The HyperFormula production path enforces the same cap inline; see
+  // `hfCalculateRevenueBenefit` in src/calc/hyperformulaEngine.ts.
   const cappedUplift = Math.min(upliftPct, INPUT_BOUNDS.upliftPct.max);
   const scenarioMultiplier = SCENARIO_MULTIPLIERS[scenario];
   const rawValue = cappedUplift * baselineRevenueAtRisk * marginPct * revenueRealizationMultiplier * dataMaturityMultiplier * scenarioMultiplier;

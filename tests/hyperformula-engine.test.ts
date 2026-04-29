@@ -14,7 +14,8 @@
 //        - ROUNDING.BENEFIT_PRECISION = 1 (no $100K floor)
 //        - friction rounded down to nearest $10K
 //        - token cost rounded to 2 decimals
-//        - revenue uplift hard-capped at 0.5 (50%) inside the HF formula
+//        - revenue uplift capped at INPUT_BOUNDS.upliftPct.max (0.05 / 5%)
+//          inside the HF formula, matching the JS reference engine
 import { describe, it, expect } from 'vitest';
 import {
   hfCalculateCostBenefit,
@@ -137,10 +138,13 @@ describe('hfCalculateRevenueBenefit (parity + cap + invariants)', () => {
     expect(hf.value).toBeCloseTo(expected, 0);
   });
 
-  it('caps upliftPct at 0.5 (50%) inside the HyperFormula formula', () => {
-    // INVARIANT: hfCalculateRevenueBenefit hard-caps uplift via MIN(A1, 0.5)
-    // in the FLOOR(MIN(A1,0.5)*B1*C1*D1*E1*F1, 1) formula. Inputs above 0.5
-    // produce the same result as 0.5.
+  it('caps upliftPct at INPUT_BOUNDS.upliftPct.max (5%) inside the HyperFormula formula', () => {
+    // INVARIANT: hfCalculateRevenueBenefit caps uplift via
+    // MIN(A1, INPUT_BOUNDS.upliftPct.max) in the cell formula so the HF path
+    // matches the JS reference engine (`calculateRevenueBenefit`). Inputs at
+    // or above the cap produce the same dollar value.
+    expect(INPUT_BOUNDS.upliftPct.max).toBe(0.05);
+
     const baseline = 1_000_000;
     const margin = 1.0;
 
@@ -154,7 +158,7 @@ describe('hfCalculateRevenueBenefit (parity + cap + invariants)', () => {
     });
 
     const atCap = hfCalculateRevenueBenefit({
-      upliftPct: 0.5,
+      upliftPct: INPUT_BOUNDS.upliftPct.max,
       baselineRevenueAtRisk: baseline,
       marginPct: margin,
       revenueRealizationMultiplier: 1.0,
@@ -163,7 +167,33 @@ describe('hfCalculateRevenueBenefit (parity + cap + invariants)', () => {
     });
 
     expect(above.value).toBe(atCap.value);
-    expect(above.value).toBe(500_000); // 0.5 × 1_000_000 × 1 × 1 × 1 × 1
+    // 0.05 × 1_000_000 × 1 × 1 × 1 × 1 = 50_000
+    expect(above.value).toBe(50_000);
+
+    // Trace records the *capped* value so audit text never overstates uplift.
+    expect(above.trace.inputs.upliftPct).toBe(INPUT_BOUNDS.upliftPct.max);
+  });
+
+  it('matches the JS engine when uplift is above the cap (both clamp to INPUT_BOUNDS.upliftPct.max)', () => {
+    // PARITY: with both engines now clamping at INPUT_BOUNDS.upliftPct.max,
+    // an above-cap input must produce the same dollar value across paths.
+    const inputs = {
+      upliftPct: 0.20, // well above the 0.05 cap
+      baselineRevenueAtRisk: 10_000_000,
+      marginPct: 0.30,
+      revenueRealizationMultiplier: 0.95,
+      dataMaturityMultiplier: 0.75,
+      scenario: 'moderate' as const,
+    };
+
+    const hf = hfCalculateRevenueBenefit(inputs);
+    const js = calculateRevenueBenefit(inputs);
+
+    expect(Math.abs(hf.value - js.value)).toBeLessThanOrEqual(PARITY_TOLERANCE_DOLLARS);
+
+    // Both engines record the clamped uplift (0.05) in the trace.
+    expect(hf.trace.inputs.upliftPct).toBe(INPUT_BOUNDS.upliftPct.max);
+    expect(js.trace.inputs.upliftPct).toBe(INPUT_BOUNDS.upliftPct.max);
   });
 
   it('defaults to moderate scenario, marginPct=1.0, and DEFAULT_MULTIPLIERS', () => {
@@ -176,14 +206,6 @@ describe('hfCalculateRevenueBenefit (parity + cap + invariants)', () => {
     expect(result.trace.inputs.marginPct).toBe(1.0);
     expect(result.trace.inputs.revenueRealizationMultiplier).toBe(DEFAULT_MULTIPLIERS.revenueRealizationMultiplier);
     expect(result.trace.inputs.dataMaturityMultiplier).toBe(DEFAULT_MULTIPLIERS.dataMaturityMultiplier);
-  });
-
-  it('exposes INPUT_BOUNDS.upliftPct.max as a callout (sanity for the cap delta with JS)', () => {
-    // Sanity reference: the JS engine separately clamps inputs at
-    // INPUT_BOUNDS.upliftPct.max (= 0.05). The HF formula uses a 0.5 hard cap.
-    // This invariant test pins the JS-side bound so future edits surface the
-    // intentional cap mismatch instead of silently drifting.
-    expect(INPUT_BOUNDS.upliftPct.max).toBe(0.05);
   });
 });
 

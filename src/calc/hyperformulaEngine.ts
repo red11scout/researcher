@@ -1,6 +1,6 @@
 import { HyperFormula } from 'hyperformula';
 import type { CalculationResult, FormulaTrace, Scenario } from './formulas';
-import { SCENARIO_MULTIPLIERS, DEFAULT_MULTIPLIERS, ROUNDING } from './formulas';
+import { SCENARIO_MULTIPLIERS, DEFAULT_MULTIPLIERS, ROUNDING, INPUT_BOUNDS } from './formulas';
 
 let hfInstance: HyperFormula | null = null;
 let sheetId: number = 0;
@@ -64,6 +64,20 @@ export function hfCalculateCostBenefit(inputs: {
   };
 }
 
+/**
+ * Revenue Benefit (HyperFormula path).
+ *
+ * Canonical signature mirrors `calculateRevenueBenefit` in `src/calc/formulas.ts`
+ * and applies the same per-use-case uplift cap of `INPUT_BOUNDS.upliftPct.max`
+ * (= 0.05 / 5%). Previously this engine hard-capped at 0.5 (50%), which was a
+ * 10x mismatch vs. the JS reference path and silently allowed AI inputs in the
+ * 0.05–0.5 range to produce ~10x the spec-allowed revenue benefit.
+ *
+ * The cap is enforced inside the cell formula via `MIN(upliftPct, cap)` so the
+ * HyperFormula trace string itself documents the clamp. The trace `inputs`
+ * object records the *capped* uplift (matching the JS engine) so audit traces
+ * never overstate the headline number a downstream report can claim.
+ */
 export function hfCalculateRevenueBenefit(inputs: {
   upliftPct: number;
   baselineRevenueAtRisk: number;
@@ -72,22 +86,31 @@ export function hfCalculateRevenueBenefit(inputs: {
   dataMaturityMultiplier?: number;
   scenario?: Scenario;
 }): CalculationResult {
-  const upliftPct = inputs.upliftPct;
+  const rawUpliftPct = inputs.upliftPct;
   const baselineRevenueAtRisk = inputs.baselineRevenueAtRisk;
   const marginPct = inputs.marginPct ?? 1.0;
   const revenueRealizationMultiplier = inputs.revenueRealizationMultiplier ?? DEFAULT_MULTIPLIERS.revenueRealizationMultiplier;
   const dataMaturityMultiplier = inputs.dataMaturityMultiplier ?? DEFAULT_MULTIPLIERS.dataMaturityMultiplier;
   const scenarioMultiplier = SCENARIO_MULTIPLIERS[inputs.scenario ?? 'moderate'];
+  const upliftCap = INPUT_BOUNDS.upliftPct.max;
+  const cappedUpliftPct = Math.min(rawUpliftPct, upliftCap);
 
-  const cellValues = [upliftPct, baselineRevenueAtRisk, marginPct, revenueRealizationMultiplier, dataMaturityMultiplier, scenarioMultiplier];
-  const formula = `=FLOOR(MIN(A1,0.5)*B1*C1*D1*E1*F1, ${ROUNDING.BENEFIT_PRECISION})`;
+  const cellValues = [rawUpliftPct, baselineRevenueAtRisk, marginPct, revenueRealizationMultiplier, dataMaturityMultiplier, scenarioMultiplier];
+  const formula = `=FLOOR(MIN(A1, ${upliftCap})*B1*C1*D1*E1*F1, ${ROUNDING.BENEFIT_PRECISION})`;
   const value = evalFormula(cellValues, formula);
 
   return {
     value,
     trace: {
       formula,
-      inputs: { upliftPct, baselineRevenueAtRisk, marginPct, revenueRealizationMultiplier, dataMaturityMultiplier, scenarioMultiplier },
+      inputs: {
+        upliftPct: cappedUpliftPct,
+        baselineRevenueAtRisk,
+        marginPct,
+        revenueRealizationMultiplier,
+        dataMaturityMultiplier,
+        scenarioMultiplier,
+      },
       output: value,
     },
   };
