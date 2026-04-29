@@ -40,12 +40,6 @@ import {
 } from "@/components/ui/tooltip";
 import { FormulaExplorer } from "@/components/FormulaExplorer";
 import { format, parseFormattedValue } from '@/lib/formatters';
-import {
-  quickCalculate,
-  calculateBenefitTotals,
-  calculatePriorityScore,
-  calculateTokenCosts
-} from '@/lib/calculationEngine';
 import { STANDARDIZED_ROLES, getRolesGroupedByCategory } from '@shared/standardizedRoles';
 import { 
   ArrowLeft, 
@@ -288,8 +282,7 @@ export default function WhatIfAnalysis() {
     const cashFlow = parseFormattedValue(record["Cash Flow Benefit"]);
     const risk = parseFormattedValue(record["Risk Benefit"]);
     
-    const result = quickCalculate(`${revenue}+${cost}+${cashFlow}+${risk}`);
-    const total = typeof result.value === 'number' ? result.value : 0;
+    const total = revenue + cost + cashFlow + risk;
     return formatCurrency(total);
   };
 

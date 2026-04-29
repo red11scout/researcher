@@ -1,6 +1,12 @@
 // tests/calc.test.ts
+//
+// Tests for the JS reference implementations in `src/calc/formulas.ts`. The
+// production HyperFormula path (`src/calc/hyperformulaEngine.ts`) has its own
+// parity + invariant suite in `tests/hyperformula-engine.test.ts`. There is
+// intentionally no separate generic HyperFormula wrapper exercised here — task
+// #35 swept away the parallel `src/calc/engine.ts` so that there is exactly
+// one production HyperFormula setup (the canonical engine).
 import { describe, it, expect } from 'vitest';
-import { evaluateWithHyperFormula } from '../src/calc/engine';
 import {
   calculateCostBenefit,
   calculateRevenueBenefit,
@@ -18,41 +24,6 @@ import {
   PRIORITY_TIERS,
   TTV_THRESHOLDS,
 } from '../src/calc/formulas';
-
-describe('HyperFormula calculation engine', () => {
-  it('returns trace structure with formulas and inputs', () => {
-    const inputs = {
-      HoursSaved: 34000,
-      LoadedRate: 150,
-      Efficiency: 0.85,
-      Adoption: 0.70,
-      DataMaturity: 0.75
-    };
-    const formulas = {
-      CostBenefit: '=HoursSaved*LoadedRate*Efficiency*Adoption*DataMaturity'
-    };
-    const res = evaluateWithHyperFormula(inputs, formulas);
-
-    expect(res.trace).toBeDefined();
-    expect(res.trace.formulas).toEqual(formulas);
-    expect(res.trace.inputs).toEqual(inputs);
-    expect(res.outputs).toHaveProperty('CostBenefit');
-  });
-
-  it('generates trace with correct structure', () => {
-    const inputs = { HoursSaved: 100, LoadedRate: 50 };
-    const formulas = { Total: '=HoursSaved*LoadedRate' };
-    const res = evaluateWithHyperFormula(inputs, formulas);
-
-    expect(res.trace).toBeDefined();
-    expect(res.trace.formulas).toEqual({ Total: '=HoursSaved*LoadedRate' });
-    expect(res.trace.inputs).toEqual({ HoursSaved: 100, LoadedRate: 50 });
-    expect(res.outputs).toHaveProperty('Total');
-    // Note: HyperFormula named expressions have scope limitations
-    // Primary calculation tests are in the formula function tests below
-    expect(typeof res.outputs.Total).toBe('number');
-  });
-});
 
 describe('calculateCostBenefit (SPEC: Hours × Rate × BenefitsLoading × Realization × DataMaturity × Scenario)', () => {
   it('computes cost benefit with all inputs per spec formula', () => {
