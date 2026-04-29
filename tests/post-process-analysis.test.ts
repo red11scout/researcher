@@ -699,6 +699,334 @@ describe("postProcessAnalysis — v2.2 contract", () => {
     expect(formulaText.startsWith("5%")).toBe(true);
     expect(formulaText).not.toContain("capped from");
   });
+
+  // -------------------------------------------------------------------------
+  // Regression (Task #36): the human-readable `Revenue Formula` audit string
+  // must show the *capped* uplift percentage (5% per use case, the
+  // `INPUT_BOUNDS.upliftPct.max` value), never the overstated value the AI
+  // proposed. When the cap binds, the original raw percentage is preserved as
+  // a "(capped from X%)" annotation so reviewers can still see what was
+  // overridden, and the printed math multiplies out to the printed dollar
+  // value. Mirrors the Task #26 risk-side coverage above.
+  // -------------------------------------------------------------------------
+  it("displays the capped revenue uplift percentage (with `capped from` annotation) in the Step 5 Revenue Formula audit text", () => {
+    // Structured-labels path: AI claims an 8% uplift but the engine caps at
+    // 5% per use case (INPUT_BOUNDS.upliftPct.max = 0.05).
+    const fixture = {
+      steps: [
+        {
+          step: 0,
+          title: "Company Profile",
+          data: [{ "Annual Revenue ($)": 50_000_000, "Total Employees": 250 }],
+        },
+        {
+          step: 5,
+          title: "Benefits Quantification",
+          data: [
+            {
+              ID: "UC-REV",
+              "Use Case": "Sales Acceleration",
+              "Strategic Theme": "Revenue",
+              "Cost Formula Labels": {
+                components: [
+                  { label: "Hours Saved", value: 1000 },
+                  { label: "Loaded Hourly Rate", value: 100 },
+                  { label: "Benefits Loading", value: 1.3 },
+                  { label: "Adoption Rate", value: 0.8 },
+                  { label: "Data Maturity", value: 0.75 },
+                ],
+              },
+              "Revenue Formula Labels": {
+                components: [
+                  { label: "Uplift %", value: 0.08 },
+                  { label: "Revenue at Risk", value: 10_000_000 },
+                  { label: "Realization Factor", value: 0.95 },
+                  { label: "Data Maturity", value: 0.75 },
+                ],
+              },
+              "Probability of Success": 0.7,
+            },
+          ],
+        },
+        {
+          step: 6,
+          title: "Readiness & Token Modeling",
+          data: [
+            {
+              ID: "UC-REV",
+              "Use Case": "Sales Acceleration",
+              "Organizational Capacity": 7,
+              "Data Availability & Quality": 7,
+              "Technical Infrastructure": 7,
+              "Governance": 7,
+              "Time-to-Value (months)": 6,
+              "Runs/Month": 1000,
+              "Input Tokens/Run": 800,
+              "Output Tokens/Run": 800,
+            },
+          ],
+        },
+      ],
+      vrm: { schemaVersion: "2.0" },
+    };
+
+    const result = postProcessAnalysis(fixture);
+    const step5 = result.steps.find((s: any) => s.step === 5);
+    const record = step5.data.find((r: any) => r.ID === "UC-REV");
+    const formulaText: string = record["Revenue Formula"];
+
+    // Audit text must lead with the *capped* 5%, not the raw 8%, and the
+    // dollar number printed must equal 5% × $10M × 0.95 × 0.75 = $356,250.
+    expect(formulaText.startsWith("5%")).toBe(true);
+    expect(formulaText).toContain("(capped from 8%)");
+    expect(formulaText).toContain("$356K");
+    // The overstated raw percentage must not be the leading factor.
+    expect(formulaText).not.toMatch(/^8%/);
+    // 8% × $10M × 0.95 × 0.75 = $570,000 — must NOT appear, because the
+    // engine capped uplift to 5% before computing the dollar value.
+    expect(formulaText).not.toContain("$570K");
+  });
+
+  it("displays the capped revenue uplift percentage in the legacy formula-string path (no Revenue Formula Labels)", () => {
+    // Fallback path: no `Revenue Formula Labels`, only a free-text
+    // `Revenue Formula` string. recalculateRevenueBenefit must parse the
+    // inputs and emit the same capped audit text + annotation.
+    const fixture = {
+      steps: [
+        {
+          step: 0,
+          title: "Company Profile",
+          data: [{ "Annual Revenue ($)": 50_000_000, "Total Employees": 250 }],
+        },
+        {
+          step: 5,
+          title: "Benefits Quantification",
+          data: [
+            {
+              ID: "UC-REV-LEGACY",
+              "Use Case": "Legacy Revenue String",
+              "Strategic Theme": "Revenue",
+              "Cost Formula Labels": {
+                components: [
+                  { label: "Hours Saved", value: 1000 },
+                  { label: "Loaded Hourly Rate", value: 100 },
+                  { label: "Benefits Loading", value: 1.3 },
+                  { label: "Adoption Rate", value: 0.8 },
+                  { label: "Data Maturity", value: 0.75 },
+                ],
+              },
+              // No Revenue Formula Labels → recalculateRevenueBenefit handles it.
+              "Revenue Formula": "8% × $10,000,000 × 0.95 × 0.75 = $570,000",
+              "Probability of Success": 0.7,
+            },
+          ],
+        },
+        {
+          step: 6,
+          title: "Readiness & Token Modeling",
+          data: [
+            {
+              ID: "UC-REV-LEGACY",
+              "Use Case": "Legacy Revenue String",
+              "Organizational Capacity": 7,
+              "Data Availability & Quality": 7,
+              "Technical Infrastructure": 7,
+              "Governance": 7,
+              "Time-to-Value (months)": 6,
+              "Runs/Month": 1000,
+              "Input Tokens/Run": 800,
+              "Output Tokens/Run": 800,
+            },
+          ],
+        },
+      ],
+      vrm: { schemaVersion: "2.0" },
+    };
+
+    const result = postProcessAnalysis(fixture);
+    const step5 = result.steps.find((s: any) => s.step === 5);
+    const record = step5.data.find((r: any) => r.ID === "UC-REV-LEGACY");
+    const formulaText: string = record["Revenue Formula"];
+
+    expect(formulaText.startsWith("5%")).toBe(true);
+    expect(formulaText).toContain("(capped from 8%)");
+    expect(formulaText).toContain("$356K");
+    expect(formulaText).not.toMatch(/^8%/);
+    expect(formulaText).not.toContain("$570K");
+  });
+
+  it("does not annotate the Revenue Formula audit text when the cap does not bind", () => {
+    // Structured-labels path: AI claims a 4% uplift (below the 5%
+    // per-use-case cap) so no annotation should be emitted, and the printed
+    // math must still multiply out to the printed dollar value.
+    const fixture = {
+      steps: [
+        {
+          step: 0,
+          title: "Company Profile",
+          data: [{ "Annual Revenue ($)": 50_000_000, "Total Employees": 250 }],
+        },
+        {
+          step: 5,
+          title: "Benefits Quantification",
+          data: [
+            {
+              ID: "UC-REV-LOW",
+              "Use Case": "Conservative Pipeline Lift",
+              "Strategic Theme": "Revenue",
+              "Cost Formula Labels": {
+                components: [
+                  { label: "Hours Saved", value: 1000 },
+                  { label: "Loaded Hourly Rate", value: 100 },
+                  { label: "Benefits Loading", value: 1.3 },
+                  { label: "Adoption Rate", value: 0.8 },
+                  { label: "Data Maturity", value: 0.75 },
+                ],
+              },
+              "Revenue Formula Labels": {
+                components: [
+                  { label: "Uplift %", value: 0.04 },
+                  { label: "Revenue at Risk", value: 10_000_000 },
+                  { label: "Realization Factor", value: 0.95 },
+                  { label: "Data Maturity", value: 0.75 },
+                ],
+              },
+              "Probability of Success": 0.7,
+            },
+          ],
+        },
+        {
+          step: 6,
+          title: "Readiness & Token Modeling",
+          data: [
+            {
+              ID: "UC-REV-LOW",
+              "Use Case": "Conservative Pipeline Lift",
+              "Organizational Capacity": 7,
+              "Data Availability & Quality": 7,
+              "Technical Infrastructure": 7,
+              "Governance": 7,
+              "Time-to-Value (months)": 6,
+              "Runs/Month": 1000,
+              "Input Tokens/Run": 800,
+              "Output Tokens/Run": 800,
+            },
+          ],
+        },
+      ],
+      vrm: { schemaVersion: "2.0" },
+    };
+
+    const result = postProcessAnalysis(fixture);
+    const step5 = result.steps.find((s: any) => s.step === 5);
+    const record = step5.data.find((r: any) => r.ID === "UC-REV-LOW");
+    const formulaText: string = record["Revenue Formula"];
+
+    expect(formulaText.startsWith("4%")).toBe(true);
+    expect(formulaText).not.toContain("capped from");
+    // 4% × $10M × 0.95 × 0.75 = $285,000 — the printed dollar must reflect
+    // the (uncapped) 4% input.
+    expect(formulaText).toContain("$285K");
+  });
+
+  it("displays the (uncapped) hardcoded uplift in the derived-from-Step-3 revenue branch", () => {
+    // Derived-from-Step-3 path: Step 5 has no revenue inputs at all, so the
+    // initial revenue calculation returns $0. Step 4 links the use case to a
+    // Step 3 friction whose Primary Driver Impact mentions "revenue", which
+    // triggers the derivation branch with the hardcoded 0.3% uplift (well
+    // below the 5% cap). The audit text must not emit a "capped from"
+    // annotation, locking in current behavior so any future change to the
+    // derivation default surfaces as a test failure (mirrors the matching
+    // Task #26 test for the derived-from-Step-3 risk branch above).
+    const fixture = {
+      steps: [
+        {
+          step: 0,
+          title: "Company Profile",
+          data: [{ "Annual Revenue ($)": 50_000_000, "Total Employees": 250 }],
+        },
+        {
+          step: 3,
+          title: "Friction Inventory",
+          data: [
+            {
+              "Friction Point": "Slow lead-to-quote handoff",
+              "Primary Driver Impact": "Revenue acceleration",
+              "Annual Hours": 2000,
+              "Hourly Rate": 120,
+            },
+          ],
+        },
+        {
+          step: 4,
+          title: "Use Case Mapping",
+          data: [
+            {
+              ID: "UC-REV-DERIVED",
+              "Use Case": "Revenue Derivation",
+              "Target Friction": "Slow lead-to-quote handoff",
+            },
+          ],
+        },
+        {
+          step: 5,
+          title: "Benefits Quantification",
+          data: [
+            {
+              ID: "UC-REV-DERIVED",
+              "Use Case": "Revenue Derivation",
+              "Strategic Theme": "Revenue",
+              "Cost Formula Labels": {
+                components: [
+                  { label: "Hours Saved", value: 1000 },
+                  { label: "Loaded Hourly Rate", value: 100 },
+                  { label: "Benefits Loading", value: 1.3 },
+                  { label: "Adoption Rate", value: 0.8 },
+                  { label: "Data Maturity", value: 0.75 },
+                ],
+              },
+              // No Revenue Formula and no Revenue Formula Labels → upstream
+              // revenue is $0 → derivation branch fires.
+              "Probability of Success": 0.7,
+            },
+          ],
+        },
+        {
+          step: 6,
+          title: "Readiness & Token Modeling",
+          data: [
+            {
+              ID: "UC-REV-DERIVED",
+              "Use Case": "Revenue Derivation",
+              "Organizational Capacity": 7,
+              "Data Availability & Quality": 7,
+              "Technical Infrastructure": 7,
+              "Governance": 7,
+              "Time-to-Value (months)": 6,
+              "Runs/Month": 1000,
+              "Input Tokens/Run": 800,
+              "Output Tokens/Run": 800,
+            },
+          ],
+        },
+      ],
+      vrm: { schemaVersion: "2.0" },
+    };
+
+    const result = postProcessAnalysis(fixture);
+    const step5 = result.steps.find((s: any) => s.step === 5);
+    const record = step5.data.find((r: any) => r.ID === "UC-REV-DERIVED");
+    const formulaText: string = record["Revenue Formula"];
+
+    // The hardcoded derived uplift (0.003 = 0.3%) rounds to "0%" with the
+    // existing `.toFixed(0)` formatting. The cap (5%) does not bind, so no
+    // "(capped from X%)" annotation should appear.
+    expect(formulaText).not.toContain("capped from");
+    expect(formulaText).toContain("[derived from");
+    // The leading factor must be the percentage, not a dollar amount —
+    // guarding against accidental reordering of the formatter inputs.
+    expect(formulaText).toMatch(/^\d+%/);
+  });
 });
 
 // ---------------------------------------------------------------------------

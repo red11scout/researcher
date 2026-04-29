@@ -390,7 +390,12 @@ function parseRevenueFromLabels(labels: FormulaLabelsObj | string | undefined): 
   });
   if (!extracted || !extracted.upliftPct || !extracted.baselineRevenueAtRisk) return null;
   return {
-    upliftPct: clamp(extracted.upliftPct, INPUT_BOUNDS.upliftPct.min, INPUT_BOUNDS.upliftPct.max),
+    // Pass the *raw* AI-supplied uplift through. `hfCalculateRevenueBenefit`
+    // enforces the per-use-case cap (`INPUT_BOUNDS.upliftPct.max`) on the dollar
+    // value, and the audit `formulaText` uses the engine's capped trace value
+    // (with a "(capped from X%)" annotation) so the printed math always
+    // multiplies out to the printed dollar — see Task #36.
+    upliftPct: Math.max(INPUT_BOUNDS.upliftPct.min, extracted.upliftPct),
     baselineRevenueAtRisk: extracted.baselineRevenueAtRisk,
     marginPct: 1.0,
     revenueRealizationMultiplier: extracted.revenueRealizationMultiplier || DEFAULT_MULTIPLIERS.revenueRealizationMultiplier,
@@ -592,7 +597,12 @@ function parseRevenueFormulaInputs(formula: string): RevenueInputs | null {
   if (upliftPct === 0 || baselineRevenueAtRisk === 0) return null;
 
   return {
-    upliftPct: clamp(upliftPct, INPUT_BOUNDS.upliftPct.min, INPUT_BOUNDS.upliftPct.max),
+    // Pass the *raw* parsed uplift through. `hfCalculateRevenueBenefit` enforces
+    // the per-use-case cap (`INPUT_BOUNDS.upliftPct.max`) on the dollar value,
+    // and the audit `formulaText` uses the engine's capped trace value (with a
+    // "(capped from X%)" annotation) so the printed math always multiplies out
+    // to the printed dollar — see Task #36.
+    upliftPct: Math.max(INPUT_BOUNDS.upliftPct.min, upliftPct),
     baselineRevenueAtRisk,
     marginPct,
     revenueRealizationMultiplier,
@@ -619,7 +629,15 @@ function recalculateRevenueBenefit(formula: string): { value: number; formulaTex
 
   // HyperFormula handles validation internally
 
-  const newFormula = `${(inputs.upliftPct * 100).toFixed(0)}% × ${formatMoney(inputs.baselineRevenueAtRisk)} × ${inputs.revenueRealizationMultiplier.toFixed(2)} × ${inputs.dataMaturityMultiplier.toFixed(2)} = ${formatMoney(result.trace.output)} → ${formatMoney(result.value)}`;
+  // Audit text must show the *capped* uplift percentage so the displayed math
+  // multiplies out to the displayed dollar value. The raw % the AI proposed is
+  // preserved as a "(capped from X%)" annotation when capping actually binds,
+  // so reviewers can still see what was overridden — Task #36.
+  const upliftPctText = formatUpliftPctForAudit(
+    inputs.upliftPct,
+    result.trace.inputs.upliftPct as number,
+  );
+  const newFormula = `${upliftPctText} × ${formatMoney(inputs.baselineRevenueAtRisk)} × ${inputs.revenueRealizationMultiplier.toFixed(2)} × ${inputs.dataMaturityMultiplier.toFixed(2)} = ${formatMoney(result.trace.output)} → ${formatMoney(result.value)}`;
 
   return { value: result.value, formulaText: newFormula, warnings };
 }
@@ -811,6 +829,24 @@ function formatRiskReductionPctForAudit(rawReductionPct: number, cappedReduction
   const capped = `${(cappedReductionPct * 100).toFixed(0)}%`;
   if (rawReductionPct - cappedReductionPct > 1e-9) {
     return `${capped} (capped from ${(rawReductionPct * 100).toFixed(0)}%)`;
+  }
+  return capped;
+}
+
+/**
+ * Format the revenue uplift percentage for the audit `formulaText` string.
+ *
+ * Mirrors `formatRiskReductionPctForAudit` (Task #26) for the revenue-benefit
+ * branch (Task #36). Always displays the *capped* percentage so the printed
+ * math is internally consistent with the printed dollar result, and appends a
+ * "(capped from X%)" annotation when capping binds so the AI's original input
+ * remains visible. Both percentages are formatted to whole numbers to match
+ * the rest of the audit string's precision.
+ */
+function formatUpliftPctForAudit(rawUpliftPct: number, cappedUpliftPct: number): string {
+  const capped = `${(cappedUpliftPct * 100).toFixed(0)}%`;
+  if (rawUpliftPct - cappedUpliftPct > 1e-9) {
+    return `${capped} (capped from ${(rawUpliftPct * 100).toFixed(0)}%)`;
   }
   return capped;
 }
@@ -1308,9 +1344,13 @@ export function postProcessAnalysis(analysisResult: any): any {
         revenueRealizationMultiplier: structuredRevenueInputs.revenueRealizationMultiplier,
         dataMaturityMultiplier: structuredRevenueInputs.dataMaturityMultiplier,
       });
+      const upliftPctText = formatUpliftPctForAudit(
+        structuredRevenueInputs.upliftPct,
+        hfResult.trace.inputs.upliftPct as number,
+      );
       revenueResult = {
         value: hfResult.value,
-        formulaText: `${(structuredRevenueInputs.upliftPct * 100).toFixed(0)}% × ${formatMoney(structuredRevenueInputs.baselineRevenueAtRisk)} × ${structuredRevenueInputs.revenueRealizationMultiplier.toFixed(2)} × ${structuredRevenueInputs.dataMaturityMultiplier.toFixed(2)} = ${formatMoney(hfResult.trace.output)} → ${formatMoney(hfResult.value)} [HF/labels]`,
+        formulaText: `${upliftPctText} × ${formatMoney(structuredRevenueInputs.baselineRevenueAtRisk)} × ${structuredRevenueInputs.revenueRealizationMultiplier.toFixed(2)} × ${structuredRevenueInputs.dataMaturityMultiplier.toFixed(2)} = ${formatMoney(hfResult.trace.output)} → ${formatMoney(hfResult.value)} [HF/labels]`,
         warnings: [],
       };
       console.log(`[postProcessAnalysis] ${record.ID}: Revenue via STRUCTURED LABELS: ${formatMoney(hfResult.value)}`);
@@ -1394,9 +1434,13 @@ export function postProcessAnalysis(analysisResult: any): any {
               upliftPct,
               baselineRevenueAtRisk: estimatedRevenueAtRisk,
             });
+            const derivedUpliftPctText = formatUpliftPctForAudit(
+              upliftPct,
+              derivedRevenue.trace.inputs.upliftPct as number,
+            );
             revenueResult = {
               value: derivedRevenue.value,
-              formulaText: `${(upliftPct * 100).toFixed(0)}% × ${formatMoney(estimatedRevenueAtRisk)} × 0.95 × 0.75 = ${formatMoney(derivedRevenue.trace.output)} → ${formatMoney(derivedRevenue.value)} [derived from ${driverImpact}]`,
+              formulaText: `${derivedUpliftPctText} × ${formatMoney(estimatedRevenueAtRisk)} × 0.95 × 0.75 = ${formatMoney(derivedRevenue.trace.output)} → ${formatMoney(derivedRevenue.value)} [derived from ${driverImpact}]`,
               warnings: [`Revenue derived from Step 3 driver impact: ${driverImpact}`],
             };
             console.log(`[postProcessAnalysis] ${record.ID}: Derived revenue from Step 3 driver "${driverImpact}": ${formatMoney(derivedRevenue.value)}`);
