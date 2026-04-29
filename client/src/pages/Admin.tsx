@@ -1,5 +1,11 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useSearch } from "wouter";
 import Layout from "@/components/Layout";
+import {
+  buildAuditSearchString,
+  parseAuditUrlParams,
+  type AuditFilters as AuditFiltersHelper,
+} from "@/lib/auditUrlParams";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -323,21 +329,11 @@ interface AuditLogResponse {
 // `since` to start-of-day and `until` to end-of-day before sending to the
 // server so a single-day range like "since=2026-04-29, until=2026-04-29"
 // does what an operator expects.
-interface AuditFilters {
-  action: string;
-  status: string;
-  since: string;
-  until: string;
-  ip: string;
-}
-
-const EMPTY_AUDIT_FILTERS: AuditFilters = {
-  action: "all",
-  status: "all",
-  since: "",
-  until: "",
-  ip: "",
-};
+//
+// The shape lives in `@/lib/auditUrlParams` so the URL ↔ state syncing
+// helpers can reuse it; we just re-export under the page-local name for
+// readability of the rest of this file.
+type AuditFilters = AuditFiltersHelper;
 
 const AUDIT_PAGE_SIZE = 25;
 
@@ -394,13 +390,28 @@ function AdminPanel() {
   const [auditTotal, setAuditTotal] = useState<number>(0);
   const [auditLoading, setAuditLoading] = useState(true);
   const [auditError, setAuditError] = useState<string | null>(null);
-  // Filters + offset live as Admin-page state so they survive panel re-renders
-  // and so the "refresh after backfill" path automatically refetches whatever
-  // slice the operator was looking at, not just the default page.
-  const [auditFilters, setAuditFilters] = useState<AuditFilters>(
-    EMPTY_AUDIT_FILTERS,
+  // Filters + offset are persisted in the URL query string so a filtered view
+  // can be shared via link, restored after a refresh, and walked through with
+  // the browser's back/forward buttons. We derive the live state from
+  // wouter's `useSearch()` (which subscribes to history navigations) rather
+  // than mirroring it into `useState`, so popstate events from
+  // back/forward automatically refresh the panel without a custom listener.
+  const [, navigate] = useLocation();
+  const search = useSearch();
+  const { filters: auditFilters, offset: auditOffset } = useMemo(
+    () => parseAuditUrlParams(search),
+    [search],
   );
-  const [auditOffset, setAuditOffset] = useState(0);
+  // A ref of the current URL state so the navigation callbacks below can
+  // stay referentially stable (no `[auditFilters]` deps). Stable callbacks
+  // matter because the IP-input debounce effect inside
+  // `RecentAdminActivity` depends on `onChangeFilters` — a new identity each
+  // render would restart the timer on every keystroke.
+  const auditUrlStateRef = useRef({
+    filters: auditFilters,
+    offset: auditOffset,
+  });
+  auditUrlStateRef.current = { filters: auditFilters, offset: auditOffset };
 
   const loadAuditLog = useCallback(
     async (filters: AuditFilters, offset: number) => {
@@ -462,16 +473,34 @@ function AdminPanel() {
   }, [loadAuditLog, auditFilters, auditOffset]);
 
   // Whenever filters change, jump back to page 0 so the operator isn't
-  // stranded on (say) page 5 of a now-much-smaller filtered set.
-  const updateAuditFilters = useCallback((next: Partial<AuditFilters>) => {
-    setAuditFilters((prev) => ({ ...prev, ...next }));
-    setAuditOffset(0);
-  }, []);
+  // stranded on (say) page 5 of a now-much-smaller filtered set. We push a
+  // new history entry (no `replace` flag) so the browser's back button
+  // walks the operator through their previous filter states.
+  const updateAuditFilters = useCallback(
+    (next: Partial<AuditFilters>) => {
+      const merged = { ...auditUrlStateRef.current.filters, ...next };
+      navigate(`/admin${buildAuditSearchString(merged, 0)}`);
+    },
+    [navigate],
+  );
+
+  const updateAuditOffset = useCallback(
+    (nextOffset: number) => {
+      navigate(
+        `/admin${buildAuditSearchString(
+          auditUrlStateRef.current.filters,
+          nextOffset,
+        )}`,
+      );
+    },
+    [navigate],
+  );
 
   const resetAuditFilters = useCallback(() => {
-    setAuditFilters(EMPTY_AUDIT_FILTERS);
-    setAuditOffset(0);
-  }, []);
+    // "Clear filters" should also clear the URL params so a shared link
+    // doesn't drag stale query state along after the operator resets.
+    navigate("/admin");
+  }, [navigate]);
 
   // Public refresh handler — re-fetches the current slice (filters + page)
   // so the operator's view stays put after a manual refresh or a backfill
@@ -1242,7 +1271,7 @@ function AdminPanel() {
           pageSize={AUDIT_PAGE_SIZE}
           onChangeFilters={updateAuditFilters}
           onResetFilters={resetAuditFilters}
-          onChangeOffset={setAuditOffset}
+          onChangeOffset={updateAuditOffset}
           onRefresh={refreshAuditLog}
           onExport={() => void exportAuditLog()}
           exporting={auditExporting}
