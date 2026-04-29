@@ -316,6 +316,14 @@ function AdminPanel() {
   const [updatedReports, setUpdatedReports] = useState<BackfillReportResult[]>(
     [],
   );
+  // Wall-clock timestamp of the persisted run we hydrated from on page load.
+  // Null when the displayed result is from a run completed in *this* browser
+  // session (no need to label it — the operator just watched it finish) or
+  // before any run has ever happened. Used to render a small "from previous
+  // run completed …" hint above the summary so an operator returning the
+  // next day knows they're looking at yesterday's data, not a stale render
+  // bug.
+  const [hydratedAt, setHydratedAt] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<ProgressState | null>(null);
   // Buffer progress updates so we don't re-render on every single line of
@@ -358,6 +366,43 @@ function AdminPanel() {
     void loadAuditLog();
   }, [loadAuditLog]);
 
+  // Hydrate the post-run summary from the server on page load. The Admin
+  // page used to keep `result` and `updatedReports` purely in component
+  // state, which meant a refresh (or coming back the next day) wiped the
+  // failures table, retry button, and "Upgrades applied" panel — forcing
+  // an operator to re-run the whole upgrade just to surface failures they
+  // saw yesterday. The server now persists the most recent completed run
+  // (see `/api/admin/last-backfill`) so we can render the same summary
+  // immediately on mount, even before the operator clicks anything.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/admin/last-backfill", {
+          credentials: "include",
+        });
+        if (!res.ok) return;
+        const data: {
+          summary: BackfillResponse | null;
+          updatedReports?: BackfillReportResult[];
+          completedAt?: string;
+        } = await res.json();
+        if (cancelled || !data.summary) return;
+        setResult(data.summary);
+        setUpdatedReports(data.updatedReports ?? []);
+        setHydratedAt(data.completedAt ?? null);
+      } catch {
+        // Hydration is a nice-to-have — if the GET fails, the page still
+        // works (it just won't show the previous run until the operator
+        // triggers a new one). No toast: this would be noise on every
+        // mount when the DB is unreachable for unrelated reasons.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const scheduleFlush = () => {
     if (flushTimer.current !== null) return;
     flushTimer.current = window.setTimeout(() => {
@@ -381,6 +426,10 @@ function AdminPanel() {
     setStartedAt(Date.now());
     setResult(null);
     setUpdatedReports([]);
+    // We're about to produce a fresh result — once this run completes, the
+    // displayed summary is "live" again, not a hydrated snapshot from the
+    // previous run, so drop the "from previous run completed …" hint.
+    setHydratedAt(null);
     setError(null);
     setProgress(null);
     pendingProgress.current = null;
@@ -669,7 +718,7 @@ function AdminPanel() {
             {result && (
               <div className="space-y-4" data-testid="panel-backfill-result">
                 <Separator />
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <CheckCircle2 className="h-5 w-5 text-emerald-600" />
                   <h3 className="text-base font-semibold text-slate-900">
                     Last run summary
@@ -678,6 +727,17 @@ function AdminPanel() {
                     <Badge variant="secondary" data-testid="badge-forced">
                       forced
                     </Badge>
+                  )}
+                  {hydratedAt && (
+                    <span
+                      className="text-xs text-slate-500 flex items-center gap-1"
+                      data-testid="text-hydrated-from-previous-run"
+                      title={new Date(hydratedAt).toLocaleString()}
+                    >
+                      <Clock className="h-3.5 w-3.5" />
+                      from previous run completed{" "}
+                      {new Date(hydratedAt).toLocaleString()}
+                    </span>
                   )}
                 </div>
 

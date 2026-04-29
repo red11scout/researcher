@@ -33,6 +33,8 @@ import {
   adminAuditLog,
   type AdminAuditLogEntry,
   type InsertAdminAuditLog,
+  adminLastBackfill,
+  type AdminLastBackfillRow,
   DEFAULT_ASSUMPTIONS,
   DEFAULT_FORMULAS,
   ASSUMPTION_CATEGORIES,
@@ -40,6 +42,10 @@ import {
   type CalculatedFieldKey
 } from "@shared/schema";
 import { eq, desc, and, like, sql, isNull, lt } from "drizzle-orm";
+import type {
+  BackfillReportResult,
+  PersistedBackfillSummary,
+} from "./report-backfill";
 
 export interface IStorage {
   // Report operations
@@ -118,6 +124,20 @@ export interface IStorage {
   // swallowed so audit-write problems can never break a real admin request.
   createAdminAuditEntry(entry: InsertAdminAuditLog): Promise<AdminAuditLogEntry | null>;
   getRecentAdminAuditEntries(limit: number): Promise<AdminAuditLogEntry[]>;
+
+  // Persisted snapshot of the most recent completed admin backfill run, so
+  // the Admin page can hydrate the post-run summary / failures table /
+  // "Retry these" button on page load instead of losing them when the
+  // operator refreshes. Singleton: a new run replaces the previous row.
+  saveLastBackfillSummary(
+    summary: PersistedBackfillSummary,
+    updatedReports: BackfillReportResult[],
+  ): Promise<void>;
+  getLastBackfillSummary(): Promise<{
+    summary: PersistedBackfillSummary;
+    updatedReports: BackfillReportResult[];
+    completedAt: Date;
+  } | null>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -888,6 +908,55 @@ export class DatabaseStorage implements IStorage {
       .from(adminAuditLog)
       .orderBy(desc(adminAuditLog.createdAt))
       .limit(safeLimit);
+  }
+
+  async saveLastBackfillSummary(
+    summary: PersistedBackfillSummary,
+    updatedReports: BackfillReportResult[],
+  ): Promise<void> {
+    // Singleton row keyed by `id="singleton"`. Upsert so a new run replaces
+    // the previous snapshot and the Admin page only ever hydrates the most
+    // recent state, exactly mirroring the in-memory behaviour after a fresh
+    // run finishes in the same browser tab.
+    await db
+      .insert(adminLastBackfill)
+      .values({
+        id: "singleton",
+        summary,
+        updatedReports,
+      })
+      .onConflictDoUpdate({
+        target: adminLastBackfill.id,
+        set: {
+          summary,
+          updatedReports,
+          completedAt: new Date(),
+        },
+      });
+  }
+
+  async getLastBackfillSummary(): Promise<{
+    summary: PersistedBackfillSummary;
+    updatedReports: BackfillReportResult[];
+    completedAt: Date;
+  } | null> {
+    const [row] = await db
+      .select()
+      .from(adminLastBackfill)
+      .where(eq(adminLastBackfill.id, "singleton"))
+      .limit(1);
+    if (!row) return null;
+    // The JSONB columns come back as `unknown` from Drizzle (the schema is
+    // declared in shared/ where the server-side persisted types aren't
+    // visible). We narrow at the persistence boundary here so callers get
+    // typed data without sprinkling casts in every route handler. The cast
+    // is safe because writes go through `saveLastBackfillSummary` above,
+    // which is the only path that ever inserts into this table.
+    return {
+      summary: row.summary as PersistedBackfillSummary,
+      updatedReports: row.updatedReports as BackfillReportResult[],
+      completedAt: row.completedAt,
+    };
   }
 }
 

@@ -407,6 +407,35 @@ export interface BackfillSummary {
   results: BackfillReportResult[];
 }
 
+/**
+ * Wire-format snapshot of one completed admin backfill run, persisted in
+ * the `admin_last_backfill` singleton table by the admin route handler so
+ * the Admin page can rehydrate the post-run summary on refresh. Mirrors
+ * the JSON the streaming `complete` event sends to the browser, minus the
+ * optional `results` array (which is only used in `verbose=1` mode and is
+ * not part of the rehydrated UI state).
+ *
+ * Kept as an explicit named type so storage signatures don't have to use
+ * `unknown` / `any` and so a future change to the wire format produces a
+ * single TS error at the persistence boundary instead of silently writing
+ * an unexpected shape into the JSONB column.
+ */
+export interface PersistedBackfillSummary {
+  success: true;
+  force: boolean;
+  total: number;
+  updated: number;
+  skipped: number;
+  failed: number;
+  durationMs: number;
+  /**
+   * Failed report records, in the same shape the streaming `complete`
+   * event uses. The "Retry these" button on the Admin page reads `id`
+   * fields out of this array.
+   */
+  failures: BackfillReportResult[];
+}
+
 export interface BackfillOptions {
   /** Reprocess every report regardless of the staleness check. */
   force?: boolean;

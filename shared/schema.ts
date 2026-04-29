@@ -210,6 +210,48 @@ export const insertAdminAuditLogSchema = createInsertSchema(adminAuditLog).omit(
 export type InsertAdminAuditLog = z.infer<typeof insertAdminAuditLogSchema>;
 export type AdminAuditLogEntry = typeof adminAuditLog.$inferSelect;
 
+// Persisted snapshot of the most recent completed admin backfill run. The
+// Admin page hydrates from this on load so an operator who refreshes the
+// browser (or comes back the next day) still sees the post-run summary,
+// failures table, and "Retry these" button without having to re-run the
+// upgrade just to surface what already finished.
+//
+// Singleton table — only ever holds one row, keyed by `id="singleton"`. A
+// new completed run upserts and replaces the row so admins always see the
+// latest state. We keep this separate from `admin_audit_log` (which only
+// records counts in `outcome`) because rebuilding the failures table needs
+// the full per-report records (id, error string, etc.) that audit rows
+// intentionally don't carry.
+//
+// The `summary` and `updatedReports` JSONB columns mirror the shapes
+// declared by `PersistedBackfillSummary` and `BackfillReportResult` in
+// `server/report-backfill.ts`. We can't `.$type<>()`-tag them with those
+// server-side types from `shared/` (would invert the dependency
+// direction), so storage uses an explicit typed cast on read instead —
+// the schema-level shapes below document the contract for that cast.
+export const adminLastBackfill = pgTable("admin_last_backfill", {
+  id: text("id").primaryKey(),
+  // PersistedBackfillSummary-shaped payload: success, force, total,
+  // updated, skipped, failed, durationMs, plus the failures array.
+  summary: jsonb("summary").notNull(),
+  // The list of "updated" BackfillReportResult records from the run.
+  // Used by the UpgradesAppliedPanel on /admin to group reports by which
+  // upgrade was applied and surface headline-number movements. Stored
+  // separately so the grouping panel can rehydrate without us having to
+  // round-trip every skipped report through the wire.
+  updatedReports: jsonb("updated_reports").notNull(),
+  // Wall-clock time the run finished — surfaced in the UI so the operator
+  // can see "this is the run from yesterday at 3pm" and not confuse it
+  // with a fresh result.
+  completedAt: timestamp("completed_at").defaultNow().notNull(),
+});
+
+export const insertAdminLastBackfillSchema = createInsertSchema(adminLastBackfill).omit({
+  completedAt: true,
+});
+export type InsertAdminLastBackfill = z.infer<typeof insertAdminLastBackfillSchema>;
+export type AdminLastBackfillRow = typeof adminLastBackfill.$inferSelect;
+
 // Parent categories for hierarchical organization (per document Section 3)
 export const PARENT_CATEGORIES = [
   "financial_operational",   // Company financial & operational assumptions

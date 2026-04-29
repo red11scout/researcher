@@ -682,6 +682,10 @@ Return ONLY valid JSON with this structure:
             durationMs: summary.durationMs,
           },
         });
+        const failures = summary.results.filter((r) => r.status === "failed");
+        const updatedReports = summary.results.filter(
+          (r) => r.status === "updated",
+        );
         const completePayload: Extract<StreamEvent, { type: "complete" }> = {
           type: "complete",
           success: true,
@@ -691,9 +695,35 @@ Return ONLY valid JSON with this structure:
           skipped: summary.skipped,
           failed: summary.failed,
           durationMs: summary.durationMs,
-          failures: summary.results.filter((r) => r.status === "failed"),
+          failures,
           ...(verbose ? { results: summary.results } : {}),
         };
+        // Persist the completed run so the Admin page can rehydrate the
+        // same summary, failures table, and "Retry these" button on the
+        // next page load (or after the operator comes back tomorrow). A
+        // persistence failure must NOT mask the run itself — the live
+        // stream consumer already has every byte they need — so we log
+        // and swallow.
+        try {
+          await storage.saveLastBackfillSummary(
+            {
+              success: true,
+              force,
+              total: summary.total,
+              updated: summary.updated,
+              skipped: summary.skipped,
+              failed: summary.failed,
+              durationMs: summary.durationMs,
+              failures,
+            },
+            updatedReports,
+          );
+        } catch (persistErr) {
+          console.error(
+            "[admin/backfill-reports] Failed to persist last-run summary:",
+            persistErr,
+          );
+        }
         writeEvent(completePayload);
         res.end();
       } catch (err: unknown) {
@@ -754,6 +784,10 @@ Return ONLY valid JSON with this structure:
           durationMs: summary.durationMs,
         },
       });
+      const failures = summary.results.filter((r) => r.status === "failed");
+      const updatedReports = summary.results.filter(
+        (r) => r.status === "updated",
+      );
       const responseBody: any = {
         success: true,
         force,
@@ -767,8 +801,29 @@ Return ONLY valid JSON with this structure:
         responseBody.results = summary.results;
       } else {
         // Always surface failures so the operator can act on them without re-running with verbose
-        responseBody.failures = summary.results.filter(
-          (r) => r.status === "failed",
+        responseBody.failures = failures;
+      }
+      // Persist the same snapshot the streaming branch persists so an
+      // operator who triggered the backfill via curl/CLI also gets the
+      // hydrated post-run state next time they open /admin in the browser.
+      try {
+        await storage.saveLastBackfillSummary(
+          {
+            success: true,
+            force,
+            total: summary.total,
+            updated: summary.updated,
+            skipped: summary.skipped,
+            failed: summary.failed,
+            durationMs: summary.durationMs,
+            failures,
+          },
+          updatedReports,
+        );
+      } catch (persistErr) {
+        console.error(
+          "[admin/backfill-reports] Failed to persist last-run summary:",
+          persistErr,
         );
       }
       res.json(responseBody);
@@ -789,6 +844,30 @@ Return ONLY valid JSON with this structure:
         success: false,
         error: err?.message ?? String(err),
       });
+    }
+  });
+
+  // Returns the most recently completed backfill run so the Admin page can
+  // hydrate the post-run summary, failures table, and "Retry these" button
+  // on page load — without forcing the operator to re-run the entire upgrade
+  // just to surface failures they noticed yesterday. Returns
+  // `{ summary: null }` when no run has ever completed against this DB.
+  app.get("/api/admin/last-backfill", async (req, res) => {
+    try {
+      const row = await storage.getLastBackfillSummary();
+      if (!row) {
+        return res.json({ summary: null });
+      }
+      res.json({
+        summary: row.summary,
+        updatedReports: row.updatedReports,
+        completedAt: row.completedAt,
+      });
+    } catch (err: any) {
+      console.error("[admin/last-backfill] Failed to read last run:", err);
+      res
+        .status(500)
+        .json({ summary: null, error: err?.message ?? String(err) });
     }
   });
 

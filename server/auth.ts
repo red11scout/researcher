@@ -72,7 +72,10 @@ function deriveAdminAction(req: Request): string {
 
 // Read-only admin endpoints we suppress from the generic audit hook so
 // the activity panel doesn't fill with self-noise from its own polling.
-const ADMIN_AUDIT_SKIP_ACTIONS = new Set(["audit-log"]);
+// `last-backfill` is the singleton snapshot the Admin page hydrates from
+// on every load — auditing each one would dwarf the actual upgrade
+// actions operators care about, same reason `audit-log` is skipped.
+const ADMIN_AUDIT_SKIP_ACTIONS = new Set(["audit-log", "last-backfill"]);
 
 export function auditAdminRequest(
   req: Request,
