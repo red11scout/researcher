@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
@@ -36,12 +37,15 @@ import {
   CheckCircle2,
   Clock,
   Loader2,
+  Lock,
   RefreshCw,
   ShieldAlert,
+  ShieldCheck,
   SkipForward,
   XCircle,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface BackfillReportResult {
   id: string;
@@ -107,7 +111,144 @@ function formatDuration(ms: number): string {
 }
 
 export default function Admin() {
+  const { isAdmin, isLoading: authLoading } = useAuth();
+
+  if (authLoading) {
+    return (
+      <Layout>
+        <div
+          className="container px-3 md:px-6 py-12 md:py-16 max-w-3xl flex items-center justify-center"
+          data-testid="state-admin-loading"
+        >
+          <Loader2 className="h-6 w-6 animate-spin text-brand-navy" />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!isAdmin) {
+    return <AdminNoAccess />;
+  }
+
+  return <AdminPanel />;
+}
+
+function AdminNoAccess() {
   const { toast } = useToast();
+  const { adminAvailable, adminLogin } = useAuth();
+  const [password, setPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!password.trim() || submitting) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const result = await adminLogin(password);
+      if (result.success) {
+        toast({
+          title: "Admin access granted",
+          description: "You can now run operator-only tools.",
+        });
+        setPassword("");
+      } else {
+        setError(result.message || "Invalid admin password");
+        setPassword("");
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Unable to elevate session");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Layout>
+      <div className="container px-3 md:px-6 py-6 md:py-10 max-w-2xl">
+        <Card data-testid="card-admin-no-access">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Lock className="h-5 w-5 text-amber-600" />
+              Admin access required
+            </CardTitle>
+            <CardDescription className="mt-1">
+              The Admin tools can rewrite analysis data for every saved report,
+              so they're locked behind a separate operator password. Your
+              regular sign-in does not grant access.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {adminAvailable ? (
+              <form
+                onSubmit={handleSubmit}
+                className="space-y-3"
+                data-testid="form-admin-elevate"
+              >
+                <Label
+                  htmlFor="input-admin-password"
+                  className="text-sm font-medium text-slate-900"
+                >
+                  Admin password
+                </Label>
+                <Input
+                  id="input-admin-password"
+                  type="password"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={submitting}
+                  placeholder="Enter ADMIN_PASSWORD"
+                  data-testid="input-admin-password"
+                />
+                {error && (
+                  <div
+                    className="text-sm text-red-600 flex items-start gap-2"
+                    data-testid="text-admin-elevate-error"
+                  >
+                    <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                    <span>{error}</span>
+                  </div>
+                )}
+                <Button
+                  type="submit"
+                  disabled={submitting || !password.trim()}
+                  data-testid="button-admin-elevate"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Verifying…
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck className="h-4 w-4 mr-2" />
+                      Unlock admin tools
+                    </>
+                  )}
+                </Button>
+              </form>
+            ) : (
+              <div
+                className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800"
+                data-testid="text-admin-not-configured"
+              >
+                Admin access has not been configured for this deployment. Set
+                the <code className="font-mono">ADMIN_PASSWORD</code>{" "}
+                environment variable on the server to enable operator tools.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </Layout>
+  );
+}
+
+function AdminPanel() {
+  const { toast } = useToast();
+  const { adminLogout } = useAuth();
   const [force, setForce] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [running, setRunning] = useState(false);
@@ -282,16 +423,43 @@ export default function Admin() {
   return (
     <Layout>
       <div className="container px-3 md:px-6 py-6 md:py-10 max-w-5xl">
-        <div className="mb-6">
-          <h1
-            className="text-2xl md:text-3xl font-bold text-brand-navy"
-            data-testid="text-admin-title"
-          >
-            Admin
-          </h1>
-          <p className="text-sm md:text-base text-slate-600 mt-1">
-            Operator tools for maintaining saved reports.
-          </p>
+        <div className="mb-6 flex items-start justify-between gap-4">
+          <div>
+            <h1
+              className="text-2xl md:text-3xl font-bold text-brand-navy"
+              data-testid="text-admin-title"
+            >
+              Admin
+            </h1>
+            <p className="text-sm md:text-base text-slate-600 mt-1">
+              Operator tools for maintaining saved reports.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Badge
+              variant="outline"
+              className="border-emerald-300 text-emerald-700 bg-emerald-50"
+              data-testid="badge-admin-active"
+            >
+              <ShieldCheck className="h-3.5 w-3.5 mr-1" />
+              Admin
+            </Badge>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                void adminLogout();
+                toast({
+                  title: "Stepped down from admin",
+                  description: "Your session is no longer elevated.",
+                });
+              }}
+              disabled={running}
+              data-testid="button-admin-step-down"
+            >
+              Step down
+            </Button>
+          </div>
         </div>
 
         <Card data-testid="card-upgrade-reports">

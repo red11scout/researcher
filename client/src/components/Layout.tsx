@@ -46,7 +46,7 @@ function MobileNavLink({ href, icon, label, isActive, onClose }: MobileNavLinkPr
 export default function Layout({ children }: LayoutProps) {
   const [location] = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const { logout } = useAuth();
+  const { logout, isAdmin } = useAuth();
   
   const isActive = (path: string) => {
     if (path === "/" && location === "/") return true;
@@ -94,13 +94,15 @@ export default function Layout({ children }: LayoutProps) {
               >
                 Batch Research
               </Link>
-              <Link
-                href="/admin"
-                className={`hover:text-brand-navy transition-colors ${isActive("/admin") ? "text-brand-navy font-semibold" : ""}`}
-                data-testid="link-admin"
-              >
-                Admin
-              </Link>
+              {isAdmin && (
+                <Link
+                  href="/admin"
+                  className={`hover:text-brand-navy transition-colors ${isActive("/admin") ? "text-brand-navy font-semibold" : ""}`}
+                  data-testid="link-admin"
+                >
+                  Admin
+                </Link>
+              )}
             </nav>
           </div>
           
@@ -173,13 +175,15 @@ export default function Layout({ children }: LayoutProps) {
                     isActive={isActive("/batch-research")}
                     onClose={closeMobileMenu}
                   />
-                  <MobileNavLink
-                    href="/admin"
-                    icon={<Settings className="h-5 w-5" />}
-                    label="Admin"
-                    isActive={isActive("/admin")}
-                    onClose={closeMobileMenu}
-                  />
+                  {isAdmin && (
+                    <MobileNavLink
+                      href="/admin"
+                      icon={<Settings className="h-5 w-5" />}
+                      label="Admin"
+                      isActive={isActive("/admin")}
+                      onClose={closeMobileMenu}
+                    />
+                  )}
                   <button
                     onClick={() => { closeMobileMenu(); handleLogout(); }}
                     className="flex items-center gap-3 min-h-[44px] px-4 py-3 rounded-lg text-base font-medium transition-all duration-200 text-red-600 hover:bg-red-50 mt-4 border-t border-slate-200 pt-5"
