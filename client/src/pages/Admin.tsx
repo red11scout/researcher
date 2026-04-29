@@ -35,6 +35,8 @@ import {
 import {
   AlertCircle,
   CheckCircle2,
+  ChevronDown,
+  ChevronRight,
   Clock,
   History,
   Loader2,
@@ -1078,6 +1080,19 @@ function UpgradesAppliedPanel({ updated }: UpgradesAppliedPanelProps) {
     .map(([code, value]) => ({ code, ...value }))
     .sort((a, b) => b.reports.length - a.reports.length);
 
+  // Track which buckets are expanded. Buckets are collapsed by default so the
+  // panel stays compact; admins can click the header to drill into the full
+  // list of reports in that bucket without leaving the page.
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const toggle = (code: string) => {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(code)) next.delete(code);
+      else next.add(code);
+      return next;
+    });
+  };
+
   if (sorted.length === 0 && reprocessedNoChange === 0) return null;
 
   return (
@@ -1091,41 +1106,107 @@ function UpgradesAppliedPanel({ updated }: UpgradesAppliedPanelProps) {
           Upgrades applied
         </span>
         <span className="text-xs text-slate-500">
-          (grouped by change, most common first)
+          (grouped by change, most common first — click a row to see every
+          report)
         </span>
       </div>
       <ul className="divide-y divide-slate-100">
         {sorted.map((bucket) => {
           const examples = bucket.reports.slice(0, 3);
           const remaining = bucket.reports.length - examples.length;
+          const isOpen = expanded.has(bucket.code);
           return (
             <li
               key={bucket.code}
-              className="px-4 py-3 flex items-start gap-3"
               data-testid={`row-upgrade-bucket-${bucket.code}`}
             >
-              <Badge
-                variant="outline"
-                className="border-emerald-200 bg-emerald-50 text-emerald-700 font-medium tabular-nums shrink-0"
-                data-testid={`count-upgrade-${bucket.code}`}
+              <button
+                type="button"
+                onClick={() => toggle(bucket.code)}
+                aria-expanded={isOpen}
+                className="w-full px-4 py-3 flex items-start gap-3 text-left hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-navy focus-visible:ring-inset"
+                data-testid={`button-toggle-upgrade-${bucket.code}`}
               >
-                {bucket.reports.length}
-              </Badge>
-              <div className="flex-1 min-w-0">
-                <div
-                  className="text-sm font-medium text-slate-900"
-                  data-testid={`label-upgrade-${bucket.code}`}
+                {isOpen ? (
+                  <ChevronDown className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
+                )}
+                <Badge
+                  variant="outline"
+                  className="border-emerald-200 bg-emerald-50 text-emerald-700 font-medium tabular-nums shrink-0"
+                  data-testid={`count-upgrade-${bucket.code}`}
                 >
-                  {bucket.label}
+                  {bucket.reports.length}
+                </Badge>
+                <div className="flex-1 min-w-0">
+                  <div
+                    className="text-sm font-medium text-slate-900"
+                    data-testid={`label-upgrade-${bucket.code}`}
+                  >
+                    {bucket.label}
+                  </div>
+                  <div
+                    className="text-xs text-slate-500 mt-0.5 truncate"
+                    data-testid={`examples-upgrade-${bucket.code}`}
+                  >
+                    {examples.map((r) => r.companyName).join(", ")}
+                    {remaining > 0 && ` and ${remaining} more`}
+                  </div>
                 </div>
+              </button>
+              {isOpen && (
                 <div
-                  className="text-xs text-slate-500 mt-0.5 truncate"
-                  data-testid={`examples-upgrade-${bucket.code}`}
+                  className="px-4 pb-3 pl-11"
+                  data-testid={`details-upgrade-${bucket.code}`}
                 >
-                  {examples.map((r) => r.companyName).join(", ")}
-                  {remaining > 0 && ` and ${remaining} more`}
+                  <div className="rounded-md border border-slate-200 bg-white max-h-64 overflow-auto">
+                    <table className="w-full text-xs font-mono">
+                      <thead className="sticky top-0 bg-slate-50 text-slate-500 text-[11px] uppercase tracking-wide">
+                        <tr>
+                          <th className="text-left px-3 py-1.5 font-medium">
+                            Company
+                          </th>
+                          <th className="text-left px-3 py-1.5 font-medium">
+                            Report ID
+                          </th>
+                          <th className="text-left px-3 py-1.5 font-medium">
+                            What-if
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {bucket.reports.map((r) => (
+                          <tr
+                            key={r.id}
+                            className="hover:bg-slate-50"
+                            data-testid={`row-upgrade-report-${bucket.code}-${r.id}`}
+                          >
+                            <td
+                              className="px-3 py-1.5 text-slate-700 select-text"
+                              data-testid={`text-upgrade-company-${bucket.code}-${r.id}`}
+                            >
+                              {r.companyName}
+                            </td>
+                            <td
+                              className="px-3 py-1.5 text-slate-600 select-all"
+                              data-testid={`text-upgrade-report-id-${bucket.code}-${r.id}`}
+                            >
+                              {r.id}
+                            </td>
+                            <td
+                              className="px-3 py-1.5 text-slate-500"
+                              data-testid={`text-upgrade-whatif-${bucket.code}-${r.id}`}
+                            >
+                              {r.isWhatIf ? "yes" : "no"}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
-              </div>
+              )}
             </li>
           );
         })}
