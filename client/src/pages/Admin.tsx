@@ -46,6 +46,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
+  Copy,
   Filter,
   History,
   Loader2,
@@ -1313,6 +1314,24 @@ interface UpgradesAppliedPanelProps {
  * like a missing case.
  */
 function UpgradesAppliedPanel({ updated }: UpgradesAppliedPanelProps) {
+  const { toast } = useToast();
+  const copyIds = async (ids: string[], bucketLabel: string) => {
+    const text = ids.join("\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      toast({
+        title: "Copied to clipboard",
+        description: `${ids.length} report ID${ids.length === 1 ? "" : "s"} from "${bucketLabel}" copied.`,
+      });
+    } catch {
+      toast({
+        title: "Copy failed",
+        description: "Your browser blocked clipboard access. Please copy manually.",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Aggregate by upgrade code. One report can contribute to multiple buckets
   // (e.g. a v2.0 → v2.2 migration usually adds the diagnostic AND bumps the
   // schema AND synthesizes Step 6 KO fields).
@@ -1449,6 +1468,28 @@ function UpgradesAppliedPanel({ updated }: UpgradesAppliedPanelProps) {
                   className="px-4 pb-3 pl-11"
                   data-testid={`details-upgrade-${bucket.code}`}
                 >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-slate-500">
+                      {bucket.reports.length} report
+                      {bucket.reports.length === 1 ? "" : "s"} in this bucket
+                    </span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 px-2 text-xs gap-1"
+                      onClick={() =>
+                        copyIds(
+                          bucket.reports.map((r) => r.id),
+                          bucket.label,
+                        )
+                      }
+                      data-testid={`button-copy-ids-upgrade-${bucket.code}`}
+                    >
+                      <Copy className="h-3 w-3" />
+                      Copy IDs
+                    </Button>
+                  </div>
                   <div className="rounded-md border border-slate-200 bg-white max-h-64 overflow-auto">
                     <table className="w-full text-xs font-mono">
                       <thead className="sticky top-0 bg-slate-50 text-slate-500 text-[11px] uppercase tracking-wide">
@@ -1597,6 +1638,29 @@ function UpgradesAppliedPanel({ updated }: UpgradesAppliedPanelProps) {
                 className="px-4 pb-3 pl-11"
                 data-testid="details-upgrade-metric-only"
               >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs text-slate-500">
+                    {reprocessedWithMetricChange.length} report
+                    {reprocessedWithMetricChange.length === 1 ? "" : "s"} in
+                    this bucket
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-2 text-xs gap-1"
+                    onClick={() =>
+                      copyIds(
+                        reprocessedWithMetricChange.map((r) => r.id),
+                        "Reprocessed — headline numbers moved (no schema change)",
+                      )
+                    }
+                    data-testid="button-copy-ids-upgrade-metric-only"
+                  >
+                    <Copy className="h-3 w-3" />
+                    Copy IDs
+                  </Button>
+                </div>
                 <div className="rounded-md border border-slate-200 bg-white max-h-64 overflow-auto">
                   <table className="w-full text-xs font-mono">
                     <thead className="sticky top-0 bg-slate-50 text-slate-500 text-[11px] uppercase tracking-wide">
