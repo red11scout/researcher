@@ -5,6 +5,7 @@ import { generateCompanyAnalysis, generateWhatIfSuggestion, checkProductionConfi
 import * as formulaService from "./formula-service";
 import { dubService } from "./dub-service";
 import { insertReportSchema } from "@shared/schema";
+import { recordAdminAudit } from "./auth";
 import { buildAssumptionExcelWorkbook, buildAssumptionJSON } from "./assumption-export";
 import {
   evaluateReportStaleness,
@@ -576,9 +577,23 @@ Return ONLY valid JSON with this structure:
     // wire-format contract is unit-testable without standing up the route.
     const parsed = parseOnlyIdsFromBody(req.body);
     if (!parsed.ok) {
+      recordAdminAudit(req, {
+        action: "backfill-reports",
+        status: "failure",
+        statusCode: 400,
+        params: { force, stream, verbose },
+        errorMessage: parsed.error,
+      });
       return res.status(400).json({ success: false, error: parsed.error });
     }
     const onlyIds = parsed.onlyIds;
+    // Store onlyIds count (not the IDs themselves) so the row stays compact.
+    const auditParams = {
+      force,
+      stream,
+      verbose,
+      onlyIdsCount: onlyIds ? onlyIds.length : 0,
+    };
 
     const startedAt = Date.now();
     console.log(
@@ -654,6 +669,19 @@ Return ONLY valid JSON with this structure:
         console.log(
           `[admin/backfill-reports] Done in ${summary.durationMs}ms — total=${summary.total}, updated=${summary.updated}, skipped=${summary.skipped}, failed=${summary.failed}`,
         );
+        recordAdminAudit(req, {
+          action: "backfill-reports",
+          status: "success",
+          statusCode: 200,
+          params: auditParams,
+          outcome: {
+            total: summary.total,
+            updated: summary.updated,
+            skipped: summary.skipped,
+            failed: summary.failed,
+            durationMs: summary.durationMs,
+          },
+        });
         const completePayload: Extract<StreamEvent, { type: "complete" }> = {
           type: "complete",
           success: true,
@@ -674,6 +702,14 @@ Return ONLY valid JSON with this structure:
           `[admin/backfill-reports] Aborted after ${Date.now() - startedAt}ms:`,
           err,
         );
+        recordAdminAudit(req, {
+          action: "backfill-reports",
+          status: "failure",
+          statusCode: 500,
+          params: auditParams,
+          outcome: { durationMs: Date.now() - startedAt },
+          errorMessage: message,
+        });
         try {
           writeEvent({
             type: "error",
@@ -705,6 +741,19 @@ Return ONLY valid JSON with this structure:
       console.log(
         `[admin/backfill-reports] Done in ${summary.durationMs}ms — total=${summary.total}, updated=${summary.updated}, skipped=${summary.skipped}, failed=${summary.failed}`,
       );
+      recordAdminAudit(req, {
+        action: "backfill-reports",
+        status: "success",
+        statusCode: 200,
+        params: auditParams,
+        outcome: {
+          total: summary.total,
+          updated: summary.updated,
+          skipped: summary.skipped,
+          failed: summary.failed,
+          durationMs: summary.durationMs,
+        },
+      });
       const responseBody: any = {
         success: true,
         force,
@@ -728,10 +777,35 @@ Return ONLY valid JSON with this structure:
         `[admin/backfill-reports] Aborted after ${Date.now() - startedAt}ms:`,
         err,
       );
+      recordAdminAudit(req, {
+        action: "backfill-reports",
+        status: "failure",
+        statusCode: 500,
+        params: auditParams,
+        outcome: { durationMs: Date.now() - startedAt },
+        errorMessage: err?.message ?? String(err),
+      });
       res.status(500).json({
         success: false,
         error: err?.message ?? String(err),
       });
+    }
+  });
+
+  // Read-only access to recent admin activity for the Admin UI panel.
+  app.get("/api/admin/audit-log", async (req, res) => {
+    try {
+      const limitParam = req.query.limit;
+      const requested =
+        typeof limitParam === "string" ? parseInt(limitParam, 10) : 25;
+      const limit = Number.isFinite(requested) ? requested : 25;
+      const entries = await storage.getRecentAdminAuditEntries(limit);
+      res.json({ entries });
+    } catch (err: any) {
+      console.error("[admin/audit-log] Failed to read audit log:", err);
+      res
+        .status(500)
+        .json({ entries: [], error: err?.message ?? String(err) });
     }
   });
 

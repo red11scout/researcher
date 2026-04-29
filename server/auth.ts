@@ -2,6 +2,105 @@ import { Request, Response, NextFunction } from "express";
 import session from "express-session";
 import crypto from "crypto";
 import rateLimit from "express-rate-limit";
+import { storage } from "./storage";
+
+type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: JsonValue }
+  | JsonValue[];
+
+function actorContext(req: Request) {
+  const ua = req.headers["user-agent"];
+  return {
+    actorIp: req.ip ?? null,
+    actorUserAgent: typeof ua === "string" ? ua.slice(0, 500) : null,
+    path: req.originalUrl || req.path || null,
+  };
+}
+
+declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
+  namespace Express {
+    interface Request {
+      adminAuditRecorded?: boolean;
+    }
+  }
+}
+
+export function recordAdminAudit(
+  req: Request,
+  entry: {
+    action: string;
+    status: "success" | "failure";
+    statusCode: number;
+    params?: JsonValue;
+    outcome?: JsonValue;
+    errorMessage?: string;
+  },
+): void {
+  req.adminAuditRecorded = true;
+  void storage.createAdminAuditEntry({
+    action: entry.action,
+    status: entry.status,
+    statusCode: entry.statusCode,
+    params: entry.params ?? null,
+    outcome: entry.outcome ?? null,
+    errorMessage: entry.errorMessage ?? null,
+    ...actorContext(req),
+  });
+}
+
+// Action label is derived from the FULL URL (req.baseUrl + req.path)
+// because mounted routers strip the mount prefix from req.path. For an
+// /api/admin-mounted middleware, req.path is "/backfill-reports" while
+// req.baseUrl is "/api/admin" — we need both to recover the action name.
+const ADMIN_PREFIX = "/api/admin/";
+function deriveAdminAction(req: Request): string {
+  const full = `${req.baseUrl ?? ""}${req.path ?? ""}`.split("?")[0];
+  if (full.startsWith(ADMIN_PREFIX)) {
+    return full.slice(ADMIN_PREFIX.length) || "admin-root";
+  }
+  const original = (req.originalUrl ?? "").split("?")[0];
+  if (original.startsWith(ADMIN_PREFIX)) {
+    return original.slice(ADMIN_PREFIX.length) || "admin-root";
+  }
+  return "admin-unknown";
+}
+
+// Read-only admin endpoints we suppress from the generic audit hook so
+// the activity panel doesn't fill with self-noise from its own polling.
+const ADMIN_AUDIT_SKIP_ACTIONS = new Set(["audit-log"]);
+
+export function auditAdminRequest(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  res.on("finish", () => {
+    if (req.adminAuditRecorded) return;
+    const action = deriveAdminAction(req);
+    if (ADMIN_AUDIT_SKIP_ACTIONS.has(action)) return;
+    const statusCode = res.statusCode;
+    const status: "success" | "failure" =
+      statusCode < 400 ? "success" : "failure";
+    const queryKeys = Object.keys(req.query ?? {});
+    const params: JsonValue =
+      queryKeys.length === 0 ? null : (req.query as JsonValue);
+    void storage.createAdminAuditEntry({
+      action,
+      status,
+      statusCode,
+      params,
+      outcome: null,
+      errorMessage: null,
+      ...actorContext(req),
+    });
+  });
+  next();
+}
 
 declare module "express-session" {
   interface SessionData {
@@ -51,9 +150,26 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
 // authenticated) but before any admin route handler.
 export function requireAdmin(req: Request, res: Response, next: NextFunction) {
   if (!req.session?.authenticated) {
+    // Log unauthenticated hits on /api/admin/* — typically caught earlier by
+    // authMiddleware, but worth recording the rare case it slips through so
+    // a brute-forcer probing admin paths leaves a trail.
+    recordAdminAudit(req, {
+      action: "admin-access-denied",
+      status: "failure",
+      statusCode: 401,
+      errorMessage: "Authentication required",
+    });
     return res.status(401).json({ message: "Authentication required" });
   }
   if (!req.session?.isAdmin) {
+    // Logged-in but not elevated — record so we can spot regular users
+    // trying to hit admin endpoints.
+    recordAdminAudit(req, {
+      action: "admin-access-denied",
+      status: "failure",
+      statusCode: 403,
+      errorMessage: "Admin access required for this operation.",
+    });
     return res
       .status(403)
       .json({ message: "Admin access required for this operation." });
@@ -186,14 +302,24 @@ export function setupAuth(app: import("express").Express) {
     });
   });
 
-  // Elevate an already-authenticated session to admin by supplying
-  // ADMIN_PASSWORD. Reuses the login rate limiter so this can't be brute
-  // forced from the same IP either.
+  // Elevate an authenticated session to admin via ADMIN_PASSWORD.
   app.post("/api/auth/admin-login", loginRateLimiter, (req: Request, res: Response) => {
     if (!req.session?.authenticated) {
+      recordAdminAudit(req, {
+        action: "admin-login-failed",
+        status: "failure",
+        statusCode: 401,
+        errorMessage: "Not authenticated",
+      });
       return res.status(401).json({ message: "Authentication required" });
     }
     if (!adminPassword) {
+      recordAdminAudit(req, {
+        action: "admin-login-failed",
+        status: "failure",
+        statusCode: 503,
+        errorMessage: "ADMIN_PASSWORD not configured",
+      });
       return res.status(503).json({
         message: "Admin access is not configured. Set ADMIN_PASSWORD in environment.",
       });
@@ -201,25 +327,46 @@ export function setupAuth(app: import("express").Express) {
 
     const { password } = req.body ?? {};
     if (typeof password !== "string" || password.length === 0) {
+      recordAdminAudit(req, {
+        action: "admin-login-failed",
+        status: "failure",
+        statusCode: 400,
+        errorMessage: "Password missing",
+      });
       return res.status(400).json({ message: "Password is required" });
     }
 
     if (password !== adminPassword) {
+      recordAdminAudit(req, {
+        action: "admin-login-failed",
+        status: "failure",
+        statusCode: 401,
+        errorMessage: "Invalid admin password",
+      });
       return res.status(401).json({ message: "Invalid admin password" });
     }
 
     req.session.isAdmin = true;
     return req.session.save((err) => {
       if (err) {
+        recordAdminAudit(req, {
+          action: "admin-login",
+          status: "failure",
+          statusCode: 500,
+          errorMessage: "Session save error",
+        });
         return res.status(500).json({ message: "Session error" });
       }
+      recordAdminAudit(req, {
+        action: "admin-login",
+        status: "success",
+        statusCode: 200,
+      });
       return res.json({ success: true });
     });
   });
 
-  // Drop admin privileges without ending the underlying session — useful for
-  // operators who want to step down to plain user mode after a destructive
-  // action.
+  // Drop admin privileges without ending the underlying session.
   app.post("/api/auth/admin-logout", (req: Request, res: Response) => {
     if (!req.session) {
       return res.json({ success: true });
@@ -236,8 +383,8 @@ export function setupAuth(app: import("express").Express) {
   app.use("/api/share", shareRateLimiter);
 
   app.use(authMiddleware);
-  // Layer the admin gate on top of the base auth check for every /api/admin/*
-  // route. Mounted here (after authMiddleware) so it runs before any admin
-  // handler registered later in registerRoutes().
+  // Gate every /api/admin/* route, then install the finish-time audit hook
+  // so every admin endpoint leaves at least a baseline row.
   app.use("/api/admin", requireAdmin);
+  app.use("/api/admin", auditAdminRequest);
 }

@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Layout from "@/components/Layout";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,6 +36,7 @@ import {
   AlertCircle,
   CheckCircle2,
   Clock,
+  History,
   Loader2,
   Lock,
   RefreshCw,
@@ -257,6 +258,28 @@ function AdminNoAccess() {
   );
 }
 
+// One row from /api/admin/audit-log. Mirrors the shape of `adminAuditLog`
+// in shared/schema.ts but kept local to avoid pulling server types into the
+// client bundle.
+interface AdminAuditEntry {
+  id: string;
+  action: string;
+  status: "success" | "failure" | string;
+  statusCode: number | null;
+  actorIp: string | null;
+  actorUserAgent: string | null;
+  path: string | null;
+  params: Record<string, unknown> | null;
+  outcome: Record<string, unknown> | null;
+  errorMessage: string | null;
+  createdAt: string;
+}
+
+interface AuditLogResponse {
+  entries: AdminAuditEntry[];
+  error?: string;
+}
+
 function AdminPanel() {
   const { toast } = useToast();
   const { adminLogout } = useAuth();
@@ -278,6 +301,37 @@ function AdminPanel() {
   // can group reports by which upgrade was applied. The progress feed only
   // keeps the last MAX_RECENT entries, which is too narrow for grouping.
   const updatedReportsRef = useRef<BackfillReportResult[]>([]);
+
+  // "Recent admin activity" panel — fetched on mount and refreshed after
+  // every backfill run so the operator can immediately see their own action
+  // appear in the audit trail.
+  const [auditEntries, setAuditEntries] = useState<AdminAuditEntry[]>([]);
+  const [auditLoading, setAuditLoading] = useState(true);
+  const [auditError, setAuditError] = useState<string | null>(null);
+
+  const loadAuditLog = useCallback(async () => {
+    setAuditLoading(true);
+    setAuditError(null);
+    try {
+      const res = await fetch("/api/admin/audit-log?limit=25", {
+        credentials: "include",
+      });
+      if (!res.ok) {
+        throw new Error(`${res.status}: ${res.statusText}`);
+      }
+      const data: AuditLogResponse = await res.json();
+      setAuditEntries(data.entries ?? []);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      setAuditError(message);
+    } finally {
+      setAuditLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadAuditLog();
+  }, [loadAuditLog]);
 
   const scheduleFlush = () => {
     if (flushTimer.current !== null) return;
@@ -437,6 +491,9 @@ function AdminPanel() {
         title: "Upgrade complete",
         description: `Updated ${completion.updated} of ${completion.total} reports (${completion.failed} failed) in ${formatDuration(completion.durationMs)}.`,
       });
+      // Pull the audit log again so the run we just finished shows up at the
+      // top of the "Recent admin activity" panel.
+      void loadAuditLog();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       setError(message);
@@ -722,6 +779,13 @@ function AdminPanel() {
             )}
           </CardContent>
         </Card>
+
+        <RecentAdminActivity
+          entries={auditEntries}
+          loading={auditLoading}
+          error={auditError}
+          onRefresh={loadAuditLog}
+        />
       </div>
 
       <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
@@ -1091,6 +1155,236 @@ function UpgradesAppliedPanel({ updated }: UpgradesAppliedPanelProps) {
       </ul>
     </div>
   );
+}
+
+interface RecentAdminActivityProps {
+  entries: AdminAuditEntry[];
+  loading: boolean;
+  error: string | null;
+  onRefresh: () => void;
+}
+
+/**
+ * "Recent admin activity" panel: most recent N rows from the admin audit
+ * trail, including successful backfill runs, admin login attempts, and
+ * 401/403 denials. Renders one row per audit entry with timestamp, action,
+ * actor IP, and a compact summary of the outcome (counts on success, error
+ * message on failure).
+ */
+function RecentAdminActivity({
+  entries,
+  loading,
+  error,
+  onRefresh,
+}: RecentAdminActivityProps) {
+  return (
+    <Card className="mt-6" data-testid="card-recent-admin-activity">
+      <CardHeader>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <History className="h-5 w-5 text-brand-navy" />
+              Recent admin activity
+            </CardTitle>
+            <CardDescription className="mt-1">
+              Append-only trail of admin endpoint usage and access attempts —
+              who triggered what, from where, and when. Use this to investigate
+              "who overwrote report X yesterday at 3pm?" or to spot brute-force
+              attempts on the admin password.
+            </CardDescription>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onRefresh}
+            disabled={loading}
+            data-testid="button-refresh-audit-log"
+          >
+            {loading ? (
+              <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+            ) : (
+              <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+            )}
+            Refresh
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {error ? (
+          <div
+            className="rounded-lg border border-red-200 bg-red-50 p-4 flex items-start gap-2"
+            data-testid="alert-audit-error"
+          >
+            <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
+            <div className="text-sm text-red-700">
+              <div className="font-medium">Could not load audit log</div>
+              <div className="text-red-600">{error}</div>
+            </div>
+          </div>
+        ) : loading && entries.length === 0 ? (
+          <div
+            className="flex items-center gap-2 text-sm text-slate-500 py-4"
+            data-testid="state-audit-loading"
+          >
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading recent activity…
+          </div>
+        ) : entries.length === 0 ? (
+          <div
+            className="text-sm text-slate-500 text-center py-6"
+            data-testid="text-audit-empty"
+          >
+            No admin activity recorded yet. Run an action above to populate the
+            trail.
+          </div>
+        ) : (
+          <div className="rounded-lg border border-slate-200 overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-44">When</TableHead>
+                  <TableHead>Action</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actor IP</TableHead>
+                  <TableHead>Details</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {entries.map((entry) => (
+                  <AuditLogRow key={entry.id} entry={entry} />
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// Format an ISO timestamp like "Apr 29, 12:34:56 PM" using the browser's
+// locale. Falls back to the raw string if Date construction fails.
+function formatAuditTimestamp(iso: string): string {
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    return d.toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+  } catch {
+    return iso;
+  }
+}
+
+// Human-readable label for the audit action codes recorded server-side.
+function actionLabel(action: string): string {
+  switch (action) {
+    case "backfill-reports":
+      return "Upgrade all reports";
+    case "admin-login":
+      return "Admin login";
+    case "admin-login-failed":
+      return "Admin login (failed)";
+    case "admin-access-denied":
+      return "Admin access denied";
+    default:
+      return action;
+  }
+}
+
+function AuditLogRow({ entry }: { entry: AdminAuditEntry }) {
+  const isFailure = entry.status === "failure";
+  return (
+    <TableRow data-testid={`row-audit-${entry.id}`}>
+      <TableCell
+        className="text-xs text-slate-600 tabular-nums whitespace-nowrap"
+        data-testid={`text-audit-when-${entry.id}`}
+      >
+        {formatAuditTimestamp(entry.createdAt)}
+      </TableCell>
+      <TableCell
+        className="text-sm font-medium text-slate-900"
+        data-testid={`text-audit-action-${entry.id}`}
+      >
+        {actionLabel(entry.action)}
+      </TableCell>
+      <TableCell data-testid={`text-audit-status-${entry.id}`}>
+        {isFailure ? (
+          <Badge className="bg-red-100 text-red-700 hover:bg-red-100 text-[10px] py-0">
+            {entry.statusCode ?? "fail"}
+          </Badge>
+        ) : (
+          <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 text-[10px] py-0">
+            {entry.statusCode ?? "ok"}
+          </Badge>
+        )}
+      </TableCell>
+      <TableCell
+        className="font-mono text-xs text-slate-600"
+        data-testid={`text-audit-ip-${entry.id}`}
+      >
+        {entry.actorIp || "—"}
+      </TableCell>
+      <TableCell
+        className="text-xs text-slate-600 max-w-xl break-words"
+        data-testid={`text-audit-details-${entry.id}`}
+      >
+        <AuditDetails entry={entry} />
+      </TableCell>
+    </TableRow>
+  );
+}
+
+// Inline summary of an audit row's params/outcome/error so the operator
+// gets the gist without expanding raw JSON. Tailored per-action so each
+// row reads naturally:
+//   - backfill-reports success → "12 updated, 1 failed in 4.2s (force=1)"
+//   - backfill-reports failure → the error message
+//   - admin-login (failure)    → the error message
+function AuditDetails({ entry }: { entry: AdminAuditEntry }) {
+  if (entry.status === "failure") {
+    return (
+      <span className="text-red-600">
+        {entry.errorMessage || "Failed"}
+      </span>
+    );
+  }
+  if (entry.action === "backfill-reports" && entry.outcome) {
+    const o = entry.outcome as {
+      total?: number;
+      updated?: number;
+      skipped?: number;
+      failed?: number;
+      durationMs?: number;
+    };
+    const params = (entry.params ?? {}) as {
+      force?: boolean;
+      onlyIdsCount?: number;
+    };
+    const flags: string[] = [];
+    if (params.force) flags.push("force=1");
+    if (params.onlyIdsCount && params.onlyIdsCount > 0) {
+      flags.push(`retry ${params.onlyIdsCount}`);
+    }
+    const flagSuffix = flags.length ? ` (${flags.join(", ")})` : "";
+    const duration =
+      typeof o.durationMs === "number" ? formatDuration(o.durationMs) : "—";
+    return (
+      <span>
+        {o.updated ?? 0} updated, {o.skipped ?? 0} skipped, {o.failed ?? 0}{" "}
+        failed of {o.total ?? 0} in {duration}
+        {flagSuffix}
+      </span>
+    );
+  }
+  if (entry.action === "admin-login") {
+    return <span className="text-emerald-700">Elevated to admin</span>;
+  }
+  return <span className="text-slate-500">—</span>;
 }
 
 function StatusBadge({ status }: { status: BackfillReportResult["status"] }) {

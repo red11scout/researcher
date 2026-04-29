@@ -160,6 +160,56 @@ export const insertUserEditSchema = createInsertSchema(userEdits).omit({
 export type InsertUserEdit = z.infer<typeof insertUserEditSchema>;
 export type UserEdit = typeof userEdits.$inferSelect;
 
+// Audit trail for admin endpoints. One row per admin action attempt — both
+// successful runs (e.g. POST /api/admin/backfill-reports finishing) and
+// failed authn/authz attempts (wrong ADMIN_PASSWORD on /api/auth/admin-login,
+// 403s from requireAdmin). Lets operators investigate "who overwrote report
+// X yesterday at 3pm?" once more than one person knows the admin password.
+export const adminAuditLog = pgTable("admin_audit_log", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  // The action being audited. Stable string identifier so we can group rows
+  // by operation type. Examples:
+  //   "backfill-reports"          — POST /api/admin/backfill-reports succeeded
+  //   "admin-login"               — POST /api/auth/admin-login succeeded
+  //   "admin-login-failed"        — wrong ADMIN_PASSWORD
+  //   "admin-access-denied"       — requireAdmin returned 403
+  action: text("action").notNull(),
+  // "success" or "failure". Mirrored on a dedicated column (vs. inferred from
+  // statusCode) so the UI doesn't have to hardcode HTTP semantics.
+  status: text("status").notNull(),
+  // HTTP status code returned to the client (200, 401, 403, 500, …).
+  statusCode: integer("status_code"),
+  // Best-effort source IP from req.ip (Express resolves X-Forwarded-For when
+  // trust proxy is on, which it is in setupAuth).
+  actorIp: text("actor_ip"),
+  // User-agent string of the operator's browser, helpful to disambiguate
+  // simultaneous sessions from the same NAT'd IP.
+  actorUserAgent: text("actor_user_agent"),
+  // Path that was being accessed (e.g. "/api/admin/backfill-reports").
+  // Stored for context — we don't strictly need it when `action` already
+  // identifies the operation, but it lets us audit any future /api/admin/*
+  // endpoint without changing the schema.
+  path: text("path"),
+  // Request parameters worth recording (query string flags like force=1,
+  // body fields like onlyIds count). Free-form JSON to stay forward-compatible.
+  params: jsonb("params"),
+  // Outcome counters for successful destructive runs:
+  //   { total, updated, skipped, failed, durationMs }
+  // Null for auth failures / denial events.
+  outcome: jsonb("outcome"),
+  // Short error string when status === "failure" (e.g. "Invalid admin
+  // password"). Not used to surface stack traces — keep it operator-readable.
+  errorMessage: text("error_message"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertAdminAuditLogSchema = createInsertSchema(adminAuditLog).omit({
+  id: true,
+  createdAt: true,
+});
+export type InsertAdminAuditLog = z.infer<typeof insertAdminAuditLogSchema>;
+export type AdminAuditLogEntry = typeof adminAuditLog.$inferSelect;
+
 // Parent categories for hierarchical organization (per document Section 3)
 export const PARENT_CATEGORIES = [
   "financial_operational",   // Company financial & operational assumptions

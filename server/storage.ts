@@ -30,6 +30,9 @@ import {
   type InsertUserSession,
   type UserEdit,
   type InsertUserEdit,
+  adminAuditLog,
+  type AdminAuditLogEntry,
+  type InsertAdminAuditLog,
   DEFAULT_ASSUMPTIONS,
   DEFAULT_FORMULAS,
   ASSUMPTION_CATEGORIES,
@@ -109,6 +112,12 @@ export interface IStorage {
   getSessionEdits(sessionId: string): Promise<UserEdit[]>;
   saveEdit(edit: InsertUserEdit): Promise<UserEdit>;
   clearSessionEdits(sessionId: string): Promise<void>;
+
+  // Admin audit log: append-only record of admin endpoint usage and access
+  // attempts. createAdminAuditEntry never throws — failures are logged and
+  // swallowed so audit-write problems can never break a real admin request.
+  createAdminAuditEntry(entry: InsertAdminAuditLog): Promise<AdminAuditLogEntry | null>;
+  getRecentAdminAuditEntries(limit: number): Promise<AdminAuditLogEntry[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -851,6 +860,34 @@ export class DatabaseStorage implements IStorage {
     await db
       .delete(userEdits)
       .where(eq(userEdits.sessionId, sessionId));
+  }
+
+  async createAdminAuditEntry(
+    entry: InsertAdminAuditLog,
+  ): Promise<AdminAuditLogEntry | null> {
+    // Audit writes must never crash an admin request — if the DB write fails
+    // we log to the server console (which is itself a passive audit trail)
+    // and return null so callers can keep going.
+    try {
+      const [saved] = await db.insert(adminAuditLog).values(entry).returning();
+      return saved ?? null;
+    } catch (err) {
+      console.error("[admin-audit] Failed to write audit entry:", err, entry);
+      return null;
+    }
+  }
+
+  async getRecentAdminAuditEntries(
+    limit: number,
+  ): Promise<AdminAuditLogEntry[]> {
+    // Clamp the limit so a malicious or careless caller can't ask for the
+    // entire table in one shot.
+    const safeLimit = Math.max(1, Math.min(200, Math.floor(limit) || 25));
+    return await db
+      .select()
+      .from(adminAuditLog)
+      .orderBy(desc(adminAuditLog.createdAt))
+      .limit(safeLimit);
   }
 }
 
