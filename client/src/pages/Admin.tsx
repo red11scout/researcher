@@ -753,6 +753,7 @@ function AdminPanel() {
                           <TableHead>Type</TableHead>
                           <TableHead>Error</TableHead>
                           <TableHead className="text-right">Duration</TableHead>
+                          <TableHead className="text-right">Action</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -785,6 +786,25 @@ function AdminPanel() {
                             </TableCell>
                             <TableCell className="text-right text-xs text-slate-500">
                               {formatDuration(f.durationMs)}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="border-red-300 text-red-700 hover:bg-red-100 hover:text-red-800"
+                                disabled={running}
+                                onClick={() => {
+                                  // Per-row retry: re-run the upgrade for
+                                  // just this one report ID so operators can
+                                  // skip a known-broken legacy report and
+                                  // triage the rest one at a time.
+                                  void runBackfill({ onlyIds: [f.id] });
+                                }}
+                                data-testid={`button-retry-failure-${f.id}`}
+                              >
+                                <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                                Retry
+                              </Button>
                             </TableCell>
                           </TableRow>
                         ))}
