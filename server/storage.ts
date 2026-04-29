@@ -154,6 +154,14 @@ export interface IStorage {
   getRecentAdminAuditEntries(
     options?: AdminAuditLogQuery,
   ): Promise<{ entries: AdminAuditLogEntry[]; total: number }>;
+  // Delete admin_audit_log rows older than the supplied cutoff date and
+  // return how many rows were removed. Used by the retention scheduler so
+  // the audit table doesn't grow unbounded — particularly important
+  // because failed admin-login attempts also write rows, so a brute-force
+  // bot could otherwise fill the table indefinitely. Callers pass the
+  // already-computed cutoff (now - retentionDays) so the scheduler owns
+  // the policy and storage stays a thin DB wrapper.
+  pruneOldAdminAuditEntries(olderThan: Date): Promise<number>;
 
   // Persisted snapshot of the most recent completed admin backfill run, so
   // the Admin page can hydrate the post-run summary / failures table /
@@ -986,6 +994,35 @@ export class DatabaseStorage implements IStorage {
     ]);
     const total = Number(countRows[0]?.count ?? 0);
     return { entries, total };
+  }
+
+  async pruneOldAdminAuditEntries(olderThan: Date): Promise<number> {
+    // Defensive: if the caller hands us a bad Date we'd otherwise generate
+    // `WHERE created_at < 'Invalid Date'` and Postgres would reject it.
+    // Returning 0 keeps the scheduler's "we ran but nothing to prune" path
+    // working without surfacing a misconfiguration as a crash.
+    if (!(olderThan instanceof Date) || Number.isNaN(olderThan.getTime())) {
+      return 0;
+    }
+    // Use a CTE so Postgres returns only the aggregate count of deleted
+    // rows instead of streaming every deleted row back to Node. The
+    // first sweep after a long-running unbounded period could otherwise
+    // delete tens of thousands of audit rows in one shot, and a
+    // `RETURNING id` on that would create avoidable memory pressure.
+    const rows = await db.execute(sql<{ count: number }>`
+      WITH deleted AS (
+        DELETE FROM ${adminAuditLog}
+        WHERE ${adminAuditLog.createdAt} < ${olderThan}
+        RETURNING 1
+      )
+      SELECT count(*)::int AS count FROM deleted
+    `);
+    // `db.execute` returns the driver's raw result. Neon's serverless
+    // pg driver exposes the row list under `.rows`; fall back to
+    // treating `rows` as iterable for any other driver shape.
+    const first = (rows as { rows?: Array<{ count?: number }> }).rows?.[0]
+      ?? (rows as unknown as Array<{ count?: number }>)[0];
+    return Number(first?.count ?? 0);
   }
 
   async saveLastBackfillSummary(

@@ -6,6 +6,7 @@ import cookieParser from 'cookie-parser';
 import { registerRoutes } from "./routes";
 import { setupAuth } from "./auth";
 import { serveStatic } from "./static";
+import { startAdminAuditRetentionScheduler } from "./admin-audit-retention";
 import { createServer } from "http";
 import path from "path";
 import fs from "fs";
@@ -96,6 +97,11 @@ app.use((req, res, next) => {
 
 (async () => {
   await registerRoutes(httpServer, app);
+
+  // Start the admin_audit_log retention sweeper. Runs once shortly after
+  // boot and then every 24h to delete rows older than the retention
+  // window (default 90 days, override via ADMIN_AUDIT_RETENTION_DAYS).
+  startAdminAuditRetentionScheduler();
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
