@@ -27,6 +27,7 @@
 import { describe, expect, it } from "vitest";
 
 import { postProcessAnalysis } from "../server/calculation-postprocessor";
+import { evaluateReportStaleness } from "../server/report-backfill";
 import { VRM_SCHEMA_VERSION } from "../shared/vrm-v2";
 
 // ---------------------------------------------------------------------------
@@ -338,6 +339,42 @@ describe("postProcessAnalysis — v2.2 contract", () => {
     }
 
     expect(diagnostic.totalUseCases).toBe(2);
+  });
+
+  // -------------------------------------------------------------------------
+  // Regression: synthesized Step 6 records must carry the v2.2 hard knock-out
+  // fields so the staleness checker (`missing-step6-knockout-fields`) does
+  // not re-flag synthesized reports on every backfill run. Without this
+  // guarantee the admin migration tool re-processes and re-persists the same
+  // set of synthesized reports forever, polluting the "updated vs skipped"
+  // counts and masking real staleness signals.
+  // -------------------------------------------------------------------------
+  it("attaches v2.2 hard knock-out fields to synthesized Step 6 records and reports the result as not stale", () => {
+    const fixture = makeSynthesizedFromStep5Analysis();
+    const result = postProcessAnalysis(fixture);
+
+    const step6 = result.steps.find((s: any) => s.step === 6);
+    expect(step6).toBeDefined();
+    expect(Array.isArray(step6.data)).toBe(true);
+    expect(step6.data.length).toBeGreaterThan(0);
+
+    // Every synthesized record — not just the first — must carry both KO
+    // fields, defaulting to false the same way the non-synthesized path does
+    // at the end of the readiness loop.
+    for (const row of step6.data) {
+      expect(row).toHaveProperty("Legally Prohibited");
+      expect(row).toHaveProperty("Technically Infeasible");
+      expect(row["Legally Prohibited"]).toBe(false);
+      expect(row["Technically Infeasible"]).toBe(false);
+    }
+
+    // The post-processed analysis must be considered fresh by the staleness
+    // checker so a re-run of the admin migration would skip it with reason
+    // `already-v2.1` rather than re-persisting the same record forever.
+    const staleness = evaluateReportStaleness(result);
+    expect(staleness.stale).toBe(false);
+    expect(staleness.reasons).toEqual([]);
+    expect(staleness.hasStep6KOFields).toBe(true);
   });
 });
 

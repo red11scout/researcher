@@ -1757,6 +1757,12 @@ export function postProcessAnalysis(analysisResult: any): any {
         "Runs/Month": runsPerMonth,
         "Input Tokens/Run": inputTokens,
         "Output Tokens/Run": outputTokens,
+        // v2.2 hard knock-out fields — match the non-synthesized path at the
+        // end of the readiness loop so the staleness checker
+        // (`missing-step6-knockout-fields`) does not re-flag synthesized
+        // reports on every backfill run.
+        "Legally Prohibited": false,
+        "Technically Infeasible": false,
       };
       if (s5["Strategic Theme"]) {
         record["Strategic Theme"] = s5["Strategic Theme"];
