@@ -28,7 +28,14 @@ import { describe, expect, it } from "vitest";
 
 import { postProcessAnalysis } from "../server/calculation-postprocessor";
 import { evaluateReportStaleness } from "../server/report-backfill";
-import { VRM_SCHEMA_VERSION } from "../shared/vrm-v2";
+import {
+  BASELINE_WEIGHTS,
+  DEFAULT_ENGAGEMENT_CONFIG,
+  SECTOR_PRESETS,
+  VRM_SCHEMA_VERSION,
+  type EngagementConfig,
+  type SectorPreset,
+} from "../shared/vrm-v2";
 
 // ---------------------------------------------------------------------------
 // Fixture builders
@@ -467,5 +474,251 @@ describe("postProcessAnalysis — no-champion regression", () => {
     // number (not NaN) so the UI can render it.
     expect(Number.isFinite(diagnostic.prototypingCandidatesPct)).toBe(true);
     expect(diagnostic.prototypingCandidatesPct).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Sector preset + engagement config coverage
+//
+// `vrm.sectorPreset` re-weights each use case's component scores via
+// `computeWeightedReadiness`/`getWeightsForPreset`, and `engagementConfig`
+// shifts the v2.1 quadrant cutoffs and the soft-blocker thresholds picked up
+// by `evaluateFloors`. The baseline v2.2 contract tests above only exercise
+// the default `baseline` preset with the default config, so a regression in
+// `computeWeightedReadiness`, `assignClassificationsV22`, or any
+// `SECTOR_PRESETS` row would silently shift Champion/Foundation calls for
+// non-default sector reports without tripping any test.
+//
+// `regulated` here is the preset that maps to financial-services and
+// healthcare engagements per the SECTOR_PRESETS description.
+// ---------------------------------------------------------------------------
+
+/**
+ * Sector-flavoured fixture: three use cases whose Step 6 component scores
+ * are intentionally non-uniform so the weighted readiness produced by each
+ * preset diverges. UC-1 leans on Governance + Org Capacity (favors the
+ * regulated / heavy-regulated presets), UC-2 leans on Org Capacity + Tech
+ * Infrastructure (favors the internal-productivity preset), UC-3 is a
+ * balanced control. Time-to-pilot is varied so the engagement-config test
+ * can exercise `maxTimeToPilotWeeks` directly.
+ */
+function makeSectorFixture(opts: {
+  sectorPreset?: SectorPreset;
+  engagementConfig?: Partial<EngagementConfig>;
+} = {}): any {
+  const useCases = [
+    { id: "UC-1", name: "Underwriting Risk Triage", theme: "Risk", hours: 6000, oc: 8, dq: 8, ti: 4, gov: 10, ttp: 12 },
+    { id: "UC-2", name: "Customer Onboarding Automation", theme: "Cost", hours: 4000, oc: 10, dq: 5, ti: 8, gov: 4, ttp: 6 },
+    { id: "UC-3", name: "Regulatory Reporting Assistant", theme: "Compliance", hours: 3500, oc: 7, dq: 7, ti: 6, gov: 8, ttp: 14 },
+  ];
+
+  const root: any = {
+    steps: [
+      {
+        step: 0,
+        title: "Company Profile",
+        data: [{ "Annual Revenue ($)": 250_000_000, "Total Employees": 1500 }],
+      },
+      {
+        step: 5,
+        title: "Benefits Quantification",
+        data: useCases.map((uc) => ({
+          ID: uc.id,
+          "Use Case": uc.name,
+          "Strategic Theme": uc.theme,
+          "Cost Formula Labels": {
+            components: [
+              { label: "Hours Saved", value: uc.hours },
+              { label: "Loaded Hourly Rate", value: 110 },
+              { label: "Benefits Loading", value: 1.3 },
+              { label: "Adoption Rate", value: 0.85 },
+              { label: "Data Maturity", value: 0.8 },
+            ],
+          },
+          "Probability of Success": 0.7,
+        })),
+      },
+      {
+        step: 6,
+        title: "Readiness & Token Modeling",
+        data: useCases.map((uc) => ({
+          ID: uc.id,
+          "Use Case": uc.name,
+          "Organizational Capacity": uc.oc,
+          "Data Availability & Quality": uc.dq,
+          "Technical Infrastructure": uc.ti,
+          "Governance": uc.gov,
+          "Time-to-Value (months)": 6,
+          "Time-to-Pilot (weeks)": uc.ttp,
+          "Runs/Month": 1500,
+          "Input Tokens/Run": 900,
+          "Output Tokens/Run": 700,
+        })),
+      },
+    ],
+    vrm: { schemaVersion: "2.0" },
+  };
+
+  if (opts.sectorPreset) root.vrm.sectorPreset = opts.sectorPreset;
+  if (opts.engagementConfig) root.engagementConfig = opts.engagementConfig;
+  return root;
+}
+
+describe("postProcessAnalysis — sector preset coverage", () => {
+  // Two non-default presets cover the two distinct re-weighting families:
+  //   - `regulated` raises Governance, lowers Tech Infrastructure
+  //     (financial-services / healthcare engagements per SECTOR_PRESETS).
+  //   - `internal_productivity` raises Org Capacity / Tech Infrastructure,
+  //     lowers Governance / Data Readiness.
+  // We additionally include `heavy_regulated` because it pushes Governance
+  // even further (0.30) and is the most likely preset to silently mis-score
+  // a Champion-vs-Foundation call if `getWeightsForPreset` ever regresses.
+  const presets: SectorPreset[] = ["regulated", "heavy_regulated", "internal_productivity"];
+
+  for (const preset of presets) {
+    it(`emits the '${preset}' preset's weights and label in the v2.2 vrm block`, () => {
+      const result = postProcessAnalysis(makeSectorFixture({ sectorPreset: preset }));
+
+      expect(result.vrm.schemaVersion).toBe(VRM_SCHEMA_VERSION);
+      expect(result.vrm.sectorPreset).toBe(preset);
+      expect(result.vrm.sectorPresetLabel).toBe(SECTOR_PRESETS[preset].label);
+      // Active weights must come from the chosen preset, not the baseline
+      // table. baselineWeights is also surfaced for the UI's diff view.
+      expect(result.vrm.weights).toEqual(SECTOR_PRESETS[preset].weights);
+      expect(result.vrm.baselineWeights).toEqual(BASELINE_WEIGHTS);
+      // No engagement override on this fixture — resolved config matches
+      // the deep-copied defaults exactly.
+      expect(result.vrm.engagementConfig).toEqual(DEFAULT_ENGAGEMENT_CONFIG);
+    });
+  }
+
+  it("re-weights Step 6 readiness when the sector preset shifts component weights", () => {
+    // Same component scores, four different presets. Weighted readiness must
+    // diverge in the directions each preset's weight table predicts —
+    // anything else means `computeWeightedReadiness` is no longer wired to
+    // the active preset.
+    const baseline = postProcessAnalysis(makeSectorFixture());
+    const regulated = postProcessAnalysis(makeSectorFixture({ sectorPreset: "regulated" }));
+    const heavy = postProcessAnalysis(makeSectorFixture({ sectorPreset: "heavy_regulated" }));
+    const internalProd = postProcessAnalysis(makeSectorFixture({ sectorPreset: "internal_productivity" }));
+
+    const readinessByPreset = (r: any): Record<string, number> => {
+      const step6 = r.steps.find((s: any) => s.step === 6).data;
+      return Object.fromEntries(step6.map((row: any) => [row.ID, row["Readiness Score"]]));
+    };
+
+    const baselineR = readinessByPreset(baseline);
+    const regulatedR = readinessByPreset(regulated);
+    const heavyR = readinessByPreset(heavy);
+    const internalR = readinessByPreset(internalProd);
+
+    // UC-1 (gov=10, techInfra=4): both regulated presets raise governance and
+    // shrink techInfra, so weighted readiness must rise; internal_productivity
+    // does the opposite.
+    expect(regulatedR["UC-1"]).toBeGreaterThan(baselineR["UC-1"]);
+    expect(heavyR["UC-1"]).toBeGreaterThan(regulatedR["UC-1"]);
+    expect(internalR["UC-1"]).toBeLessThan(baselineR["UC-1"]);
+
+    // UC-2 (orgCap=10, techInfra=8, gov=4): internal_productivity boosts
+    // orgCap (0.40) and techInfra (0.20) so readiness rises; heavy_regulated
+    // crushes techInfra (0.05) and inflates the gov=4 weight, so readiness
+    // falls.
+    expect(internalR["UC-2"]).toBeGreaterThan(baselineR["UC-2"]);
+    expect(heavyR["UC-2"]).toBeLessThan(baselineR["UC-2"]);
+
+    // Sanity: with default config + log-norm value-fallback (no Step 4
+    // friction), the v2.2 envelope is still well-formed for every preset.
+    for (const r of [baseline, regulated, heavy, internalProd]) {
+      expect(r.vrm.diagnostic).toBeDefined();
+      expect(r.vrm.diagnostic.totalUseCases).toBe(3);
+    }
+  });
+});
+
+describe("postProcessAnalysis — custom engagement config", () => {
+  it("propagates a custom engagementConfig and shifts quadrant placements", () => {
+    const sectorPreset: SectorPreset = "regulated";
+
+    const defaultRun = postProcessAnalysis(makeSectorFixture({ sectorPreset }));
+
+    // Custom config: lower the v2.1 champion cutoff so mid-range readiness
+    // earns Champion (the default 7.5 cutoff sends them to Foundation), and
+    // tighten the pilot window so a use case with 12-week time-to-pilot now
+    // emits a soft blocker that the default 16-week ceiling allows.
+    const overrides: Partial<EngagementConfig> = {
+      championMin: 5.5,
+      quickStrategicMin: 4.0,
+      maxTimeToPilotWeeks: 8,
+    };
+    const customRun = postProcessAnalysis(
+      makeSectorFixture({ sectorPreset, engagementConfig: overrides }),
+    );
+
+    // The vrm block must reflect the resolved config. Defaults remain on
+    // any field the caller didn't override (`valueFloor` here).
+    expect(defaultRun.vrm.engagementConfig).toEqual(DEFAULT_ENGAGEMENT_CONFIG);
+    expect(customRun.vrm.engagementConfig.championMin).toBe(5.5);
+    expect(customRun.vrm.engagementConfig.quickStrategicMin).toBe(4.0);
+    expect(customRun.vrm.engagementConfig.maxTimeToPilotWeeks).toBe(8);
+    expect(customRun.vrm.engagementConfig.valueFloor).toEqual(
+      DEFAULT_ENGAGEMENT_CONFIG.valueFloor,
+    );
+    // Threshold mirror surfaced for back-compat readers must follow the
+    // overrides as well.
+    expect(customRun.vrm.quadrantThresholds.championMin).toBe(5.5);
+    expect(customRun.vrm.quadrantThresholds.quickStrategicMin).toBe(4.0);
+    expect(customRun.vrm.quadrantThresholds.maxTimeToPilotWeeks).toBe(8);
+
+    // Pull the v2.1 quadrant column — that's the column wired to
+    // `championMin` / `quickStrategicMin` (the v2.2 active geometry uses
+    // the constants 5.5 / 7.5 by design and is intentionally insensitive to
+    // these overrides).
+    const quadrantsV21 = (r: any): Record<string, string> => {
+      const step7 = r.steps.find((s: any) => s.step === 7).data;
+      return Object.fromEntries(
+        step7.map((row: any) => [row.ID, row["Quadrant v2.1"]]),
+      );
+    };
+
+    const defaultQ = quadrantsV21(defaultRun);
+    const customQ = quadrantsV21(customRun);
+
+    // With championMin=7.5 (default) and v=5.5 across the portfolio, no use
+    // case can land in the v2.1 Champion quadrant — the layer-3 safety net
+    // promotes the top two by composite to `conditional_champion` and the
+    // remainder fall to `foundation`.
+    const defaultQuadrants = Object.values(defaultQ);
+    expect(defaultQuadrants).not.toContain("champion");
+    expect(defaultQuadrants).toContain("conditional_champion");
+
+    // With championMin=5.5 the same use cases (v=5.5, r≥5.5) clear the
+    // v2.1 Champion threshold and must now classify as `champion`.
+    const customQuadrants = Object.values(customQ);
+    expect(customQuadrants).toContain("champion");
+    expect(customQuadrants).not.toContain("conditional_champion");
+
+    // At least one use case must have actually moved between the two runs —
+    // this is the regression signal the task is guarding against.
+    const movedIds = Object.keys(defaultQ).filter(
+      (id) => defaultQ[id] !== customQ[id],
+    );
+    expect(movedIds.length).toBeGreaterThan(0);
+
+    // The tightened maxTimeToPilotWeeks must surface as a soft blocker on
+    // UC-1 (time-to-pilot 12 weeks > custom 8 cap, but ≤ default 16 cap).
+    const softBlockersFor = (r: any, id: string): string[] => {
+      const row = r.steps
+        .find((s: any) => s.step === 7)
+        .data.find((x: any) => x.ID === id);
+      return (row?.["Soft Blockers"] ?? []) as string[];
+    };
+    const defaultSoft = softBlockersFor(defaultRun, "UC-1");
+    const customSoft = softBlockersFor(customRun, "UC-1");
+    expect(defaultSoft.some((b) => b.includes("Time-to-pilot"))).toBe(false);
+    expect(
+      customSoft.some((b) =>
+        b.includes("Time-to-pilot 12 weeks exceeds 8-week target"),
+      ),
+    ).toBe(true);
   });
 });
