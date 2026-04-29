@@ -1484,7 +1484,40 @@ function UpgradesAppliedPanel({ updated }: UpgradesAppliedPanelProps) {
                               className="px-3 py-1.5 text-slate-600 select-all"
                               data-testid={`text-upgrade-report-id-${bucket.code}-${r.id}`}
                             >
-                              {r.id}
+                              <a
+                                href={
+                                  r.isWhatIf
+                                    ? `/whatif/${r.id}`
+                                    : `/reports/${r.id}`
+                                }
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:text-blue-800 hover:underline"
+                                title={
+                                  r.isWhatIf
+                                    ? "Open what-if report in new tab"
+                                    : "Open report in new tab"
+                                }
+                                onClick={(e) => {
+                                  const sel = window.getSelection();
+                                  if (!sel || sel.toString().length === 0) {
+                                    return;
+                                  }
+                                  const link = e.currentTarget;
+                                  const inAnchor =
+                                    sel.anchorNode &&
+                                    link.contains(sel.anchorNode);
+                                  const inFocus =
+                                    sel.focusNode &&
+                                    link.contains(sel.focusNode);
+                                  if (inAnchor || inFocus) {
+                                    e.preventDefault();
+                                  }
+                                }}
+                                data-testid={`link-upgrade-report-${bucket.code}-${r.id}`}
+                              >
+                                {r.id}
+                              </a>
                             </td>
                             <td
                               className="px-3 py-1.5 text-slate-500"
