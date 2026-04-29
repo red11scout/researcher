@@ -383,6 +383,322 @@ describe("postProcessAnalysis — v2.2 contract", () => {
     expect(staleness.reasons).toEqual([]);
     expect(staleness.hasStep6KOFields).toBe(true);
   });
+
+  // -------------------------------------------------------------------------
+  // Regression (Task #26): the human-readable `Risk Formula` audit string
+  // must show the *capped* reduction percentage (8% per use case), never the
+  // overstated value the AI proposed. When the cap binds, the original raw
+  // percentage is preserved as a "(capped from X%)" annotation so reviewers
+  // can still see what was overridden, and the printed math multiplies out
+  // to the printed dollar value.
+  // -------------------------------------------------------------------------
+  it("displays the capped risk-reduction percentage (with `capped from` annotation) in the Step 5 Risk Formula audit text", () => {
+    // Structured-labels path: AI claims a 20% risk reduction but the engine
+    // caps at 8% per use case.
+    const fixture = {
+      steps: [
+        {
+          step: 0,
+          title: "Company Profile",
+          data: [{ "Annual Revenue ($)": 50_000_000, "Total Employees": 250 }],
+        },
+        {
+          step: 5,
+          title: "Benefits Quantification",
+          data: [
+            {
+              ID: "UC-RISK",
+              "Use Case": "Fraud Detection",
+              "Strategic Theme": "Risk",
+              "Cost Formula Labels": {
+                components: [
+                  { label: "Hours Saved", value: 1000 },
+                  { label: "Loaded Hourly Rate", value: 100 },
+                  { label: "Benefits Loading", value: 1.3 },
+                  { label: "Adoption Rate", value: 0.8 },
+                  { label: "Data Maturity", value: 0.75 },
+                ],
+              },
+              "Risk Formula Labels": {
+                components: [
+                  { label: "Risk Reduction %", value: 0.20 },
+                  { label: "Risk Exposure", value: 1_000_000 },
+                  { label: "Realization Factor", value: 0.80 },
+                  { label: "Data Maturity", value: 0.75 },
+                ],
+              },
+              "Probability of Success": 0.7,
+            },
+          ],
+        },
+        {
+          step: 6,
+          title: "Readiness & Token Modeling",
+          data: [
+            {
+              ID: "UC-RISK",
+              "Use Case": "Fraud Detection",
+              "Organizational Capacity": 7,
+              "Data Availability & Quality": 7,
+              "Technical Infrastructure": 7,
+              "Governance": 7,
+              "Time-to-Value (months)": 6,
+              "Runs/Month": 1000,
+              "Input Tokens/Run": 800,
+              "Output Tokens/Run": 800,
+            },
+          ],
+        },
+      ],
+      vrm: { schemaVersion: "2.0" },
+    };
+
+    const result = postProcessAnalysis(fixture);
+    const step5 = result.steps.find((s: any) => s.step === 5);
+    const record = step5.data.find((r: any) => r.ID === "UC-RISK");
+    const formulaText: string = record["Risk Formula"];
+
+    // Audit text must lead with the *capped* 8%, not the raw 20%, and the
+    // dollar number printed must equal 8% × $1M × 0.80 × 0.75 = $48,000.
+    expect(formulaText.startsWith("8%")).toBe(true);
+    expect(formulaText).toContain("(capped from 20%)");
+    // 8% × $1M × 0.80 × 0.75 = $48K; the dollar result must reflect the cap,
+    // not the AI's overstated 20% (which would imply $120K).
+    expect(formulaText).toContain("$48K");
+    expect(formulaText).not.toContain("$120K");
+    // The overstated raw percentage must not appear as the leading factor.
+    expect(formulaText).not.toMatch(/^20%/);
+  });
+
+  it("displays the capped risk-reduction percentage in the legacy formula-string path (no Risk Formula Labels)", () => {
+    // Fallback path: no `Risk Formula Labels`, only a free-text `Risk Formula`
+    // string. recalculateRiskBenefit must parse the inputs and emit the same
+    // capped audit text + annotation.
+    const fixture = {
+      steps: [
+        {
+          step: 0,
+          title: "Company Profile",
+          data: [{ "Annual Revenue ($)": 50_000_000, "Total Employees": 250 }],
+        },
+        {
+          step: 5,
+          title: "Benefits Quantification",
+          data: [
+            {
+              ID: "UC-RISK-LEGACY",
+              "Use Case": "Legacy Risk String",
+              "Strategic Theme": "Risk",
+              "Cost Formula Labels": {
+                components: [
+                  { label: "Hours Saved", value: 1000 },
+                  { label: "Loaded Hourly Rate", value: 100 },
+                  { label: "Benefits Loading", value: 1.3 },
+                  { label: "Adoption Rate", value: 0.8 },
+                  { label: "Data Maturity", value: 0.75 },
+                ],
+              },
+              // No Risk Formula Labels → recalculateRiskBenefit handles it.
+              "Risk Formula": "20% × $1,000,000 × 0.80 × 0.75 = $120,000",
+              "Probability of Success": 0.7,
+            },
+          ],
+        },
+        {
+          step: 6,
+          title: "Readiness & Token Modeling",
+          data: [
+            {
+              ID: "UC-RISK-LEGACY",
+              "Use Case": "Legacy Risk String",
+              "Organizational Capacity": 7,
+              "Data Availability & Quality": 7,
+              "Technical Infrastructure": 7,
+              "Governance": 7,
+              "Time-to-Value (months)": 6,
+              "Runs/Month": 1000,
+              "Input Tokens/Run": 800,
+              "Output Tokens/Run": 800,
+            },
+          ],
+        },
+      ],
+      vrm: { schemaVersion: "2.0" },
+    };
+
+    const result = postProcessAnalysis(fixture);
+    const step5 = result.steps.find((s: any) => s.step === 5);
+    const record = step5.data.find((r: any) => r.ID === "UC-RISK-LEGACY");
+    const formulaText: string = record["Risk Formula"];
+
+    expect(formulaText.startsWith("8%")).toBe(true);
+    expect(formulaText).toContain("(capped from 20%)");
+    expect(formulaText).toContain("$48K");
+    expect(formulaText).not.toMatch(/^20%/);
+  });
+
+  it("displays the (uncapped) 5% reduction in the derived-from-Step-3 risk branch", () => {
+    // Derived-from-Step-3 path: Step 5 has no risk inputs at all, so the
+    // initial risk calculation returns $0. Step 4 links the use case to a
+    // Step 3 friction whose Primary Driver Impact mentions "risk", which
+    // triggers the derivation branch with the hardcoded 5% reduction (below
+    // the 8% cap). The audit text must start with "5%" and emit no
+    // "capped from" annotation, locking in current behavior so any future
+    // change to the derivation default surfaces as a test failure.
+    const fixture = {
+      steps: [
+        {
+          step: 0,
+          title: "Company Profile",
+          data: [{ "Annual Revenue ($)": 50_000_000, "Total Employees": 250 }],
+        },
+        {
+          step: 3,
+          title: "Friction Inventory",
+          data: [
+            {
+              "Friction Point": "Manual fraud review backlog",
+              "Primary Driver Impact": "Risk reduction",
+              "Annual Hours": 2000,
+              "Hourly Rate": 120,
+            },
+          ],
+        },
+        {
+          step: 4,
+          title: "Use Case Mapping",
+          data: [
+            {
+              ID: "UC-RISK-DERIVED",
+              "Use Case": "Risk Derivation",
+              "Target Friction": "Manual fraud review backlog",
+            },
+          ],
+        },
+        {
+          step: 5,
+          title: "Benefits Quantification",
+          data: [
+            {
+              ID: "UC-RISK-DERIVED",
+              "Use Case": "Risk Derivation",
+              "Strategic Theme": "Risk",
+              "Cost Formula Labels": {
+                components: [
+                  { label: "Hours Saved", value: 1000 },
+                  { label: "Loaded Hourly Rate", value: 100 },
+                  { label: "Benefits Loading", value: 1.3 },
+                  { label: "Adoption Rate", value: 0.8 },
+                  { label: "Data Maturity", value: 0.75 },
+                ],
+              },
+              // No Risk Formula and no Risk Formula Labels → upstream risk
+              // is $0 → derivation branch fires.
+              "Probability of Success": 0.7,
+            },
+          ],
+        },
+        {
+          step: 6,
+          title: "Readiness & Token Modeling",
+          data: [
+            {
+              ID: "UC-RISK-DERIVED",
+              "Use Case": "Risk Derivation",
+              "Organizational Capacity": 7,
+              "Data Availability & Quality": 7,
+              "Technical Infrastructure": 7,
+              "Governance": 7,
+              "Time-to-Value (months)": 6,
+              "Runs/Month": 1000,
+              "Input Tokens/Run": 800,
+              "Output Tokens/Run": 800,
+            },
+          ],
+        },
+      ],
+      vrm: { schemaVersion: "2.0" },
+    };
+
+    const result = postProcessAnalysis(fixture);
+    const step5 = result.steps.find((s: any) => s.step === 5);
+    const record = step5.data.find((r: any) => r.ID === "UC-RISK-DERIVED");
+    const formulaText: string = record["Risk Formula"];
+
+    expect(formulaText.startsWith("5%")).toBe(true);
+    expect(formulaText).not.toContain("capped from");
+    expect(formulaText).toContain("[derived from");
+  });
+
+  it("does not annotate the Risk Formula audit text when the cap does not bind", () => {
+    // Structured-labels path: AI claims a 5% risk reduction (below the 8%
+    // per-use-case cap) so no annotation should be emitted.
+    const fixture = {
+      steps: [
+        {
+          step: 0,
+          title: "Company Profile",
+          data: [{ "Annual Revenue ($)": 50_000_000, "Total Employees": 250 }],
+        },
+        {
+          step: 5,
+          title: "Benefits Quantification",
+          data: [
+            {
+              ID: "UC-RISK-LOW",
+              "Use Case": "Compliance Monitoring",
+              "Strategic Theme": "Risk",
+              "Cost Formula Labels": {
+                components: [
+                  { label: "Hours Saved", value: 1000 },
+                  { label: "Loaded Hourly Rate", value: 100 },
+                  { label: "Benefits Loading", value: 1.3 },
+                  { label: "Adoption Rate", value: 0.8 },
+                  { label: "Data Maturity", value: 0.75 },
+                ],
+              },
+              "Risk Formula Labels": {
+                components: [
+                  { label: "Risk Reduction %", value: 0.05 },
+                  { label: "Risk Exposure", value: 2_000_000 },
+                  { label: "Realization Factor", value: 0.80 },
+                  { label: "Data Maturity", value: 0.75 },
+                ],
+              },
+              "Probability of Success": 0.7,
+            },
+          ],
+        },
+        {
+          step: 6,
+          title: "Readiness & Token Modeling",
+          data: [
+            {
+              ID: "UC-RISK-LOW",
+              "Use Case": "Compliance Monitoring",
+              "Organizational Capacity": 7,
+              "Data Availability & Quality": 7,
+              "Technical Infrastructure": 7,
+              "Governance": 7,
+              "Time-to-Value (months)": 6,
+              "Runs/Month": 1000,
+              "Input Tokens/Run": 800,
+              "Output Tokens/Run": 800,
+            },
+          ],
+        },
+      ],
+      vrm: { schemaVersion: "2.0" },
+    };
+
+    const result = postProcessAnalysis(fixture);
+    const step5 = result.steps.find((s: any) => s.step === 5);
+    const record = step5.data.find((r: any) => r.ID === "UC-RISK-LOW");
+    const formulaText: string = record["Risk Formula"];
+
+    expect(formulaText.startsWith("5%")).toBe(true);
+    expect(formulaText).not.toContain("capped from");
+  });
 });
 
 // ---------------------------------------------------------------------------

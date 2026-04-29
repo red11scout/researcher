@@ -784,9 +784,34 @@ function recalculateRiskBenefit(formula: string): { value: number; formulaText: 
 
   // HyperFormula handles validation internally
 
-  const newFormula = `${(inputs.probBefore * 100).toFixed(0)}% × ${formatMoney(inputs.impactBefore)} × ${inputs.riskRealizationMultiplier.toFixed(2)} × ${inputs.dataMaturityMultiplier.toFixed(2)} = ${formatMoney(result.trace.output)} → ${formatMoney(result.value)}`;
+  // Audit text must show the *capped* reduction percentage so the displayed
+  // math multiplies out to the displayed dollar value. The raw % the AI
+  // proposed is preserved as a "(capped from X%)" annotation when capping
+  // actually binds, so reviewers can still see what was overridden.
+  const reductionPctText = formatRiskReductionPctForAudit(
+    inputs.probBefore,
+    result.trace.inputs.riskReductionPct as number,
+  );
+  const newFormula = `${reductionPctText} × ${formatMoney(inputs.impactBefore)} × ${inputs.riskRealizationMultiplier.toFixed(2)} × ${inputs.dataMaturityMultiplier.toFixed(2)} = ${formatMoney(result.trace.output)} → ${formatMoney(result.value)}`;
 
   return { value: result.value, formulaText: newFormula, warnings };
+}
+
+/**
+ * Format the risk-reduction percentage for the audit `formulaText` string.
+ *
+ * Always displays the *capped* percentage so the printed math is internally
+ * consistent with the printed dollar result (Task #26). When capping binds,
+ * appends a "(capped from X%)" annotation so the AI's original input is still
+ * visible for review. Both percentages are formatted to whole numbers to match
+ * the rest of the audit string's precision.
+ */
+function formatRiskReductionPctForAudit(rawReductionPct: number, cappedReductionPct: number): string {
+  const capped = `${(cappedReductionPct * 100).toFixed(0)}%`;
+  if (rawReductionPct - cappedReductionPct > 1e-9) {
+    return `${capped} (capped from ${(rawReductionPct * 100).toFixed(0)}%)`;
+  }
+  return capped;
 }
 
 // Parse friction point cost from AI-generated text
@@ -1319,9 +1344,13 @@ export function postProcessAnalysis(analysisResult: any): any {
         riskRealizationMultiplier: structuredRiskInputs.riskRealizationMultiplier,
         dataMaturityMultiplier: structuredRiskInputs.dataMaturityMultiplier,
       });
+      const reductionPctText = formatRiskReductionPctForAudit(
+        structuredRiskInputs.probBefore,
+        hfResult.trace.inputs.riskReductionPct as number,
+      );
       riskResult = {
         value: hfResult.value,
-        formulaText: `${(structuredRiskInputs.probBefore * 100).toFixed(0)}% × ${formatMoney(structuredRiskInputs.impactBefore)} × ${structuredRiskInputs.riskRealizationMultiplier.toFixed(2)} × ${structuredRiskInputs.dataMaturityMultiplier.toFixed(2)} = ${formatMoney(hfResult.trace.output)} → ${formatMoney(hfResult.value)} [HF/labels]`,
+        formulaText: `${reductionPctText} × ${formatMoney(structuredRiskInputs.impactBefore)} × ${structuredRiskInputs.riskRealizationMultiplier.toFixed(2)} × ${structuredRiskInputs.dataMaturityMultiplier.toFixed(2)} = ${formatMoney(hfResult.trace.output)} → ${formatMoney(hfResult.value)} [HF/labels]`,
         warnings: [],
       };
       console.log(`[postProcessAnalysis] ${record.ID}: Risk via STRUCTURED LABELS: ${formatMoney(hfResult.value)}`);
@@ -1396,9 +1425,13 @@ export function postProcessAnalysis(analysisResult: any): any {
               riskReductionPct,
               riskExposure,
             });
+            const derivedReductionPctText = formatRiskReductionPctForAudit(
+              riskReductionPct,
+              derivedRisk.trace.inputs.riskReductionPct as number,
+            );
             riskResult = {
               value: derivedRisk.value,
-              formulaText: `${(riskReductionPct * 100).toFixed(0)}% × ${formatMoney(riskExposure)} × 0.80 × 0.75 = ${formatMoney(derivedRisk.trace.output)} → ${formatMoney(derivedRisk.value)} [derived from ${driverImpact}]`,
+              formulaText: `${derivedReductionPctText} × ${formatMoney(riskExposure)} × 0.80 × 0.75 = ${formatMoney(derivedRisk.trace.output)} → ${formatMoney(derivedRisk.value)} [derived from ${driverImpact}]`,
               warnings: [`Risk derived from Step 3 driver impact: ${driverImpact}`],
             };
             console.log(`[postProcessAnalysis] ${record.ID}: Derived risk from Step 3 driver "${driverImpact}": ${formatMoney(derivedRisk.value)}`);
