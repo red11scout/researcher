@@ -60,6 +60,28 @@ interface ReportUpgrade {
   label: string;
 }
 
+// Mirrors `ReportMetricDelta` in server/report-backfill.ts. Each entry is
+// one headline number that changed during the backfill (Total annual value,
+// Lead Champion count, etc.) so admins can tell whether a "bumped schema"
+// migration actually moved the bottom line or was just cosmetic.
+interface ReportMetricDelta {
+  code:
+    | "total-annual-value"
+    | "champion-count"
+    | "lead-champion-count"
+    | "conditional-champion-count"
+    | "quick-win-count"
+    | "strategic-count"
+    | "foundation-count"
+    | "prototyping-candidates"
+    | "total-use-cases";
+  label: string;
+  before: number;
+  after: number;
+  delta: number;
+  unit: "money" | "count";
+}
+
 interface BackfillReportResult {
   id: string;
   companyName: string;
@@ -67,6 +89,7 @@ interface BackfillReportResult {
   status: "updated" | "skipped" | "failed";
   reasons?: string[];
   upgrades?: ReportUpgrade[];
+  metricDeltas?: ReportMetricDelta[];
   error?: string;
   durationMs: number;
 }
@@ -992,7 +1015,31 @@ function LiveProgressPanel({ progress, running }: LiveProgressPanelProps) {
                     </div>
                   )}
                 {r.status === "updated" &&
-                  (!r.upgrades || r.upgrades.length === 0) && (
+                  r.metricDeltas &&
+                  r.metricDeltas.length > 0 && (
+                    <div
+                      className="mt-1 ml-7 flex flex-wrap gap-1"
+                      data-testid={`metric-deltas-recent-${r.id}`}
+                    >
+                      {r.metricDeltas.map((d) => (
+                        <MetricDeltaChip key={d.code} delta={d} />
+                      ))}
+                    </div>
+                  )}
+                {r.status === "updated" &&
+                  r.upgrades &&
+                  r.upgrades.length > 0 &&
+                  (!r.metricDeltas || r.metricDeltas.length === 0) && (
+                    <div
+                      className="mt-1 ml-7 text-[11px] text-slate-500 italic"
+                      data-testid={`metric-deltas-recent-empty-${r.id}`}
+                    >
+                      Schema-only — no headline numbers moved
+                    </div>
+                  )}
+                {r.status === "updated" &&
+                  (!r.upgrades || r.upgrades.length === 0) &&
+                  (!r.metricDeltas || r.metricDeltas.length === 0) && (
                     <div
                       className="mt-1 ml-7 text-[11px] text-slate-500 italic"
                       data-testid={`upgrades-recent-empty-${r.id}`}
@@ -1036,6 +1083,29 @@ function UpgradeChip({ upgrade }: { upgrade: ReportUpgrade }) {
   );
 }
 
+/**
+ * Compact pill summarizing one headline-number movement applied during the
+ * backfill (e.g. "Total value $1.2M → $1.4M (+$200K)" or "Lead Champions 0
+ * → 1 (+1)"). Tinted blue for a positive delta and amber for a negative one
+ * so admins can spot regressions at a glance — a "bumped schema" upgrade
+ * that DROPS Champion count from 3 to 1 is a story they want to see.
+ */
+function MetricDeltaChip({ delta }: { delta: ReportMetricDelta }) {
+  const tone =
+    delta.delta > 0
+      ? "border-sky-200 bg-sky-50 text-sky-700"
+      : "border-amber-200 bg-amber-50 text-amber-700";
+  return (
+    <Badge
+      variant="outline"
+      className={`text-[10px] py-0 px-1.5 font-normal ${tone}`}
+      data-testid={`chip-metric-delta-${delta.code}`}
+    >
+      {delta.label}
+    </Badge>
+  );
+}
+
 interface UpgradesAppliedPanelProps {
   updated: BackfillReportResult[];
 }
@@ -1057,12 +1127,32 @@ function UpgradesAppliedPanel({ updated }: UpgradesAppliedPanelProps) {
     { label: string; reports: BackfillReportResult[] }
   >();
   let reprocessedNoChange = 0;
+  // Reports that had at least one schema upgrade applied but where every
+  // headline number stayed the same — surfaced separately so admins can
+  // immediately ignore them ("the schema bumped but the bottom line did
+  // not move, no need to re-read the report").
+  let schemaOnlyCount = 0;
+  // Reports that had NO schema upgrades but whose headline numbers still
+  // moved — typically a force=true rerun where the post-processor's
+  // calculation logic shifted since the report was last persisted. These
+  // are the most surprising case (no schema diff would suggest "nothing
+  // changed") so we surface them in their own bucket with full delta
+  // chips, not buried inside the generic "Reprocessed (no schema
+  // changes)" count.
+  const reprocessedWithMetricChange: BackfillReportResult[] = [];
 
   for (const r of updated) {
     const upgrades = r.upgrades ?? [];
     if (upgrades.length === 0) {
-      reprocessedNoChange++;
+      if (r.metricDeltas && r.metricDeltas.length > 0) {
+        reprocessedWithMetricChange.push(r);
+      } else {
+        reprocessedNoChange++;
+      }
       continue;
+    }
+    if (!r.metricDeltas || r.metricDeltas.length === 0) {
+      schemaOnlyCount++;
     }
     for (const u of upgrades) {
       const existing = buckets.get(u.code);
@@ -1093,7 +1183,12 @@ function UpgradesAppliedPanel({ updated }: UpgradesAppliedPanelProps) {
     });
   };
 
-  if (sorted.length === 0 && reprocessedNoChange === 0) return null;
+  if (
+    sorted.length === 0 &&
+    reprocessedNoChange === 0 &&
+    reprocessedWithMetricChange.length === 0
+  )
+    return null;
 
   return (
     <div
@@ -1173,13 +1268,16 @@ function UpgradesAppliedPanel({ updated }: UpgradesAppliedPanelProps) {
                           <th className="text-left px-3 py-1.5 font-medium">
                             What-if
                           </th>
+                          <th className="text-left px-3 py-1.5 font-medium">
+                            Headline changes
+                          </th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {bucket.reports.map((r) => (
                           <tr
                             key={r.id}
-                            className="hover:bg-slate-50"
+                            className="hover:bg-slate-50 align-top"
                             data-testid={`row-upgrade-report-${bucket.code}-${r.id}`}
                           >
                             <td
@@ -1200,6 +1298,28 @@ function UpgradesAppliedPanel({ updated }: UpgradesAppliedPanelProps) {
                             >
                               {r.isWhatIf ? "yes" : "no"}
                             </td>
+                            <td
+                              className="px-3 py-1.5"
+                              data-testid={`text-upgrade-deltas-${bucket.code}-${r.id}`}
+                            >
+                              {r.metricDeltas && r.metricDeltas.length > 0 ? (
+                                <div className="flex flex-wrap gap-1">
+                                  {r.metricDeltas.map((d) => (
+                                    <MetricDeltaChip
+                                      key={`${r.id}-${d.code}`}
+                                      delta={d}
+                                    />
+                                  ))}
+                                </div>
+                              ) : (
+                                <span
+                                  className="text-slate-400 italic"
+                                  data-testid={`text-upgrade-deltas-empty-${bucket.code}-${r.id}`}
+                                >
+                                  schema-only
+                                </span>
+                              )}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -1210,6 +1330,127 @@ function UpgradesAppliedPanel({ updated }: UpgradesAppliedPanelProps) {
             </li>
           );
         })}
+        {reprocessedWithMetricChange.length > 0 && (
+          <li
+            data-testid="row-upgrade-bucket-metric-only"
+          >
+            <button
+              type="button"
+              onClick={() => toggle("__metric_only__")}
+              aria-expanded={expanded.has("__metric_only__")}
+              className="w-full px-4 py-3 flex items-start gap-3 text-left hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-navy focus-visible:ring-inset"
+              data-testid="button-toggle-upgrade-metric-only"
+            >
+              {expanded.has("__metric_only__") ? (
+                <ChevronDown className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
+              ) : (
+                <ChevronRight className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
+              )}
+              <Badge
+                variant="outline"
+                className="border-sky-200 bg-sky-50 text-sky-700 font-medium tabular-nums shrink-0"
+                data-testid="count-upgrade-metric-only"
+              >
+                {reprocessedWithMetricChange.length}
+              </Badge>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium text-slate-900">
+                  Reprocessed — headline numbers moved (no schema change)
+                </div>
+                <div className="text-xs text-slate-500 mt-0.5">
+                  No schema/diagnostic shape changed, but the post-processor
+                  produced different totals or counts on rerun — usually means
+                  a calculation rule shifted since this report was last
+                  persisted. Worth a closer look.
+                </div>
+              </div>
+            </button>
+            {expanded.has("__metric_only__") && (
+              <div
+                className="px-4 pb-3 pl-11"
+                data-testid="details-upgrade-metric-only"
+              >
+                <div className="rounded-md border border-slate-200 bg-white max-h-64 overflow-auto">
+                  <table className="w-full text-xs font-mono">
+                    <thead className="sticky top-0 bg-slate-50 text-slate-500 text-[11px] uppercase tracking-wide">
+                      <tr>
+                        <th className="text-left px-3 py-1.5 font-medium">
+                          Company
+                        </th>
+                        <th className="text-left px-3 py-1.5 font-medium">
+                          Report ID
+                        </th>
+                        <th className="text-left px-3 py-1.5 font-medium">
+                          Headline changes
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {reprocessedWithMetricChange.map((r) => (
+                        <tr
+                          key={r.id}
+                          className="hover:bg-slate-50 align-top"
+                          data-testid={`row-upgrade-metric-only-${r.id}`}
+                        >
+                          <td
+                            className="px-3 py-1.5 text-slate-700 select-text"
+                            data-testid={`text-upgrade-metric-only-company-${r.id}`}
+                          >
+                            {r.companyName}
+                          </td>
+                          <td
+                            className="px-3 py-1.5 text-slate-600 select-all"
+                            data-testid={`text-upgrade-metric-only-report-id-${r.id}`}
+                          >
+                            {r.id}
+                          </td>
+                          <td
+                            className="px-3 py-1.5"
+                            data-testid={`text-upgrade-metric-only-deltas-${r.id}`}
+                          >
+                            <div className="flex flex-wrap gap-1">
+                              {(r.metricDeltas ?? []).map((d) => (
+                                <MetricDeltaChip
+                                  key={`${r.id}-${d.code}`}
+                                  delta={d}
+                                />
+                              ))}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </li>
+        )}
+        {schemaOnlyCount > 0 && (
+          <li
+            className="px-4 py-3 flex items-start gap-3"
+            data-testid="row-upgrade-bucket-schema-only"
+          >
+            <Badge
+              variant="outline"
+              className="border-slate-200 bg-slate-50 text-slate-600 font-medium tabular-nums shrink-0"
+              data-testid="count-upgrade-schema-only"
+            >
+              {schemaOnlyCount}
+            </Badge>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium text-slate-700">
+                Schema-only (no headline numbers moved)
+              </div>
+              <div className="text-xs text-slate-500 mt-0.5">
+                The schema/diagnostic shape changed but the executive
+                dashboard totals and portfolio counts stayed the same — safe
+                to ignore unless you specifically want to audit the new
+                shape. (Counted across the upgrade buckets above.)
+              </div>
+            </div>
+          </li>
+        )}
         {reprocessedNoChange > 0 && (
           <li
             className="px-4 py-3 flex items-start gap-3"

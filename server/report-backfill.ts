@@ -135,6 +135,182 @@ export interface ReportUpgrade {
 }
 
 /**
+ * Snapshot of the headline analysis numbers a report exposes — taken once
+ * before `postProcessAnalysis` runs and once after, so the backfill can tell
+ * the operator whether the migration actually moved the bottom line or just
+ * rewrote the schema. The fields are intentionally a thin slice of the full
+ * `analysisData`: the totals admins look at on the executive dashboard, plus
+ * the portfolio-diagnostic counts that change when readiness tiers flip.
+ *
+ * All fields default to 0 when the corresponding part of the analysis is
+ * missing (e.g. a v2.0 report has no `vrm.diagnostic` block at all), so the
+ * delta computation can treat "missing" and "zero" the same way without
+ * special-casing.
+ */
+export interface ReportMetricSnapshot {
+  /** Sum of cost + revenue + cash-flow + risk benefits across all use cases. */
+  totalAnnualValue: number;
+  /** Number of use cases classified as Champions in the portfolio diagnostic. */
+  championCount: number;
+  /** Subset of Champions promoted to the Lead tier (V≥7.5 AND R≥7.5). */
+  leadChampionCount: number;
+  /** Number of use cases classified as Conditional Champions. */
+  conditionalChampionCount: number;
+  /** Number of use cases classified as Quick Wins. */
+  quickWinCount: number;
+  /** Number of use cases classified as Strategic. */
+  strategicCount: number;
+  /** Number of use cases stuck in the Foundation bucket. */
+  foundationCount: number;
+  /** Champions + Quick Wins + Conditionals (the prototyping shortlist). */
+  prototypingCandidatesCount: number;
+  /** Total use cases the diagnostic ran over. */
+  totalUseCases: number;
+}
+
+/**
+ * One headline-number movement applied by the backfill. Like `ReportUpgrade`,
+ * `code` is the stable machine id and `label` is the short summary the admin
+ * sees, e.g. "Total value $1.2M → $1.4M (+$200K)" or "Lead Champions 0 → 1".
+ * `before`/`after`/`delta` are the raw numbers so the UI can re-render or
+ * recolor without re-parsing the label.
+ */
+export interface ReportMetricDelta {
+  code:
+    | "total-annual-value"
+    | "champion-count"
+    | "lead-champion-count"
+    | "conditional-champion-count"
+    | "quick-win-count"
+    | "strategic-count"
+    | "foundation-count"
+    | "prototyping-candidates"
+    | "total-use-cases";
+  label: string;
+  before: number;
+  after: number;
+  /** `after - before`. Positive = number went up, negative = went down. */
+  delta: number;
+  /** `"money"` formats with $K/$M/$B; `"count"` formats as a plain integer. */
+  unit: "money" | "count";
+}
+
+function readNumber(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+/**
+ * Pull the headline numbers out of an `analysisData` object into a snapshot
+ * the backfill can diff. Tolerant of every legacy shape: a v2.0 report with
+ * no `executiveDashboard` and no `vrm.diagnostic` snapshots as all zeros,
+ * which is the right "before" baseline when the post-processor is about to
+ * synthesize those blocks for the first time.
+ */
+export function snapshotReportMetrics(analysis: any): ReportMetricSnapshot {
+  const dash = analysis?.executiveDashboard ?? {};
+  // Prefer the active v2.2 diagnostic; fall back to the v2.1 shadow block
+  // for reports that haven't been migrated yet (so a v2.1-only "before"
+  // snapshot still surfaces championCount etc. instead of all zeros).
+  const diag = analysis?.vrm?.diagnostic ?? analysis?.vrm?.diagnosticV21 ?? {};
+  return {
+    totalAnnualValue: readNumber(dash.totalAnnualValue),
+    championCount: readNumber(diag.championCount),
+    leadChampionCount: readNumber(diag.leadChampionCount),
+    conditionalChampionCount: readNumber(diag.conditionalChampionCount),
+    quickWinCount: readNumber(diag.quickWinCount),
+    strategicCount: readNumber(diag.strategicCount),
+    foundationCount: readNumber(diag.foundationCount),
+    prototypingCandidatesCount: readNumber(diag.prototypingCandidatesCount),
+    totalUseCases: readNumber(diag.totalUseCases),
+  };
+}
+
+// Format an absolute money value as $K/$M/$B with one decimal of resolution
+// past the unit (e.g. 1_200_000 -> "$1.2M"). Mirrors the rounding policy of
+// `formatMoney` in src/calc/formulas.ts but works on a pre-signed magnitude
+// so we can render "+$200K" / "-$500K" deltas cleanly.
+function formatMoneyMagnitude(value: number): string {
+  const abs = Math.abs(Math.round(value));
+  if (abs >= 1_000_000_000) {
+    const b = abs / 1_000_000_000;
+    return b === Math.floor(b) ? `$${Math.floor(b)}B` : `$${b.toFixed(1)}B`;
+  }
+  if (abs >= 1_000_000) {
+    const m = abs / 1_000_000;
+    return m === Math.floor(m) ? `$${Math.floor(m)}M` : `$${m.toFixed(1)}M`;
+  }
+  if (abs >= 1_000) {
+    return `$${Math.round(abs / 1_000)}K`;
+  }
+  return `$${abs}`;
+}
+
+function formatMoneyDelta(delta: number): string {
+  if (delta > 0) return `+${formatMoneyMagnitude(delta)}`;
+  if (delta < 0) return `-${formatMoneyMagnitude(delta)}`;
+  return formatMoneyMagnitude(0);
+}
+
+function formatCountDelta(delta: number): string {
+  if (delta > 0) return `+${delta}`;
+  return `${delta}`; // includes negative sign for delta<0 and "0" for delta===0
+}
+
+/**
+ * Diff two metric snapshots and return one delta entry per field that
+ * actually changed. Returns an empty array when the post-processor was a
+ * no-op for every headline number — which the UI uses to label the report
+ * as "schema-only" (the schema/diagnostic shape changed, but the bottom
+ * line is identical).
+ */
+export function computeMetricDeltas(
+  before: ReportMetricSnapshot,
+  after: ReportMetricSnapshot,
+): ReportMetricDelta[] {
+  const deltas: ReportMetricDelta[] = [];
+
+  // Build the field list once so the order in the UI is deterministic
+  // (money first, then the portfolio counts in roughly "most useful" order).
+  const fields: Array<{
+    code: ReportMetricDelta["code"];
+    name: string;
+    unit: ReportMetricDelta["unit"];
+    key: keyof ReportMetricSnapshot;
+  }> = [
+    { code: "total-annual-value", name: "Total value", unit: "money", key: "totalAnnualValue" },
+    { code: "prototyping-candidates", name: "Prototyping candidates", unit: "count", key: "prototypingCandidatesCount" },
+    { code: "lead-champion-count", name: "Lead Champions", unit: "count", key: "leadChampionCount" },
+    { code: "champion-count", name: "Champions", unit: "count", key: "championCount" },
+    { code: "conditional-champion-count", name: "Conditional Champions", unit: "count", key: "conditionalChampionCount" },
+    { code: "quick-win-count", name: "Quick Wins", unit: "count", key: "quickWinCount" },
+    { code: "strategic-count", name: "Strategic", unit: "count", key: "strategicCount" },
+    { code: "foundation-count", name: "Foundation", unit: "count", key: "foundationCount" },
+    { code: "total-use-cases", name: "Total use cases", unit: "count", key: "totalUseCases" },
+  ];
+
+  for (const f of fields) {
+    const b = before[f.key];
+    const a = after[f.key];
+    const delta = a - b;
+    if (delta === 0) continue;
+    const label =
+      f.unit === "money"
+        ? `${f.name} ${formatMoneyMagnitude(b)} → ${formatMoneyMagnitude(a)} (${formatMoneyDelta(delta)})`
+        : `${f.name} ${b} → ${a} (${formatCountDelta(delta)})`;
+    deltas.push({
+      code: f.code,
+      label,
+      before: b,
+      after: a,
+      delta,
+      unit: f.unit,
+    });
+  }
+
+  return deltas;
+}
+
+/**
  * Compute the list of upgrades the backfill applied to one report by
  * comparing the staleness signals before vs. after `postProcessAnalysis`.
  * Returns an empty array when nothing schema-relevant changed (e.g. a forced
@@ -188,6 +364,17 @@ export interface BackfillReportResult {
    * shape. Omitted entirely for skipped/failed results.
    */
   upgrades?: ReportUpgrade[];
+  /**
+   * For status="updated": the headline-number movements the post-processor
+   * applied (e.g. total annual value, prototyping-candidate count, lead
+   * champion count). Computed by diffing `snapshotReportMetrics(before)`
+   * against `snapshotReportMetrics(after)`. Empty when the upgrade was
+   * "schema-only" — the schema/diagnostic shape changed but the bottom
+   * line is identical, which the UI surfaces with a dedicated label so
+   * admins can ignore those rows. Omitted entirely for skipped/failed
+   * results.
+   */
+  metricDeltas?: ReportMetricDelta[];
   error?: string;
   durationMs: number;
 }
@@ -296,6 +483,12 @@ export async function backfillAllReports(
           };
           skipped++;
         } else {
+          // Snapshot the headline numbers BEFORE the post-processor runs so we
+          // can tell the operator whether the upgrade actually moved the
+          // bottom line. We have to take this snapshot now (before the
+          // in-place mutations inside `postProcessAnalysis` overwrite the
+          // executive dashboard / vrm.diagnostic fields).
+          const beforeMetrics = snapshotReportMetrics(analysis);
           const reprocessed = await postProcessAnalysis(analysis);
           await storage.updateReport(report.id, {
             analysisData: reprocessed,
@@ -307,6 +500,11 @@ export async function backfillAllReports(
           // second storage round-trip.
           const afterStaleness = evaluateReportStaleness(reprocessed);
           const upgrades = computeUpgradesApplied(staleness, afterStaleness);
+          // Same idea, one level up: diff the headline numbers so admins
+          // can see that "bumped schema 2.0 → 2.2" actually moved Total
+          // Value $1.2M → $1.4M, instead of having to open the report.
+          const afterMetrics = snapshotReportMetrics(reprocessed);
+          const metricDeltas = computeMetricDeltas(beforeMetrics, afterMetrics);
           result = {
             id: report.id,
             companyName: report.companyName,
@@ -314,6 +512,7 @@ export async function backfillAllReports(
             status: "updated",
             reasons: force && !staleness.stale ? ["forced"] : staleness.reasons,
             upgrades,
+            metricDeltas,
             durationMs: Date.now() - reportStartedAt,
           };
           updated++;

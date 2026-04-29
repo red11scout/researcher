@@ -60,6 +60,8 @@ const {
   evaluateReportStaleness,
   backfillAllReports,
   computeUpgradesApplied,
+  computeMetricDeltas,
+  snapshotReportMetrics,
   parseOnlyIdsFromBody,
 } = await import("../server/report-backfill");
 
@@ -316,6 +318,154 @@ describe("computeUpgradesApplied", () => {
 });
 
 // ---------------------------------------------------------------------------
+// snapshotReportMetrics — pull headline numbers out of an analysis blob
+// ---------------------------------------------------------------------------
+describe("snapshotReportMetrics", () => {
+  it("returns all-zero snapshot when the analysis has no dashboard or diagnostic", () => {
+    // A v2.0 report typically has no `executiveDashboard` and no
+    // `vrm.diagnostic` — the snapshot must read those as 0 instead of
+    // throwing or producing NaN, so the delta math against the post-
+    // processed "after" snapshot still works.
+    const snapshot = snapshotReportMetrics({});
+    expect(snapshot).toEqual({
+      totalAnnualValue: 0,
+      championCount: 0,
+      leadChampionCount: 0,
+      conditionalChampionCount: 0,
+      quickWinCount: 0,
+      strategicCount: 0,
+      foundationCount: 0,
+      prototypingCandidatesCount: 0,
+      totalUseCases: 0,
+    });
+  });
+
+  it("reads totals out of executiveDashboard and counts out of vrm.diagnostic", () => {
+    const snapshot = snapshotReportMetrics({
+      executiveDashboard: { totalAnnualValue: 1_400_000 },
+      vrm: {
+        diagnostic: {
+          championCount: 3,
+          leadChampionCount: 1,
+          conditionalChampionCount: 0,
+          quickWinCount: 2,
+          strategicCount: 1,
+          foundationCount: 4,
+          prototypingCandidatesCount: 5,
+          totalUseCases: 10,
+        },
+      },
+    });
+    expect(snapshot.totalAnnualValue).toBe(1_400_000);
+    expect(snapshot.championCount).toBe(3);
+    expect(snapshot.leadChampionCount).toBe(1);
+    expect(snapshot.prototypingCandidatesCount).toBe(5);
+    expect(snapshot.totalUseCases).toBe(10);
+  });
+
+  it("falls back to vrm.diagnosticV21 when the v2.2 diagnostic is absent", () => {
+    // A v2.1 report still has portfolio counts under `diagnosticV21`. The
+    // snapshot must read them so an "already on v2.1" → v2.2 backfill can
+    // diff its before/after counts properly.
+    const snapshot = snapshotReportMetrics({
+      vrm: {
+        diagnosticV21: {
+          championCount: 2,
+          quickWinCount: 1,
+        },
+      },
+    });
+    expect(snapshot.championCount).toBe(2);
+    expect(snapshot.quickWinCount).toBe(1);
+  });
+
+  it("coerces missing/non-numeric fields to 0", () => {
+    const snapshot = snapshotReportMetrics({
+      executiveDashboard: { totalAnnualValue: "not a number" as any },
+      vrm: { diagnostic: { championCount: null as any } },
+    });
+    expect(snapshot.totalAnnualValue).toBe(0);
+    expect(snapshot.championCount).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// computeMetricDeltas — diff two snapshots into operator-readable deltas
+// ---------------------------------------------------------------------------
+describe("computeMetricDeltas", () => {
+  function zeros() {
+    return snapshotReportMetrics({});
+  }
+
+  it("returns an empty list when nothing material changed", () => {
+    // The schema shape can change without moving any headline number; the
+    // UI uses an empty deltas array to render the "schema-only" label.
+    expect(computeMetricDeltas(zeros(), zeros())).toEqual([]);
+  });
+
+  it("emits a money delta with $K/$M formatting and a signed change", () => {
+    const before = zeros();
+    const after = { ...zeros(), totalAnnualValue: 1_400_000 };
+    before.totalAnnualValue = 1_200_000;
+    const deltas = computeMetricDeltas(before, after);
+    const total = deltas.find((d) => d.code === "total-annual-value");
+    expect(total).toBeDefined();
+    expect(total!.unit).toBe("money");
+    expect(total!.before).toBe(1_200_000);
+    expect(total!.after).toBe(1_400_000);
+    expect(total!.delta).toBe(200_000);
+    expect(total!.label).toBe("Total value $1.2M → $1.4M (+$200K)");
+  });
+
+  it("formats a negative money delta as '-$X' in the label", () => {
+    // A "bumped schema" upgrade that DROPS total value is exactly the kind
+    // of regression admins must be able to spot in the chip. The label
+    // must surface the minus sign explicitly, not show "+$-200K".
+    const before = { ...zeros(), totalAnnualValue: 1_400_000 };
+    const after = { ...zeros(), totalAnnualValue: 1_200_000 };
+    const deltas = computeMetricDeltas(before, after);
+    const total = deltas.find((d) => d.code === "total-annual-value");
+    expect(total!.delta).toBe(-200_000);
+    expect(total!.label).toBe("Total value $1.4M → $1.2M (-$200K)");
+  });
+
+  it("emits a count delta with a signed change for portfolio counts", () => {
+    const before = { ...zeros(), prototypingCandidatesCount: 2, leadChampionCount: 0 };
+    const after = { ...zeros(), prototypingCandidatesCount: 3, leadChampionCount: 1 };
+    const deltas = computeMetricDeltas(before, after);
+    const proto = deltas.find((d) => d.code === "prototyping-candidates");
+    const lead = deltas.find((d) => d.code === "lead-champion-count");
+    expect(proto?.label).toBe("Prototyping candidates 2 → 3 (+1)");
+    expect(proto?.unit).toBe("count");
+    expect(lead?.label).toBe("Lead Champions 0 → 1 (+1)");
+  });
+
+  it("renders the delta list in a deterministic order (money first, then counts)", () => {
+    // The order matters because it controls how the chips appear in the
+    // admin UI. Money goes first because it's the headline; the counts
+    // follow in roughly "most useful" order.
+    const before = zeros();
+    const after = {
+      ...zeros(),
+      totalAnnualValue: 100_000,
+      championCount: 1,
+      leadChampionCount: 1,
+      prototypingCandidatesCount: 1,
+      totalUseCases: 1,
+    };
+    const codes = computeMetricDeltas(before, after).map((d) => d.code);
+    expect(codes[0]).toBe("total-annual-value");
+    expect(codes.indexOf("prototyping-candidates")).toBeLessThan(
+      codes.indexOf("lead-champion-count"),
+    );
+    expect(codes.indexOf("lead-champion-count")).toBeLessThan(
+      codes.indexOf("champion-count"),
+    );
+    expect(codes[codes.length - 1]).toBe("total-use-cases");
+  });
+});
+
+// ---------------------------------------------------------------------------
 // backfillAllReports — integration test against the real postProcessAnalysis
 // ---------------------------------------------------------------------------
 describe("backfillAllReports", () => {
@@ -361,6 +511,22 @@ describe("backfillAllReports", () => {
         "bumped-schema",
       ]),
     );
+
+    // Same idea for the headline numbers: a v2.0 report that previously had
+    // no executive dashboard and no diagnostic must surface BOTH the new
+    // dollar total (Total value 0 → $X) AND at least one portfolio count
+    // movement once the post-processor synthesizes the diagnostic block.
+    // Without this assertion the admin UI would wrongly label every legacy
+    // migration as "schema-only".
+    const deltas = summary.results[0].metricDeltas ?? [];
+    const deltaCodes = deltas.map((d) => d.code);
+    expect(deltaCodes).toContain("total-annual-value");
+    expect(deltaCodes).toContain("total-use-cases");
+    const totalDelta = deltas.find((d) => d.code === "total-annual-value")!;
+    expect(totalDelta.before).toBe(0);
+    expect(totalDelta.after).toBeGreaterThan(0);
+    expect(totalDelta.delta).toBe(totalDelta.after);
+    expect(totalDelta.label).toMatch(/^Total value \$0 → \$/);
 
     // The mock storage records the persist call.
     expect(storageState.updates).toHaveLength(1);
