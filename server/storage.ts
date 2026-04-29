@@ -41,11 +41,33 @@ import {
   type AssumptionCategory,
   type CalculatedFieldKey
 } from "@shared/schema";
-import { eq, desc, and, like, sql, isNull, lt } from "drizzle-orm";
+import { eq, desc, and, like, sql, isNull, lt, gte, lte, ilike } from "drizzle-orm";
 import type {
   BackfillReportResult,
   PersistedBackfillSummary,
 } from "./report-backfill";
+
+// Filter + pagination options for reading the admin audit log.
+//
+// All fields are optional. The caller supplies whichever subset of filters
+// the operator picked in the UI; unspecified fields are not constrained.
+// `limit`/`offset` paginate the result. `ip` is matched as a case-insensitive
+// substring so an operator can search "10.0." without typing the full v4.
+export interface AdminAuditLogQuery {
+  limit?: number;
+  offset?: number;
+  // Exact action match (e.g. "backfill-reports", "admin-login-failed"). The
+  // set of valid values mirrors the action codes recorded server-side.
+  action?: string;
+  // "success" or "failure". Anything else is ignored.
+  status?: string;
+  // Inclusive lower bound on createdAt.
+  since?: Date;
+  // Inclusive upper bound on createdAt.
+  until?: Date;
+  // Substring match against actorIp, case-insensitive.
+  ip?: string;
+}
 
 export interface IStorage {
   // Report operations
@@ -123,7 +145,15 @@ export interface IStorage {
   // attempts. createAdminAuditEntry never throws — failures are logged and
   // swallowed so audit-write problems can never break a real admin request.
   createAdminAuditEntry(entry: InsertAdminAuditLog): Promise<AdminAuditLogEntry | null>;
-  getRecentAdminAuditEntries(limit: number): Promise<AdminAuditLogEntry[]>;
+  // Read recent audit entries with optional filters and pagination. Returns
+  // both the page of rows and the total matching count so the UI can render
+  // "showing N of M" and disable pagination buttons at the boundaries.
+  // All filters are optional; an empty options object yields the most recent
+  // page (limit defaulting to 25, offset 0) which preserves the at-a-glance
+  // panel behaviour.
+  getRecentAdminAuditEntries(
+    options?: AdminAuditLogQuery,
+  ): Promise<{ entries: AdminAuditLogEntry[]; total: number }>;
 
   // Persisted snapshot of the most recent completed admin backfill run, so
   // the Admin page can hydrate the post-run summary / failures table /
@@ -898,16 +928,64 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getRecentAdminAuditEntries(
-    limit: number,
-  ): Promise<AdminAuditLogEntry[]> {
+    options: AdminAuditLogQuery = {},
+  ): Promise<{ entries: AdminAuditLogEntry[]; total: number }> {
     // Clamp the limit so a malicious or careless caller can't ask for the
-    // entire table in one shot.
-    const safeLimit = Math.max(1, Math.min(200, Math.floor(limit) || 25));
-    return await db
+    // entire table in one shot. The default of 25 mirrors the original
+    // single-arg behaviour so the at-a-glance panel stays unchanged when
+    // the UI doesn't pass a limit.
+    const safeLimit = Math.max(
+      1,
+      Math.min(200, Math.floor(options.limit ?? 25) || 25),
+    );
+    const safeOffset = Math.max(0, Math.floor(options.offset ?? 0) || 0);
+
+    // Build the WHERE clause from whichever filters the caller supplied.
+    // An unspecified filter must not constrain the query — that's how the
+    // default "show me the most recent N" view stays cheap.
+    const conditions = [] as ReturnType<typeof eq>[];
+    if (options.action && options.action.trim().length > 0) {
+      conditions.push(eq(adminAuditLog.action, options.action.trim()));
+    }
+    if (options.status === "success" || options.status === "failure") {
+      conditions.push(eq(adminAuditLog.status, options.status));
+    }
+    if (options.since instanceof Date && !Number.isNaN(options.since.getTime())) {
+      conditions.push(gte(adminAuditLog.createdAt, options.since));
+    }
+    if (options.until instanceof Date && !Number.isNaN(options.until.getTime())) {
+      conditions.push(lte(adminAuditLog.createdAt, options.until));
+    }
+    if (options.ip && options.ip.trim().length > 0) {
+      // Substring match — operators routinely know only the network prefix
+      // ("10.0.", "192.168.", an IPv6 fragment), not the full address.
+      conditions.push(ilike(adminAuditLog.actorIp, `%${options.ip.trim()}%`));
+    }
+    const whereClause =
+      conditions.length === 0
+        ? undefined
+        : conditions.length === 1
+          ? conditions[0]
+          : and(...conditions);
+
+    // Run the page query and the COUNT(*) in parallel — both hit the same
+    // filtered set, so paying for one round-trip each is fine.
+    const pageQuery = db
       .select()
       .from(adminAuditLog)
       .orderBy(desc(adminAuditLog.createdAt))
-      .limit(safeLimit);
+      .limit(safeLimit)
+      .offset(safeOffset);
+    const countQuery = db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(adminAuditLog);
+
+    const [entries, countRows] = await Promise.all([
+      whereClause ? pageQuery.where(whereClause) : pageQuery,
+      whereClause ? countQuery.where(whereClause) : countQuery,
+    ]);
+    const total = Number(countRows[0]?.count ?? 0);
+    return { entries, total };
   }
 
   async saveLastBackfillSummary(

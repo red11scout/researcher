@@ -33,11 +33,20 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   AlertCircle,
   CheckCircle2,
   ChevronDown,
+  ChevronLeft,
   ChevronRight,
   Clock,
+  Filter,
   History,
   Loader2,
   Lock,
@@ -302,8 +311,44 @@ interface AdminAuditEntry {
 
 interface AuditLogResponse {
   entries: AdminAuditEntry[];
+  total?: number;
   error?: string;
 }
+
+// Filter state for the "Recent admin activity" panel. All fields optional —
+// a value of "" / "all" means "do not constrain". `since`/`until` are bound
+// to <input type="date"> so the UI value is a YYYY-MM-DD string; we widen
+// `since` to start-of-day and `until` to end-of-day before sending to the
+// server so a single-day range like "since=2026-04-29, until=2026-04-29"
+// does what an operator expects.
+interface AuditFilters {
+  action: string;
+  status: string;
+  since: string;
+  until: string;
+  ip: string;
+}
+
+const EMPTY_AUDIT_FILTERS: AuditFilters = {
+  action: "all",
+  status: "all",
+  since: "",
+  until: "",
+  ip: "",
+};
+
+const AUDIT_PAGE_SIZE = 25;
+
+// Action codes recorded by the server. Mirrored in the dropdown so the
+// operator can pick from a finite list instead of typing a free-form string
+// they'd have to know exists.
+const AUDIT_ACTION_OPTIONS: { value: string; label: string }[] = [
+  { value: "all", label: "All actions" },
+  { value: "backfill-reports", label: "Upgrade all reports" },
+  { value: "admin-login", label: "Admin login" },
+  { value: "admin-login-failed", label: "Admin login (failed)" },
+  { value: "admin-access-denied", label: "Admin access denied" },
+];
 
 function AdminPanel() {
   const { toast } = useToast();
@@ -339,32 +384,94 @@ function AdminPanel() {
   // every backfill run so the operator can immediately see their own action
   // appear in the audit trail.
   const [auditEntries, setAuditEntries] = useState<AdminAuditEntry[]>([]);
+  const [auditTotal, setAuditTotal] = useState<number>(0);
   const [auditLoading, setAuditLoading] = useState(true);
   const [auditError, setAuditError] = useState<string | null>(null);
+  // Filters + offset live as Admin-page state so they survive panel re-renders
+  // and so the "refresh after backfill" path automatically refetches whatever
+  // slice the operator was looking at, not just the default page.
+  const [auditFilters, setAuditFilters] = useState<AuditFilters>(
+    EMPTY_AUDIT_FILTERS,
+  );
+  const [auditOffset, setAuditOffset] = useState(0);
 
-  const loadAuditLog = useCallback(async () => {
-    setAuditLoading(true);
-    setAuditError(null);
-    try {
-      const res = await fetch("/api/admin/audit-log?limit=25", {
-        credentials: "include",
-      });
-      if (!res.ok) {
-        throw new Error(`${res.status}: ${res.statusText}`);
+  const loadAuditLog = useCallback(
+    async (filters: AuditFilters, offset: number) => {
+      setAuditLoading(true);
+      setAuditError(null);
+      try {
+        const params = new URLSearchParams();
+        params.set("limit", String(AUDIT_PAGE_SIZE));
+        params.set("offset", String(offset));
+        if (filters.action && filters.action !== "all") {
+          params.set("action", filters.action);
+        }
+        if (filters.status && filters.status !== "all") {
+          params.set("status", filters.status);
+        }
+        // <input type="date"> gives a YYYY-MM-DD string. Widen to start- and
+        // end-of-day in the operator's local timezone so a single-day range
+        // captures every entry from that day, regardless of when in the day
+        // it was logged.
+        if (filters.since) {
+          const d = new Date(`${filters.since}T00:00:00`);
+          if (!Number.isNaN(d.getTime())) {
+            params.set("since", d.toISOString());
+          }
+        }
+        if (filters.until) {
+          const d = new Date(`${filters.until}T23:59:59.999`);
+          if (!Number.isNaN(d.getTime())) {
+            params.set("until", d.toISOString());
+          }
+        }
+        if (filters.ip.trim()) {
+          params.set("ip", filters.ip.trim());
+        }
+        const res = await fetch(`/api/admin/audit-log?${params.toString()}`, {
+          credentials: "include",
+        });
+        if (!res.ok) {
+          throw new Error(`${res.status}: ${res.statusText}`);
+        }
+        const data: AuditLogResponse = await res.json();
+        setAuditEntries(data.entries ?? []);
+        setAuditTotal(typeof data.total === "number" ? data.total : 0);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        setAuditError(message);
+      } finally {
+        setAuditLoading(false);
       }
-      const data: AuditLogResponse = await res.json();
-      setAuditEntries(data.entries ?? []);
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      setAuditError(message);
-    } finally {
-      setAuditLoading(false);
-    }
+    },
+    [],
+  );
+
+  // Reload whenever the operator changes filters or pages. The text-input
+  // filter (IP) is debounced via the input's own onChange + a 300ms timer
+  // inside the panel; this effect just tracks the canonical state.
+  useEffect(() => {
+    void loadAuditLog(auditFilters, auditOffset);
+  }, [loadAuditLog, auditFilters, auditOffset]);
+
+  // Whenever filters change, jump back to page 0 so the operator isn't
+  // stranded on (say) page 5 of a now-much-smaller filtered set.
+  const updateAuditFilters = useCallback((next: Partial<AuditFilters>) => {
+    setAuditFilters((prev) => ({ ...prev, ...next }));
+    setAuditOffset(0);
   }, []);
 
-  useEffect(() => {
-    void loadAuditLog();
-  }, [loadAuditLog]);
+  const resetAuditFilters = useCallback(() => {
+    setAuditFilters(EMPTY_AUDIT_FILTERS);
+    setAuditOffset(0);
+  }, []);
+
+  // Public refresh handler — re-fetches the current slice (filters + page)
+  // so the operator's view stays put after a manual refresh or a backfill
+  // run that just added a new audit row.
+  const refreshAuditLog = useCallback(() => {
+    void loadAuditLog(auditFilters, auditOffset);
+  }, [loadAuditLog, auditFilters, auditOffset]);
 
   // Hydrate the post-run summary from the server on page load. The Admin
   // page used to keep `result` and `updatedReports` purely in component
@@ -567,7 +674,7 @@ function AdminPanel() {
       });
       // Pull the audit log again so the run we just finished shows up at the
       // top of the "Recent admin activity" panel.
-      void loadAuditLog();
+      refreshAuditLog();
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       setError(message);
@@ -887,9 +994,16 @@ function AdminPanel() {
 
         <RecentAdminActivity
           entries={auditEntries}
+          total={auditTotal}
           loading={auditLoading}
           error={auditError}
-          onRefresh={loadAuditLog}
+          filters={auditFilters}
+          offset={auditOffset}
+          pageSize={AUDIT_PAGE_SIZE}
+          onChangeFilters={updateAuditFilters}
+          onResetFilters={resetAuditFilters}
+          onChangeOffset={setAuditOffset}
+          onRefresh={refreshAuditLog}
         />
       </div>
 
@@ -1561,24 +1675,72 @@ function UpgradesAppliedPanel({ updated }: UpgradesAppliedPanelProps) {
 
 interface RecentAdminActivityProps {
   entries: AdminAuditEntry[];
+  total: number;
   loading: boolean;
   error: string | null;
+  filters: AuditFilters;
+  offset: number;
+  pageSize: number;
+  onChangeFilters: (next: Partial<AuditFilters>) => void;
+  onResetFilters: () => void;
+  onChangeOffset: (next: number) => void;
   onRefresh: () => void;
 }
 
 /**
- * "Recent admin activity" panel: most recent N rows from the admin audit
- * trail, including successful backfill runs, admin login attempts, and
- * 401/403 denials. Renders one row per audit entry with timestamp, action,
- * actor IP, and a compact summary of the outcome (counts on success, error
- * message on failure).
+ * "Recent admin activity" panel: filtered, paginated view of the admin
+ * audit trail. By default shows the most recent page of activity; the
+ * operator can narrow by action, status, date range, or actor-IP substring
+ * and page through the matching results. Filters are managed by the parent
+ * so a backfill-triggered refresh re-fetches the current slice instead of
+ * resetting back to "most recent 25".
  */
 function RecentAdminActivity({
   entries,
+  total,
   loading,
   error,
+  filters,
+  offset,
+  pageSize,
+  onChangeFilters,
+  onResetFilters,
+  onChangeOffset,
   onRefresh,
 }: RecentAdminActivityProps) {
+  // Local mirror of the IP filter so we can debounce keystrokes — without
+  // this, every typed character would fire a fresh /api/admin/audit-log
+  // request. The committed value is pushed to the parent (and thus to the
+  // server) 300ms after the operator stops typing.
+  const [ipDraft, setIpDraft] = useState(filters.ip);
+  useEffect(() => {
+    // Keep the draft in sync if the parent resets filters externally
+    // (e.g. via the "Clear" button).
+    setIpDraft(filters.ip);
+  }, [filters.ip]);
+  useEffect(() => {
+    if (ipDraft === filters.ip) return;
+    const handle = window.setTimeout(() => {
+      onChangeFilters({ ip: ipDraft });
+    }, 300);
+    return () => window.clearTimeout(handle);
+  }, [ipDraft, filters.ip, onChangeFilters]);
+
+  const hasActiveFilter =
+    (filters.action && filters.action !== "all") ||
+    (filters.status && filters.status !== "all") ||
+    Boolean(filters.since) ||
+    Boolean(filters.until) ||
+    Boolean(filters.ip.trim());
+
+  // Page boundaries for the Prev/Next controls. We compute against `total`
+  // rather than the page size so the operator can't page past the end of
+  // the filtered set even if the last page is short.
+  const rangeStart = total === 0 ? 0 : offset + 1;
+  const rangeEnd = Math.min(offset + entries.length, total);
+  const canPrev = offset > 0;
+  const canNext = offset + pageSize < total;
+
   return (
     <Card className="mt-6" data-testid="card-recent-admin-activity">
       <CardHeader>
@@ -1590,9 +1752,9 @@ function RecentAdminActivity({
             </CardTitle>
             <CardDescription className="mt-1">
               Append-only trail of admin endpoint usage and access attempts —
-              who triggered what, from where, and when. Use this to investigate
-              "who overwrote report X yesterday at 3pm?" or to spot brute-force
-              attempts on the admin password.
+              who triggered what, from where, and when. Use the filters to
+              investigate "who overwrote report X two weeks ago?" or to spot
+              brute-force attempts on the admin password.
             </CardDescription>
           </div>
           <Button
@@ -1612,6 +1774,133 @@ function RecentAdminActivity({
         </div>
       </CardHeader>
       <CardContent>
+        <div
+          className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-3"
+          data-testid="audit-filters"
+        >
+          <div className="flex items-center gap-2 mb-3 text-xs font-medium text-slate-600 uppercase tracking-wide">
+            <Filter className="h-3.5 w-3.5" />
+            Filters
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+            <div>
+              <Label
+                htmlFor="audit-filter-action"
+                className="text-xs text-slate-600"
+              >
+                Action
+              </Label>
+              <Select
+                value={filters.action}
+                onValueChange={(v) => onChangeFilters({ action: v })}
+              >
+                <SelectTrigger
+                  id="audit-filter-action"
+                  className="mt-1 h-9"
+                  data-testid="select-audit-action"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {AUDIT_ACTION_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label
+                htmlFor="audit-filter-status"
+                className="text-xs text-slate-600"
+              >
+                Status
+              </Label>
+              <Select
+                value={filters.status}
+                onValueChange={(v) => onChangeFilters({ status: v })}
+              >
+                <SelectTrigger
+                  id="audit-filter-status"
+                  className="mt-1 h-9"
+                  data-testid="select-audit-status"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  <SelectItem value="success">Success</SelectItem>
+                  <SelectItem value="failure">Failure</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label
+                htmlFor="audit-filter-since"
+                className="text-xs text-slate-600"
+              >
+                From
+              </Label>
+              <Input
+                id="audit-filter-since"
+                type="date"
+                value={filters.since}
+                max={filters.until || undefined}
+                onChange={(e) => onChangeFilters({ since: e.target.value })}
+                className="mt-1 h-9"
+                data-testid="input-audit-since"
+              />
+            </div>
+            <div>
+              <Label
+                htmlFor="audit-filter-until"
+                className="text-xs text-slate-600"
+              >
+                To
+              </Label>
+              <Input
+                id="audit-filter-until"
+                type="date"
+                value={filters.until}
+                min={filters.since || undefined}
+                onChange={(e) => onChangeFilters({ until: e.target.value })}
+                className="mt-1 h-9"
+                data-testid="input-audit-until"
+              />
+            </div>
+            <div>
+              <Label
+                htmlFor="audit-filter-ip"
+                className="text-xs text-slate-600"
+              >
+                Actor IP contains
+              </Label>
+              <Input
+                id="audit-filter-ip"
+                type="text"
+                value={ipDraft}
+                onChange={(e) => setIpDraft(e.target.value)}
+                placeholder="e.g. 10.0."
+                className="mt-1 h-9"
+                data-testid="input-audit-ip"
+              />
+            </div>
+          </div>
+          {hasActiveFilter && (
+            <div className="mt-3 flex justify-end">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onResetFilters}
+                data-testid="button-clear-audit-filters"
+              >
+                Clear filters
+              </Button>
+            </div>
+          )}
+        </div>
+
         {error ? (
           <div
             className="rounded-lg border border-red-200 bg-red-50 p-4 flex items-start gap-2"
@@ -1636,28 +1925,65 @@ function RecentAdminActivity({
             className="text-sm text-slate-500 text-center py-6"
             data-testid="text-audit-empty"
           >
-            No admin activity recorded yet. Run an action above to populate the
-            trail.
+            {hasActiveFilter
+              ? "No activity matches the current filters."
+              : "No admin activity recorded yet. Run an action above to populate the trail."}
           </div>
         ) : (
-          <div className="rounded-lg border border-slate-200 overflow-hidden">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-44">When</TableHead>
-                  <TableHead>Action</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actor IP</TableHead>
-                  <TableHead>Details</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {entries.map((entry) => (
-                  <AuditLogRow key={entry.id} entry={entry} />
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          <>
+            <div className="rounded-lg border border-slate-200 overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-44">When</TableHead>
+                    <TableHead>Action</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Actor IP</TableHead>
+                    <TableHead>Details</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {entries.map((entry) => (
+                    <AuditLogRow key={entry.id} entry={entry} />
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            <div className="mt-3 flex items-center justify-between text-sm text-slate-600">
+              <div data-testid="text-audit-range">
+                Showing{" "}
+                <span className="font-medium tabular-nums">
+                  {rangeStart}–{rangeEnd}
+                </span>{" "}
+                of{" "}
+                <span className="font-medium tabular-nums">{total}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    onChangeOffset(Math.max(0, offset - pageSize))
+                  }
+                  disabled={!canPrev || loading}
+                  data-testid="button-audit-prev"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5 mr-1" />
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onChangeOffset(offset + pageSize)}
+                  disabled={!canNext || loading}
+                  data-testid="button-audit-next"
+                >
+                  Next
+                  <ChevronRight className="h-3.5 w-3.5 ml-1" />
+                </Button>
+              </div>
+            </div>
+          </>
         )}
       </CardContent>
     </Card>

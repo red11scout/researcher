@@ -872,19 +872,49 @@ Return ONLY valid JSON with this structure:
   });
 
   // Read-only access to recent admin activity for the Admin UI panel.
+  //
+  // Accepts optional filters (`action`, `status`, `since`, `until`, `ip`)
+  // and pagination (`limit`, `offset`) so the Admin page can support
+  // operators investigating "who overwrote report X two weeks ago?" once
+  // the table grows past the most-recent-25 default.
+  //
+  // - `since` and `until` are ISO-8601 strings; invalid values are silently
+  //   ignored so a partial query still returns useful data instead of 400.
+  // - `status` is restricted to "success" / "failure"; anything else is
+  //   ignored at the storage layer.
+  // - `ip` is treated as a case-insensitive substring (operators rarely
+  //   know the full IPv6 address; "10.0." is a common partial query).
   app.get("/api/admin/audit-log", async (req, res) => {
     try {
-      const limitParam = req.query.limit;
-      const requested =
-        typeof limitParam === "string" ? parseInt(limitParam, 10) : 25;
-      const limit = Number.isFinite(requested) ? requested : 25;
-      const entries = await storage.getRecentAdminAuditEntries(limit);
-      res.json({ entries });
+      const q = req.query as Record<string, unknown>;
+      const asString = (v: unknown): string | undefined =>
+        typeof v === "string" && v.trim().length > 0 ? v : undefined;
+      const asInt = (v: unknown, fallback: number): number => {
+        if (typeof v !== "string") return fallback;
+        const n = parseInt(v, 10);
+        return Number.isFinite(n) ? n : fallback;
+      };
+      const asDate = (v: unknown): Date | undefined => {
+        const s = asString(v);
+        if (!s) return undefined;
+        const d = new Date(s);
+        return Number.isNaN(d.getTime()) ? undefined : d;
+      };
+      const result = await storage.getRecentAdminAuditEntries({
+        limit: asInt(q.limit, 25),
+        offset: asInt(q.offset, 0),
+        action: asString(q.action),
+        status: asString(q.status),
+        since: asDate(q.since),
+        until: asDate(q.until),
+        ip: asString(q.ip),
+      });
+      res.json({ entries: result.entries, total: result.total });
     } catch (err: any) {
       console.error("[admin/audit-log] Failed to read audit log:", err);
       res
         .status(500)
-        .json({ entries: [], error: err?.message ?? String(err) });
+        .json({ entries: [], total: 0, error: err?.message ?? String(err) });
     }
   });
 
