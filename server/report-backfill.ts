@@ -59,12 +59,31 @@ export function evaluateReportStaleness(analysis: any): StalenessResult {
     "Legally Prohibited" in step6.data[0] &&
     "Technically Infeasible" in step6.data[0];
 
+  // VRM v2.2 (April 2026) renamed Recommended Phase from Q1/Q2/Q3/Q4 →
+  // Phase 1/Phase 2/Phase 3/Phase 4. Reports persisted before this rename
+  // still carry the legacy "Q" labels in Step 7's data rows; flag those as
+  // stale so the admin backfill re-runs `getNewRecommendedPhase` and writes
+  // the new label without requiring a force run.
+  const step7 = analysis.steps.find(
+    (s: any) =>
+      s.step === 7 && s.data && Array.isArray(s.data) && s.data.length > 0,
+  );
+  const step7UsesLegacyQuarterLabels =
+    !!step7 &&
+    step7.data.some((row: any) => {
+      const phase = typeof row?.["Recommended Phase"] === "string"
+        ? row["Recommended Phase"].trim()
+        : "";
+      return phase === "Q1" || phase === "Q2" || phase === "Q3" || phase === "Q4";
+    });
+
   if (!hasStep6) reasons.push("missing-step6");
   if (vrmSchemaVersion !== VRM_SCHEMA_VERSION)
     reasons.push(`vrm-schema=${vrmSchemaVersion ?? "missing"}`);
   if (!hasV21Diagnostic) reasons.push("missing-diagnostic");
   if (!hasFlatFields) reasons.push("missing-flat-fields");
   if (!hasStep6KOFields) reasons.push("missing-step6-knockout-fields");
+  if (step7UsesLegacyQuarterLabels) reasons.push("step7-uses-legacy-Q-phase-labels");
 
   const stale = reasons.length > 0;
   return {

@@ -43,11 +43,15 @@ export function renderHowWeScoreReadinessHTML(): string {
   return `
     <section class="appendix-block" style="background:#ffffff;border:1px solid #e2e8f0;border-radius:10px;padding:18px;margin:16px 0;">
       <header style="margin-bottom:14px;">
-        <h2 style="font-size:16px;font-weight:700;color:#0f172a;margin:0;">How We Score Readiness</h2>
-        <p style="font-size:12px;color:#475569;margin:4px 0 0 0;line-height:1.5;">
-          Every readiness component is scored 1&ndash;10 against a behaviorally anchored rubric (BARS).
-          Anchors below define levels 1, 3, 5, 7, and 10; intermediate values are interpolated.
-          The 3-vs-6 guidance marks the line between &ldquo;pilot-grade&rdquo; and &ldquo;enterprise-grade&rdquo;.
+        <h2 style="font-size:16px;font-weight:700;color:#0f172a;margin:0;">How We Score Readiness — 1&ndash;10 Scoring Guidance</h2>
+        <p style="font-size:12px;color:#475569;margin:4px 0 0 0;line-height:1.55;">
+          Each of the four readiness pillars is scored on a 1&ndash;10 behaviorally anchored rating scale (BARS).
+          The cards below give you the verbatim anchors at <strong>levels 1, 3, 5, 7, and 10</strong> —
+          intermediate scores (2, 4, 6, 8, 9) are interpolated from the closest anchors.
+          The italic <strong>3-vs-6 guidance</strong> at the bottom of each card is the most important reading:
+          it marks the line between &ldquo;pilot-grade&rdquo; (3) and &ldquo;enterprise-grade&rdquo; (6) capability,
+          which is the primary driver of whether a use case lands in Champions / Quick Wins or
+          Strategic / Foundation on the Value-Readiness Matrix.
         </p>
       </header>
       <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;">

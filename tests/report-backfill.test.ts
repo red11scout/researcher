@@ -242,6 +242,31 @@ describe("evaluateReportStaleness", () => {
     expect(result.reasons).toContain("missing-step6-knockout-fields");
   });
 
+  it("flags Step 7 rows that still carry the legacy Q1-Q4 phase labels", () => {
+    // Simulate a report persisted before the April 2026 Phase rename: Step 7
+    // is otherwise fresh-shaped but the Recommended Phase column still uses
+    // the old "Q1"/"Q2"/"Q3"/"Q4" strings.
+    const analysis = makeFreshAnalysis();
+    analysis.steps.push({
+      step: 7,
+      title: "Priority Scoring & Roadmap",
+      data: [
+        { ID: "UC-1", "Use Case": "Sample 1", "Recommended Phase": "Q1" },
+        { ID: "UC-2", "Use Case": "Sample 2", "Recommended Phase": "Q4" },
+      ],
+    });
+    const result = evaluateReportStaleness(analysis);
+    expect(result.stale).toBe(true);
+    expect(result.reasons).toContain("step7-uses-legacy-Q-phase-labels");
+
+    // After the postprocessor rewrites the labels to "Phase N" the signal clears.
+    const step7 = analysis.steps.find((s: any) => s.step === 7);
+    step7.data[0]["Recommended Phase"] = "Phase 1";
+    step7.data[1]["Recommended Phase"] = "Phase 4";
+    const after = evaluateReportStaleness(analysis);
+    expect(after.reasons).not.toContain("step7-uses-legacy-Q-phase-labels");
+  });
+
   it("treats a fully-fresh v2.x fixture as not stale", () => {
     const result = evaluateReportStaleness(makeFreshAnalysis());
     expect(result.stale).toBe(false);

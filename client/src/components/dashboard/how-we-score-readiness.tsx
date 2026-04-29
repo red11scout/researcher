@@ -27,13 +27,18 @@ export function HowWeScoreReadiness({ className, compact = false }: HowWeScoreRe
     >
       <header className="mb-4">
         <h2 className="text-lg font-semibold text-slate-900" data-testid="text-how-we-score-title">
-          How We Score Readiness
+          How We Score Readiness — 1&ndash;10 Scoring Guidance
         </h2>
-        <p className="mt-1 text-sm text-slate-600">
-          Every readiness component is scored 1&ndash;10 against a behaviorally anchored rubric
-          (BARS). Anchors below define levels 1, 3, 5, 7, and 10; intermediate values (2, 4, 6, 8, 9)
-          are interpolated. The 3-vs-6 guidance marks the line between &ldquo;pilot-grade&rdquo; and
-          &ldquo;enterprise-grade&rdquo;.
+        <p className="mt-1 text-sm leading-relaxed text-slate-600">
+          Each of the four readiness pillars is scored on a 1&ndash;10 behaviorally anchored
+          rating scale (BARS). The cards below give you the verbatim anchors at{" "}
+          <span className="font-semibold text-slate-700">levels 1, 3, 5, 7, and 10</span>{" "}
+          &mdash; intermediate scores (2, 4, 6, 8, 9) are interpolated from the closest anchors.
+          The italic <span className="font-semibold text-slate-700">3-vs-6 guidance</span> at
+          the bottom of each card is the most important reading: it marks the line between
+          &ldquo;pilot-grade&rdquo; (3) and &ldquo;enterprise-grade&rdquo; (6) capability,
+          which is the primary driver of whether a use case lands in Champions / Quick Wins or
+          Strategic / Foundation on the Value-Readiness Matrix.
         </p>
       </header>
 

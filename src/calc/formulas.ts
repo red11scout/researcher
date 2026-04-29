@@ -811,10 +811,10 @@ export function getPriorityTier(priorityScore: number): string {
  * Legacy phase recommendation using 80/60/40 thresholds and TTV months.
  */
 export function getRecommendedPhase(priorityScore: number, timeToValueMonths: number): string {
-  if (priorityScore >= 80 && timeToValueMonths <= 6) return 'Q1';
-  if (priorityScore >= 60 && timeToValueMonths <= 9) return 'Q2';
-  if (priorityScore >= 40) return 'Q3';
-  return 'Q4';
+  if (priorityScore >= 80 && timeToValueMonths <= 6) return 'Phase 1';
+  if (priorityScore >= 60 && timeToValueMonths <= 9) return 'Phase 2';
+  if (priorityScore >= 40) return 'Phase 3';
+  return 'Phase 4';
 }
 
 // ============================================================================
@@ -1351,8 +1351,8 @@ export function getNewPriorityTier(
  * Recommended phase based on new priority and readiness
  */
 export function getNewRecommendedPhase(priorityScore: number, readinessScore: number): string {
-  if (priorityScore >= 7.5 && readinessScore >= 6) return 'Q1';
-  if (priorityScore >= 6.0 && readinessScore >= 5) return 'Q2';
-  if (priorityScore >= 4.5) return 'Q3';
-  return 'Q4';
+  if (priorityScore >= 7.5 && readinessScore >= 6) return 'Phase 1';
+  if (priorityScore >= 6.0 && readinessScore >= 5) return 'Phase 2';
+  if (priorityScore >= 4.5) return 'Phase 3';
+  return 'Phase 4';
 }

@@ -1582,6 +1582,15 @@ Score each use case on FOUR readiness components (1-10 scale each) using BARS-an
 
 Boundary discipline: 3 vs 6 is the line between "project" and "function". A 3 = a pilot lives in pockets; a 6 = the capability is enterprise-funded, named-owner, standing cadence with measured outcomes.
 
+CRITICAL — SCORE WITH CONVICTION, DO NOT CLUSTER AT 4–5: The four readiness components must be scored against the BARS rubric anchors above using *evidence from the company's own disclosures, filings, and public engineering posture*, not "safe-middle" defaults. An empirical pattern across reports has been every component landing in the 3–5 band, which is statistically implausible and produces a Foundation-only matrix that delivers zero prototyping value to the executive reader.
+
+  RULES:
+  (a) Read each anchor (1 / 3 / 5 / 7 / 10) and place the company at the *closest* anchor based on cited evidence. Interpolate to 2, 4, 6, 8, or 9 only when evidence sits cleanly between two anchors.
+  (b) Across a portfolio of 8–12 use cases, the *median* readiness component score should land at or above 5 for any company with disclosed AI/data investment, executive sponsorship, or production ML/LLM systems. A median below 4 is only credible for an AI-naive enterprise with no disclosed capability — defend it explicitly in step content.
+  (c) Per-use-case heterogeneity matters: a company strong in data but weak in governance should produce different per-component scores per use case (because different use cases stress different components). Identical 4-4-4-4 vectors across all use cases are a tell of lazy scoring and are forbidden.
+  (d) When a use case has clear enabling capability (e.g. customer-service GenAI in a company that already runs an AI gateway with LLMOps tracing → Tech Infra ≥ 7; clinical decision support in a regulated firm with a chartered AI governance committee → Governance ≥ 6), score it that high without hedging. The downstream HF-graded engine will compute the weighted Readiness Score; under-scoring inputs collapses Champions and Quick Wins to zero.
+  (e) Conversely, do NOT inflate scores to manufacture Champions. Document the evidence inline in the step content for any score ≥ 7.
+
 ALSO emit intake / knock-out fields (VRM v2.1 — hard knock-outs send to Foundation; soft blockers flag remediation but do NOT block prototyping):
 - "Has Named Sponsor": true/false/null (true ONLY if a specific executive sponsor for THIS use case is named in the intake. Use false if explicitly absent. Use null if intake is silent — this surfaces as an intake-incomplete soft blocker.)
 - "Data Available For Engagement": true/false/null (true if the required data is currently accessible within the engagement timeline. false if a data-access sprint is required. null if intake is silent.)
@@ -1604,7 +1613,7 @@ The postprocessor applies the VRM v2.1 three-layer hybrid quadrant logic determi
 - Layer 2 (default quadrants): Champion (V≥7.5 AND R≥7.5); Strategic (V≥7.5 AND R≥6.0); Quick Win (V≥6.0 AND R≥7.5); else Foundation.
 - Layer 3 (Conditional Champion): only if zero Champions AND zero Quick Wins AND zero Strategic exist in the portfolio, top composite-scored item(s) above hard floor are promoted with named gaps, soft-blocker remediation, and a 4–12 week readiness sprint sized to the gap.
 - Each use case must include a "Strategic Theme" column linking to Step 1
-Table columns: ID, Use Case, Priority Tier, Recommended Phase (Q1/Q2/Q3/Q4), Priority Score, Readiness Score, Value Score, TTV Score, Strategic Theme
+Table columns: ID, Use Case, Priority Tier, Recommended Phase (Phase 1 / Phase 2 / Phase 3 / Phase 4), Priority Score, Readiness Score, Value Score, TTV Score, Strategic Theme
 
 SPEED OPTIMIZATION: For Step 7, only output the ID and Use Case name. Priority scores, readiness scores, tiers, phases, and quadrant assignments will be computed deterministically by the post-processor. Do NOT waste tokens computing Step 7 scores.
 </output_methodology>
@@ -1620,7 +1629,7 @@ OUTPUT FORMAT:
     {"step": 7, "title": "Priority Scoring & Roadmap", "content": "...", "data": [{"ID": "UC-01", "Use Case": "..."}]}
   ],
   "executiveSummary": {
-    "headline": "[Company] should execute [X] Critical-priority AI initiatives in Q1-Q2 to capture $[Y]M in first-year value from a $[Z]M total opportunity.",
+    "headline": "[Company] should execute [X] Critical-priority AI initiatives in Phase 1 and Phase 2 to capture $[Y]M in first-year value from a $[Z]M total opportunity.",
     "context": "2-4 sentences providing situation and complication.",
     "opportunityTable": {
       "rows": [

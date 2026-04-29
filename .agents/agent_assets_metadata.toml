@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "x4xIhtoWHWjEWbHKb8JuX"
+uri = "file://deliverables/world-class-prompt-for-replit.md"
+type = "text"
+title = "World-Class Prompt for Replit — BlueAlly Insight"

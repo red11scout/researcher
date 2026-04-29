@@ -321,29 +321,30 @@ export function QuadrantBubbleChart({ data, onBubbleClick, vrmConfig }: Quadrant
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
       >
-        {/* VRM v2.2 — semantic palette quadrant fills (8% opacity) */}
+        {/* VRM v2.2 — semantic palette quadrant fills (20% opacity for clear visual separation
+            on dark navy chrome; 8% washed out into a single muddy purple — see UX feedback). */}
         <rect
           x={midX} y={MARGIN.top}
           width={width - MARGIN.right - midX} height={midY - MARGIN.top}
-          fill={QUADRANT_PALETTE_V22.champion} opacity={0.08}
+          fill={QUADRANT_PALETTE_V22.champion} opacity={0.20}
           data-testid="rect-quadrant-champion"
         />
         <rect
           x={MARGIN.left} y={MARGIN.top}
           width={midX - MARGIN.left} height={midY - MARGIN.top}
-          fill={QUADRANT_PALETTE_V22.strategic} opacity={0.08}
+          fill={QUADRANT_PALETTE_V22.strategic} opacity={0.20}
           data-testid="rect-quadrant-strategic"
         />
         <rect
           x={midX} y={midY}
           width={width - MARGIN.right - midX} height={height - MARGIN.bottom - midY}
-          fill={QUADRANT_PALETTE_V22.quick_win} opacity={0.08}
+          fill={QUADRANT_PALETTE_V22.quick_win} opacity={0.20}
           data-testid="rect-quadrant-quick-win"
         />
         <rect
           x={MARGIN.left} y={midY}
           width={midX - MARGIN.left} height={height - MARGIN.bottom - midY}
-          fill={QUADRANT_PALETTE_V22.foundation} opacity={0.08}
+          fill={QUADRANT_PALETTE_V22.foundation} opacity={0.20}
           data-testid="rect-quadrant-foundation"
         />
 
@@ -391,29 +392,31 @@ export function QuadrantBubbleChart({ data, onBubbleClick, vrmConfig }: Quadrant
           </text>
         )}
 
-        {/* VRM v2.2 — quadrant cut dividers at 5.5 (slate, dashed) */}
+        {/* VRM v2.2 — quadrant cut dividers at 5.5 (slate, dashed, prominent so the
+            four quadrants read as four equal boxes). */}
         <line
           x1={midX} y1={MARGIN.top} x2={midX} y2={height - MARGIN.bottom}
-          stroke="#475569" strokeDasharray="6 4" strokeWidth={1.5} opacity={0.55}
+          stroke="#cbd5e1" strokeDasharray="6 4" strokeWidth={2} opacity={0.75}
           data-testid="line-quadrant-cut-x"
         />
         <line
           x1={MARGIN.left} y1={midY} x2={width - MARGIN.right} y2={midY}
-          stroke="#475569" strokeDasharray="6 4" strokeWidth={1.5} opacity={0.55}
+          stroke="#cbd5e1" strokeDasharray="6 4" strokeWidth={2} opacity={0.75}
           data-testid="line-quadrant-cut-y"
         />
 
-        {/* VRM v2.2 — Lead-tier marker lines at 7.5 (emerald, solid 1px @ 30%) */}
+        {/* VRM v2.2 — Lead-tier marker lines at 7.5 (emerald, dotted 1px @ 18% so
+            the lead-tier hint never visually subdivides the four primary quadrants). */}
         <line
           x1={xScale(leadTierCut)} y1={MARGIN.top}
           x2={xScale(leadTierCut)} y2={height - MARGIN.bottom}
-          stroke="#10b981" strokeWidth={1} opacity={0.30}
+          stroke="#10b981" strokeWidth={1} strokeDasharray="2 4" opacity={0.18}
           data-testid="line-lead-tier-x"
         />
         <line
           x1={MARGIN.left} y1={yScale(leadTierCut)}
           x2={width - MARGIN.right} y2={yScale(leadTierCut)}
-          stroke="#10b981" strokeWidth={1} opacity={0.30}
+          stroke="#10b981" strokeWidth={1} strokeDasharray="2 4" opacity={0.18}
           data-testid="line-lead-tier-y"
         />
         <text

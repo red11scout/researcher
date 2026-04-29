@@ -489,23 +489,23 @@ describe('getPriorityTier', () => {
 });
 
 describe('getRecommendedPhase', () => {
-  it('assigns Q1 for high priority and quick TTV', () => {
-    expect(getRecommendedPhase(80, 6)).toBe('Q1');
-    expect(getRecommendedPhase(90, 3)).toBe('Q1');
+  it('assigns Phase 1 for high priority and quick TTV', () => {
+    expect(getRecommendedPhase(80, 6)).toBe('Phase 1');
+    expect(getRecommendedPhase(90, 3)).toBe('Phase 1');
   });
 
-  it('assigns Q2 for moderate priority', () => {
-    expect(getRecommendedPhase(60, 9)).toBe('Q2');
-    expect(getRecommendedPhase(70, 6)).toBe('Q2');
+  it('assigns Phase 2 for moderate priority', () => {
+    expect(getRecommendedPhase(60, 9)).toBe('Phase 2');
+    expect(getRecommendedPhase(70, 6)).toBe('Phase 2');
   });
 
-  it('assigns Q3 for lower priority', () => {
-    expect(getRecommendedPhase(40, 12)).toBe('Q3');
-    expect(getRecommendedPhase(50, 10)).toBe('Q3');
+  it('assigns Phase 3 for lower priority', () => {
+    expect(getRecommendedPhase(40, 12)).toBe('Phase 3');
+    expect(getRecommendedPhase(50, 10)).toBe('Phase 3');
   });
 
-  it('assigns Q4 for low priority', () => {
-    expect(getRecommendedPhase(30, 12)).toBe('Q4');
-    expect(getRecommendedPhase(20, 6)).toBe('Q4');
+  it('assigns Phase 4 for low priority', () => {
+    expect(getRecommendedPhase(30, 12)).toBe('Phase 4');
+    expect(getRecommendedPhase(20, 6)).toBe('Phase 4');
   });
 });
