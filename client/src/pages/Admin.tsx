@@ -1400,6 +1400,17 @@ function UpgradesAppliedPanel({ updated }: UpgradesAppliedPanelProps) {
     });
   };
 
+  // When on, hide reports inside each upgrade bucket whose `metricDeltas`
+  // is empty (the "schema-only" rows already labeled inline) so admins can
+  // focus on the reports that actually moved a headline number. The state
+  // lives on the panel itself so it survives expanding/collapsing buckets.
+  const [hideSchemaOnly, setHideSchemaOnly] = useState(false);
+
+  const filterReports = (reports: BackfillReportResult[]) =>
+    hideSchemaOnly
+      ? reports.filter((r) => r.metricDeltas && r.metricDeltas.length > 0)
+      : reports;
+
   if (
     sorted.length === 0 &&
     reprocessedNoChange === 0 &&
@@ -1421,11 +1432,27 @@ function UpgradesAppliedPanel({ updated }: UpgradesAppliedPanelProps) {
           (grouped by change, most common first — click a row to see every
           report)
         </span>
+        <div className="ml-auto flex items-center gap-2">
+          <Switch
+            id="toggle-hide-schema-only-upgrades"
+            checked={hideSchemaOnly}
+            onCheckedChange={setHideSchemaOnly}
+            data-testid="switch-hide-schema-only-upgrades"
+          />
+          <Label
+            htmlFor="toggle-hide-schema-only-upgrades"
+            className="text-xs text-slate-600 cursor-pointer"
+            data-testid="label-hide-schema-only-upgrades"
+          >
+            Show only reports with headline changes
+          </Label>
+        </div>
       </div>
       <ul className="divide-y divide-slate-100">
         {sorted.map((bucket) => {
-          const examples = bucket.reports.slice(0, 3);
-          const remaining = bucket.reports.length - examples.length;
+          const visibleReports = filterReports(bucket.reports);
+          const examples = visibleReports.slice(0, 3);
+          const remaining = visibleReports.length - examples.length;
           const isOpen = expanded.has(bucket.code);
           return (
             <li
@@ -1449,7 +1476,9 @@ function UpgradesAppliedPanel({ updated }: UpgradesAppliedPanelProps) {
                   className="border-emerald-200 bg-emerald-50 text-emerald-700 font-medium tabular-nums shrink-0"
                   data-testid={`count-upgrade-${bucket.code}`}
                 >
-                  {bucket.reports.length}
+                  {hideSchemaOnly
+                    ? `${visibleReports.length} of ${bucket.reports.length}`
+                    : bucket.reports.length}
                 </Badge>
                 <div className="flex-1 min-w-0">
                   <div
@@ -1462,7 +1491,11 @@ function UpgradesAppliedPanel({ updated }: UpgradesAppliedPanelProps) {
                     className="text-xs text-slate-500 mt-0.5 truncate"
                     data-testid={`examples-upgrade-${bucket.code}`}
                   >
-                    {examples.map((r) => r.companyName).join(", ")}
+                    {examples.length === 0
+                      ? hideSchemaOnly
+                        ? "No reports moved a headline number"
+                        : ""
+                      : examples.map((r) => r.companyName).join(", ")}
                     {remaining > 0 && ` and ${remaining} more`}
                   </div>
                 </div>
@@ -1474,8 +1507,9 @@ function UpgradesAppliedPanel({ updated }: UpgradesAppliedPanelProps) {
                 >
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs text-slate-500">
-                      {bucket.reports.length} report
-                      {bucket.reports.length === 1 ? "" : "s"} in this bucket
+                      {hideSchemaOnly
+                        ? `${visibleReports.length} of ${bucket.reports.length} report${bucket.reports.length === 1 ? "" : "s"} moved a headline number`
+                        : `${bucket.reports.length} report${bucket.reports.length === 1 ? "" : "s"} in this bucket`}
                     </span>
                     <Button
                       type="button"
@@ -1484,10 +1518,11 @@ function UpgradesAppliedPanel({ updated }: UpgradesAppliedPanelProps) {
                       className="h-7 px-2 text-xs gap-1"
                       onClick={() =>
                         copyIds(
-                          bucket.reports.map((r) => r.id),
+                          visibleReports.map((r) => r.id),
                           bucket.label,
                         )
                       }
+                      disabled={visibleReports.length === 0}
                       data-testid={`button-copy-ids-upgrade-${bucket.code}`}
                     >
                       <Copy className="h-3 w-3" />
@@ -1513,7 +1548,22 @@ function UpgradesAppliedPanel({ updated }: UpgradesAppliedPanelProps) {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
-                        {bucket.reports.map((r) => (
+                        {visibleReports.length === 0 && (
+                          <tr
+                            data-testid={`row-upgrade-empty-${bucket.code}`}
+                          >
+                            <td
+                              colSpan={4}
+                              className="px-3 py-3 text-center text-slate-400 italic"
+                            >
+                              All {bucket.reports.length} report
+                              {bucket.reports.length === 1 ? "" : "s"} in this
+                              bucket were schema-only — toggle off the filter
+                              above to see them.
+                            </td>
+                          </tr>
+                        )}
+                        {visibleReports.map((r) => (
                           <tr
                             key={r.id}
                             className="hover:bg-slate-50 align-top"
