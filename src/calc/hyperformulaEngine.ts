@@ -122,6 +122,22 @@ export function hfCalculateCashFlowBenefit(inputs: {
   };
 }
 
+/**
+ * Risk Benefit (HyperFormula path).
+ *
+ * Canonical signature: caller resolves (riskReductionPct, riskExposure) and
+ * this function applies the same per-use-case 8% cap as `calculateRiskBenefit`
+ * in `src/calc/formulas.ts`.
+ *
+ * The cap is enforced inside the cell formula via
+ *   `MIN(riskReductionPct, riskReductionCapPct) × riskExposure × ...`
+ * which is mathematically equivalent to the JS engine's
+ *   `min(reduction, riskExposure × riskReductionCapPct)`
+ * because `min(p, c) × E = min(p × E, c × E)`.
+ *
+ * Trace inputs reflect the capped reduction so audit traces never overstate
+ * the headline number a downstream report can claim.
+ */
 export function hfCalculateRiskBenefit(inputs: {
   riskReductionPct: number;
   riskExposure: number;
@@ -129,21 +145,29 @@ export function hfCalculateRiskBenefit(inputs: {
   dataMaturityMultiplier?: number;
   scenario?: Scenario;
 }): CalculationResult {
-  const riskReductionPct = inputs.riskReductionPct;
+  const rawReductionPct = inputs.riskReductionPct;
   const riskExposure = inputs.riskExposure;
   const riskRealizationMultiplier = inputs.riskRealizationMultiplier ?? DEFAULT_MULTIPLIERS.riskRealizationMultiplier;
   const dataMaturityMultiplier = inputs.dataMaturityMultiplier ?? DEFAULT_MULTIPLIERS.dataMaturityMultiplier;
   const scenarioMultiplier = SCENARIO_MULTIPLIERS[inputs.scenario ?? 'moderate'];
+  const riskReductionCapPct = DEFAULT_MULTIPLIERS.riskReductionCapPct;
+  const cappedReductionPct = Math.min(rawReductionPct, riskReductionCapPct);
 
-  const cellValues = [riskReductionPct, riskExposure, riskRealizationMultiplier, dataMaturityMultiplier, scenarioMultiplier];
-  const formula = `=FLOOR(A1*B1*C1*D1*E1, ${ROUNDING.BENEFIT_PRECISION})`;
+  const cellValues = [rawReductionPct, riskExposure, riskRealizationMultiplier, dataMaturityMultiplier, scenarioMultiplier];
+  const formula = `=FLOOR(MIN(A1, ${riskReductionCapPct})*B1*C1*D1*E1, ${ROUNDING.BENEFIT_PRECISION})`;
   const value = evalFormula(cellValues, formula);
 
   return {
     value,
     trace: {
       formula,
-      inputs: { riskReductionPct, riskExposure, riskRealizationMultiplier, dataMaturityMultiplier, scenarioMultiplier },
+      inputs: {
+        riskReductionPct: cappedReductionPct,
+        riskExposure,
+        riskRealizationMultiplier,
+        dataMaturityMultiplier,
+        scenarioMultiplier,
+      },
       output: value,
     },
   };

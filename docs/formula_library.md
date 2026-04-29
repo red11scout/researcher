@@ -169,32 +169,24 @@ HyperFormula form: `=FLOOR(A1*(B1/365)*C1*D1*E1*F1, 1)`
 
 ## Risk Benefit
 
-Two implementations exist, each with its own input shape:
-
-### `calculateRiskBenefit` (`src/calc/formulas.ts`)
+Both engines (`calculateRiskBenefit` in `src/calc/formulas.ts` and `hfCalculateRiskBenefit` in `src/calc/hyperformulaEngine.ts`) implement the same canonical formula and apply the same per-use-case `riskReductionCapPct = 8%` cap. They differ only in their input shape — the HyperFormula path takes a pre-resolved `(riskReductionPct, riskExposure)` pair, while the JS path computes those from before/after probability and impact.
 
 ```
-RiskBefore        = ProbBefore × ImpactBefore
+RiskBefore        = ProbBefore × ImpactBefore                  (= RiskExposure)
 RiskAfter         = ProbAfter  × ImpactAfter
-RiskReduction     = RiskBefore − RiskAfter
+RiskReduction     = RiskBefore − RiskAfter                     (= RiskReductionPct × RiskExposure)
 MaxReduction      = RiskBefore × riskReductionCapPct           (cap = 8% of current exposure)
 CappedReduction   = min(RiskReduction, MaxReduction)
 RiskBenefit       = CappedReduction × RiskRealization × DataMaturity × Scenario
 ```
 
-The `riskReductionCapPct` (8%) prevents any single use case from claiming more than 8% of current exposure as a benefit.
+The `riskReductionCapPct` (8%) prevents any single use case from claiming more than 8% of current exposure as a benefit. In the HyperFormula path the cap is enforced inside the cell formula as `MIN(riskReductionPct, 0.08)` — equivalent to capping the dollar reduction because `min(p, c) × E = min(p × E, c × E)`.
 
-### `hfCalculateRiskBenefit` (`src/calc/hyperformulaEngine.ts`)
-
-A simpler signature used by the HyperFormula path:
-
-```
-RiskBenefit = RiskReductionPct × RiskExposure × RiskRealization × DataMaturity × Scenario
-```
-
-HyperFormula form: `=FLOOR(A1*B1*C1*D1*E1, 1)`. Here the upstream caller is responsible for honoring `INPUT_BOUNDS.riskReductionPct.max = 0.50`.
+HyperFormula form: `=FLOOR(MIN(A1, 0.08)*B1*C1*D1*E1, 1)` where `A1 = riskReductionPct`, `B1 = riskExposure`.
 
 **Defaults shared by both:** `riskRealizationMultiplier = 0.80`, `dataMaturityMultiplier = 0.75`, `scenario = 'moderate'`.
+
+**Note on `INPUT_BOUNDS.riskReductionPct.max = 0.50`:** this is an absolute input-sanity bound (rejects nonsense inputs like 200%). The 8% per-use-case cap is the binding constraint on the result.
 
 ---
 

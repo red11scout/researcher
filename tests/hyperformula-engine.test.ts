@@ -231,14 +231,13 @@ describe('hfCalculateCashFlowBenefit (parity + invariants)', () => {
 });
 
 describe('hfCalculateRiskBenefit (parity + invariants)', () => {
-  it('matches the JS engine when given the JS engine\'s capped reduction', () => {
+  it('matches the JS engine on the same conceptual inputs (cap applied internally)', () => {
     // The JS engine takes (probBefore, impactBefore, probAfter, impactAfter)
-    // and applies its own 8% cap on the reduction. The HF engine takes the
-    // already-resolved (riskReductionPct, riskExposure) pair directly.
-    //
-    // To prove parity we compute the JS result, then derive the equivalent
-    // (riskReductionPct, riskExposure) the HF engine would need to reproduce
-    // it, and assert the HF result matches.
+    // and applies the 8% cap on the reduction. The HF engine takes the
+    // already-resolved (riskReductionPct, riskExposure) pair and now applies
+    // the same 8% cap inside its cell formula. Passing the *uncapped* JS
+    // reduction as a percentage of exposure must therefore produce the same
+    // capped dollar value, since min(p, c) × E = min(p × E, c × E).
     const jsInputs = {
       probBefore: 0.10,
       impactBefore: 5_000_000,
@@ -252,11 +251,10 @@ describe('hfCalculateRiskBenefit (parity + invariants)', () => {
 
     const riskExposure = jsInputs.probBefore * jsInputs.impactBefore;
     const rawReduction = riskExposure - jsInputs.probAfter * jsInputs.impactAfter;
-    const cappedReduction = Math.min(rawReduction, riskExposure * DEFAULT_MULTIPLIERS.riskReductionCapPct);
-    const equivalentReductionPct = cappedReduction / riskExposure;
+    const uncappedReductionPct = rawReduction / riskExposure;
 
     const hf = hfCalculateRiskBenefit({
-      riskReductionPct: equivalentReductionPct,
+      riskReductionPct: uncappedReductionPct,
       riskExposure,
       riskRealizationMultiplier: jsInputs.riskRealizationMultiplier,
       dataMaturityMultiplier: jsInputs.dataMaturityMultiplier,
@@ -266,22 +264,34 @@ describe('hfCalculateRiskBenefit (parity + invariants)', () => {
     expect(Math.abs(hf.value - js.value)).toBeLessThanOrEqual(PARITY_TOLERANCE_DOLLARS);
   });
 
-  it('computes value = ReductionPct × Exposure × Realization × DataMaturity × Scenario', () => {
-    const result = hfCalculateRiskBenefit({
+  it('computes value = min(ReductionPct, 8%) × Exposure × Realization × DataMaturity × Scenario', () => {
+    // Below the cap: 0.05 < 0.08 so no capping occurs.
+    const uncapped = hfCalculateRiskBenefit({
+      riskReductionPct: 0.05,
+      riskExposure: 1_000_000,
+      riskRealizationMultiplier: 0.80,
+      dataMaturityMultiplier: 0.75,
+      scenario: 'moderate',
+    });
+    // 0.05 × 1_000_000 × 0.80 × 0.75 × 1.0 = 30,000
+    expect(uncapped.value).toBe(30_000);
+
+    // Above the cap: 0.20 is clamped down to riskReductionCapPct (8%).
+    const capped = hfCalculateRiskBenefit({
       riskReductionPct: 0.20,
       riskExposure: 1_000_000,
       riskRealizationMultiplier: 0.80,
       dataMaturityMultiplier: 0.75,
       scenario: 'moderate',
     });
-
-    // 0.20 × 1_000_000 × 0.80 × 0.75 × 1.0 = 120,000
-    expect(result.value).toBe(120_000);
+    // min(0.20, 0.08) × 1_000_000 × 0.80 × 0.75 × 1.0 = 48,000
+    expect(capped.value).toBe(48_000);
+    expect(capped.trace.inputs.riskReductionPct).toBe(DEFAULT_MULTIPLIERS.riskReductionCapPct);
   });
 
   it('defaults to moderate scenario and DEFAULT_MULTIPLIERS', () => {
     const result = hfCalculateRiskBenefit({
-      riskReductionPct: 0.10,
+      riskReductionPct: 0.05,
       riskExposure: 1_000_000,
     });
 
