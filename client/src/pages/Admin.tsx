@@ -1324,8 +1324,41 @@ function AdminPanel() {
                             >
                               {f.companyName}
                             </TableCell>
-                            <TableCell className="font-mono text-xs text-slate-600">
-                              {f.id}
+                            <TableCell className="font-mono text-xs text-slate-600 select-all">
+                              <a
+                                href={`/reports/${f.id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:text-blue-800 hover:underline"
+                                title={
+                                  f.isWhatIf
+                                    ? "Open what-if report in new tab"
+                                    : "Open report in new tab"
+                                }
+                                onClick={(e) => {
+                                  // Preserve manual text selection: if the
+                                  // admin is mid-drag selecting the ID to
+                                  // copy it, don't hijack the click into a
+                                  // navigation.
+                                  const sel = window.getSelection();
+                                  if (!sel || sel.toString().length === 0) {
+                                    return;
+                                  }
+                                  const link = e.currentTarget;
+                                  const inAnchor =
+                                    sel.anchorNode &&
+                                    link.contains(sel.anchorNode);
+                                  const inFocus =
+                                    sel.focusNode &&
+                                    link.contains(sel.focusNode);
+                                  if (inAnchor || inFocus) {
+                                    e.preventDefault();
+                                  }
+                                }}
+                                data-testid={`link-failure-report-${f.id}`}
+                              >
+                                {f.id}
+                              </a>
                             </TableCell>
                             <TableCell>
                               {f.isWhatIf ? (
