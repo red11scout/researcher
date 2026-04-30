@@ -35,6 +35,8 @@ import {
   type InsertAdminAuditLog,
   adminLastBackfill,
   type AdminLastBackfillRow,
+  adminLastAuditCleanup,
+  type AdminLastAuditCleanupRow,
   DEFAULT_ASSUMPTIONS,
   DEFAULT_FORMULAS,
   ASSUMPTION_CATEGORIES,
@@ -224,6 +226,16 @@ export interface IStorage {
     updatedReports: BackfillReportResult[];
     completedAt: Date;
   } | null>;
+
+  recordAdminAuditCleanup(record: {
+    status: "success" | "failure";
+    removedCount: number;
+    retentionDays: number;
+    cutoff: Date;
+    errorMessage?: string | null;
+    durationMs?: number | null;
+  }): Promise<void>;
+  getLastAdminAuditCleanup(): Promise<AdminLastAuditCleanupRow | null>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1133,6 +1145,59 @@ export class DatabaseStorage implements IStorage {
       updatedReports: row.updatedReports as BackfillReportResult[],
       completedAt: row.completedAt,
     };
+  }
+
+  async recordAdminAuditCleanup(record: {
+    status: "success" | "failure";
+    removedCount: number;
+    retentionDays: number;
+    cutoff: Date;
+    errorMessage?: string | null;
+    durationMs?: number | null;
+  }): Promise<void> {
+    // Wrapped in try/catch so a persistence failure never crashes the
+    // retention sweeper that calls this.
+    try {
+      const errorMessage = record.errorMessage ?? null;
+      const durationMs = record.durationMs ?? null;
+      await db
+        .insert(adminLastAuditCleanup)
+        .values({
+          id: "singleton",
+          status: record.status,
+          removedCount: record.removedCount,
+          retentionDays: record.retentionDays,
+          cutoff: record.cutoff,
+          errorMessage,
+          durationMs,
+        })
+        .onConflictDoUpdate({
+          target: adminLastAuditCleanup.id,
+          set: {
+            status: record.status,
+            removedCount: record.removedCount,
+            retentionDays: record.retentionDays,
+            cutoff: record.cutoff,
+            errorMessage,
+            durationMs,
+            ranAt: new Date(),
+          },
+        });
+    } catch (err) {
+      console.error(
+        "[storage] Failed to persist admin audit cleanup record:",
+        err,
+      );
+    }
+  }
+
+  async getLastAdminAuditCleanup(): Promise<AdminLastAuditCleanupRow | null> {
+    const [row] = await db
+      .select()
+      .from(adminLastAuditCleanup)
+      .where(eq(adminLastAuditCleanup.id, "singleton"))
+      .limit(1);
+    return row ?? null;
   }
 }
 

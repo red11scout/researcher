@@ -75,7 +75,7 @@ function deriveAdminAction(req: Request): string {
 // `last-backfill` is the singleton snapshot the Admin page hydrates from
 // on every load — auditing each one would dwarf the actual upgrade
 // actions operators care about, same reason `audit-log` is skipped.
-const ADMIN_AUDIT_SKIP_ACTIONS = new Set(["audit-log", "last-backfill"]);
+const ADMIN_AUDIT_SKIP_ACTIONS = new Set(["audit-log", "last-backfill", "last-audit-cleanup"]);
 
 export function auditAdminRequest(
   req: Request,

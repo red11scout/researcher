@@ -252,6 +252,31 @@ export const insertAdminLastBackfillSchema = createInsertSchema(adminLastBackfil
 export type InsertAdminLastBackfill = z.infer<typeof insertAdminLastBackfillSchema>;
 export type AdminLastBackfillRow = typeof adminLastBackfill.$inferSelect;
 
+// Singleton record of the most recent admin_audit_log retention sweep
+// (success or failure). Surfaced in the Admin "Recent admin activity"
+// panel so operators can confirm the sweeper is running.
+export const adminLastAuditCleanup = pgTable("admin_last_audit_cleanup", {
+  id: text("id").primaryKey(),
+  status: text("status").notNull(),
+  removedCount: integer("removed_count").notNull().default(0),
+  retentionDays: integer("retention_days").notNull(),
+  cutoff: timestamp("cutoff").notNull(),
+  errorMessage: text("error_message"),
+  durationMs: integer("duration_ms"),
+  ranAt: timestamp("ran_at").defaultNow().notNull(),
+});
+
+export const insertAdminLastAuditCleanupSchema = createInsertSchema(
+  adminLastAuditCleanup,
+).omit({
+  ranAt: true,
+});
+export type InsertAdminLastAuditCleanup = z.infer<
+  typeof insertAdminLastAuditCleanupSchema
+>;
+export type AdminLastAuditCleanupRow =
+  typeof adminLastAuditCleanup.$inferSelect;
+
 // Parent categories for hierarchical organization (per document Section 3)
 export const PARENT_CATEGORIES = [
   "financial_operational",   // Company financial & operational assumptions

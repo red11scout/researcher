@@ -47,22 +47,39 @@ function resolveRetentionDays(): number {
 // Single cleanup pass. Exported so tests / ad-hoc scripts can trigger a
 // run without standing up the interval. Always returns the number of
 // rows deleted (0 on failure) and never throws — a DB hiccup must not
-// take the server down.
+// take the server down. Each run persists its outcome (success or
+// failure) via `storage.recordAdminAuditCleanup` for the Admin UI.
 export async function runAdminAuditRetentionOnce(
   retentionDays = resolveRetentionDays(),
 ): Promise<number> {
   const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
+  const startedAt = Date.now();
   try {
     const removed = await storage.pruneOldAdminAuditEntries(cutoff);
     log(
       `Removed ${removed} admin audit row(s) older than ${retentionDays} days (cutoff ${cutoff.toISOString()})`,
     );
+    await storage.recordAdminAuditCleanup({
+      status: "success",
+      removedCount: removed,
+      retentionDays,
+      cutoff,
+      durationMs: Date.now() - startedAt,
+    });
     return removed;
   } catch (err) {
     console.error(
       "[admin-audit-retention] Cleanup failed:",
       err,
     );
+    await storage.recordAdminAuditCleanup({
+      status: "failure",
+      removedCount: 0,
+      retentionDays,
+      cutoff,
+      errorMessage: err instanceof Error ? err.message : String(err),
+      durationMs: Date.now() - startedAt,
+    });
     return 0;
   }
 }

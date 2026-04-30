@@ -955,6 +955,38 @@ Return ONLY valid JSON with this structure:
     }
   });
 
+  // Most recent admin_audit_log retention sweep, used by the cleanup
+  // status banner on /admin. Returns 200 with `cleanup: null` before
+  // the first sweep, and also on read failure (banner renders the muted
+  // "no record" state instead of a hard error).
+  app.get("/api/admin/last-audit-cleanup", async (_req, res) => {
+    try {
+      const row = await storage.getLastAdminAuditCleanup();
+      if (!row) {
+        return res.json({ cleanup: null });
+      }
+      res.json({
+        cleanup: {
+          status: row.status,
+          removedCount: row.removedCount,
+          retentionDays: row.retentionDays,
+          cutoff: row.cutoff,
+          errorMessage: row.errorMessage,
+          durationMs: row.durationMs,
+          ranAt: row.ranAt,
+        },
+      });
+    } catch (err: any) {
+      console.error(
+        "[admin/last-audit-cleanup] Failed to read last run:",
+        err,
+      );
+      res
+        .status(200)
+        .json({ cleanup: null, error: err?.message ?? String(err) });
+    }
+  });
+
   // Read-only access to recent admin activity for the Admin UI panel.
   //
   // Accepts optional filters (`action`, `status`, `since`, `until`, `ip`)

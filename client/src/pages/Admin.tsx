@@ -323,6 +323,18 @@ interface AuditLogResponse {
   error?: string;
 }
 
+// Most recent admin_audit_log retention sweep, served by
+// `/api/admin/last-audit-cleanup` and rendered by AuditCleanupBanner.
+interface AuditCleanupStatus {
+  status: "success" | "failure" | string;
+  removedCount: number;
+  retentionDays: number;
+  cutoff: string;
+  errorMessage: string | null;
+  durationMs: number | null;
+  ranAt: string;
+}
+
 // Filter state for the "Recent admin activity" panel. All fields optional —
 // a value of "" / "all" means "do not constrain". `since`/`until` are bound
 // to <input type="date"> so the UI value is a YYYY-MM-DD string; we widen
@@ -390,6 +402,16 @@ function AdminPanel() {
   const [auditTotal, setAuditTotal] = useState<number>(0);
   const [auditLoading, setAuditLoading] = useState(true);
   const [auditError, setAuditError] = useState<string | null>(null);
+  // Last admin_audit_log retention sweep. `auditCleanup === null` with
+  // no `auditCleanupError` means "no sweep has run yet"; with an error
+  // it means "we couldn't read the status" — distinct UI states.
+  const [auditCleanup, setAuditCleanup] = useState<AuditCleanupStatus | null>(
+    null,
+  );
+  const [auditCleanupLoading, setAuditCleanupLoading] = useState(true);
+  const [auditCleanupError, setAuditCleanupError] = useState<string | null>(
+    null,
+  );
   // Filters + offset are persisted in the URL query string so a filtered view
   // can be shared via link, restored after a refresh, and walked through with
   // the browser's back/forward buttons. We derive the live state from
@@ -502,12 +524,39 @@ function AdminPanel() {
     navigate("/admin");
   }, [navigate]);
 
-  // Public refresh handler — re-fetches the current slice (filters + page)
-  // so the operator's view stays put after a manual refresh or a backfill
-  // run that just added a new audit row.
+  const loadAuditCleanup = useCallback(async () => {
+    setAuditCleanupLoading(true);
+    try {
+      const res = await fetch("/api/admin/last-audit-cleanup", {
+        credentials: "include",
+      });
+      if (!res.ok) {
+        setAuditCleanup(null);
+        setAuditCleanupError(`HTTP ${res.status}`);
+        return;
+      }
+      const data: { cleanup: AuditCleanupStatus | null; error?: string } =
+        await res.json();
+      setAuditCleanup(data.cleanup ?? null);
+      setAuditCleanupError(data.error ?? null);
+    } catch (err) {
+      setAuditCleanup(null);
+      setAuditCleanupError(
+        err instanceof Error ? err.message : "Failed to load cleanup status",
+      );
+    } finally {
+      setAuditCleanupLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadAuditCleanup();
+  }, [loadAuditCleanup]);
+
   const refreshAuditLog = useCallback(() => {
     void loadAuditLog(auditFilters, auditOffset);
-  }, [loadAuditLog, auditFilters, auditOffset]);
+    void loadAuditCleanup();
+  }, [loadAuditLog, loadAuditCleanup, auditFilters, auditOffset]);
 
   // CSV-export handler — downloads every row matching the current filters
   // (not just the visible page), capped server-side at 10k rows. Used by
@@ -1275,6 +1324,9 @@ function AdminPanel() {
           onRefresh={refreshAuditLog}
           onExport={() => void exportAuditLog()}
           exporting={auditExporting}
+          cleanup={auditCleanup}
+          cleanupLoading={auditCleanupLoading}
+          cleanupError={auditCleanupError}
         />
       </div>
 
@@ -2452,6 +2504,156 @@ function formatMetricValue(value: number, unit: ReportMetricDelta["unit"]): stri
   return `${value}`;
 }
 
+// Status banner above the audit log table summarising the most recent
+// retention sweep (success / failure / never run / load-error / loading).
+function AuditCleanupBanner({
+  cleanup,
+  loading,
+  error,
+}: {
+  cleanup: AuditCleanupStatus | null;
+  loading: boolean;
+  error: string | null;
+}) {
+  if (loading && !cleanup && !error) {
+    return (
+      <div
+        className="mb-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 flex items-center gap-2"
+        data-testid="status-audit-cleanup-loading"
+      >
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        Loading audit cleanup status…
+      </div>
+    );
+  }
+
+  if (!cleanup && error) {
+    return (
+      <div
+        className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 flex items-start gap-2"
+        data-testid="status-audit-cleanup-load-error"
+      >
+        <AlertCircle className="h-3.5 w-3.5 text-amber-600 mt-0.5 shrink-0" />
+        <div>
+          <div className="font-medium">Unable to load cleanup status.</div>
+          <div
+            className="text-amber-700 mt-0.5 break-words"
+            data-testid="text-audit-cleanup-load-error"
+          >
+            {error}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!cleanup) {
+    return (
+      <div
+        className="mb-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 flex items-center gap-2"
+        data-testid="status-audit-cleanup-none"
+      >
+        <Clock className="h-3.5 w-3.5 text-slate-500" />
+        <span>
+          No audit log cleanup recorded yet. The retention sweeper runs
+          shortly after boot and once a day after that.
+        </span>
+      </div>
+    );
+  }
+
+  const ranAtDate = new Date(cleanup.ranAt);
+  const ranAtAbsolute = formatAuditTimestamp(cleanup.ranAt);
+  const ranAtRelative = formatRelativeAge(ranAtDate);
+  const cutoffAbsolute = formatAuditTimestamp(cleanup.cutoff);
+
+  if (cleanup.status === "failure") {
+    return (
+      <div
+        className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 flex items-start gap-2"
+        data-testid="status-audit-cleanup-failure"
+      >
+        <AlertCircle className="h-3.5 w-3.5 text-red-600 mt-0.5 shrink-0" />
+        <div>
+          <div className="font-medium">
+            Audit log cleanup failed{" "}
+            <span
+              className="text-red-600 font-normal"
+              data-testid="text-audit-cleanup-ran-relative"
+              title={ranAtAbsolute}
+            >
+              ({ranAtRelative})
+            </span>
+          </div>
+          {cleanup.errorMessage && (
+            <div
+              className="text-red-600 mt-0.5 break-words"
+              data-testid="text-audit-cleanup-error"
+            >
+              {cleanup.errorMessage}
+            </div>
+          )}
+          <div className="text-red-500 mt-0.5">
+            Retention window: {cleanup.retentionDays} days. The sweeper will
+            retry on its next run; investigate if failures persist.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const removedLabel =
+    cleanup.removedCount === 1
+      ? "1 row removed"
+      : `${cleanup.removedCount.toLocaleString()} rows removed`;
+  return (
+    <div
+      className="mb-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800 flex items-start gap-2"
+      data-testid="status-audit-cleanup-success"
+    >
+      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 mt-0.5 shrink-0" />
+      <div>
+        <div>
+          <span className="font-medium">Audit log last cleaned up</span>{" "}
+          <span
+            data-testid="text-audit-cleanup-ran-relative"
+            title={ranAtAbsolute}
+          >
+            {ranAtRelative}
+          </span>
+          {" — "}
+          <span data-testid="text-audit-cleanup-removed">{removedLabel}</span>
+        </div>
+        <div className="text-emerald-700 mt-0.5">
+          Retention window: {cleanup.retentionDays} days (cutoff{" "}
+          {cutoffAbsolute}).
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Relative-age string ("just now", "12 minutes ago", …) for the
+// cleanup banner's `ranAt`. Falls back to the absolute timestamp on
+// invalid input or future dates.
+function formatRelativeAge(when: Date): string {
+  const diffMs = Date.now() - when.getTime();
+  if (!Number.isFinite(diffMs)) return "at an unknown time";
+  if (diffMs < 0) return formatAuditTimestamp(when.toISOString());
+  const seconds = Math.floor(diffMs / 1000);
+  if (seconds < 60) return "just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? "" : "s"} ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days} day${days === 1 ? "" : "s"} ago`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months} month${months === 1 ? "" : "s"} ago`;
+  const years = Math.floor(days / 365);
+  return `${years} year${years === 1 ? "" : "s"} ago`;
+}
+
 interface RecentAdminActivityProps {
   entries: AdminAuditEntry[];
   total: number;
@@ -2469,6 +2671,9 @@ interface RecentAdminActivityProps {
   // operator can't queue a second download while one is in flight.
   onExport: () => void;
   exporting: boolean;
+  cleanup: AuditCleanupStatus | null;
+  cleanupLoading: boolean;
+  cleanupError: string | null;
 }
 
 /**
@@ -2493,6 +2698,9 @@ function RecentAdminActivity({
   onRefresh,
   onExport,
   exporting,
+  cleanup,
+  cleanupLoading,
+  cleanupError,
 }: RecentAdminActivityProps) {
   // Local mirror of the IP filter so we can debounce keystrokes — without
   // this, every typed character would fire a fresh /api/admin/audit-log
@@ -2581,6 +2789,11 @@ function RecentAdminActivity({
         </div>
       </CardHeader>
       <CardContent>
+        <AuditCleanupBanner
+          cleanup={cleanup}
+          loading={cleanupLoading}
+          error={cleanupError}
+        />
         <div
           className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-3"
           data-testid="audit-filters"
