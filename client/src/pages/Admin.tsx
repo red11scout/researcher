@@ -1285,6 +1285,35 @@ function AdminPanel() {
                         size="sm"
                         variant="outline"
                         className="border-red-300 text-red-700 hover:bg-red-100 hover:text-red-800"
+                        disabled={result.failures.length === 0}
+                        onClick={async () => {
+                          const ids = (result.failures ?? []).map((f) => f.id);
+                          if (ids.length === 0) return;
+                          const text = ids.join("\n");
+                          try {
+                            await navigator.clipboard.writeText(text);
+                            toast({
+                              title: "Copied to clipboard",
+                              description: `${ids.length} failed report ID${ids.length === 1 ? "" : "s"} copied.`,
+                            });
+                          } catch {
+                            toast({
+                              title: "Copy failed",
+                              description:
+                                "Your browser blocked clipboard access. Please copy manually.",
+                              variant: "destructive",
+                            });
+                          }
+                        }}
+                        data-testid="button-copy-ids-failures"
+                      >
+                        <Copy className="h-3.5 w-3.5 mr-1.5" />
+                        Copy IDs
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-red-300 text-red-700 hover:bg-red-100 hover:text-red-800"
                         disabled={running}
                         onClick={() => {
                           // Capture the failure IDs before kicking off the
