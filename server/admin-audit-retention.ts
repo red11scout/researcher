@@ -14,10 +14,15 @@ function log(message: string): void {
 // letting the table grow forever — and bot-driven login failures could
 // otherwise add thousands of rows per day with no upper bound.
 //
-// Operators can override via ADMIN_AUDIT_RETENTION_DAYS. Values that
-// don't parse as a positive number fall back to the default so a typo
-// in the env doesn't accidentally disable retention.
-const DEFAULT_RETENTION_DAYS = 90;
+// Resolution order, evaluated *per cleanup run* (not at scheduler start)
+// so an admin who shortens the window via the Admin UI sees the change
+// take effect on the next sweep without a server restart:
+//   1. Persisted override in `admin_settings.audit_retention_days`
+//   2. ADMIN_AUDIT_RETENTION_DAYS env var (kept as a deploy-time fallback)
+//   3. The hard-coded default below
+// Values that don't parse as a positive number at any layer fall through
+// to the next one — a typo never disables retention silently.
+export const DEFAULT_RETENTION_DAYS = 90;
 
 // How often the cleanup runs once the process is up. Daily is plenty:
 // the table is append-only, so running more frequently doesn't reclaim
@@ -31,17 +36,42 @@ const CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
 // restarting the box still see the cleanup land that day.
 const BOOT_DELAY_MS = 30 * 1000;
 
-function resolveRetentionDays(): number {
+// Pull the env-var fallback. Returns `null` when unset or invalid so the
+// caller can decide whether to drop down to the hard-coded default.
+function readEnvRetentionDays(): number | null {
   const raw = process.env.ADMIN_AUDIT_RETENTION_DAYS;
-  if (!raw) return DEFAULT_RETENTION_DAYS;
+  if (!raw) return null;
   const parsed = Number(raw);
   if (!Number.isFinite(parsed) || parsed <= 0) {
     log(
-      `Ignoring invalid ADMIN_AUDIT_RETENTION_DAYS="${raw}", using ${DEFAULT_RETENTION_DAYS}`,
+      `Ignoring invalid ADMIN_AUDIT_RETENTION_DAYS="${raw}", falling back to default`,
     );
-    return DEFAULT_RETENTION_DAYS;
+    return null;
   }
   return parsed;
+}
+
+// Resolve the effective retention window for the next sweep. Reads the
+// persisted override first, then the env var, then the hard-coded
+// default. A storage failure (DB hiccup) is logged and treated as "no
+// override" so retention keeps running on the env / default — never
+// disabled.
+export async function resolveRetentionDays(): Promise<number> {
+  try {
+    const settings = await storage.getAdminSettings();
+    const stored = settings?.auditRetentionDays;
+    if (typeof stored === "number" && Number.isFinite(stored) && stored > 0) {
+      return stored;
+    }
+  } catch (err) {
+    console.error(
+      "[admin-audit-retention] Failed to read admin settings, falling back to env/default:",
+      err,
+    );
+  }
+  const envValue = readEnvRetentionDays();
+  if (envValue !== null) return envValue;
+  return DEFAULT_RETENTION_DAYS;
 }
 
 // Single cleanup pass. Exported so tests / ad-hoc scripts can trigger a
@@ -49,20 +79,29 @@ function resolveRetentionDays(): number {
 // rows deleted (0 on failure) and never throws — a DB hiccup must not
 // take the server down. Each run persists its outcome (success or
 // failure) via `storage.recordAdminAuditCleanup` for the Admin UI.
+//
+// `retentionDays` is optional: callers (typically the scheduler) leave
+// it out so the function re-resolves the effective value on every run,
+// which is what lets a UI-side change take effect without a restart.
+// Tests pass an explicit value to pin the behaviour.
 export async function runAdminAuditRetentionOnce(
-  retentionDays = resolveRetentionDays(),
+  retentionDays?: number,
 ): Promise<number> {
-  const cutoff = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000);
+  const effectiveDays =
+    typeof retentionDays === "number" && Number.isFinite(retentionDays) && retentionDays > 0
+      ? retentionDays
+      : await resolveRetentionDays();
+  const cutoff = new Date(Date.now() - effectiveDays * 24 * 60 * 60 * 1000);
   const startedAt = Date.now();
   try {
     const removed = await storage.pruneOldAdminAuditEntries(cutoff);
     log(
-      `Removed ${removed} admin audit row(s) older than ${retentionDays} days (cutoff ${cutoff.toISOString()})`,
+      `Removed ${removed} admin audit row(s) older than ${effectiveDays} days (cutoff ${cutoff.toISOString()})`,
     );
     await storage.recordAdminAuditCleanup({
       status: "success",
       removedCount: removed,
-      retentionDays,
+      retentionDays: effectiveDays,
       cutoff,
       durationMs: Date.now() - startedAt,
     });
@@ -75,7 +114,7 @@ export async function runAdminAuditRetentionOnce(
     await storage.recordAdminAuditCleanup({
       status: "failure",
       removedCount: 0,
-      retentionDays,
+      retentionDays: effectiveDays,
       cutoff,
       errorMessage: err instanceof Error ? err.message : String(err),
       durationMs: Date.now() - startedAt,
@@ -95,19 +134,20 @@ export function startAdminAuditRetentionScheduler(): () => void {
   if (scheduledTimer) {
     return stopAdminAuditRetentionScheduler;
   }
-  const retentionDays = resolveRetentionDays();
   log(
-    `Scheduling admin audit log cleanup every 24h (retention: ${retentionDays} days)`,
+    `Scheduling admin audit log cleanup every 24h (retention resolved per run from admin settings → env → ${DEFAULT_RETENTION_DAYS}d default)`,
   );
   // Defer the first run so boot stays snappy and the DB isn't hammered
-  // before the app is serving traffic.
+  // before the app is serving traffic. Each tick re-resolves the window
+  // so an admin shortening retention via the UI takes effect on the
+  // next sweep — no restart required.
   bootTimer = setTimeout(() => {
-    void runAdminAuditRetentionOnce(retentionDays);
+    void runAdminAuditRetentionOnce();
   }, BOOT_DELAY_MS);
   if (typeof bootTimer.unref === "function") bootTimer.unref();
 
   scheduledTimer = setInterval(() => {
-    void runAdminAuditRetentionOnce(retentionDays);
+    void runAdminAuditRetentionOnce();
   }, CLEANUP_INTERVAL_MS);
   // unref so the scheduler timer never keeps the process alive on its
   // own — Express's listening socket is the source of truth for liveness.

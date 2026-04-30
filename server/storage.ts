@@ -37,6 +37,8 @@ import {
   type AdminLastBackfillRow,
   adminLastAuditCleanup,
   type AdminLastAuditCleanupRow,
+  adminSettings,
+  type AdminSettingsRow,
   DEFAULT_ASSUMPTIONS,
   DEFAULT_FORMULAS,
   ASSUMPTION_CATEGORIES,
@@ -236,6 +238,16 @@ export interface IStorage {
     durationMs?: number | null;
   }): Promise<void>;
   getLastAdminAuditCleanup(): Promise<AdminLastAuditCleanupRow | null>;
+
+  // Operator-tunable singleton settings row. `getAdminSettings` returns
+  // null when no row has ever been written, so callers can distinguish
+  // "no override stored — use the env / default" from "operator has
+  // pinned a value here". `updateAdminSettings` upserts on the
+  // singleton key so every call lands on the same row.
+  getAdminSettings(): Promise<AdminSettingsRow | null>;
+  updateAdminSettings(
+    settings: { auditRetentionDays?: number | null },
+  ): Promise<AdminSettingsRow>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1198,6 +1210,39 @@ export class DatabaseStorage implements IStorage {
       .where(eq(adminLastAuditCleanup.id, "singleton"))
       .limit(1);
     return row ?? null;
+  }
+
+  async getAdminSettings(): Promise<AdminSettingsRow | null> {
+    const [row] = await db
+      .select()
+      .from(adminSettings)
+      .where(eq(adminSettings.id, "singleton"))
+      .limit(1);
+    return row ?? null;
+  }
+
+  async updateAdminSettings(
+    settings: { auditRetentionDays?: number | null },
+  ): Promise<AdminSettingsRow> {
+    // Upsert on the singleton row so concurrent saves don't create
+    // multiple rows. We only set the columns explicitly mentioned in
+    // `settings` so a future caller updating one field doesn't wipe
+    // out unrelated columns we add to this table later.
+    const updateSet: Record<string, unknown> = { updatedAt: new Date() };
+    const insertValues: Record<string, unknown> = { id: "singleton" };
+    if (Object.prototype.hasOwnProperty.call(settings, "auditRetentionDays")) {
+      updateSet.auditRetentionDays = settings.auditRetentionDays ?? null;
+      insertValues.auditRetentionDays = settings.auditRetentionDays ?? null;
+    }
+    const [row] = await db
+      .insert(adminSettings)
+      .values(insertValues as typeof adminSettings.$inferInsert)
+      .onConflictDoUpdate({
+        target: adminSettings.id,
+        set: updateSet,
+      })
+      .returning();
+    return row;
   }
 }
 

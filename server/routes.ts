@@ -4,7 +4,8 @@ import { storage, AUDIT_EXPORT_MAX_ROWS, type AdminAuditLogQuery } from "./stora
 import { generateCompanyAnalysis, generateWhatIfSuggestion, checkProductionConfig, executePipelineCall } from "./ai-service";
 import * as formulaService from "./formula-service";
 import { dubService } from "./dub-service";
-import { insertReportSchema } from "@shared/schema";
+import { insertReportSchema, adminSettingsUpdateSchema } from "@shared/schema";
+import { resolveRetentionDays as resolveAuditRetentionDays } from "./admin-audit-retention";
 import { recordAdminAudit } from "./auth";
 import { buildAssumptionExcelWorkbook, buildAssumptionJSON } from "./assumption-export";
 import {
@@ -984,6 +985,88 @@ Return ONLY valid JSON with this structure:
       res
         .status(200)
         .json({ cleanup: null, error: err?.message ?? String(err) });
+    }
+  });
+
+  // Operator-tunable admin settings. Currently exposes only the audit log
+  // retention window (in days). The shape is intentionally `{ settings,
+  // effective }` so the UI can both:
+  //   - render the input bound to the persisted override (`settings.auditRetentionDays`,
+  //     null when no override is stored), and
+  //   - show the value the scheduler would use right now if it ran
+  //     (`effective.auditRetentionDays`, which folds in the env-var fallback
+  //     so an admin who hasn't set a UI override still sees what's in force).
+  app.get("/api/admin/settings", async (_req, res) => {
+    try {
+      const row = await storage.getAdminSettings();
+      const effective = await resolveAuditRetentionDays();
+      res.json({
+        settings: {
+          auditRetentionDays: row?.auditRetentionDays ?? null,
+          updatedAt: row?.updatedAt ?? null,
+        },
+        effective: {
+          auditRetentionDays: effective,
+        },
+      });
+    } catch (err: any) {
+      console.error("[admin/settings] Failed to read settings:", err);
+      res
+        .status(500)
+        .json({ error: err?.message ?? String(err) });
+    }
+  });
+
+  // Persist an updated admin setting. Validation lives in
+  // `adminSettingsUpdateSchema` (shared/schema.ts) so the wire contract
+  // stays consistent. A clear error message — not a 500, not "Internal
+  // Server Error" — is returned for invalid input so the operator sees
+  // what's wrong (zero, negative, non-numeric) without having to read
+  // the server log. Crucially, an invalid value can never reach the
+  // scheduler, which would silently disable retention if it did.
+  app.put("/api/admin/settings", async (req, res) => {
+    const parsed = adminSettingsUpdateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      const message =
+        parsed.error.issues[0]?.message ?? "Invalid settings payload.";
+      recordAdminAudit(req, {
+        action: "update-admin-settings",
+        status: "failure",
+        statusCode: 400,
+        params: { keys: Object.keys(req.body ?? {}) },
+        errorMessage: message,
+      });
+      return res.status(400).json({ error: message });
+    }
+    try {
+      const updated = await storage.updateAdminSettings(parsed.data);
+      const effective = await resolveAuditRetentionDays();
+      recordAdminAudit(req, {
+        action: "update-admin-settings",
+        status: "success",
+        statusCode: 200,
+        params: { auditRetentionDays: parsed.data.auditRetentionDays ?? null },
+      });
+      res.json({
+        settings: {
+          auditRetentionDays: updated.auditRetentionDays,
+          updatedAt: updated.updatedAt,
+        },
+        effective: {
+          auditRetentionDays: effective,
+        },
+      });
+    } catch (err: any) {
+      console.error("[admin/settings] Failed to persist settings:", err);
+      recordAdminAudit(req, {
+        action: "update-admin-settings",
+        status: "failure",
+        statusCode: 500,
+        errorMessage: err?.message ?? String(err),
+      });
+      res
+        .status(500)
+        .json({ error: err?.message ?? String(err) });
     }
   });
 

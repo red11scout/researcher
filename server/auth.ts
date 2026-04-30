@@ -75,7 +75,17 @@ function deriveAdminAction(req: Request): string {
 // `last-backfill` is the singleton snapshot the Admin page hydrates from
 // on every load — auditing each one would dwarf the actual upgrade
 // actions operators care about, same reason `audit-log` is skipped.
-const ADMIN_AUDIT_SKIP_ACTIONS = new Set(["audit-log", "last-backfill", "last-audit-cleanup"]);
+// "settings" covers GET /api/admin/settings — the Admin page polls it on
+// every load, so auditing each one would dwarf the actual settings
+// changes. PUT /api/admin/settings still records via the explicit
+// `recordAdminAudit` call in the route handler (which sets
+// `adminAuditRecorded = true`, so the generic skip below doesn't apply).
+const ADMIN_AUDIT_SKIP_ACTIONS = new Set([
+  "audit-log",
+  "last-backfill",
+  "last-audit-cleanup",
+  "settings",
+]);
 
 export function auditAdminRequest(
   req: Request,

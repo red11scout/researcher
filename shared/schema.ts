@@ -252,6 +252,60 @@ export const insertAdminLastBackfillSchema = createInsertSchema(adminLastBackfil
 export type InsertAdminLastBackfill = z.infer<typeof insertAdminLastBackfillSchema>;
 export type AdminLastBackfillRow = typeof adminLastBackfill.$inferSelect;
 
+// Singleton row of operator-tunable admin settings. Today this only
+// carries `auditRetentionDays`, the override for how long admin audit
+// rows are retained before the daily sweeper deletes them. We keep it
+// as a generic "settings" table (rather than `admin_audit_settings`)
+// so future small admin toggles can land here without a fresh table /
+// migration each time.
+//
+// The retention value is intentionally nullable: `null` means "no
+// override stored — fall back to the ADMIN_AUDIT_RETENTION_DAYS env
+// var, then the hard-coded default". That layered fallback is what
+// lets the env var keep working for ops who already rely on it (the
+// task explicitly calls this out under "Done looks like").
+//
+// Singleton: keyed by `id="singleton"`. Writes go through
+// `storage.updateAdminSettings`, which upserts on that key so we can't
+// accidentally end up with two competing rows.
+export const adminSettings = pgTable("admin_settings", {
+  id: text("id").primaryKey(),
+  // Positive integer (days). Null = use env / default.
+  auditRetentionDays: integer("audit_retention_days"),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertAdminSettingsSchema = createInsertSchema(adminSettings).omit({
+  updatedAt: true,
+});
+export type InsertAdminSettings = z.infer<typeof insertAdminSettingsSchema>;
+export type AdminSettingsRow = typeof adminSettings.$inferSelect;
+
+// Validation for the PUT /api/admin/settings payload. We accept a
+// finite positive integer only — zero would silently disable
+// retention (the cutoff would be "right now"), and negatives /
+// non-numbers don't have any sensible interpretation. The upper cap
+// (10 years) keeps a typo from accidentally locking in a retention
+// window that never sweeps anything in practice.
+//
+// `null` is allowed as a way to clear the override and fall back to
+// the env var / hard-coded default. The route layer lifts this schema
+// directly so the JSON error message stays consistent between the
+// client and any future API consumer.
+export const adminSettingsUpdateSchema = z.object({
+  auditRetentionDays: z
+    .union([
+      z
+        .number()
+        .int("Must be a whole number of days.")
+        .positive("Must be at least 1 day.")
+        .max(3650, "Must be 3650 days (10 years) or fewer."),
+      z.null(),
+    ])
+    .optional(),
+});
+export type AdminSettingsUpdate = z.infer<typeof adminSettingsUpdateSchema>;
+
 // Singleton record of the most recent admin_audit_log retention sweep
 // (success or failure). Surfaced in the Admin "Recent admin activity"
 // panel so operators can confirm the sweeper is running.

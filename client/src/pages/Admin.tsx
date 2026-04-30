@@ -323,6 +323,22 @@ interface AuditLogResponse {
   error?: string;
 }
 
+// Operator-tunable admin settings, served by `/api/admin/settings` and
+// rendered/edited by `AuditRetentionSettings`. `settings.auditRetentionDays`
+// is the persisted override (null when none stored); `effective.auditRetentionDays`
+// is the value the scheduler would use right now (folds in the env-var
+// fallback so the UI always shows what's actually in force).
+interface AdminSettingsResponse {
+  settings: {
+    auditRetentionDays: number | null;
+    updatedAt: string | null;
+  };
+  effective: {
+    auditRetentionDays: number;
+  };
+  error?: string;
+}
+
 // Most recent admin_audit_log retention sweep, served by
 // `/api/admin/last-audit-cleanup` and rendered by AuditCleanupBanner.
 interface AuditCleanupStatus {
@@ -410,6 +426,15 @@ function AdminPanel() {
   );
   const [auditCleanupLoading, setAuditCleanupLoading] = useState(true);
   const [auditCleanupError, setAuditCleanupError] = useState<string | null>(
+    null,
+  );
+  // Operator-tunable settings (currently just audit retention). Loaded
+  // on mount and refreshed after a successful save so the "currently in
+  // force" display always reflects what the next sweep will use.
+  const [adminSettings, setAdminSettings] =
+    useState<AdminSettingsResponse | null>(null);
+  const [adminSettingsLoading, setAdminSettingsLoading] = useState(true);
+  const [adminSettingsError, setAdminSettingsError] = useState<string | null>(
     null,
   );
   // Filters + offset are persisted in the URL query string so a filtered view
@@ -552,6 +577,67 @@ function AdminPanel() {
   useEffect(() => {
     void loadAuditCleanup();
   }, [loadAuditCleanup]);
+
+  const loadAdminSettings = useCallback(async () => {
+    setAdminSettingsLoading(true);
+    try {
+      const res = await fetch("/api/admin/settings", {
+        credentials: "include",
+      });
+      if (!res.ok) {
+        setAdminSettingsError(`HTTP ${res.status}`);
+        setAdminSettings(null);
+        return;
+      }
+      const data: AdminSettingsResponse = await res.json();
+      setAdminSettings(data);
+      setAdminSettingsError(null);
+    } catch (err) {
+      setAdminSettings(null);
+      setAdminSettingsError(
+        err instanceof Error ? err.message : "Failed to load admin settings",
+      );
+    } finally {
+      setAdminSettingsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadAdminSettings();
+  }, [loadAdminSettings]);
+
+  // Save handler returned to the form component. Throws on validation /
+  // network failure so the form can surface a per-field error inline,
+  // and refreshes both the settings + cleanup banner on success so the
+  // "Retention window: N days" line updates the moment the next sweep
+  // would pick the new value up.
+  const saveAdminSettings = useCallback(
+    async (next: { auditRetentionDays: number | null }): Promise<void> => {
+      const res = await fetch("/api/admin/settings", {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(next),
+      });
+      if (!res.ok) {
+        let message = `${res.status}: ${res.statusText}`;
+        try {
+          const body = await res.json();
+          if (body && typeof body.error === "string") message = body.error;
+        } catch {
+          /* fall through */
+        }
+        throw new Error(message);
+      }
+      const data: AdminSettingsResponse = await res.json();
+      setAdminSettings(data);
+      setAdminSettingsError(null);
+      // The cleanup banner shows the retention window on its second
+      // line — refresh it so it doesn't lag behind the new value.
+      void loadAuditCleanup();
+    },
+    [loadAuditCleanup],
+  );
 
   const refreshAuditLog = useCallback(() => {
     void loadAuditLog(auditFilters, auditOffset);
@@ -1327,6 +1413,13 @@ function AdminPanel() {
           cleanup={auditCleanup}
           cleanupLoading={auditCleanupLoading}
           cleanupError={auditCleanupError}
+        />
+
+        <AuditRetentionSettings
+          data={adminSettings}
+          loading={adminSettingsLoading}
+          loadError={adminSettingsError}
+          onSave={saveAdminSettings}
         />
       </div>
 
@@ -2652,6 +2745,216 @@ function formatRelativeAge(when: Date): string {
   if (months < 12) return `${months} month${months === 1 ? "" : "s"} ago`;
   const years = Math.floor(days / 365);
   return `${years} year${years === 1 ? "" : "s"} ago`;
+}
+
+// Operator-tunable retention window for the admin audit log. Saving an
+// integer here persists an override that wins over the
+// ADMIN_AUDIT_RETENTION_DAYS env var, so a non-engineer admin can shorten
+// retention for a noisy environment (or extend it during an investigation)
+// without a deploy. Clearing the input restores the env / default fallback.
+//
+// Validation mirrors the server's Zod schema (positive integer, ≤ 3650
+// days). We surface the same error inline so the operator sees what's
+// wrong without watching the network tab — and crucially, an invalid
+// value never reaches the storage layer where it could disable retention.
+function AuditRetentionSettings({
+  data,
+  loading,
+  loadError,
+  onSave,
+}: {
+  data: AdminSettingsResponse | null;
+  loading: boolean;
+  loadError: string | null;
+  onSave: (next: { auditRetentionDays: number | null }) => Promise<void>;
+}) {
+  const { toast } = useToast();
+  const stored = data?.settings.auditRetentionDays ?? null;
+  const effective = data?.effective.auditRetentionDays ?? null;
+
+  // Local draft so the input mirrors what the operator typed (incl.
+  // empty string = clear override) without round-tripping through the
+  // server on every keystroke. We re-sync from `stored` whenever the
+  // upstream value changes (initial load, or after a successful save).
+  const [draft, setDraft] = useState<string>(
+    stored == null ? "" : String(stored),
+  );
+  useEffect(() => {
+    setDraft(stored == null ? "" : String(stored));
+  }, [stored]);
+
+  const [saving, setSaving] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
+
+  // Mirror the server-side Zod rules so an obviously-invalid value
+  // never even leaves the browser. Empty string is "clear override",
+  // not an error.
+  const parseDraft = (
+    raw: string,
+  ): { ok: true; value: number | null } | { ok: false; error: string } => {
+    const trimmed = raw.trim();
+    if (trimmed === "") return { ok: true, value: null };
+    if (!/^-?\d+$/.test(trimmed)) {
+      return {
+        ok: false,
+        error: "Enter a whole number of days, or leave blank to use the default.",
+      };
+    }
+    const n = Number(trimmed);
+    if (!Number.isFinite(n)) {
+      return { ok: false, error: "Enter a whole number of days." };
+    }
+    if (n <= 0) return { ok: false, error: "Must be at least 1 day." };
+    if (n > 3650) {
+      return { ok: false, error: "Must be 3650 days (10 years) or fewer." };
+    }
+    return { ok: true, value: n };
+  };
+
+  const draftMatchesStored =
+    (stored === null && draft.trim() === "") ||
+    (stored !== null && draft.trim() === String(stored));
+
+  const handleSave = async () => {
+    const parsed = parseDraft(draft);
+    if (!parsed.ok) {
+      setValidationError(parsed.error);
+      return;
+    }
+    setValidationError(null);
+    setSaving(true);
+    try {
+      await onSave({ auditRetentionDays: parsed.value });
+      toast({
+        title: "Retention window saved",
+        description:
+          parsed.value === null
+            ? "Cleared the override — falling back to the default."
+            : `Audit log will keep entries for ${parsed.value} day${parsed.value === 1 ? "" : "s"}.`,
+      });
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to save settings";
+      setValidationError(message);
+      toast({
+        title: "Could not save settings",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Card className="mt-6" data-testid="card-audit-retention-settings">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Clock className="h-5 w-5 text-brand-navy" />
+          Audit log retention
+        </CardTitle>
+        <CardDescription className="mt-1">
+          Set how many days of admin audit history to keep before the daily
+          sweeper deletes older entries. Shorten it for noisy environments;
+          extend it during an investigation. Leave blank to fall back to the
+          deploy-time default.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {loading && !data ? (
+          <div
+            className="flex items-center gap-2 text-sm text-slate-500"
+            data-testid="state-admin-settings-loading"
+          >
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading current settings…
+          </div>
+        ) : loadError && !data ? (
+          <div
+            className="rounded-lg border border-red-200 bg-red-50 p-4 flex items-start gap-2"
+            data-testid="alert-admin-settings-load-error"
+          >
+            <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
+            <div className="text-sm text-red-700">
+              <div className="font-medium">Could not load admin settings</div>
+              <div className="text-red-600">{loadError}</div>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+              <div className="flex-1 max-w-xs">
+                <Label
+                  htmlFor="input-audit-retention-days"
+                  className="text-sm font-medium text-slate-900"
+                >
+                  Retention window (days)
+                </Label>
+                <Input
+                  id="input-audit-retention-days"
+                  type="number"
+                  min={1}
+                  max={3650}
+                  step={1}
+                  inputMode="numeric"
+                  placeholder="Use default"
+                  value={draft}
+                  onChange={(e) => {
+                    setDraft(e.target.value);
+                    if (validationError) setValidationError(null);
+                  }}
+                  disabled={saving}
+                  className="mt-1"
+                  data-testid="input-audit-retention-days"
+                />
+              </div>
+              <Button
+                onClick={() => void handleSave()}
+                disabled={saving || draftMatchesStored}
+                data-testid="button-save-audit-retention"
+              >
+                {saving ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : null}
+                Save
+              </Button>
+            </div>
+
+            {validationError && (
+              <div
+                className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 flex items-start gap-2"
+                data-testid="text-audit-retention-error"
+              >
+                <AlertCircle className="h-3.5 w-3.5 text-red-600 mt-0.5 shrink-0" />
+                <span>{validationError}</span>
+              </div>
+            )}
+
+            <div
+              className="text-xs text-slate-600"
+              data-testid="text-audit-retention-effective"
+            >
+              {stored !== null ? (
+                <>
+                  Override saved:{" "}
+                  <span className="font-medium tabular-nums">{stored}</span>{" "}
+                  day{stored === 1 ? "" : "s"}. The next sweep will use this
+                  value.
+                </>
+              ) : effective !== null ? (
+                <>
+                  No override stored. The scheduler is currently using{" "}
+                  <span className="font-medium tabular-nums">{effective}</span>{" "}
+                  day{effective === 1 ? "" : "s"} (from
+                  {" ADMIN_AUDIT_RETENTION_DAYS"} or the built-in default).
+                </>
+              ) : null}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
 }
 
 interface RecentAdminActivityProps {
