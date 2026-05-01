@@ -47,6 +47,8 @@ import {
 } from "@/components/ui/select";
 import {
   AlertCircle,
+  ArrowDown,
+  ArrowUp,
   CheckCircle2,
   ChevronDown,
   ChevronLeft,
@@ -2455,6 +2457,19 @@ function HeadlineNumberChangesPanel({
             ).size;
             const remaining = totalCompanies - exampleCompanies.length;
             const isOpen = expanded.has(bucket.code);
+            // Direction split: how many reports moved this metric upward vs.
+            // downward. Surfaced inline in the bucket header so admins can
+            // spot regressions (e.g. a "bumped schema" upgrade that DROPS
+            // Total value across 5 reports) without expanding the row to
+            // scan the colored chips. Each side collapses when zero so a
+            // run with strictly-positive movement reads as a single up
+            // counter rather than a misleading "+12 / -0".
+            const upCount = bucket.entries.filter(
+              (e) => e.delta.delta > 0,
+            ).length;
+            const downCount = bucket.entries.filter(
+              (e) => e.delta.delta < 0,
+            ).length;
             return (
               <li
                 key={bucket.code}
@@ -2493,6 +2508,37 @@ function HeadlineNumberChangesPanel({
                       {exampleCompanies.join(", ")}
                       {remaining > 0 && ` and ${remaining} more`}
                     </div>
+                  </div>
+                  <div
+                    className="flex items-center gap-1.5 shrink-0 mt-0.5"
+                    data-testid={`split-headline-${bucket.code}`}
+                  >
+                    {upCount > 0 && (
+                      <span
+                        className="inline-flex items-center gap-0.5 text-xs font-medium text-sky-700 tabular-nums"
+                        title={`${upCount} report${upCount === 1 ? "" : "s"} moved up`}
+                        data-testid={`count-headline-up-${bucket.code}`}
+                      >
+                        <ArrowUp
+                          className="h-3 w-3"
+                          aria-hidden="true"
+                        />
+                        {upCount}
+                      </span>
+                    )}
+                    {downCount > 0 && (
+                      <span
+                        className="inline-flex items-center gap-0.5 text-xs font-medium text-amber-700 tabular-nums"
+                        title={`${downCount} report${downCount === 1 ? "" : "s"} moved down`}
+                        data-testid={`count-headline-down-${bucket.code}`}
+                      >
+                        <ArrowDown
+                          className="h-3 w-3"
+                          aria-hidden="true"
+                        />
+                        {downCount}
+                      </span>
+                    )}
                   </div>
                 </button>
                 {isOpen && (
