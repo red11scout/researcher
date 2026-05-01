@@ -1790,7 +1790,7 @@ interface UpgradesAppliedPanelProps {
  * any schema-level diff are surfaced in their own bucket so they don't look
  * like a missing case.
  */
-function UpgradesAppliedPanel({ updated }: UpgradesAppliedPanelProps) {
+export function UpgradesAppliedPanel({ updated }: UpgradesAppliedPanelProps) {
   const { toast } = useToast();
   const copyIds = async (ids: string[], bucketLabel: string) => {
     const text = ids.join("\n");
