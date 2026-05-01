@@ -2356,7 +2356,7 @@ interface HeadlineNumberChangesPanelProps {
  * hiding — the *absence* of bottom-line movement is itself useful info
  * for the admin reviewing the run.
  */
-function HeadlineNumberChangesPanel({
+export function HeadlineNumberChangesPanel({
   updated,
 }: HeadlineNumberChangesPanelProps) {
   const { toast } = useToast();
