@@ -639,7 +639,7 @@ function recalculateRevenueBenefit(formula: string, id?: string): { value: numbe
     inputs.upliftPct,
     cappedUpliftPct,
   );
-  const newFormula = `${upliftPctText} × ${formatMoney(inputs.baselineRevenueAtRisk)} × ${inputs.revenueRealizationMultiplier.toFixed(2)} × ${inputs.dataMaturityMultiplier.toFixed(2)} = ${formatMoney(result.trace.output)} → ${formatMoney(result.value)}`;
+  const newFormula = `${upliftPctText} × ${formatExactMoneyForAudit(inputs.baselineRevenueAtRisk)} × ${inputs.revenueRealizationMultiplier.toFixed(2)} × ${inputs.dataMaturityMultiplier.toFixed(2)} = ${formatMoney(result.trace.output)} → ${formatMoney(result.value)}`;
 
   // Task #52: surface the per-use-case revenue-uplift cap as a structured
   // warning so admin tooling can filter/aggregate which AI-generated reports
@@ -733,7 +733,7 @@ function recalculateCashFlowBenefit(formula: string): { value: number; formulaTe
   // HyperFormula handles validation internally
 
   // Updated formula text to show correct working capital calculation
-  const newFormula = `${inputs.annualRevenue.toLocaleString()} × (${inputs.daysImprovement} / 365) × ${inputs.costOfCapital.toFixed(2)} × ${inputs.cashFlowRealizationMultiplier.toFixed(2)} × ${inputs.dataMaturityMultiplier.toFixed(2)} = ${formatMoney(result.trace.output)} → ${formatMoney(result.value)}`;
+  const newFormula = `${formatExactMoneyForAudit(inputs.annualRevenue)} × (${inputs.daysImprovement} / 365) × ${inputs.costOfCapital.toFixed(2)} × ${inputs.cashFlowRealizationMultiplier.toFixed(2)} × ${inputs.dataMaturityMultiplier.toFixed(2)} = ${formatMoney(result.trace.output)} → ${formatMoney(result.value)}`;
 
   return { value: result.value, formulaText: newFormula, warnings };
 }
@@ -825,9 +825,51 @@ function recalculateRiskBenefit(formula: string): { value: number; formulaText: 
     inputs.probBefore,
     cappedReductionPct,
   );
-  const newFormula = `${reductionPctText} × ${formatMoney(inputs.impactBefore)} × ${inputs.riskRealizationMultiplier.toFixed(2)} × ${inputs.dataMaturityMultiplier.toFixed(2)} = ${formatMoney(result.trace.output)} → ${formatMoney(result.value)}`;
+  const newFormula = `${reductionPctText} × ${formatExactMoneyForAudit(inputs.impactBefore)} × ${inputs.riskRealizationMultiplier.toFixed(2)} × ${inputs.dataMaturityMultiplier.toFixed(2)} = ${formatMoney(result.trace.output)} → ${formatMoney(result.value)}`;
 
   return { value: result.value, formulaText: newFormula, warnings, engineCapped };
+}
+
+/**
+ * Format a fractional rate (0..1) as a percentage with adaptive precision so
+ * the audit `formulaText` evaluates to the printed dollar result.
+ *
+ * The original formatters used `.toFixed(0)`, which collapsed any sub-1% rate
+ * to "0%". On portfolios where the AI proposed conservative uplifts (e.g.
+ * 0.15% revenue uplift on a $23.5B base), this produced a printed formula
+ * — "0% × $23.5B × 0.95 × 0.75 = $25.1M" — that a reader could not reconcile
+ * with the printed result. The engine was correct; the display was lying.
+ *
+ * Precision tiers chosen so that for any pct ≥ 0.001%, the printed pct
+ * evaluated against the printed inputs reproduces the printed result within
+ * the rounding tolerance of the result-side `formatMoney` (~0.5% on M-scale).
+ */
+function formatPctForAudit(pct: number): string {
+  if (pct === 0) return "0%";
+  const p = pct * 100;
+  // Choose the *minimum* decimal places such that the rounded display
+  // parses back to within 0.5% relative error of the original value. Whole
+  // pcts ("5%", "8%", "20%") stay tidy; fractional pcts get just enough
+  // precision to round-trip ("3.25%", "0.15%"); and a non-zero rate is
+  // never silently collapsed to "0%" by the formatter.
+  for (const decimals of [0, 1, 2, 3]) {
+    const rounded = Number(p.toFixed(decimals));
+    if (rounded === 0) continue;
+    if (Math.abs(rounded - p) / p < 0.005) {
+      return `${p.toFixed(decimals)}%`;
+    }
+  }
+  return `${p.toFixed(3)}%`;
+}
+
+/**
+ * Format a dollar amount as an *input* for the audit `formulaText` — full
+ * precision (e.g. "$23,500,000,000") so a reader can re-evaluate the printed
+ * formula and arrive at the printed result. Distinct from `formatMoney`,
+ * which abbreviates to "$23.5B" for the *result* side and other UI surfaces.
+ */
+function formatExactMoneyForAudit(n: number): string {
+  return `$${Math.round(n).toLocaleString("en-US")}`;
 }
 
 /**
@@ -836,13 +878,13 @@ function recalculateRiskBenefit(formula: string): { value: number; formulaText: 
  * Always displays the *capped* percentage so the printed math is internally
  * consistent with the printed dollar result (Task #26). When capping binds,
  * appends a "(capped from X%)" annotation so the AI's original input is still
- * visible for review. Both percentages are formatted to whole numbers to match
- * the rest of the audit string's precision.
+ * visible for review. Both percentages use the adaptive precision tiers from
+ * `formatPctForAudit` so sub-1% rates never silently round to "0%".
  */
 function formatRiskReductionPctForAudit(rawReductionPct: number, cappedReductionPct: number): string {
-  const capped = `${(cappedReductionPct * 100).toFixed(0)}%`;
+  const capped = formatPctForAudit(cappedReductionPct);
   if (rawReductionPct - cappedReductionPct > 1e-9) {
-    return `${capped} (capped from ${(rawReductionPct * 100).toFixed(0)}%)`;
+    return `${capped} (capped from ${formatPctForAudit(rawReductionPct)})`;
   }
   return capped;
 }
@@ -854,13 +896,13 @@ function formatRiskReductionPctForAudit(rawReductionPct: number, cappedReduction
  * branch (Task #36). Always displays the *capped* percentage so the printed
  * math is internally consistent with the printed dollar result, and appends a
  * "(capped from X%)" annotation when capping binds so the AI's original input
- * remains visible. Both percentages are formatted to whole numbers to match
- * the rest of the audit string's precision.
+ * remains visible. Both percentages use the adaptive precision tiers from
+ * `formatPctForAudit` so sub-1% rates never silently round to "0%".
  */
 function formatUpliftPctForAudit(rawUpliftPct: number, cappedUpliftPct: number): string {
-  const capped = `${(cappedUpliftPct * 100).toFixed(0)}%`;
+  const capped = formatPctForAudit(cappedUpliftPct);
   if (rawUpliftPct - cappedUpliftPct > 1e-9) {
-    return `${capped} (capped from ${(rawUpliftPct * 100).toFixed(0)}%)`;
+    return `${capped} (capped from ${formatPctForAudit(rawUpliftPct)})`;
   }
   return capped;
 }
@@ -878,7 +920,7 @@ function formatUpliftPctForAudit(rawUpliftPct: number, cappedUpliftPct: number):
  */
 function formatRevenueUpliftCapWarning(id: string | undefined, rawUpliftPct: number, cappedUpliftPct: number): string {
   const idPrefix = id ? `${id} ` : "";
-  return `${idPrefix}revenue uplift capped from ${(rawUpliftPct * 100).toFixed(0)}% to ${(cappedUpliftPct * 100).toFixed(0)}%`;
+  return `${idPrefix}revenue uplift capped from ${formatPctForAudit(rawUpliftPct)} to ${formatPctForAudit(cappedUpliftPct)}`;
 }
 
 // Parse friction point cost from AI-generated text
@@ -1394,7 +1436,7 @@ export function postProcessAnalysis(analysisResult: any): any {
       );
       revenueResult = {
         value: hfResult.value,
-        formulaText: `${upliftPctText} × ${formatMoney(structuredRevenueInputs.baselineRevenueAtRisk)} × ${structuredRevenueInputs.revenueRealizationMultiplier.toFixed(2)} × ${structuredRevenueInputs.dataMaturityMultiplier.toFixed(2)} = ${formatMoney(hfResult.trace.output)} → ${formatMoney(hfResult.value)} [HF/labels]`,
+        formulaText: `${upliftPctText} × ${formatExactMoneyForAudit(structuredRevenueInputs.baselineRevenueAtRisk)} × ${structuredRevenueInputs.revenueRealizationMultiplier.toFixed(2)} × ${structuredRevenueInputs.dataMaturityMultiplier.toFixed(2)} = ${formatMoney(hfResult.trace.output)} → ${formatMoney(hfResult.value)} [HF/labels]`,
         warnings: structuredRevenueEngineCapped
           ? [formatRevenueUpliftCapWarning(record.ID, structuredRevenueInputs.upliftPct, cappedUpliftPct)]
           : [],
@@ -1417,7 +1459,7 @@ export function postProcessAnalysis(analysisResult: any): any {
       });
       cashFlowResult = {
         value: hfResult.value,
-        formulaText: `${formatMoney(structuredCashFlowInputs.annualRevenue)} × (${structuredCashFlowInputs.daysImprovement}/365) × ${structuredCashFlowInputs.costOfCapital.toFixed(2)} × ${structuredCashFlowInputs.cashFlowRealizationMultiplier.toFixed(2)} × ${structuredCashFlowInputs.dataMaturityMultiplier.toFixed(2)} = ${formatMoney(hfResult.trace.output)} → ${formatMoney(hfResult.value)} [HF/labels]`,
+        formulaText: `${formatExactMoneyForAudit(structuredCashFlowInputs.annualRevenue)} × (${structuredCashFlowInputs.daysImprovement}/365) × ${structuredCashFlowInputs.costOfCapital.toFixed(2)} × ${structuredCashFlowInputs.cashFlowRealizationMultiplier.toFixed(2)} × ${structuredCashFlowInputs.dataMaturityMultiplier.toFixed(2)} = ${formatMoney(hfResult.trace.output)} → ${formatMoney(hfResult.value)} [HF/labels]`,
         warnings: [],
       };
       console.log(`[postProcessAnalysis] ${record.ID}: CashFlow via STRUCTURED LABELS: ${formatMoney(hfResult.value)}`);
@@ -1443,7 +1485,7 @@ export function postProcessAnalysis(analysisResult: any): any {
       );
       riskResult = {
         value: hfResult.value,
-        formulaText: `${reductionPctText} × ${formatMoney(structuredRiskInputs.impactBefore)} × ${structuredRiskInputs.riskRealizationMultiplier.toFixed(2)} × ${structuredRiskInputs.dataMaturityMultiplier.toFixed(2)} = ${formatMoney(hfResult.trace.output)} → ${formatMoney(hfResult.value)} [HF/labels]`,
+        formulaText: `${reductionPctText} × ${formatExactMoneyForAudit(structuredRiskInputs.impactBefore)} × ${structuredRiskInputs.riskRealizationMultiplier.toFixed(2)} × ${structuredRiskInputs.dataMaturityMultiplier.toFixed(2)} = ${formatMoney(hfResult.trace.output)} → ${formatMoney(hfResult.value)} [HF/labels]`,
         warnings: [],
         engineCapped: structuredRiskEngineCapped,
       };
@@ -1503,7 +1545,7 @@ export function postProcessAnalysis(analysisResult: any): any {
             }
             revenueResult = {
               value: derivedRevenue.value,
-              formulaText: `${derivedUpliftPctText} × ${formatMoney(estimatedRevenueAtRisk)} × 0.95 × 0.75 = ${formatMoney(derivedRevenue.trace.output)} → ${formatMoney(derivedRevenue.value)} [derived from ${driverImpact}]`,
+              formulaText: `${derivedUpliftPctText} × ${formatExactMoneyForAudit(estimatedRevenueAtRisk)} × 0.95 × 0.75 = ${formatMoney(derivedRevenue.trace.output)} → ${formatMoney(derivedRevenue.value)} [derived from ${driverImpact}]`,
               warnings: derivedRevenueWarnings,
               engineCapped: derivedRevenueEngineCapped,
             };
@@ -1520,7 +1562,7 @@ export function postProcessAnalysis(analysisResult: any): any {
             });
             cashFlowResult = {
               value: derivedCashFlow.value,
-              formulaText: `${formatMoney(companyRevenue)} × (${daysImprovement}/365) × 0.08 × 0.85 × 0.75 = ${formatMoney(derivedCashFlow.trace.output)} → ${formatMoney(derivedCashFlow.value)} [derived from ${driverImpact}]`,
+              formulaText: `${formatExactMoneyForAudit(companyRevenue)} × (${daysImprovement}/365) × 0.08 × 0.85 × 0.75 = ${formatMoney(derivedCashFlow.trace.output)} → ${formatMoney(derivedCashFlow.value)} [derived from ${driverImpact}]`,
               warnings: [`Cash flow derived from Step 3 driver impact: ${driverImpact}`],
             };
             console.log(`[postProcessAnalysis] ${record.ID}: Derived cash flow from Step 3 driver "${driverImpact}": ${formatMoney(derivedCashFlow.value)}`);
@@ -1543,7 +1585,7 @@ export function postProcessAnalysis(analysisResult: any): any {
             );
             riskResult = {
               value: derivedRisk.value,
-              formulaText: `${derivedReductionPctText} × ${formatMoney(riskExposure)} × 0.80 × 0.75 = ${formatMoney(derivedRisk.trace.output)} → ${formatMoney(derivedRisk.value)} [derived from ${driverImpact}]`,
+              formulaText: `${derivedReductionPctText} × ${formatExactMoneyForAudit(riskExposure)} × 0.80 × 0.75 = ${formatMoney(derivedRisk.trace.output)} → ${formatMoney(derivedRisk.value)} [derived from ${driverImpact}]`,
               warnings: [`Risk derived from Step 3 driver impact: ${driverImpact}`],
               engineCapped: derivedRiskEngineCapped,
             };

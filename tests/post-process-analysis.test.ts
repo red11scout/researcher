@@ -1018,14 +1018,18 @@ describe("postProcessAnalysis — v2.2 contract", () => {
     const record = step5.data.find((r: any) => r.ID === "UC-REV-DERIVED");
     const formulaText: string = record["Revenue Formula"];
 
-    // The hardcoded derived uplift (0.003 = 0.3%) rounds to "0%" with the
-    // existing `.toFixed(0)` formatting. The cap (5%) does not bind, so no
-    // "(capped from X%)" annotation should appear.
+    // The hardcoded derived uplift (0.003 = 0.3%) is now rendered with
+    // adaptive precision as "0.3%" so the printed formula evaluates to the
+    // printed result. The cap (5%) does not bind, so no "(capped from X%)"
+    // annotation should appear.
     expect(formulaText).not.toContain("capped from");
     expect(formulaText).toContain("[derived from");
-    // The leading factor must be the percentage, not a dollar amount —
-    // guarding against accidental reordering of the formatter inputs.
-    expect(formulaText).toMatch(/^\d+%/);
+    // The leading factor must be the percentage (whole or fractional), not
+    // a dollar amount — guarding against accidental reordering of inputs.
+    expect(formulaText).toMatch(/^\d+(?:\.\d+)?%/);
+    // Sub-1% uplifts must NEVER be silently collapsed to "0%" (regression
+    // for the app-wide "0% × $X = $25M" mismatch reported in 2026-05).
+    expect(formulaText.startsWith("0% ")).toBe(false);
   });
 });
 

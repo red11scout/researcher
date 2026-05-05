@@ -53,6 +53,7 @@ Preferred communication style: Simple, everyday language.
 - **IRR Calculation:** `calculateIRR` in `src/calc/formulas.ts` enforces a `|rate| < 10` guard; rates outside this range are returned as `null`.
 - **Admin Audit Log Export:** Exports are capped at `10,000` rows; check `X-Audit-Export-Truncated` header for truncated results.
 - **Client-Side Calculation Fallbacks:** Do not re-introduce client-side re-computation of post-processor totals; if canonical data is missing, render "Unavailable".
+- **Audit `formulaText` Reconciliation:** The printed Cost/Revenue/Cash Flow/Risk Formula strings *must* evaluate to the printed dollar result. Use `formatPctForAudit` (adaptive precision, never collapses sub-1% to "0%") for percentages and `formatExactMoneyForAudit` (full precision, e.g. "$23,500,000,000") for dollar inputs. Only the result side may use abbreviated `formatMoney`. Locked in by `tests/formula-text-reconciles.test.ts`.
 
 ## Pointers
 - **Shadcn/ui Documentation:** [https://ui.shadcn.com/docs](https://ui.shadcn.com/docs)
