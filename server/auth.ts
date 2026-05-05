@@ -80,8 +80,20 @@ function deriveAdminAction(req: Request): string {
 // changes. PUT /api/admin/settings still records via the explicit
 // `recordAdminAudit` call in the route handler (which sets
 // `adminAuditRecorded = true`, so the generic skip below doesn't apply).
+//
+// `audit-log/export` and `audit-log/export.xlsx` (task #59) are read-only
+// CSV/Excel downloads of the audit log. A nervous operator who mashes
+// "Download CSV" 50 times in a minute would otherwise write 50 export
+// rows back into the same table, each carrying the full filter query
+// string in `params`, diluting the signal in the activity panel and
+// slowing the export query itself. Same rule of thumb as the read
+// endpoints above: read-only admin GETs that are safe to call repeatedly
+// belong in this skip set; any new mutating endpoint must NOT be added
+// here and should record explicitly via `recordAdminAudit` instead.
 const ADMIN_AUDIT_SKIP_ACTIONS = new Set([
   "audit-log",
+  "audit-log/export",
+  "audit-log/export.xlsx",
   "last-backfill",
   "last-audit-cleanup",
   "settings",

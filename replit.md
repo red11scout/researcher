@@ -1,63 +1,62 @@
-# BlueAlly Insight - Enterprise Research Platform
+# BlueAlly Insight
+An enterprise research and analysis platform that generates comprehensive AI opportunity assessments for companies using Claude AI.
 
-## Overview
-BlueAlly Insight is an enterprise research and analysis platform designed to generate comprehensive AI opportunity assessments for companies. It leverages Claude AI to produce detailed reports on revenue opportunities, cost reduction, cash flow improvements, and risk mitigation through AI transformation. Users can generate reports by entering a company name, view saved analyses, and export results in various formats (PDF, Excel, Word, HTML). The platform features an intuitive interface with interactive data visualization, real-time analysis progress tracking, industry benchmarking, and advanced What-If Analysis capabilities.
+## Run & Operate
+- **Run Development:** `npm run dev`
+- **Build Client:** `npm run build:client`
+- **Build Server:** `npm run build:server`
+- **Typecheck:** `npm run typecheck`
+- **Codegen:** `npm run codegen` (for Drizzle ORM)
+- **DB Push:** `npm run db:push` (for Drizzle migrations)
+- **Environment Variables:** `ANTHROPIC_API_KEY`, `DATABASE_URL`, `SESSION_SECRET`, `ADMIN_AUDIT_RETENTION_DAYS` (optional, defaults to 90), `SHARE_SESSION_SECRET` (for public dashboards).
 
-## User Preferences
+## Stack
+- **Frontend:** React 18, TypeScript, Wouter, TanStack Query, Shadcn/ui, Tailwind CSS v4, Framer Motion, Recharts
+- **Backend:** Node.js (ES modules), Express.js, TypeScript, Anthropic Claude SDK
+- **Database:** PostgreSQL (Neon serverless), Drizzle ORM
+- **Validation:** Zod
+- **Build Tool:** Vite (frontend), esbuild (backend production)
+- **Calculation Engine:** HyperFormula
+
+## Where things live
+- **Client Source:** `client/src/`
+- **Server Source:** `server/src/`
+- **Shared Utilities/Types:** `shared/src/`
+- **Database Schema:** `db/schema.ts`
+- **API Routes:** `server/src/routes/`
+- **Calculation Logic (Source of Truth):** `src/calc/hyperformulaEngine.ts`, `server/src/calculation-postprocessor.ts`, `src/calc/formulas.ts`
+- **Value-Readiness Matrix Logic:** `shared/src/vrm-v2.ts`
+- **UI Components:** `client/src/components/ui/` (Shadcn/ui)
+- **Tailwind Config:** `tailwind.config.ts`
+
+## Architecture decisions
+- **Single Canonical Calculation Path:** All calculations flow through `src/calc/hyperformulaEngine.ts` and `server/src/calculation-postprocessor.ts` to ensure consistency. No parallel calculation engines.
+- **Winsorized Log10 Percentile Normalization for VRM:** Value scores in the Value-Readiness Matrix use a specific normalization strategy (v3) to handle outliers and sub-1 ratios effectively, preventing score bunching.
+- **Deterministic Calculation QA Gates:** Two dedicated Vitest suites (`tests/calculation-quality-assurance.test.ts` and `tests/output-realism.test.ts`) act as the sole quality gate for calculation logic, ensuring correctness, purity, and CFO-credibility.
+- **Export Consistency:** Export formats (JSON, Markdown) are dumb pass-throughs of the canonical post-processed analysis payload, preventing recomputation or rounding errors downstream.
+- **EPOCH Framework Integration:** Every LLM system prompt integrates the MIT EPOCH Framework to guide AI behavior and reduce hallucination.
+
+## Product
+- Generate AI opportunity assessments for companies using Claude AI.
+- Comprehensive reports covering revenue, cost reduction, cash flow, and risk mitigation.
+- View and manage saved analyses.
+- Export reports to PDF, Excel, Word, and HTML.
+- Interactive data visualization and real-time analysis progress.
+- Industry benchmarking and What-If Analysis capabilities.
+- Admin panel for report management and audit logs.
+
+## User preferences
 Preferred communication style: Simple, everyday language.
 
-## System Architecture
+## Gotchas
+- **Calculation Engine Modifications:** Any changes to `src/calc/`, `shared/vrm-v2.ts`, or `server/src/calculation-postprocessor.ts` *must* pass the `tests/calculation-quality-assurance.test.ts` and `tests/output-realism.test.ts` suites.
+- **IRR Calculation:** `calculateIRR` in `src/calc/formulas.ts` enforces a `|rate| < 10` guard; rates outside this range are returned as `null`.
+- **Admin Audit Log Export:** Exports are capped at `10,000` rows; check `X-Audit-Export-Truncated` header for truncated results.
+- **Client-Side Calculation Fallbacks:** Do not re-introduce client-side re-computation of post-processor totals; if canonical data is missing, render "Unavailable".
 
-### Frontend Architecture
-The frontend is built with React 18 and TypeScript, utilizing functional components and hooks. Wouter handles client-side routing. TanStack Query manages server state, while local state uses React hooks. The UI is constructed with Shadcn/ui (based on Radix UI primitives), styled using Tailwind CSS v4 with custom design tokens. Framer Motion is used for animations, and Recharts handles data visualization. Vite serves as the build tool. Client-side document generation uses jsPDF, XLSX, and Docx libraries for various export formats.
-
-### Backend Architecture
-The backend is a Node.js Express.js application written in TypeScript, using ES modules. It provides a RESTful API for generating or retrieving analyses, leveraging caching. AI integration is managed via the Anthropic Claude 3.5 Sonnet SDK, employing a detailed prompting framework for comprehensive company analysis and structured output. A custom Vite integration provides hot module replacement for development. Production builds are optimized with esbuild for server code and Vite for static client assets.
-
-### Data Storage
-PostgreSQL, specifically Neon serverless, is used for data storage. Drizzle ORM provides type-safe schema definitions and query building. The schema includes a `reports` table storing company names, complete analysis data in JSONB format, and timestamps. Drizzle Kit manages schema migrations. A storage abstraction layer (`IStorage` with `DatabaseStorage` implementation) allows for flexible backend swaps.
-
-### Calculation Engine
-All monetary calculations use HyperFormula (spreadsheet-grade deterministic engine). The engine provides specific formulas for cost, revenue, cash flow, and risk benefits, as well as friction cost and token cost calculations. The post-processor prioritizes structured formula labels from the AI over formula string parsing. Key design decisions include exact deterministic values (no artificial rounding), defaulting to a 'moderate' scenario (1.0 multiplier), and capping `upliftPct` at 5%.
-
-**Single canonical path (April 2026 sweep):** there is exactly one production HyperFormula setup — `src/calc/hyperformulaEngine.ts` — and one canonical post-processor caller — `server/calculation-postprocessor.ts`. JS reference math lives in `src/calc/formulas.ts` with caps in `INPUT_BOUNDS` / `DEFAULT_MULTIPLIERS` (e.g. `riskReductionCapPct = 0.08`, `upliftPct.max = 0.05`). Three earlier parallel calculators have been swept away because they would have produced wrong numbers if wired back in: `server/hyperformula-calc.ts` (task #25 — had a hard-coded 50% risk cap that disagreed with the 8% canonical cap), `client/src/lib/calculationEngine.ts` (task #35 — had a 3-criterion `calculatePriorityScore` that disagreed with the canonical 5-criterion matrix, plus hardcoded $3.00/$15.00/90% token defaults), and `src/calc/engine.ts` (task #35 — a generic `evaluateWithHyperFormula` wrapper with its own `HyperFormula.buildEmpty` setup outside the canonical engine). Do not re-introduce a parallel engine: extend `src/calc/hyperformulaEngine.ts` instead.
-
-### Value-Readiness Matrix (VRM)
-The VRM (v2.2) classifies benefits into quadrants (Champion, Quick Win, Strategic, Foundation) based on value and readiness, with specific cut-off points. It includes a safety-net rule to promote prototyping candidates if fewer than three are identified naturally. Diagnostic warnings are provided for various portfolio health indicators. Chart visuals represent these classifications with semantic colors and bubble sizes indicating Time to Value (TTV).
-
-**Value Score normalization (April 2026 — currently `v3`):** `normalizeValueScores()` in `shared/vrm-v2.ts` uses **winsorized log10 percentile normalization with sub-1 ratio support**. The 1↔10 band is anchored to the 10th and 90th percentile of `log10(EV/Friction ratio)` for portfolios of 5+ use cases (linear-interpolated Type-7 percentile). Smaller portfolios (2–4 use cases) use plain log min/max. The function has been revised three times in April 2026, in response to two distinct bunching bugs in the shared dashboard's Value-Readiness Matrix:
-- `v1` — naive log min-max. One big EV/Friction ratio crushed every other use case to ~1.
-- `v2` — added winsorized 10/90 percentile to protect against outliers, but still took `log10(max(r, 1))`, which floored every sub-1 ratio to log=0. In real portfolios most use cases have EV < Friction (friction dominates first-year projections), so 6/7 bubbles remained pinned to value=1 with one champion at 10.
-- `v3` (active) — sub-1 ratios now produce real negative log values; only zero / non-finite ratios get a sentinel log floor of -2 (= log10(0.01)). Combined with v2's percentile band this finally separates the bottom-row bubbles. See `VALUE_NORMALIZATION_LOG_FLOOR` for the documented sentinel-policy choice (a measured 0.001 sorts below an unmeasurable 0).
-
-The active version is exported as `VALUE_NORMALIZATION_VERSION` and stamped into `vrm.valueNormalizationVersion` by the postprocessor. Pre-active-version reports are flagged stale via `evaluateReportStaleness` (reason `value-norm-version=missing|v1|v2|...`) so the next admin "Upgrade all reports" run re-normalizes them automatically — no force-mode required. The staleness check imports `VALUE_NORMALIZATION_VERSION` directly so future bumps don't need a backfill code change.
-
-### Authentication & Security
-The platform uses password-based authentication with `express-session`. Authentication is managed by a React context (`AuthProvider`) and protected routes (`ProtectedRoute`). Public routes include `/login` and shared dashboards (`/shared/:shareId`). The admin page (`/admin`) allows operators to manage reports and view an audit log of administrative activities. Security features include rate limiting on login attempts and security headers on all responses. The `admin_audit_log` table is pruned by a scheduled sweeper (`server/admin-audit-retention.ts`) that runs shortly after boot and every 24 hours, deleting rows older than the retention window. The window defaults to 90 days and can be overridden via the `ADMIN_AUDIT_RETENTION_DAYS` env var; each run logs the number of rows it removed so operators can confirm it executed. Every sweep persists its outcome to the singleton `admin_last_audit_cleanup` table via `storage.recordAdminAuditCleanup`, and the Admin "Recent admin activity" panel hydrates that record from `/api/admin/last-audit-cleanup` (added to `ADMIN_AUDIT_SKIP_ACTIONS` so the panel's own polling doesn't pollute the audit table) to render an inline status banner with success, failure, or "no cleanup recorded yet" states. A failure row replaces any previous success snapshot so a stale success can't outlive a freshly broken run. The "Recent admin activity" panel supports filter-aware CSV export via `/api/admin/audit-log/export` and Excel export via `/api/admin/audit-log/export.xlsx` (storage method `exportAdminAuditEntries`; xlsx workbook built with ExcelJS — `when` is a real datetime cell, `statusCode` is numeric, header row is bold + frozen, and structured `outcome` data lives on its own "Outcomes" sheet keyed by row id rather than as JSON-stringified cells) — every row matching the active filters is downloaded with columns `when, action, status, statusCode, actorIp, path, errorMessage, outcome`, capped at `AUDIT_EXPORT_MAX_ROWS = 10_000` so a multi-year export can't OOM the server. The response surfaces `X-Audit-Export-Truncated` / `X-Audit-Export-Total` / `X-Audit-Export-Rows` headers so the UI can warn when the slice exceeded the cap, and the suggested filename embeds the active filters (e.g. `admin-audit-2026-04-29-action_backfill-reports-status_failure.csv`) for easy archival.
-
-### Calculation Quality-Assurance Gate (May 2026)
-Two paired vitest suites act as the single "if these pass, the calculation engine is trustworthy" gate. They must both stay green for any change inside `src/calc/`, `shared/vrm-v2.ts`, or `server/calculation-postprocessor.ts` to ship.
-- **`tests/calculation-quality-assurance.test.ts`** (~70 tests) — proves the engine is *correct and pure*: determinism across 50 repeats per formula (incl. the long-lived global HyperFormula instance with interleaved calls to provoke cell leaks), HyperFormula↔JS-reference parity within $1 over a 200-sample fuzz, no NaN/Infinity/negative dollars, every documented cap actually binds (revenue 5%, risk 8% of exposure, total benefits 3% of revenue, hours ≤ 500K), `validateInputs` clamps both above and below `INPUT_BOUNDS` for every declared field, algebraic linearity (doubling a linear input doubles the output), scenario ordering (conservative < moderate < aggressive on every benefit driver), scoring monotonicity (readiness/priority/value scores are monotone in their inputs and bounded [1,10]), value-normalization rank preservation, and a static source scan that fails if anything in the calculation universe references `Math.random`, `Date.now`, `new Date()`, `performance.now`, `crypto.randomBytes`, or `crypto.randomUUID`.
-- **`tests/output-realism.test.ts`** (~37 tests) — proves the *output* is conservative and CFO-credible: per-driver ceilings (no use case can claim more than 5%/8%/3% of its denominator after multipliers), portfolio cap binds at 3% of revenue across a 100-portfolio fuzz, scenario ratios are exactly 0.60/1.00/1.30, NPV is bounded above by undiscounted total, higher discount rate → lower NPV, payback is bounded by projection horizon, IRR stays within the engine's [-100%, 1000%] contract (and within [-50%, 500%] for realistic mid-market portfolios), implementation cost spread sums to 100% over years 1-3, adversarial AI claims (25% uplift, 80% risk reduction, every driver overstated) still produce a credible scaled portfolio total, the headline string pulls from the conservative scenario per project policy, and a set of golden-fixture snapshots stamp the exact dollar output for canonical inputs (e.g. `calculateCostBenefit({ hoursSaved: 10_000, loadedHourlyRate: 120 }) === $1,093,500` in the moderate scenario) so any silent shift in multipliers shows up immediately.
-- **IRR convergence guard fix (May 2026):** the realism suite surfaced that `calculateIRR` in `src/calc/formulas.ts` only applied its documented "reject |rate|≥10" guard on non-convergence — Newton iterations that *converged* to a 1600% IRR shipped unchecked. The convergence path now applies the same `Math.abs(rate) < 10 ? rate : null` guard, matching the function's tail behavior. This is the only IRR change required to make every published rate fall inside [-1000%, 1000%].
-
-### Cross-Format Numeric Consistency (May 2026)
-Companion gate to the Calculation QA suite that proves the **export pipelines** are dumb pass-throughs of the canonical post-processor payload — no recomputation, re-summing, rounding, or invented numbers anywhere downstream of `postProcessAnalysis`.
-- **`server/export-formatters.ts`** — two pure helpers (`formatReportAsJson`, `formatReportAsMarkdown`) extracted from the inline bulk-export switch in `server/routes.ts`. JSON export emits `data` reference-equal to `report.analysisData`; Markdown export concatenates verbatim summary + step content. Neither helper does arithmetic. The route's bulk-export `case "json"` / `case "md"` blocks now call these helpers.
-- **`tests/export-formatters.test.ts`** (~11 tests) — JSON pass-through (reference-equality + dollar-value round-trip), Markdown pass-through (verbatim summary/step content + a "no numeric token in the markdown is absent from the source JSON" trip-wire), graceful "Unavailable" handling when summary is missing, byte-identical determinism for fixed inputs, cross-format identity (the same `totalAnnualValue` appears in both JSON and Markdown output, formatted from the same canonical number).
-- **Client-side leak fix:** `client/src/pages/ReportViewer.tsx` previously had `totalValue = dashboard?.totalAnnualValue || valueBreakdownData.reduce(...)` — a silent fallback that re-summed the breakdown if the canonical payload was missing, producing a number that could disagree with the dashboard, JSON export, markdown export, and shared link. The fallback is removed; if the canonical `totalAnnualValue` is absent the StatCard now renders "Unavailable" rather than inventing a value. The `||` was the only client-side recomputation of a post-processor total in the codebase.
-
-### EPOCH Framework
-The MIT EPOCH Framework (Empathy, Presence, Opinion, Creativity, Hope) is integrated into every LLM system prompt via a constant `EPOCH_FRAMEWORK_DEFINITION` to guide AI behavior and prevent hallucination.
-
-## External Dependencies
-- **AI Service**: Anthropic Claude API (`@anthropic-ai/sdk`)
-- **Database**: Neon PostgreSQL serverless database
-- **Calculation Engine**: HyperFormula (`hyperformula`)
-- **UI Components**: Radix UI (`@radix-ui/react-*`), Shadcn/ui
-- **Form Handling**: React Hook Form, Zod
-- **Date Manipulation**: `date-fns`
-- **Icons**: `Lucide React`
-- **Styling**: Tailwind CSS, `class-variance-authority`
-- **Charts**: `Recharts`
-- **Document Export**: `jsPDF`, `xlsx`, `docx`, `file-saver`
+## Pointers
+- **Shadcn/ui Documentation:** [https://ui.shadcn.com/docs](https://ui.shadcn.com/docs)
+- **Drizzle ORM Documentation:** [https://orm.drizzle.team/docs/overview](https://orm.drizzle.team/docs/overview)
+- **HyperFormula Documentation:** _Populate as you build_
+- **Tailwind CSS Documentation:** [https://tailwindcss.com/docs](https://tailwindcss.com/docs)
+- **Anthropic Claude API Documentation:** _Populate as you build_
