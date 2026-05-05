@@ -8,6 +8,7 @@ import { insertReportSchema, adminSettingsUpdateSchema } from "@shared/schema";
 import { resolveRetentionDays as resolveAuditRetentionDays } from "./admin-audit-retention";
 import { recordAdminAudit } from "./auth";
 import { buildAssumptionExcelWorkbook, buildAssumptionJSON } from "./assumption-export";
+import { formatReportAsJson, formatReportAsMarkdown } from "./export-formatters";
 import {
   evaluateReportStaleness,
   backfillAllReports,
@@ -3625,28 +3626,22 @@ Return ONLY valid JSON with this structure:
           let content: string;
           const safeCompanyName = companyName.replace(/[^a-zA-Z0-9]/g, "_");
 
+          // Pure pass-through formatters (server/export-formatters.ts).
+          // Calculation-determinism gate: these MUST NOT recompute or
+          // round numbers — they emit the canonical analysisData verbatim.
+          const exportCtx = { reportType, exportedAt: new Date().toISOString() };
           switch (format) {
             case "json":
               filename = `${safeCompanyName}_${reportType}.json`;
-              content = JSON.stringify({
-                company: companyName,
-                reportType: reportType,
-                exportedAt: new Date().toISOString(),
-                data: report.analysisData,
-              }, null, 2);
+              content = JSON.stringify(
+                formatReportAsJson(report, exportCtx),
+                null,
+                2,
+              );
               break;
             case "md":
               filename = `${safeCompanyName}_${reportType}.md`;
-              const analysisData = report.analysisData as any;
-              content = `# ${companyName} - ${reportType} Report\n\n`;
-              content += `**Generated:** ${new Date().toISOString()}\n\n`;
-              content += `## Summary\n\n${analysisData?.summary || "No summary available"}\n\n`;
-              if (analysisData?.steps) {
-                for (const step of analysisData.steps) {
-                  content += `## ${step.title || `Step ${step.step}`}\n\n`;
-                  content += `${step.content || ""}\n\n`;
-                }
-              }
+              content = formatReportAsMarkdown(report, exportCtx);
               break;
             case "pdf":
               filename = `${safeCompanyName}_${reportType}.txt`;

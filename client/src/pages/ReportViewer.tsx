@@ -332,8 +332,18 @@ export default function ReportViewer() {
     { name: 'Risk', value: dashboard.totalRiskBenefit || 0 },
   ].filter(item => item.value > 0) : [];
 
-  const totalValue = dashboard?.totalAnnualValue || 
-    valueBreakdownData.reduce((sum, item) => sum + item.value, 0);
+  // Calculation-determinism gate: do NOT silently re-sum the breakdown
+  // if `totalAnnualValue` is missing. The canonical value is computed
+  // by the deterministic post-processor (server/calculation-postprocessor.ts)
+  // and stamped onto `executiveDashboard.totalAnnualValue`. A client-side
+  // re-sum would produce a different number than the dashboard, JSON
+  // export, markdown export, and shared link, violating the cross-format
+  // consistency rule. If the canonical value is absent, surface it as
+  // unavailable rather than inventing one.
+  const totalValue: number | null =
+    typeof dashboard?.totalAnnualValue === 'number' && Number.isFinite(dashboard.totalAnnualValue)
+      ? dashboard.totalAnnualValue
+      : null;
 
   const topUseCases = dashboard?.topUseCases || [];
 
@@ -457,12 +467,12 @@ export default function ReportViewer() {
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             <StatCard
-              value={totalValue}
+              value={totalValue ?? 'Unavailable'}
               label="Total Annual Value"
               description="Combined AI opportunity value"
               icon={DollarSign}
               color="navy"
-              prefix="$"
+              prefix={totalValue == null ? '' : '$'}
             />
             <StatCard
               value={dashboard?.totalRevenueBenefit || 0}
