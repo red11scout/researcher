@@ -610,11 +610,11 @@ function parseRevenueFormulaInputs(formula: string): RevenueInputs | null {
   };
 }
 
-function recalculateRevenueBenefit(formula: string): { value: number; formulaText: string; warnings: string[] } {
+function recalculateRevenueBenefit(formula: string): { value: number; formulaText: string; warnings: string[]; engineCapped: boolean } {
   const warnings: string[] = [];
 
   if (isNoValue(formula)) {
-    return { value: 0, formulaText: "No direct revenue impact", warnings };
+    return { value: 0, formulaText: "No direct revenue impact", warnings, engineCapped: false };
   }
 
   const inputs = parseRevenueFormulaInputs(formula);
@@ -622,7 +622,7 @@ function recalculateRevenueBenefit(formula: string): { value: number; formulaTex
   if (!inputs) {
     // Cannot parse - log warning and return 0 to avoid incorrect values
     console.warn(`[recalculateRevenueBenefit] Could not parse formula, returning 0: ${formula}`);
-    return { value: 0, formulaText: formula + " (could not validate)", warnings };
+    return { value: 0, formulaText: formula + " (could not validate)", warnings, engineCapped: false };
   }
 
   const result = hfCalculateRevenueBenefit(inputs);
@@ -633,13 +633,15 @@ function recalculateRevenueBenefit(formula: string): { value: number; formulaTex
   // multiplies out to the displayed dollar value. The raw % the AI proposed is
   // preserved as a "(capped from X%)" annotation when capping actually binds,
   // so reviewers can still see what was overridden — Task #36.
+  const cappedUpliftPct = result.trace.inputs.upliftPct as number;
+  const engineCapped = inputs.upliftPct - cappedUpliftPct > 1e-9;
   const upliftPctText = formatUpliftPctForAudit(
     inputs.upliftPct,
-    result.trace.inputs.upliftPct as number,
+    cappedUpliftPct,
   );
   const newFormula = `${upliftPctText} × ${formatMoney(inputs.baselineRevenueAtRisk)} × ${inputs.revenueRealizationMultiplier.toFixed(2)} × ${inputs.dataMaturityMultiplier.toFixed(2)} = ${formatMoney(result.trace.output)} → ${formatMoney(result.value)}`;
 
-  return { value: result.value, formulaText: newFormula, warnings };
+  return { value: result.value, formulaText: newFormula, warnings, engineCapped };
 }
 
 // Parse cash flow formula inputs
@@ -779,11 +781,11 @@ function parseRiskFormulaInputs(formula: string): RiskInputs | null {
   };
 }
 
-function recalculateRiskBenefit(formula: string): { value: number; formulaText: string; warnings: string[] } {
+function recalculateRiskBenefit(formula: string): { value: number; formulaText: string; warnings: string[]; engineCapped: boolean } {
   const warnings: string[] = [];
 
   if (isNoValue(formula)) {
-    return { value: 0, formulaText: "No quantifiable risk reduction", warnings };
+    return { value: 0, formulaText: "No quantifiable risk reduction", warnings, engineCapped: false };
   }
 
   const inputs = parseRiskFormulaInputs(formula);
@@ -791,7 +793,7 @@ function recalculateRiskBenefit(formula: string): { value: number; formulaText: 
   if (!inputs) {
     // Cannot parse - log warning and return 0 to avoid incorrect values
     console.warn(`[recalculateRiskBenefit] Could not parse formula, returning 0: ${formula}`);
-    return { value: 0, formulaText: formula + " (could not validate)", warnings };
+    return { value: 0, formulaText: formula + " (could not validate)", warnings, engineCapped: false };
   }
 
   const result = hfCalculateRiskBenefit({
@@ -807,13 +809,15 @@ function recalculateRiskBenefit(formula: string): { value: number; formulaText: 
   // math multiplies out to the displayed dollar value. The raw % the AI
   // proposed is preserved as a "(capped from X%)" annotation when capping
   // actually binds, so reviewers can still see what was overridden.
+  const cappedReductionPct = result.trace.inputs.riskReductionPct as number;
+  const engineCapped = inputs.probBefore - cappedReductionPct > 1e-9;
   const reductionPctText = formatRiskReductionPctForAudit(
     inputs.probBefore,
-    result.trace.inputs.riskReductionPct as number,
+    cappedReductionPct,
   );
   const newFormula = `${reductionPctText} × ${formatMoney(inputs.impactBefore)} × ${inputs.riskRealizationMultiplier.toFixed(2)} × ${inputs.dataMaturityMultiplier.toFixed(2)} = ${formatMoney(result.trace.output)} → ${formatMoney(result.value)}`;
 
-  return { value: result.value, formulaText: newFormula, warnings };
+  return { value: result.value, formulaText: newFormula, warnings, engineCapped };
 }
 
 /**
@@ -1307,9 +1311,19 @@ export function postProcessAnalysis(analysisResult: any): any {
     const structuredRiskInputs = parseRiskFromLabels(record["Risk Formula Labels"]);
 
     let costResult: { value: number; formulaText: string; warnings: string[] };
-    let revenueResult: { value: number; formulaText: string; warnings: string[] };
+    let revenueResult: { value: number; formulaText: string; warnings: string[]; engineCapped: boolean };
     let cashFlowResult: { value: number; formulaText: string; warnings: string[] };
-    let riskResult: { value: number; formulaText: string; warnings: string[] };
+    let riskResult: { value: number; formulaText: string; warnings: string[]; engineCapped: boolean };
+
+    // Track whether the HyperFormula engine bound a per-use-case cap on this
+    // record. The engine caps `upliftPct` at INPUT_BOUNDS.upliftPct.max and
+    // `riskReductionPct` at INPUT_BOUNDS.riskReductionPct.max inside
+    // hfCalculateRevenueBenefit/hfCalculateRiskBenefit. The Validation Summary
+    // log line previously only counted post-process portfolio-cap hits and
+    // reported "0 UCs capped" even when the engine cap bound on every record,
+    // hiding the fact that a portfolio leaned heavily on AI-overstated inputs
+    // (Task #51).
+    let useCaseHadEngineCap = false;
 
     // COST: Prefer structured labels
     if (structuredCostInputs) {
@@ -1344,18 +1358,24 @@ export function postProcessAnalysis(analysisResult: any): any {
         revenueRealizationMultiplier: structuredRevenueInputs.revenueRealizationMultiplier,
         dataMaturityMultiplier: structuredRevenueInputs.dataMaturityMultiplier,
       });
+      const cappedUpliftPct = hfResult.trace.inputs.upliftPct as number;
+      const structuredRevenueEngineCapped =
+        structuredRevenueInputs.upliftPct - cappedUpliftPct > 1e-9;
+      if (structuredRevenueEngineCapped) useCaseHadEngineCap = true;
       const upliftPctText = formatUpliftPctForAudit(
         structuredRevenueInputs.upliftPct,
-        hfResult.trace.inputs.upliftPct as number,
+        cappedUpliftPct,
       );
       revenueResult = {
         value: hfResult.value,
         formulaText: `${upliftPctText} × ${formatMoney(structuredRevenueInputs.baselineRevenueAtRisk)} × ${structuredRevenueInputs.revenueRealizationMultiplier.toFixed(2)} × ${structuredRevenueInputs.dataMaturityMultiplier.toFixed(2)} = ${formatMoney(hfResult.trace.output)} → ${formatMoney(hfResult.value)} [HF/labels]`,
         warnings: [],
+        engineCapped: structuredRevenueEngineCapped,
       };
       console.log(`[postProcessAnalysis] ${record.ID}: Revenue via STRUCTURED LABELS: ${formatMoney(hfResult.value)}`);
     } else {
       revenueResult = recalculateRevenueBenefit(record["Revenue Formula"] || "");
+      if (revenueResult.engineCapped) useCaseHadEngineCap = true;
     }
 
     // CASH FLOW: Prefer structured labels
@@ -1385,18 +1405,24 @@ export function postProcessAnalysis(analysisResult: any): any {
         riskRealizationMultiplier: structuredRiskInputs.riskRealizationMultiplier,
         dataMaturityMultiplier: structuredRiskInputs.dataMaturityMultiplier,
       });
+      const cappedReductionPct = hfResult.trace.inputs.riskReductionPct as number;
+      const structuredRiskEngineCapped =
+        structuredRiskInputs.probBefore - cappedReductionPct > 1e-9;
+      if (structuredRiskEngineCapped) useCaseHadEngineCap = true;
       const reductionPctText = formatRiskReductionPctForAudit(
         structuredRiskInputs.probBefore,
-        hfResult.trace.inputs.riskReductionPct as number,
+        cappedReductionPct,
       );
       riskResult = {
         value: hfResult.value,
         formulaText: `${reductionPctText} × ${formatMoney(structuredRiskInputs.impactBefore)} × ${structuredRiskInputs.riskRealizationMultiplier.toFixed(2)} × ${structuredRiskInputs.dataMaturityMultiplier.toFixed(2)} = ${formatMoney(hfResult.trace.output)} → ${formatMoney(hfResult.value)} [HF/labels]`,
         warnings: [],
+        engineCapped: structuredRiskEngineCapped,
       };
       console.log(`[postProcessAnalysis] ${record.ID}: Risk via STRUCTURED LABELS: ${formatMoney(hfResult.value)}`);
     } else {
       riskResult = recalculateRiskBenefit(record["Risk Formula"] || "");
+      if (riskResult.engineCapped) useCaseHadEngineCap = true;
     }
 
     // DERIVE MISSING BENEFITS FROM STEP 3 FRICTION DATA
@@ -1434,14 +1460,18 @@ export function postProcessAnalysis(analysisResult: any): any {
               upliftPct,
               baselineRevenueAtRisk: estimatedRevenueAtRisk,
             });
+            const derivedCappedUpliftPct = derivedRevenue.trace.inputs.upliftPct as number;
+            const derivedRevenueEngineCapped = upliftPct - derivedCappedUpliftPct > 1e-9;
+            if (derivedRevenueEngineCapped) useCaseHadEngineCap = true;
             const derivedUpliftPctText = formatUpliftPctForAudit(
               upliftPct,
-              derivedRevenue.trace.inputs.upliftPct as number,
+              derivedCappedUpliftPct,
             );
             revenueResult = {
               value: derivedRevenue.value,
               formulaText: `${derivedUpliftPctText} × ${formatMoney(estimatedRevenueAtRisk)} × 0.95 × 0.75 = ${formatMoney(derivedRevenue.trace.output)} → ${formatMoney(derivedRevenue.value)} [derived from ${driverImpact}]`,
               warnings: [`Revenue derived from Step 3 driver impact: ${driverImpact}`],
+              engineCapped: derivedRevenueEngineCapped,
             };
             console.log(`[postProcessAnalysis] ${record.ID}: Derived revenue from Step 3 driver "${driverImpact}": ${formatMoney(derivedRevenue.value)}`);
           }
@@ -1470,14 +1500,18 @@ export function postProcessAnalysis(analysisResult: any): any {
               riskReductionPct,
               riskExposure,
             });
+            const derivedCappedReductionPct = derivedRisk.trace.inputs.riskReductionPct as number;
+            const derivedRiskEngineCapped = riskReductionPct - derivedCappedReductionPct > 1e-9;
+            if (derivedRiskEngineCapped) useCaseHadEngineCap = true;
             const derivedReductionPctText = formatRiskReductionPctForAudit(
               riskReductionPct,
-              derivedRisk.trace.inputs.riskReductionPct as number,
+              derivedCappedReductionPct,
             );
             riskResult = {
               value: derivedRisk.value,
               formulaText: `${derivedReductionPctText} × ${formatMoney(riskExposure)} × 0.80 × 0.75 = ${formatMoney(derivedRisk.trace.output)} → ${formatMoney(derivedRisk.value)} [derived from ${driverImpact}]`,
               warnings: [`Risk derived from Step 3 driver impact: ${driverImpact}`],
+              engineCapped: derivedRiskEngineCapped,
             };
             console.log(`[postProcessAnalysis] ${record.ID}: Derived risk from Step 3 driver "${driverImpact}": ${formatMoney(derivedRisk.value)}`);
           }
@@ -1609,7 +1643,15 @@ export function postProcessAnalysis(analysisResult: any): any {
     // Collect per-use-case warnings for the validation report
     allUseCaseWarnings.push(...ucWarnings);
 
-    console.log(`[postProcessAnalysis] ${record.ID}: Cost=${formatMoney(costVal)}, Revenue=${formatMoney(revVal)}, CashFlow=${formatMoney(cfVal)}, Risk=${formatMoney(riskVal)}, Total=${formatMoney(ucTotal)}, P(S)=${prob}, EV=${formatMoney(expectedValue)}${ucWarnings.length > 0 ? ` [${ucWarnings.length} warnings]` : ''}`);
+    // Count this use case toward the Validation Summary's "UCs capped" tally
+    // when the HyperFormula engine bound a per-use-case cap on the revenue
+    // uplift or the risk-reduction percentage. Without this, the rolled-up
+    // summary admins use to spot-check a portfolio reports "0 UCs capped"
+    // even when every use case relied on AI-overstated inputs that the
+    // engine quietly clamped (Task #51).
+    if (useCaseHadEngineCap) useCasesCapped++;
+
+    console.log(`[postProcessAnalysis] ${record.ID}: Cost=${formatMoney(costVal)}, Revenue=${formatMoney(revVal)}, CashFlow=${formatMoney(cfVal)}, Risk=${formatMoney(riskVal)}, Total=${formatMoney(ucTotal)}, P(S)=${prob}, EV=${formatMoney(expectedValue)}${ucWarnings.length > 0 ? ` [${ucWarnings.length} warnings]` : ''}${useCaseHadEngineCap ? ' [engine-capped]' : ''}`);
   }
 
   // ============================================

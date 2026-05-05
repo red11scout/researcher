@@ -1030,6 +1030,177 @@ describe("postProcessAnalysis — v2.2 contract", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Regression (Task #51): the end-of-pipeline Validation Summary count
+// (`validationSummary.useCasesCapped`, also surfaced on the Report UI as
+// "X use cases capped to meet CFO-credible limits") must include use cases
+// whose individual revenue uplift or risk-reduction percentage was capped
+// *inside* the HyperFormula engine (`hfCalculateRevenueBenefit` /
+// `hfCalculateRiskBenefit`), not just use cases caught by the post-process
+// portfolio-cap pass. Tasks #26 and #36 already make engine capping visible
+// on the per-row audit text via the "(capped from X%)" annotation; this
+// test pins the equivalent rolled-up signal so a portfolio that leans on
+// AI-overstated inputs no longer reports "0 UCs capped".
+// ---------------------------------------------------------------------------
+describe("postProcessAnalysis — engine-cap counting in Validation Summary", () => {
+  it("counts use cases whose revenue uplift OR risk reduction was capped inside the HyperFormula engine", () => {
+    // Three use cases:
+    //   UC-REV-CAP    — structured-labels REVENUE branch, AI claims 8%
+    //                   uplift; engine caps at 5% (INPUT_BOUNDS.upliftPct.max).
+    //   UC-RISK-CAP   — structured-labels RISK branch, AI claims 20% risk
+    //                   reduction; engine caps at 8%
+    //                   (INPUT_BOUNDS.riskReductionPct.max).
+    //   UC-CLEAN      — neither cap binds (3% uplift, 4% risk reduction);
+    //                   serves as a negative control so a naive
+    //                   "everything counts" implementation would fail.
+    // Annual revenue is large enough that the post-process portfolio cap
+    // (advisory at 3% of revenue) does NOT bind — every "capped" signal in
+    // the summary therefore comes purely from the engine path.
+    const fixture = {
+      steps: [
+        {
+          step: 0,
+          title: "Company Profile",
+          data: [
+            { "Annual Revenue ($)": 500_000_000, "Total Employees": 1000 },
+          ],
+        },
+        {
+          step: 5,
+          title: "Benefits Quantification",
+          data: [
+            {
+              ID: "UC-REV-CAP",
+              "Use Case": "Sales Acceleration",
+              "Strategic Theme": "Revenue",
+              "Cost Formula Labels": {
+                components: [
+                  { label: "Hours Saved", value: 800 },
+                  { label: "Loaded Hourly Rate", value: 100 },
+                  { label: "Benefits Loading", value: 1.3 },
+                  { label: "Adoption Rate", value: 0.8 },
+                  { label: "Data Maturity", value: 0.75 },
+                ],
+              },
+              "Revenue Formula Labels": {
+                components: [
+                  { label: "Uplift %", value: 0.08 },
+                  { label: "Revenue at Risk", value: 5_000_000 },
+                  { label: "Realization Factor", value: 0.95 },
+                  { label: "Data Maturity", value: 0.75 },
+                ],
+              },
+              "Probability of Success": 0.7,
+            },
+            {
+              ID: "UC-RISK-CAP",
+              "Use Case": "Fraud Detection",
+              "Strategic Theme": "Risk",
+              "Cost Formula Labels": {
+                components: [
+                  { label: "Hours Saved", value: 800 },
+                  { label: "Loaded Hourly Rate", value: 100 },
+                  { label: "Benefits Loading", value: 1.3 },
+                  { label: "Adoption Rate", value: 0.8 },
+                  { label: "Data Maturity", value: 0.75 },
+                ],
+              },
+              "Risk Formula Labels": {
+                components: [
+                  { label: "Risk Reduction %", value: 0.20 },
+                  { label: "Risk Exposure", value: 1_000_000 },
+                  { label: "Realization Factor", value: 0.80 },
+                  { label: "Data Maturity", value: 0.75 },
+                ],
+              },
+              "Probability of Success": 0.7,
+            },
+            {
+              ID: "UC-CLEAN",
+              "Use Case": "Routine Reporting",
+              "Strategic Theme": "Cost",
+              "Cost Formula Labels": {
+                components: [
+                  { label: "Hours Saved", value: 800 },
+                  { label: "Loaded Hourly Rate", value: 100 },
+                  { label: "Benefits Loading", value: 1.3 },
+                  { label: "Adoption Rate", value: 0.8 },
+                  { label: "Data Maturity", value: 0.75 },
+                ],
+              },
+              "Revenue Formula Labels": {
+                components: [
+                  { label: "Uplift %", value: 0.03 },
+                  { label: "Revenue at Risk", value: 2_000_000 },
+                  { label: "Realization Factor", value: 0.95 },
+                  { label: "Data Maturity", value: 0.75 },
+                ],
+              },
+              "Risk Formula Labels": {
+                components: [
+                  { label: "Risk Reduction %", value: 0.04 },
+                  { label: "Risk Exposure", value: 500_000 },
+                  { label: "Realization Factor", value: 0.80 },
+                  { label: "Data Maturity", value: 0.75 },
+                ],
+              },
+              "Probability of Success": 0.7,
+            },
+          ],
+        },
+        {
+          step: 6,
+          title: "Readiness & Token Modeling",
+          data: ["UC-REV-CAP", "UC-RISK-CAP", "UC-CLEAN"].map((id) => ({
+            ID: id,
+            "Use Case": id,
+            "Organizational Capacity": 7,
+            "Data Availability & Quality": 7,
+            "Technical Infrastructure": 7,
+            "Governance": 7,
+            "Time-to-Value (months)": 6,
+            "Runs/Month": 1000,
+            "Input Tokens/Run": 800,
+            "Output Tokens/Run": 800,
+          })),
+        },
+      ],
+      vrm: { schemaVersion: "2.0" },
+    };
+
+    const result = postProcessAnalysis(fixture);
+
+    // Sanity: the per-row audit text confirms the engine actually capped
+    // both flagged use cases (this is the Task #26/#36 contract). If those
+    // annotations stop appearing the test fixture has drifted from the
+    // engine bounds and the count assertion below would be meaningless.
+    const step5 = result.steps.find((s: any) => s.step === 5);
+    const revRow = step5.data.find((r: any) => r.ID === "UC-REV-CAP");
+    const riskRow = step5.data.find((r: any) => r.ID === "UC-RISK-CAP");
+    const cleanRow = step5.data.find((r: any) => r.ID === "UC-CLEAN");
+    expect(revRow["Revenue Formula"]).toContain("(capped from 8%)");
+    expect(riskRow["Risk Formula"]).toContain("(capped from 20%)");
+    expect(cleanRow["Revenue Formula"]).not.toContain("capped from");
+    expect(cleanRow["Risk Formula"]).not.toContain("capped from");
+
+    // The portfolio-cap pass must NOT have fired on this fixture — only
+    // then can we attribute the entire `useCasesCapped` count to engine
+    // capping. Total benefits are well under the 3%-of-revenue advisory
+    // threshold ($15M against $500M revenue), so `portfolioScaleFactor`
+    // stays at 1.0 and `validatedTotal` matches `originalTotal` exactly.
+    expect(result.validationSummary.portfolioScaleFactor).toBe(1);
+    expect(result.validationSummary.validatedTotal).toBe(
+      result.validationSummary.originalTotal,
+    );
+
+    // The Validation Summary count must include both engine-capped use
+    // cases — and only those. Before Task #51 this stayed at 0 even though
+    // the engine capped both records, hiding the AI-overstated inputs from
+    // the rolled-up summary admins use to spot-check a portfolio.
+    expect(result.validationSummary.useCasesCapped).toBe(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Regression: the v2.2 metadata block must be built even when no use case
 // qualifies as a champion. This is the path that exercised the original
 // `portfolioDiagnosticV22 is not defined` scoping bug — when the variable
