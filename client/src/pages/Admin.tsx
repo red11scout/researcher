@@ -166,6 +166,33 @@ function formatDuration(ms: number): string {
   return `${mins}m ${remSec}s`;
 }
 
+// How old (in ms) a rehydrated summary needs to be before we visually
+// distinguish it as "stale". Operators returning to /admin after a long
+// break shouldn't mistake a week-old summary for a freshly-completed run.
+const STALE_RUN_THRESHOLD_MS = 24 * 60 * 60 * 1000;
+
+// Compact, human-friendly relative time ("just now", "2h ago", "5d ago")
+// for the rehydrated last-run chip on the Admin page. We deliberately
+// keep it short so it fits as a badge next to the summary header without
+// wrapping; the absolute timestamp is still available via `title`.
+function formatRelativeTime(fromIso: string, now: number = Date.now()): string {
+  const then = new Date(fromIso).getTime();
+  if (!Number.isFinite(then)) return "";
+  const diffMs = Math.max(0, now - then);
+  const sec = Math.floor(diffMs / 1000);
+  if (sec < 45) return "just now";
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  const day = Math.floor(hr / 24);
+  if (day < 30) return `${day}d ago`;
+  const mo = Math.floor(day / 30);
+  if (mo < 12) return `${mo}mo ago`;
+  const yr = Math.floor(day / 365);
+  return `${yr}y ago`;
+}
+
 export default function Admin() {
   const { isAdmin, isLoading: authLoading } = useAuth();
 
@@ -1209,9 +1236,34 @@ export function AdminPanel() {
               </div>
             )}
 
-            {result && (
-              <div className="space-y-4" data-testid="panel-backfill-result">
+            {result && (() => {
+              const hydratedAge = hydratedAt
+                ? Date.now() - new Date(hydratedAt).getTime()
+                : 0;
+              const isStale =
+                !!hydratedAt &&
+                Number.isFinite(hydratedAge) &&
+                hydratedAge >= STALE_RUN_THRESHOLD_MS;
+              return (
+              <div
+                className={`space-y-4 ${isStale ? "opacity-70" : ""}`}
+                data-testid="panel-backfill-result"
+                data-stale={isStale ? "true" : "false"}
+              >
                 <Separator />
+                {isStale && (
+                  <div
+                    className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 flex items-start gap-2 text-sm text-amber-800"
+                    data-testid="banner-last-run-stale"
+                  >
+                    <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                    <span>
+                      This summary is from a previous run completed{" "}
+                      {formatRelativeTime(hydratedAt!)} — re-run the upgrade to
+                      see fresh results.
+                    </span>
+                  </div>
+                )}
                 <div className="flex items-center gap-2 flex-wrap">
                   <CheckCircle2 className="h-5 w-5 text-emerald-600" />
                   <h3 className="text-base font-semibold text-slate-900">
@@ -1223,15 +1275,19 @@ export function AdminPanel() {
                     </Badge>
                   )}
                   {hydratedAt && (
-                    <span
-                      className="text-xs text-slate-500 flex items-center gap-1"
-                      data-testid="text-hydrated-from-previous-run"
-                      title={new Date(hydratedAt).toLocaleString()}
+                    <Badge
+                      variant={isStale ? "outline" : "secondary"}
+                      className={
+                        isStale
+                          ? "border-amber-300 bg-amber-50 text-amber-800 gap-1"
+                          : "gap-1"
+                      }
+                      data-testid="chip-last-run-relative"
+                      title={`Last run completed ${new Date(hydratedAt).toLocaleString()}`}
                     >
-                      <Clock className="h-3.5 w-3.5" />
-                      from previous run completed{" "}
-                      {new Date(hydratedAt).toLocaleString()}
-                    </span>
+                      <Clock className="h-3 w-3" />
+                      Last run · {formatRelativeTime(hydratedAt)}
+                    </Badge>
                   )}
                 </div>
 
@@ -1456,7 +1512,8 @@ export function AdminPanel() {
                   </div>
                 )}
               </div>
-            )}
+              );
+            })()}
           </CardContent>
         </Card>
 
