@@ -378,7 +378,7 @@ const AUDIT_ACTION_OPTIONS: { value: string; label: string }[] = [
   { value: "admin-access-denied", label: "Admin access denied" },
 ];
 
-function AdminPanel() {
+export function AdminPanel() {
   const { toast } = useToast();
   const { adminLogout } = useAuth();
   const [force, setForce] = useState(false);
