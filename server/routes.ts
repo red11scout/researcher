@@ -139,7 +139,10 @@ function formatAuditEntryAsCsvRow(entry: {
 // where filter tags only appear for active filters. Sanitised to
 // filesystem-safe characters because operators routinely save these to
 // shared drives where Windows paths reject `:`, `/`, etc.
-function buildAuditExportFilename(opts: AdminAuditLogQuery): string {
+function buildAuditExportFilename(
+  opts: AdminAuditLogQuery,
+  extension: "csv" | "xlsx" = "csv",
+): string {
   const stamp = new Date()
     .toISOString()
     .replace(/[:.]/g, "-")
@@ -161,7 +164,105 @@ function buildAuditExportFilename(opts: AdminAuditLogQuery): string {
     tags.push(`ip_${safe(opts.ip.trim())}`);
   }
   const suffix = tags.length === 0 ? "" : `-${tags.join("-")}`;
-  return `admin-audit-${stamp}${suffix}.csv`;
+  return `admin-audit-${stamp}${suffix}.${extension}`;
+}
+
+// Build a real .xlsx workbook for the audit-log export. Returns a Buffer
+// suitable for piping to the response. Two sheets:
+//   - "Audit Log": one row per entry. `when` is a real Excel datetime cell
+//     (so spreadsheet date filters work and the local-timezone coercion
+//     trap is avoided), `statusCode` is a real number, the rest are text.
+//     The header row is bold + frozen so it stays visible while scrolling.
+//   - "Outcomes": one row per entry that has a non-null `outcome`, keyed
+//     by the audit row id so an operator can look up the structured
+//     counters without staring at JSON-stringified gibberish in the main
+//     sheet. Skipped entirely (no sheet at all) if no row has an outcome.
+async function buildAuditExportXlsxBuffer(
+  entries: ReadonlyArray<{
+    id: string;
+    createdAt: Date;
+    action: string;
+    status: string;
+    statusCode: number | null;
+    actorIp: string | null;
+    path: string | null;
+    errorMessage: string | null;
+    outcome: unknown;
+  }>,
+): Promise<Buffer> {
+  const ExcelJS = (await import("exceljs")).default;
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "BlueAlly Insight";
+  wb.created = new Date();
+
+  const main = wb.addWorksheet("Audit Log", {
+    views: [{ state: "frozen", ySplit: 1 }],
+  });
+  main.columns = [
+    { header: "id", key: "id", width: 38 },
+    { header: "when", key: "when", width: 22, style: { numFmt: "yyyy-mm-dd hh:mm:ss" } },
+    { header: "action", key: "action", width: 28 },
+    { header: "status", key: "status", width: 12 },
+    { header: "statusCode", key: "statusCode", width: 12 },
+    { header: "actorIp", key: "actorIp", width: 18 },
+    { header: "path", key: "path", width: 60 },
+    { header: "errorMessage", key: "errorMessage", width: 50 },
+    { header: "outcome", key: "outcome", width: 18 },
+  ];
+  main.getRow(1).font = { bold: true };
+
+  const outcomesPresent = entries.some(
+    (e) => e.outcome !== null && e.outcome !== undefined,
+  );
+  let outcomeSheet: import("exceljs").Worksheet | null = null;
+  if (outcomesPresent) {
+    outcomeSheet = wb.addWorksheet("Outcomes", {
+      views: [{ state: "frozen", ySplit: 1 }],
+    });
+    outcomeSheet.columns = [
+      { header: "id", key: "id", width: 38 },
+      { header: "action", key: "action", width: 28 },
+      { header: "when", key: "when", width: 22, style: { numFmt: "yyyy-mm-dd hh:mm:ss" } },
+      { header: "outcomeJson", key: "outcomeJson", width: 80 },
+    ];
+    outcomeSheet.getRow(1).font = { bold: true };
+  }
+
+  for (const entry of entries) {
+    const when =
+      entry.createdAt instanceof Date ? entry.createdAt : null;
+    const hasOutcome =
+      entry.outcome !== null && entry.outcome !== undefined;
+    main.addRow({
+      id: entry.id,
+      when,
+      action: entry.action,
+      status: entry.status,
+      // Use null (rather than the string "") so the spreadsheet column
+      // stays numeric — mixing "" into a number column makes Excel
+      // complain about "Number stored as text" on every other row.
+      statusCode:
+        typeof entry.statusCode === "number" ? entry.statusCode : null,
+      actorIp: entry.actorIp ?? "",
+      path: entry.path ?? "",
+      errorMessage: entry.errorMessage ?? "",
+      // Cross-reference: if there's structured outcome data, point the
+      // operator at the Outcomes sheet rather than dumping JSON inline.
+      outcome: hasOutcome ? "see Outcomes sheet" : "",
+    });
+    if (hasOutcome && outcomeSheet) {
+      outcomeSheet.addRow({
+        id: entry.id,
+        action: entry.action,
+        when,
+        outcomeJson: JSON.stringify(entry.outcome),
+      });
+    }
+  }
+
+  // exceljs returns ArrayBuffer-like; coerce to Node Buffer for res.end().
+  const arrayBuffer = await wb.xlsx.writeBuffer();
+  return Buffer.from(arrayBuffer as ArrayBuffer);
 }
 
 export async function registerRoutes(
@@ -1215,6 +1316,64 @@ Return ONLY valid JSON with this structure:
       // browser fetch can display it. Once we've started writing CSV
       // bytes we can't switch content types — best we can do is hang up
       // mid-stream and log the failure.
+      if (!res.headersSent) {
+        res
+          .status(500)
+          .json({ error: err?.message ?? String(err) });
+      } else {
+        res.end();
+      }
+    }
+  });
+
+  // Excel (.xlsx) export of the same filtered slice as the CSV endpoint
+  // above. Operators who archive audit trails in spreadsheets prefer this
+  // because: (a) `when` round-trips as a real datetime cell instead of
+  // being coerced to local time on import, (b) `statusCode` stays numeric
+  // so they can sort/filter numerically, (c) long action paths and error
+  // messages don't get truncated by Excel's CSV import column-width
+  // heuristic, and (d) structured `outcome` data lives on its own sheet
+  // keyed by row id rather than as a JSON-stringified blob in a single
+  // cell. Identical filter shape, 10k row cap, and truncation headers as
+  // the CSV route — so the UI can offer both side-by-side.
+  app.get("/api/admin/audit-log/export.xlsx", async (req, res) => {
+    try {
+      const opts = parseAuditLogQuery(
+        req.query as Record<string, unknown>,
+        AUDIT_EXPORT_MAX_ROWS,
+      );
+      const result = await storage.exportAdminAuditEntries(opts);
+
+      const buffer = await buildAuditExportXlsxBuffer(result.entries);
+      const filename = buildAuditExportFilename(opts, "xlsx");
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      );
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${filename}"`,
+      );
+      res.setHeader("X-Audit-Export-Total", String(result.total));
+      res.setHeader("X-Audit-Export-Rows", String(result.entries.length));
+      res.setHeader(
+        "X-Audit-Export-Truncated",
+        result.truncated ? "1" : "0",
+      );
+      res.setHeader(
+        "Access-Control-Expose-Headers",
+        "Content-Disposition, X-Audit-Export-Total, X-Audit-Export-Rows, X-Audit-Export-Truncated",
+      );
+      res.setHeader("Content-Length", String(buffer.length));
+      res.end(buffer);
+    } catch (err: any) {
+      console.error(
+        "[admin/audit-log/export.xlsx] Failed to export audit log:",
+        err,
+      );
+      // Mirror the CSV route's pre-stream error handling: build the whole
+      // workbook in-memory before sending bytes, so any failure (storage
+      // throw, exceljs serialization error) can still surface as JSON.
       if (!res.headersSent) {
         res
           .status(500)

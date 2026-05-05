@@ -1245,6 +1245,268 @@ describe("GET /api/admin/audit-log/export — CSV response", () => {
 });
 
 // ===========================================================================
+// 5. GET /api/admin/audit-log/export.xlsx — Excel workbook emission
+// ===========================================================================
+//
+// Coverage for the .xlsx export route added in task #58. The CSV route
+// already proves filter forwarding, the 10k cap, and pre-stream error
+// handling — those concerns are shared via `parseAuditLogQuery` and
+// `storage.exportAdminAuditEntries`, so we don't re-test them here.
+// What this section proves is what the .xlsx contract specifically
+// promises beyond CSV:
+//   - Real .xlsx bytes (PK zip header), not CSV with a renamed extension
+//   - The right MIME type so browsers/Excel open it natively
+//   - Filename has the .xlsx extension and still encodes filter tags
+//   - Same X-Audit-Export-* truncation headers as CSV
+//   - Two sheets: "Audit Log" + "Outcomes" (when at least one row has
+//     a non-null outcome). The Outcomes sheet is keyed by row id.
+//   - Datetime cells round-trip as real datetimes (number type, not
+//     a string), and statusCode is a real number cell
+describe("GET /api/admin/audit-log/export.xlsx — Excel response", () => {
+  beforeEach(() => {
+    routeCalls.length = 0;
+    routeThrow = null;
+    exportReturn = { entries: [], total: 0, truncated: false };
+  });
+
+  function fakeEntry(overrides: Partial<AdminAuditLogEntry>): AdminAuditLogEntry {
+    return {
+      id: "id-1",
+      action: "admin-login",
+      status: "success",
+      statusCode: 200,
+      actorIp: "10.0.0.5",
+      actorUserAgent: "Mozilla/5.0",
+      path: "/api/auth/admin-login",
+      params: null,
+      outcome: null,
+      errorMessage: null,
+      createdAt: new Date("2026-04-29T12:34:56.000Z"),
+      ...overrides,
+    };
+  }
+
+  it("emits a real .xlsx workbook with the OOXML MIME type and PK zip header", async () => {
+    const app = await buildRealApp();
+    exportReturn = {
+      entries: [
+        fakeEntry({
+          id: "a",
+          action: "backfill-reports",
+          outcome: { updated: 3, skipped: 0, failed: 0 },
+        }),
+      ],
+      total: 1,
+      truncated: false,
+    };
+    const res = await request(app)
+      .get("/api/admin/audit-log/export.xlsx")
+      .buffer(true)
+      .parse((response, callback) => {
+        // supertest defaults to text parsing; .xlsx is binary so we
+        // collect the raw bytes to assert the zip magic header.
+        const chunks: Buffer[] = [];
+        response.on("data", (c: Buffer) => chunks.push(c));
+        response.on("end", () => callback(null, Buffer.concat(chunks)));
+      });
+    expect(res.status).toBe(200);
+    expect(res.headers["content-type"]).toMatch(
+      /application\/vnd\.openxmlformats-officedocument\.spreadsheetml\.sheet/,
+    );
+    const body = res.body as Buffer;
+    // .xlsx files are zip archives — first two bytes are the local-file
+    // header signature "PK". A renamed CSV would start with the header
+    // row text, never with 0x50 0x4B.
+    expect(body.length).toBeGreaterThan(100);
+    expect(body[0]).toBe(0x50);
+    expect(body[1]).toBe(0x4b);
+  });
+
+  it("uses an .xlsx filename and still encodes active filter tags for archival", async () => {
+    const app = await buildRealApp();
+    exportReturn = { entries: [], total: 0, truncated: false };
+    const res = await request(app).get(
+      "/api/admin/audit-log/export.xlsx?action=backfill-reports&status=failure&since=2026-04-01T00:00:00Z&until=2026-04-30T00:00:00Z&ip=10.0.0.6",
+    );
+    expect(res.status).toBe(200);
+    const cd = res.headers["content-disposition"] as string;
+    expect(cd).toMatch(/filename="admin-audit-[0-9TZ.-]+.*\.xlsx"/);
+    expect(cd).toMatch(/action_backfill-reports/);
+    expect(cd).toMatch(/status_failure/);
+    expect(cd).toMatch(/from_2026-04-01/);
+    expect(cd).toMatch(/to_2026-04-30/);
+    expect(cd).toMatch(/ip_10\.0\.0\.6/);
+  });
+
+  it("forwards the same truncation headers as the CSV route", async () => {
+    const app = await buildRealApp();
+    exportReturn = {
+      entries: [fakeEntry({ id: "only-one-on-the-page" })],
+      total: 25_000,
+      truncated: true,
+    };
+    const res = await request(app).get("/api/admin/audit-log/export.xlsx");
+    expect(res.status).toBe(200);
+    expect(res.headers["x-audit-export-truncated"]).toBe("1");
+    expect(res.headers["x-audit-export-total"]).toBe("25000");
+    expect(res.headers["x-audit-export-rows"]).toBe("1");
+    expect(res.headers["access-control-expose-headers"]).toMatch(
+      /X-Audit-Export-Truncated/i,
+    );
+  });
+
+  it("contains an 'Audit Log' sheet with real datetime + numeric cells, frozen header, and an 'Outcomes' sheet keyed by id", async () => {
+    const app = await buildRealApp();
+    exportReturn = {
+      entries: [
+        fakeEntry({
+          id: "row-with-outcome",
+          action: "backfill-reports",
+          status: "success",
+          statusCode: 200,
+          actorIp: "10.0.0.5",
+          path: "/api/admin/backfill-reports",
+          outcome: { updated: 3, skipped: 0, failed: 1 },
+          createdAt: new Date("2026-04-29T12:00:00.000Z"),
+          errorMessage: null,
+        }),
+        fakeEntry({
+          id: "row-no-outcome",
+          action: "admin-login-failed",
+          status: "failure",
+          statusCode: 401,
+          actorIp: "10.0.0.6",
+          path: "/api/auth/admin-login",
+          outcome: null,
+          createdAt: new Date("2026-04-29T13:00:00.000Z"),
+          errorMessage: "Invalid admin password",
+        }),
+      ],
+      total: 2,
+      truncated: false,
+    };
+    const res = await request(app)
+      .get("/api/admin/audit-log/export.xlsx")
+      .buffer(true)
+      .parse((response, callback) => {
+        const chunks: Buffer[] = [];
+        response.on("data", (c: Buffer) => chunks.push(c));
+        response.on("end", () => callback(null, Buffer.concat(chunks)));
+      });
+    expect(res.status).toBe(200);
+
+    // Re-parse the bytes with exceljs and assert the contract. Doing a
+    // full round-trip (rather than poking at the underlying XML) means
+    // a regression in the writer that produced an unreadable workbook
+    // would also fail this test.
+    const ExcelJS = (await import("exceljs")).default;
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(res.body as Buffer);
+
+    const main = wb.getWorksheet("Audit Log");
+    expect(main).toBeDefined();
+    // Frozen header: the writer sets ySplit=1 so the header stays put
+    // while the operator scrolls through 10k rows.
+    expect(main!.views?.[0]?.state).toBe("frozen");
+    expect(main!.views?.[0]?.ySplit).toBe(1);
+
+    const headerRow = main!.getRow(1);
+    expect(headerRow.font?.bold).toBe(true);
+    expect(headerRow.getCell(1).value).toBe("id");
+    expect(headerRow.getCell(2).value).toBe("when");
+    expect(headerRow.getCell(5).value).toBe("statusCode");
+
+    // Row 2 is the first entry — `when` must be a real Date, not the
+    // ISO string. (This is the whole point of the .xlsx export — the
+    // CSV route hands Excel a string that gets coerced to local time.)
+    const r2 = main!.getRow(2);
+    expect(r2.getCell(1).value).toBe("row-with-outcome");
+    const whenCell = r2.getCell(2).value;
+    expect(whenCell).toBeInstanceOf(Date);
+    expect((whenCell as Date).toISOString()).toBe("2026-04-29T12:00:00.000Z");
+    // statusCode is a real number, not a string.
+    expect(typeof r2.getCell(5).value).toBe("number");
+    expect(r2.getCell(5).value).toBe(200);
+    // The main sheet's `outcome` cell points at the Outcomes sheet
+    // rather than dumping JSON inline — that's the whole UX win.
+    expect(r2.getCell(9).value).toBe("see Outcomes sheet");
+
+    // The second row has no outcome, so its main-sheet outcome cell is
+    // empty (not "see Outcomes sheet") and it must NOT appear in the
+    // Outcomes sheet.
+    const r3 = main!.getRow(3);
+    expect(r3.getCell(1).value).toBe("row-no-outcome");
+    expect(r3.getCell(9).value).toBe("");
+
+    const outcomes = wb.getWorksheet("Outcomes");
+    expect(outcomes).toBeDefined();
+    expect(outcomes!.rowCount).toBe(2); // header + one outcome row
+    const outcomeRow = outcomes!.getRow(2);
+    expect(outcomeRow.getCell(1).value).toBe("row-with-outcome");
+    expect(outcomeRow.getCell(4).value).toBe(
+      JSON.stringify({ updated: 3, skipped: 0, failed: 1 }),
+    );
+  });
+
+  it("omits the Outcomes sheet entirely when no entry has structured outcome data", async () => {
+    const app = await buildRealApp();
+    exportReturn = {
+      entries: [
+        fakeEntry({ id: "a", outcome: null }),
+        fakeEntry({ id: "b", outcome: null, errorMessage: "boom" }),
+      ],
+      total: 2,
+      truncated: false,
+    };
+    const res = await request(app)
+      .get("/api/admin/audit-log/export.xlsx")
+      .buffer(true)
+      .parse((response, callback) => {
+        const chunks: Buffer[] = [];
+        response.on("data", (c: Buffer) => chunks.push(c));
+        response.on("end", () => callback(null, Buffer.concat(chunks)));
+      });
+    const ExcelJS = (await import("exceljs")).default;
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(res.body as Buffer);
+    expect(wb.getWorksheet("Audit Log")).toBeDefined();
+    // No outcome rows ⇒ no Outcomes sheet to keep the workbook tidy.
+    expect(wb.getWorksheet("Outcomes")).toBeUndefined();
+  });
+
+  it("falls back to JSON 500 when the storage layer throws", async () => {
+    const app = await buildRealApp();
+    routeThrow = new Error("db down");
+    try {
+      const res = await request(app).get("/api/admin/audit-log/export.xlsx");
+      expect(res.status).toBe(500);
+      expect(res.headers["content-type"]).toMatch(/application\/json/);
+      expect(res.body.error).toContain("db down");
+    } finally {
+      routeThrow = null;
+    }
+  });
+
+  it("forwards the same filter parameters to the storage layer as the CSV route", async () => {
+    const app = await buildRealApp();
+    exportReturn = { entries: [], total: 0, truncated: false };
+    await request(app).get(
+      "/api/admin/audit-log/export.xlsx?action=backfill-reports&status=failure&since=2026-04-04T00:00:00Z&until=2026-04-05T00:00:00Z&ip=10.0.0.6",
+    );
+    const opts = lastCall();
+    expect(opts.action).toBe("backfill-reports");
+    expect(opts.status).toBe("failure");
+    expect(opts.ip).toBe("10.0.0.6");
+    expect((opts.since as Date).toISOString()).toBe(
+      "2026-04-04T00:00:00.000Z",
+    );
+    expect((opts.until as Date).toISOString()).toBe(
+      "2026-04-05T00:00:00.000Z",
+    );
+  });
+});
+
+// ===========================================================================
 // 3. DatabaseStorage.pruneOldAdminAuditEntries — retention cleanup
 // ===========================================================================
 //
