@@ -58,6 +58,7 @@ import {
   Download,
   Filter,
   History,
+  Link2,
   Loader2,
   Lock,
   RefreshCw,
@@ -3280,6 +3281,7 @@ export function RecentAdminActivity({
   cleanupLoading,
   cleanupError,
 }: RecentAdminActivityProps) {
+  const { toast } = useToast();
   // Local mirror of the IP filter so we can debounce keystrokes — without
   // this, every typed character would fire a fresh /api/admin/audit-log
   // request. The committed value is pushed to the parent (and thus to the
@@ -3330,6 +3332,40 @@ export function RecentAdminActivity({
             </CardDescription>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                const url =
+                  typeof window !== "undefined" ? window.location.href : "";
+                if (!url) return;
+                try {
+                  await navigator.clipboard.writeText(url);
+                  toast({
+                    title: "Link copied",
+                    description:
+                      "Share this URL to open the audit log with the same filters applied.",
+                  });
+                } catch {
+                  toast({
+                    title: "Copy failed",
+                    description:
+                      "Your browser blocked clipboard access. Please copy the URL from the address bar.",
+                    variant: "destructive",
+                  });
+                }
+              }}
+              disabled={!hasActiveFilter}
+              title={
+                hasActiveFilter
+                  ? "Copy a shareable URL that opens this filtered view"
+                  : "Apply at least one filter to share a link to this view"
+              }
+              data-testid="button-copy-audit-link"
+            >
+              <Link2 className="h-3.5 w-3.5 mr-1.5" />
+              Copy link
+            </Button>
             <Button
               variant="outline"
               size="sm"
