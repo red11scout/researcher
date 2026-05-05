@@ -956,6 +956,37 @@ Return ONLY valid JSON with this structure:
     }
   });
 
+  // Operator-triggered "Clear last run" affordance. Drops the singleton
+  // `admin_last_backfill` row so the Admin page collapses back to the
+  // empty `{ summary: null }` state on the next hydration fetch — used
+  // when the operator has already actioned (or dismissed) the previous
+  // failures table and doesn't want it rehydrating until the next full
+  // run. Audited explicitly via `recordAdminAudit` so the action shows
+  // up in the audit log alongside backfill runs and settings changes.
+  app.delete("/api/admin/last-backfill", async (req, res) => {
+    try {
+      const removed = await storage.clearLastBackfillSummary();
+      recordAdminAudit(req, {
+        action: "clear-last-backfill",
+        status: "success",
+        statusCode: 200,
+        outcome: { removed },
+      });
+      res.json({ success: true, removed });
+    } catch (err: any) {
+      console.error("[admin/last-backfill] Failed to clear last run:", err);
+      recordAdminAudit(req, {
+        action: "clear-last-backfill",
+        status: "failure",
+        statusCode: 500,
+        errorMessage: err?.message ?? String(err),
+      });
+      res
+        .status(500)
+        .json({ success: false, error: err?.message ?? String(err) });
+    }
+  });
+
   // Most recent admin_audit_log retention sweep, used by the cleanup
   // status banner on /admin. Returns 200 with `cleanup: null` before
   // the first sweep, and also on read failure (banner renders the muted

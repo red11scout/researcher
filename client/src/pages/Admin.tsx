@@ -62,6 +62,7 @@ import {
   Lock,
   RefreshCw,
   ShieldAlert,
+  Trash2,
   ShieldCheck,
   SkipForward,
   XCircle,
@@ -410,6 +411,12 @@ export function AdminPanel() {
   const { adminLogout } = useAuth();
   const [force, setForce] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  // "Clear last run" affordance state. Open the confirmation dialog
+  // separately from the upgrade-confirm dialog above — this is a
+  // destructive admin action (drops the persisted singleton) that
+  // shouldn't be one click away from the routine "Run upgrade" button.
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const [running, setRunning] = useState(false);
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [result, setResult] = useState<BackfillResponse | null>(null);
@@ -808,6 +815,46 @@ export function AdminPanel() {
       cancelled = true;
     };
   }, []);
+
+  // Drop the persisted last-run singleton on the server, then collapse
+  // the rehydrated panel locally so the operator doesn't have to refresh
+  // to see the change. The audit panel will pick up the new
+  // `clear-last-backfill` row on its next poll/refresh — we don't force
+  // an extra refetch here to avoid extra round-trips on a benign action.
+  const clearLastRun = useCallback(async () => {
+    setClearing(true);
+    try {
+      const res = await fetch("/api/admin/last-backfill", {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const text = (await res.text()) || res.statusText;
+        throw new Error(`${res.status}: ${text}`);
+      }
+      // Mirror the empty-baseline state so the panel disappears
+      // without a round-trip — matches what the next page-load
+      // hydration would render against `{ summary: null }`.
+      setResult(null);
+      setUpdatedReports([]);
+      updatedReportsRef.current = [];
+      setHydratedAt(null);
+      toast({
+        title: "Last run cleared",
+        description:
+          "The saved summary has been removed. The panel will stay empty until the next upgrade run.",
+      });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      toast({
+        title: "Could not clear last run",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setClearing(false);
+    }
+  }, [toast]);
 
   const scheduleFlush = () => {
     if (flushTimer.current !== null) return;
@@ -1289,6 +1336,22 @@ export function AdminPanel() {
                       Last run · {formatRelativeTime(hydratedAt)}
                     </Badge>
                   )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="ml-auto gap-1"
+                    onClick={() => setClearConfirmOpen(true)}
+                    disabled={running || clearing}
+                    data-testid="button-clear-last-run"
+                    title="Drop the saved last-run summary so this panel collapses until the next upgrade."
+                  >
+                    {clearing ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-3.5 w-3.5" />
+                    )}
+                    Clear last run
+                  </Button>
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
@@ -1582,6 +1645,41 @@ export function AdminPanel() {
               data-testid="button-confirm-upgrade"
             >
               {force ? "Force upgrade all reports" : "Upgrade all reports"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={clearConfirmOpen}
+        onOpenChange={setClearConfirmOpen}
+      >
+        <AlertDialogContent data-testid="dialog-confirm-clear-last-run">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-amber-600" />
+              Clear the saved last-run summary?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This drops the persisted record of the most recent upgrade run,
+              so the summary, failures table, and "Retry these" button on this
+              page will disappear until the next run completes. The reports
+              themselves are not affected — only the saved summary view is
+              removed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-clear-last-run">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setClearConfirmOpen(false);
+                void clearLastRun();
+              }}
+              data-testid="button-confirm-clear-last-run"
+            >
+              Clear last run
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

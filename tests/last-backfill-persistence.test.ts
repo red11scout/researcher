@@ -90,7 +90,22 @@ vi.mock("@db", () => {
       }),
     }),
   });
-  return { db: { insert, select } };
+  // `clearLastBackfillSummary` issues `db.delete(table).where(cond).returning({ id })`.
+  // We model the singleton as the lone row regardless of the predicate (the
+  // real query is `where(eq(id, "singleton"))` and that's the only row that
+  // can exist), and report back what was removed so the storage method can
+  // tell its caller whether a clear actually changed anything.
+  const del = (_table: unknown) => ({
+    where: (_cond: unknown) => ({
+      returning: async (_spec: unknown) => {
+        if (!dbState.row) return [] as Array<{ id: string }>;
+        const removed = [{ id: dbState.row.id }];
+        dbState.row = null;
+        return removed;
+      },
+    }),
+  });
+  return { db: { insert, select, delete: del } };
 });
 
 // ---------------------------------------------------------------------------
@@ -171,6 +186,11 @@ vi.mock("../server/storage", async () => {
         };
       },
       getLastBackfillSummary: async () => fakeStorageState.row,
+      clearLastBackfillSummary: async () => {
+        const had = fakeStorageState.row !== null;
+        fakeStorageState.row = null;
+        return had;
+      },
       // Touched by `recordAdminAudit` (which we mock to a no-op anyway)
       // and by report-backfill — supply harmless no-op shapes so the
       // route handlers don't trip over an undefined method.
@@ -328,6 +348,33 @@ describe("DatabaseStorage last-backfill singleton round-trip", () => {
     expect(out!.updatedReports[0].metricDeltas?.[0].code).toBe(
       "total-annual-value",
     );
+  });
+
+  it("clearLastBackfillSummary deletes the singleton and reports removal", async () => {
+    const storage = new DatabaseStorage();
+    const { summary, updatedReports } = makeSummaryFixture();
+
+    // Baseline: nothing persisted yet, clear is a no-op that reports
+    // false so the route handler can pass `removed: false` into the
+    // audit entry rather than misleading "yes I deleted something".
+    const noopRemoved = await storage.clearLastBackfillSummary();
+    expect(noopRemoved).toBe(false);
+
+    // Save → clear → confirm gone. After the clear, getLastBackfillSummary
+    // must return null again so the Admin page collapses back to the
+    // empty `{ summary: null }` baseline on the next hydration.
+    await storage.saveLastBackfillSummary(summary, updatedReports);
+    expect(await storage.getLastBackfillSummary()).not.toBeNull();
+
+    const removed = await storage.clearLastBackfillSummary();
+    expect(removed).toBe(true);
+    expect(await storage.getLastBackfillSummary()).toBeNull();
+
+    // A second clear (operator double-clicks the button) is a benign
+    // no-op — must not throw, and must report false so the audit row
+    // accurately reflects that nothing was removed this time.
+    const secondClear = await storage.clearLastBackfillSummary();
+    expect(secondClear).toBe(false);
   });
 
   it("upserts: a second save replaces the previous singleton row", async () => {
@@ -510,6 +557,47 @@ describe("POST /api/admin/backfill-reports → GET /api/admin/last-backfill (non
 
     const get = await request(app).get("/api/admin/last-backfill");
     expect(get.body.summary.force).toBe(true);
+  });
+});
+
+describe("DELETE /api/admin/last-backfill", () => {
+  beforeEach(() => {
+    fakeStorageState.row = null;
+    backfillCalls.length = 0;
+    nextBackfillSummary = makeBackfillSummaryWithFailureAndUpdate();
+  });
+
+  it("clears a persisted summary and the next GET returns the empty baseline", async () => {
+    const app = await buildRealApp();
+
+    // Seed: run a backfill so the singleton has something for DELETE
+    // to actually remove. Using the real route here keeps the test
+    // honest — if persistence regresses, the DELETE assertion would
+    // pass against an already-empty state and hide the bug.
+    await request(app).post("/api/admin/backfill-reports").send({});
+    expect(fakeStorageState.row).not.toBeNull();
+
+    const del = await request(app).delete("/api/admin/last-backfill");
+    expect(del.status).toBe(200);
+    expect(del.body).toEqual({ success: true, removed: true });
+    expect(fakeStorageState.row).toBeNull();
+
+    // The Admin page hydrates against this exact response shape — it
+    // must collapse to `{ summary: null }` once the singleton is gone.
+    const get = await request(app).get("/api/admin/last-backfill");
+    expect(get.status).toBe(200);
+    expect(get.body).toEqual({ summary: null });
+  });
+
+  it("returns removed=false when there is nothing to clear", async () => {
+    const app = await buildRealApp();
+
+    const del = await request(app).delete("/api/admin/last-backfill");
+    expect(del.status).toBe(200);
+    // Idempotent: a second click (or a clear before any run has ever
+    // completed) must not error — the operator shouldn't see a red
+    // toast for a benign no-op.
+    expect(del.body).toEqual({ success: true, removed: false });
   });
 });
 

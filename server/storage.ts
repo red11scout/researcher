@@ -228,6 +228,15 @@ export interface IStorage {
     updatedReports: BackfillReportResult[];
     completedAt: Date;
   } | null>;
+  // Delete the singleton `admin_last_backfill` row so the Admin page
+  // collapses back to its empty state. Used by the operator-facing
+  // "Clear last run" affordance — they've already actioned (or
+  // dismissed) the previous failures table and don't want it
+  // rehydrating on every refresh until the next full run. Returns
+  // `true` if a row was actually removed, `false` if there was
+  // nothing to clear; both outcomes are valid (an operator double-
+  // clicking the button shouldn't see an error on the second click).
+  clearLastBackfillSummary(): Promise<boolean>;
 
   recordAdminAuditCleanup(record: {
     status: "success" | "failure";
@@ -1157,6 +1166,18 @@ export class DatabaseStorage implements IStorage {
       updatedReports: row.updatedReports as BackfillReportResult[],
       completedAt: row.completedAt,
     };
+  }
+
+  async clearLastBackfillSummary(): Promise<boolean> {
+    // Delete the singleton row keyed by `id="singleton"`. Drizzle's
+    // `.returning()` lets us tell the caller whether anything was
+    // actually removed without a separate SELECT — the route handler
+    // uses this to record an accurate audit `outcome.removed` flag.
+    const removed = await db
+      .delete(adminLastBackfill)
+      .where(eq(adminLastBackfill.id, "singleton"))
+      .returning({ id: adminLastBackfill.id });
+    return removed.length > 0;
   }
 
   async recordAdminAuditCleanup(record: {
