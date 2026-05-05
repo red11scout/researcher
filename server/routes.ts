@@ -5,7 +5,10 @@ import { generateCompanyAnalysis, generateWhatIfSuggestion, checkProductionConfi
 import * as formulaService from "./formula-service";
 import { dubService } from "./dub-service";
 import { insertReportSchema, adminSettingsUpdateSchema } from "@shared/schema";
-import { resolveRetentionDays as resolveAuditRetentionDays } from "./admin-audit-retention";
+import {
+  resolveRetentionDays as resolveAuditRetentionDays,
+  CLEANUP_INTERVAL_MS as ADMIN_AUDIT_CLEANUP_INTERVAL_MS,
+} from "./admin-audit-retention";
 import { recordAdminAudit } from "./auth";
 import { buildAssumptionExcelWorkbook, buildAssumptionJSON } from "./assumption-export";
 import { formatReportAsJson, formatReportAsMarkdown } from "./export-formatters";
@@ -1097,7 +1100,10 @@ Return ONLY valid JSON with this structure:
     try {
       const row = await storage.getLastAdminAuditCleanup();
       if (!row) {
-        return res.json({ cleanup: null });
+        return res.json({
+          cleanup: null,
+          intervalMs: ADMIN_AUDIT_CLEANUP_INTERVAL_MS,
+        });
       }
       res.json({
         cleanup: {
@@ -1109,6 +1115,7 @@ Return ONLY valid JSON with this structure:
           durationMs: row.durationMs,
           ranAt: row.ranAt,
         },
+        intervalMs: ADMIN_AUDIT_CLEANUP_INTERVAL_MS,
       });
     } catch (err: any) {
       console.error(
@@ -1117,7 +1124,11 @@ Return ONLY valid JSON with this structure:
       );
       res
         .status(200)
-        .json({ cleanup: null, error: err?.message ?? String(err) });
+        .json({
+          cleanup: null,
+          intervalMs: ADMIN_AUDIT_CLEANUP_INTERVAL_MS,
+          error: err?.message ?? String(err),
+        });
     }
   });
 

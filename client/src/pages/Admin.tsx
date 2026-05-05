@@ -465,6 +465,12 @@ export function AdminPanel() {
   const [auditCleanupError, setAuditCleanupError] = useState<string | null>(
     null,
   );
+  // The sweeper's configured interval in ms, returned alongside the
+  // last-cleanup payload so the banner's "overdue" threshold tracks the
+  // server-side constant instead of duplicating it on the client.
+  const [auditCleanupIntervalMs, setAuditCleanupIntervalMs] = useState<
+    number | null
+  >(null);
   // Operator-tunable settings (currently just audit retention). Loaded
   // on mount and refreshed after a successful save so the "currently in
   // force" display always reflects what the next sweep will use.
@@ -594,15 +600,25 @@ export function AdminPanel() {
       });
       if (!res.ok) {
         setAuditCleanup(null);
+        setAuditCleanupIntervalMs(null);
         setAuditCleanupError(`HTTP ${res.status}`);
         return;
       }
-      const data: { cleanup: AuditCleanupStatus | null; error?: string } =
-        await res.json();
+      const data: {
+        cleanup: AuditCleanupStatus | null;
+        intervalMs?: number;
+        error?: string;
+      } = await res.json();
       setAuditCleanup(data.cleanup ?? null);
       setAuditCleanupError(data.error ?? null);
+      setAuditCleanupIntervalMs(
+        typeof data.intervalMs === "number" && Number.isFinite(data.intervalMs)
+          ? data.intervalMs
+          : null,
+      );
     } catch (err) {
       setAuditCleanup(null);
+      setAuditCleanupIntervalMs(null);
       setAuditCleanupError(
         err instanceof Error ? err.message : "Failed to load cleanup status",
       );
@@ -1609,6 +1625,7 @@ export function AdminPanel() {
           cleanup={auditCleanup}
           cleanupLoading={auditCleanupLoading}
           cleanupError={auditCleanupError}
+          cleanupIntervalMs={auditCleanupIntervalMs}
         />
 
         <AuditRetentionSettings
@@ -2878,10 +2895,17 @@ function AuditCleanupBanner({
   cleanup,
   loading,
   error,
+  intervalMs,
 }: {
   cleanup: AuditCleanupStatus | null;
   loading: boolean;
   error: string | null;
+  // Sweeper interval as reported by the server. We treat a successful
+  // run older than ~2× this interval as "overdue" — i.e. the sweeper
+  // hasn't fired on schedule and the green banner would otherwise be a
+  // silent failure mode. `null` (older payload / load error) disables
+  // the overdue check.
+  intervalMs: number | null;
 }) {
   if (loading && !cleanup && !error) {
     return (
@@ -2974,6 +2998,53 @@ function AuditCleanupBanner({
     cleanup.removedCount === 1
       ? "1 row removed"
       : `${cleanup.removedCount.toLocaleString()} rows removed`;
+
+  // Overdue: the most recent run succeeded, but it landed more than
+  // ~2× the sweeper's configured interval ago. That means no cleanup
+  // has fired on schedule (server crash-loop, scheduler bug, sweeper
+  // deregistered) and a plain green banner would mask a real outage.
+  const overdueThresholdMs =
+    typeof intervalMs === "number" && intervalMs > 0 ? intervalMs * 2 : null;
+  const ageMs = Date.now() - ranAtDate.getTime();
+  const isOverdue =
+    overdueThresholdMs !== null &&
+    Number.isFinite(ageMs) &&
+    ageMs > overdueThresholdMs;
+  if (isOverdue) {
+    return (
+      <div
+        className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 flex items-start gap-2"
+        data-testid="status-audit-cleanup-overdue"
+      >
+        <AlertCircle className="h-3.5 w-3.5 text-amber-600 mt-0.5 shrink-0" />
+        <div>
+          <div>
+            <span className="font-medium">
+              Audit log cleanup overdue
+            </span>{" "}
+            — last successful run{" "}
+            <span
+              data-testid="text-audit-cleanup-ran-relative"
+              title={ranAtAbsolute}
+            >
+              {ranAtRelative}
+            </span>
+            {" ("}
+            <span data-testid="text-audit-cleanup-removed">{removedLabel}</span>
+            {")"}
+          </div>
+          <div className="text-amber-700 mt-0.5">
+            The sweeper is supposed to run roughly every{" "}
+            {Math.round((intervalMs ?? 0) / (60 * 60 * 1000))}h but hasn't
+            fired in over{" "}
+            {Math.round((overdueThresholdMs ?? 0) / (60 * 60 * 1000))}h.
+            Investigate the scheduler — recent admin activity may not be
+            getting pruned.
+          </div>
+        </div>
+      </div>
+    );
+  }
   return (
     <div
       className="mb-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800 flex items-start gap-2"
@@ -3253,6 +3324,7 @@ interface RecentAdminActivityProps {
   cleanup: AuditCleanupStatus | null;
   cleanupLoading: boolean;
   cleanupError: string | null;
+  cleanupIntervalMs: number | null;
 }
 
 /**
@@ -3280,6 +3352,7 @@ export function RecentAdminActivity({
   cleanup,
   cleanupLoading,
   cleanupError,
+  cleanupIntervalMs,
 }: RecentAdminActivityProps) {
   const { toast } = useToast();
   // Local mirror of the IP filter so we can debounce keystrokes — without
@@ -3426,6 +3499,7 @@ export function RecentAdminActivity({
           cleanup={cleanup}
           loading={cleanupLoading}
           error={cleanupError}
+          intervalMs={cleanupIntervalMs}
         />
         <div
           className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-3"

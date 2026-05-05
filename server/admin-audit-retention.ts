@@ -28,7 +28,7 @@ export const DEFAULT_RETENTION_DAYS = 90;
 // the table is append-only, so running more frequently doesn't reclaim
 // meaningfully more space, and running less frequently risks letting
 // the table balloon if the process happens to stay alive for weeks.
-const CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
+export const CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 // Delay before the boot-time cleanup fires, so we don't compete with
 // route registration / DB warmup for the very first request. 30s is
