@@ -104,6 +104,10 @@ vi.mock("drizzle-orm", async () => {
 // ---------------------------------------------------------------------------
 type StoredRow = AdminAuditLogEntry;
 const dbState: { entries: StoredRow[] } = { entries: [] };
+// Counter exposed so the prune tests can assert that the bad-cutoff
+// guard short-circuits BEFORE reaching `db.execute` — without this we
+// could only prove "deleted === 0", not "the DB was never touched".
+let executeCallCount = 0;
 
 function getColumnValue(column: unknown, row: StoredRow): unknown {
   if (column === adminAuditLog.action) return row.action;
@@ -272,9 +276,64 @@ vi.mock("@db", () => {
       if (proj === undefined) return makePageBuilder();
       return makeCountBuilder();
     },
+    // `pruneOldAdminAuditEntries` issues a raw `DELETE … RETURNING 1`
+    // wrapped in a CTE via `db.execute(sql\`…\`)`. We don't want to spin
+    // up a real Postgres for the test, so the shim walks the SQL
+    // template's `queryChunks` for the bound `Date` param (the cutoff)
+    // and applies the same `<` filter to `dbState.entries` directly.
+    // The driver shape we mimic is Neon's: `{ rows: [{ count }] }`.
+    execute: async (
+      query: { queryChunks?: unknown[] } | unknown,
+    ): Promise<{ rows: Array<{ count: number }> }> => {
+      executeCallCount += 1;
+      const cutoff = extractDateParam(query);
+      if (!(cutoff instanceof Date) || Number.isNaN(cutoff.getTime())) {
+        // Storage guards against this before reaching execute, but if a
+        // future regression slips through we surface 0 deletions rather
+        // than corrupting `dbState`.
+        return { rows: [{ count: 0 }] };
+      }
+      const before = dbState.entries.length;
+      dbState.entries = dbState.entries.filter(
+        (r) => r.createdAt.getTime() >= cutoff.getTime(),
+      );
+      return { rows: [{ count: before - dbState.entries.length }] };
+    },
   };
   return { db };
 });
+
+// Recursively walk a drizzle SQL template's `queryChunks` looking for
+// the first `Param` whose value is a Date. The prune query has exactly
+// one such param (the cutoff), so this is unambiguous in practice.
+function extractDateParam(query: unknown): Date | null {
+  const seen = new Set<unknown>();
+  const visit = (node: unknown): Date | null => {
+    if (!node || typeof node !== "object") return null;
+    // Drizzle's `sql` template inlines a raw `Date` argument straight
+    // into `queryChunks` rather than wrapping it in a `Param`, so check
+    // the node itself before recursing into nested wrappers.
+    if (node instanceof Date) return node;
+    if (seen.has(node)) return null;
+    seen.add(node);
+    const obj = node as { value?: unknown; queryChunks?: unknown[] };
+    if (obj.value instanceof Date) return obj.value;
+    if (Array.isArray(obj.queryChunks)) {
+      for (const c of obj.queryChunks) {
+        const found = visit(c);
+        if (found) return found;
+      }
+    }
+    if (Array.isArray(node)) {
+      for (const c of node) {
+        const found = visit(c);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+  return visit(query);
+}
 
 // ---------------------------------------------------------------------------
 // Server-side dependencies that `server/routes.ts` pulls in at module
@@ -1182,5 +1241,163 @@ describe("GET /api/admin/audit-log/export — CSV response", () => {
     } finally {
       routeThrow = null;
     }
+  });
+});
+
+// ===========================================================================
+// 3. DatabaseStorage.pruneOldAdminAuditEntries — retention cleanup
+// ===========================================================================
+//
+// Coverage for the write-side counterpart of the read-path tests above.
+// `pruneOldAdminAuditEntries` is what the retention scheduler invokes
+// nightly to keep `admin_audit_log` from growing unbounded. A regression
+// here is invisible until an operator notices the table ballooning, so
+// we exercise:
+//   - only rows strictly older than the cutoff are deleted
+//   - rows on or after the cutoff survive (boundary is `<`, not `<=`)
+//   - the returned count matches the number of deleted rows
+//   - nothing-to-prune returns 0 and leaves the table intact
+//   - bad cutoffs (Invalid Date / non-Date input) short-circuit to 0
+//     WITHOUT touching the database
+//
+// We reuse the same in-memory `@db` shim and tagged drizzle-operator
+// mocks set up at the top of the file; the shim's `execute` handler
+// extracts the bound Date param from the SQL template and applies the
+// `<` filter against `dbState.entries` so behaviour mirrors the real
+// CTE-wrapped DELETE.
+describe("DatabaseStorage.pruneOldAdminAuditEntries", () => {
+  beforeEach(async () => {
+    dbState.entries = [];
+    executeCallCount = 0;
+    await seed();
+  });
+
+  it("deletes only rows strictly older than the cutoff", async () => {
+    const storage = new DatabaseStorage();
+    // Cutoff falls between the 2026-04-02 and 2026-04-03 rows. The two
+    // earliest entries (admin-login, admin-login-failed) must be
+    // deleted; the three later entries must survive.
+    const deleted = await storage.pruneOldAdminAuditEntries(
+      new Date("2026-04-03T00:00:00Z"),
+    );
+    expect(deleted).toBe(2);
+    const remainingActions = dbState.entries.map((r) => r.action).sort();
+    expect(remainingActions).toEqual(
+      ["admin-access-denied", "backfill-reports", "backfill-reports"].sort(),
+    );
+  });
+
+  it("treats the cutoff as a strict `<` boundary (rows on the cutoff survive)", async () => {
+    const storage = new DatabaseStorage();
+    // Cutoff equals the 2026-04-03 row's createdAt exactly. The
+    // documented contract is `created_at < cutoff`, so that row must
+    // NOT be pruned.
+    const deleted = await storage.pruneOldAdminAuditEntries(
+      new Date("2026-04-03T12:00:00Z"),
+    );
+    expect(deleted).toBe(2);
+    const remaining = dbState.entries
+      .map((r) => r.createdAt.toISOString())
+      .sort();
+    expect(remaining).toEqual([
+      "2026-04-03T12:00:00.000Z",
+      "2026-04-04T15:45:00.000Z",
+      "2026-04-05T18:15:00.000Z",
+    ]);
+  });
+
+  it("returns 0 and leaves every row intact when nothing matches", async () => {
+    const storage = new DatabaseStorage();
+    // Cutoff predates every seeded row.
+    const deleted = await storage.pruneOldAdminAuditEntries(
+      new Date("2026-01-01T00:00:00Z"),
+    );
+    expect(deleted).toBe(0);
+    expect(dbState.entries).toHaveLength(5);
+  });
+
+  it("deletes the entire table when the cutoff sits in the future", async () => {
+    const storage = new DatabaseStorage();
+    const deleted = await storage.pruneOldAdminAuditEntries(
+      new Date("2099-01-01T00:00:00Z"),
+    );
+    expect(deleted).toBe(5);
+    expect(dbState.entries).toHaveLength(0);
+  });
+
+  it("returns the correct deleted-row count for an arbitrary mid-range cutoff", async () => {
+    const storage = new DatabaseStorage();
+    // 2026-04-04T15:45 is strictly newer than three rows
+    // (04-01, 04-02, 04-03) so we expect exactly 3 deletions.
+    const deleted = await storage.pruneOldAdminAuditEntries(
+      new Date("2026-04-04T15:45:00Z"),
+    );
+    expect(deleted).toBe(3);
+    expect(dbState.entries).toHaveLength(2);
+  });
+
+  it("returns 0 without touching the DB when handed an Invalid Date", async () => {
+    const storage = new DatabaseStorage();
+    const deleted = await storage.pruneOldAdminAuditEntries(
+      new Date("not-a-real-date"),
+    );
+    expect(deleted).toBe(0);
+    // Guard fires before `db.execute` runs — no rows removed AND the
+    // SQL layer was never invoked. The execute counter assertion is
+    // what differentiates "guard worked" from "guard regressed but the
+    // mock happened to return 0 anyway".
+    expect(dbState.entries).toHaveLength(5);
+    expect(executeCallCount).toBe(0);
+  });
+
+  it("returns 0 without touching the DB when handed a non-Date input", async () => {
+    const storage = new DatabaseStorage();
+    // Caller bug: forwarded a string from a config file instead of a
+    // parsed Date. The documented guard returns 0 silently rather than
+    // generating `WHERE created_at < 'whatever'` and crashing Postgres.
+    const deleted = await storage.pruneOldAdminAuditEntries(
+      "2026-04-03T00:00:00Z" as unknown as Date,
+    );
+    expect(deleted).toBe(0);
+    expect(dbState.entries).toHaveLength(5);
+    expect(executeCallCount).toBe(0);
+  });
+
+  it("returns 0 without touching the DB when handed null/undefined", async () => {
+    const storage = new DatabaseStorage();
+    const a = await storage.pruneOldAdminAuditEntries(
+      null as unknown as Date,
+    );
+    const b = await storage.pruneOldAdminAuditEntries(
+      undefined as unknown as Date,
+    );
+    expect(a).toBe(0);
+    expect(b).toBe(0);
+    expect(dbState.entries).toHaveLength(5);
+    // Both calls must have short-circuited before `db.execute`.
+    expect(executeCallCount).toBe(0);
+  });
+
+  it("DOES reach `db.execute` on a valid cutoff (sanity-check for the guard tests above)", async () => {
+    // Guard the guard: if a future change makes `executeCallCount`
+    // increment for every call (or never increment at all), the
+    // bad-cutoff assertions above would silently lose their teeth.
+    // This test asserts the counter actually moves on the happy path.
+    const storage = new DatabaseStorage();
+    await storage.pruneOldAdminAuditEntries(
+      new Date("2026-04-03T00:00:00Z"),
+    );
+    expect(executeCallCount).toBe(1);
+  });
+
+  it("is idempotent on a second invocation with the same cutoff", async () => {
+    const storage = new DatabaseStorage();
+    const cutoff = new Date("2026-04-03T00:00:00Z");
+    const first = await storage.pruneOldAdminAuditEntries(cutoff);
+    const second = await storage.pruneOldAdminAuditEntries(cutoff);
+    expect(first).toBe(2);
+    // Nothing left to prune the second time around.
+    expect(second).toBe(0);
+    expect(dbState.entries).toHaveLength(3);
   });
 });
