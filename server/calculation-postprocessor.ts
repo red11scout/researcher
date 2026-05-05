@@ -610,7 +610,7 @@ function parseRevenueFormulaInputs(formula: string): RevenueInputs | null {
   };
 }
 
-function recalculateRevenueBenefit(formula: string): { value: number; formulaText: string; warnings: string[]; engineCapped: boolean } {
+function recalculateRevenueBenefit(formula: string, id?: string): { value: number; formulaText: string; warnings: string[]; engineCapped: boolean } {
   const warnings: string[] = [];
 
   if (isNoValue(formula)) {
@@ -640,6 +640,16 @@ function recalculateRevenueBenefit(formula: string): { value: number; formulaTex
     cappedUpliftPct,
   );
   const newFormula = `${upliftPctText} × ${formatMoney(inputs.baselineRevenueAtRisk)} × ${inputs.revenueRealizationMultiplier.toFixed(2)} × ${inputs.dataMaturityMultiplier.toFixed(2)} = ${formatMoney(result.trace.output)} → ${formatMoney(result.value)}`;
+
+  // Task #52: surface the per-use-case revenue-uplift cap as a structured
+  // warning so admin tooling can filter/aggregate which AI-generated reports
+  // leaned on overstated uplift inputs without having to scrape the audit
+  // formulaText. The audit string already annotates this inline (Task #36),
+  // but the warnings array is what the Validation Summary (`details`) carries
+  // for downstream reviewers.
+  if (engineCapped) {
+    warnings.push(formatRevenueUpliftCapWarning(id, inputs.upliftPct, cappedUpliftPct));
+  }
 
   return { value: result.value, formulaText: newFormula, warnings, engineCapped };
 }
@@ -853,6 +863,22 @@ function formatUpliftPctForAudit(rawUpliftPct: number, cappedUpliftPct: number):
     return `${capped} (capped from ${(rawUpliftPct * 100).toFixed(0)}%)`;
   }
   return capped;
+}
+
+/**
+ * Format a structured per-use-case warning for the Validation Summary
+ * `details` array when the HyperFormula engine binds the revenue-uplift cap
+ * (`INPUT_BOUNDS.upliftPct.max`) on a single use case (Task #52).
+ *
+ * Mirrors the audit-string convention from `formatUpliftPctForAudit` (Task #36)
+ * — same whole-number percentages, same "capped from X% to Y%" phrasing — so
+ * admins comparing the two surfaces see consistent numbers. Includes the use
+ * case ID when known so warnings can be filtered/aggregated by UC in admin
+ * tooling without re-scraping the audit `formulaText`.
+ */
+function formatRevenueUpliftCapWarning(id: string | undefined, rawUpliftPct: number, cappedUpliftPct: number): string {
+  const idPrefix = id ? `${id} ` : "";
+  return `${idPrefix}revenue uplift capped from ${(rawUpliftPct * 100).toFixed(0)}% to ${(cappedUpliftPct * 100).toFixed(0)}%`;
 }
 
 // Parse friction point cost from AI-generated text
@@ -1369,12 +1395,14 @@ export function postProcessAnalysis(analysisResult: any): any {
       revenueResult = {
         value: hfResult.value,
         formulaText: `${upliftPctText} × ${formatMoney(structuredRevenueInputs.baselineRevenueAtRisk)} × ${structuredRevenueInputs.revenueRealizationMultiplier.toFixed(2)} × ${structuredRevenueInputs.dataMaturityMultiplier.toFixed(2)} = ${formatMoney(hfResult.trace.output)} → ${formatMoney(hfResult.value)} [HF/labels]`,
-        warnings: [],
+        warnings: structuredRevenueEngineCapped
+          ? [formatRevenueUpliftCapWarning(record.ID, structuredRevenueInputs.upliftPct, cappedUpliftPct)]
+          : [],
         engineCapped: structuredRevenueEngineCapped,
       };
       console.log(`[postProcessAnalysis] ${record.ID}: Revenue via STRUCTURED LABELS: ${formatMoney(hfResult.value)}`);
     } else {
-      revenueResult = recalculateRevenueBenefit(record["Revenue Formula"] || "");
+      revenueResult = recalculateRevenueBenefit(record["Revenue Formula"] || "", record.ID);
       if (revenueResult.engineCapped) useCaseHadEngineCap = true;
     }
 
@@ -1467,10 +1495,16 @@ export function postProcessAnalysis(analysisResult: any): any {
               upliftPct,
               derivedCappedUpliftPct,
             );
+            const derivedRevenueWarnings = [`Revenue derived from Step 3 driver impact: ${driverImpact}`];
+            if (derivedRevenueEngineCapped) {
+              derivedRevenueWarnings.push(
+                formatRevenueUpliftCapWarning(record.ID, upliftPct, derivedCappedUpliftPct),
+              );
+            }
             revenueResult = {
               value: derivedRevenue.value,
               formulaText: `${derivedUpliftPctText} × ${formatMoney(estimatedRevenueAtRisk)} × 0.95 × 0.75 = ${formatMoney(derivedRevenue.trace.output)} → ${formatMoney(derivedRevenue.value)} [derived from ${driverImpact}]`,
-              warnings: [`Revenue derived from Step 3 driver impact: ${driverImpact}`],
+              warnings: derivedRevenueWarnings,
               engineCapped: derivedRevenueEngineCapped,
             };
             console.log(`[postProcessAnalysis] ${record.ID}: Derived revenue from Step 3 driver "${driverImpact}": ${formatMoney(derivedRevenue.value)}`);

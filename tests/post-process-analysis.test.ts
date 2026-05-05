@@ -1030,6 +1030,313 @@ describe("postProcessAnalysis — v2.2 contract", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Regression (Task #52): when the HyperFormula engine binds the per-use-case
+// revenue-uplift cap (`INPUT_BOUNDS.upliftPct.max`), each revenue branch
+// (`recalculateRevenueBenefit`, the structured-labels branch, the
+// derived-from-Step-3 branch) must push a structured warning into its
+// `warnings: string[]` array. The audit `formulaText` already annotates this
+// inline (Task #36), but the warnings array is what the Validation Summary
+// `details` carries — and what admin tooling can filter/aggregate to spot
+// AI-generated reports leaning on overstated revenue uplift without scraping
+// the audit text per row. Mirrors the Task #36 audit-text suite above.
+// ---------------------------------------------------------------------------
+describe("postProcessAnalysis — revenue-uplift cap warnings", () => {
+  it("emits a per-use-case warning when the structured-labels revenue branch caps the uplift", () => {
+    // Structured-labels path: AI claims an 8% uplift but the engine caps at
+    // 5% per use case (INPUT_BOUNDS.upliftPct.max = 0.05). The audit text
+    // already shows "(capped from 8%)" via Task #36; here we assert the
+    // structured warning lands in the Validation Summary details too.
+    const fixture = {
+      steps: [
+        {
+          step: 0,
+          title: "Company Profile",
+          data: [{ "Annual Revenue ($)": 50_000_000, "Total Employees": 250 }],
+        },
+        {
+          step: 5,
+          title: "Benefits Quantification",
+          data: [
+            {
+              ID: "UC-REV",
+              "Use Case": "Sales Acceleration",
+              "Strategic Theme": "Revenue",
+              "Cost Formula Labels": {
+                components: [
+                  { label: "Hours Saved", value: 1000 },
+                  { label: "Loaded Hourly Rate", value: 100 },
+                  { label: "Benefits Loading", value: 1.3 },
+                  { label: "Adoption Rate", value: 0.8 },
+                  { label: "Data Maturity", value: 0.75 },
+                ],
+              },
+              "Revenue Formula Labels": {
+                components: [
+                  { label: "Uplift %", value: 0.08 },
+                  { label: "Revenue at Risk", value: 10_000_000 },
+                  { label: "Realization Factor", value: 0.95 },
+                  { label: "Data Maturity", value: 0.75 },
+                ],
+              },
+              "Probability of Success": 0.7,
+            },
+          ],
+        },
+        {
+          step: 6,
+          title: "Readiness & Token Modeling",
+          data: [
+            {
+              ID: "UC-REV",
+              "Use Case": "Sales Acceleration",
+              "Organizational Capacity": 7,
+              "Data Availability & Quality": 7,
+              "Technical Infrastructure": 7,
+              "Governance": 7,
+              "Time-to-Value (months)": 6,
+              "Runs/Month": 1000,
+              "Input Tokens/Run": 800,
+              "Output Tokens/Run": 800,
+            },
+          ],
+        },
+      ],
+      vrm: { schemaVersion: "2.0" },
+    };
+
+    const result = postProcessAnalysis(fixture);
+    const details: string[] = result.validationSummary.details;
+
+    // The warning must include the use case ID (so admin filters can group
+    // by UC) and use the same whole-number "from X% to Y%" phrasing the
+    // audit string uses, so the two surfaces stay consistent.
+    expect(details).toContain("UC-REV revenue uplift capped from 8% to 5%");
+  });
+
+  it("emits a per-use-case warning when the legacy formula-string revenue branch caps the uplift", () => {
+    // Fallback path: no `Revenue Formula Labels`, only a free-text
+    // `Revenue Formula` string. recalculateRevenueBenefit must still emit
+    // the structured warning into the Validation Summary details, and must
+    // include the record ID so admin tooling can attribute it.
+    const fixture = {
+      steps: [
+        {
+          step: 0,
+          title: "Company Profile",
+          data: [{ "Annual Revenue ($)": 50_000_000, "Total Employees": 250 }],
+        },
+        {
+          step: 5,
+          title: "Benefits Quantification",
+          data: [
+            {
+              ID: "UC-REV-LEGACY",
+              "Use Case": "Legacy Revenue String",
+              "Strategic Theme": "Revenue",
+              "Cost Formula Labels": {
+                components: [
+                  { label: "Hours Saved", value: 1000 },
+                  { label: "Loaded Hourly Rate", value: 100 },
+                  { label: "Benefits Loading", value: 1.3 },
+                  { label: "Adoption Rate", value: 0.8 },
+                  { label: "Data Maturity", value: 0.75 },
+                ],
+              },
+              "Revenue Formula": "8% × $10,000,000 × 0.95 × 0.75 = $570,000",
+              "Probability of Success": 0.7,
+            },
+          ],
+        },
+        {
+          step: 6,
+          title: "Readiness & Token Modeling",
+          data: [
+            {
+              ID: "UC-REV-LEGACY",
+              "Use Case": "Legacy Revenue String",
+              "Organizational Capacity": 7,
+              "Data Availability & Quality": 7,
+              "Technical Infrastructure": 7,
+              "Governance": 7,
+              "Time-to-Value (months)": 6,
+              "Runs/Month": 1000,
+              "Input Tokens/Run": 800,
+              "Output Tokens/Run": 800,
+            },
+          ],
+        },
+      ],
+      vrm: { schemaVersion: "2.0" },
+    };
+
+    const result = postProcessAnalysis(fixture);
+    const details: string[] = result.validationSummary.details;
+
+    expect(details).toContain("UC-REV-LEGACY revenue uplift capped from 8% to 5%");
+  });
+
+  it("does NOT emit the cap warning when the structured-labels uplift stays under the cap", () => {
+    // Negative control mirroring the Task #36 uncapped audit-text test:
+    // a 4% uplift is below the 5% per-use-case cap, so no warning should
+    // appear. Without this assertion a naive implementation that always
+    // pushed the warning would still pass the capped tests above.
+    const fixture = {
+      steps: [
+        {
+          step: 0,
+          title: "Company Profile",
+          data: [{ "Annual Revenue ($)": 50_000_000, "Total Employees": 250 }],
+        },
+        {
+          step: 5,
+          title: "Benefits Quantification",
+          data: [
+            {
+              ID: "UC-REV-LOW",
+              "Use Case": "Conservative Pipeline Lift",
+              "Strategic Theme": "Revenue",
+              "Cost Formula Labels": {
+                components: [
+                  { label: "Hours Saved", value: 1000 },
+                  { label: "Loaded Hourly Rate", value: 100 },
+                  { label: "Benefits Loading", value: 1.3 },
+                  { label: "Adoption Rate", value: 0.8 },
+                  { label: "Data Maturity", value: 0.75 },
+                ],
+              },
+              "Revenue Formula Labels": {
+                components: [
+                  { label: "Uplift %", value: 0.04 },
+                  { label: "Revenue at Risk", value: 10_000_000 },
+                  { label: "Realization Factor", value: 0.95 },
+                  { label: "Data Maturity", value: 0.75 },
+                ],
+              },
+              "Probability of Success": 0.7,
+            },
+          ],
+        },
+        {
+          step: 6,
+          title: "Readiness & Token Modeling",
+          data: [
+            {
+              ID: "UC-REV-LOW",
+              "Use Case": "Conservative Pipeline Lift",
+              "Organizational Capacity": 7,
+              "Data Availability & Quality": 7,
+              "Technical Infrastructure": 7,
+              "Governance": 7,
+              "Time-to-Value (months)": 6,
+              "Runs/Month": 1000,
+              "Input Tokens/Run": 800,
+              "Output Tokens/Run": 800,
+            },
+          ],
+        },
+      ],
+      vrm: { schemaVersion: "2.0" },
+    };
+
+    const result = postProcessAnalysis(fixture);
+    const details: string[] = result.validationSummary.details;
+
+    // No "revenue uplift capped" line should appear for any UC ID.
+    expect(details.some((d) => /revenue uplift capped from/.test(d))).toBe(false);
+  });
+
+  it("does NOT emit the cap warning in the derived-from-Step-3 revenue branch (hardcoded 0.3% uplift stays under the cap)", () => {
+    // Derived-from-Step-3 path: Step 5 has no revenue inputs at all, so the
+    // initial revenue calculation returns $0 and the derivation branch
+    // fires with the hardcoded 0.3% uplift (well below the 5% cap). No cap
+    // warning should appear, but the existing "Revenue derived from Step 3
+    // driver impact: ..." warning must still be emitted so the cap path is
+    // independently observable from the derivation path. Mirrors the
+    // matching Task #36 derived-branch audit-text test above.
+    const fixture = {
+      steps: [
+        {
+          step: 0,
+          title: "Company Profile",
+          data: [{ "Annual Revenue ($)": 50_000_000, "Total Employees": 250 }],
+        },
+        {
+          step: 3,
+          title: "Friction Inventory",
+          data: [
+            {
+              "Friction Point": "Slow lead-to-quote handoff",
+              "Primary Driver Impact": "Revenue acceleration",
+              "Annual Hours": 2000,
+              "Hourly Rate": 120,
+            },
+          ],
+        },
+        {
+          step: 4,
+          title: "Use Case Mapping",
+          data: [
+            {
+              ID: "UC-REV-DERIVED",
+              "Use Case": "Revenue Derivation",
+              "Target Friction": "Slow lead-to-quote handoff",
+            },
+          ],
+        },
+        {
+          step: 5,
+          title: "Benefits Quantification",
+          data: [
+            {
+              ID: "UC-REV-DERIVED",
+              "Use Case": "Revenue Derivation",
+              "Strategic Theme": "Revenue",
+              "Cost Formula Labels": {
+                components: [
+                  { label: "Hours Saved", value: 1000 },
+                  { label: "Loaded Hourly Rate", value: 100 },
+                  { label: "Benefits Loading", value: 1.3 },
+                  { label: "Adoption Rate", value: 0.8 },
+                  { label: "Data Maturity", value: 0.75 },
+                ],
+              },
+              "Probability of Success": 0.7,
+            },
+          ],
+        },
+        {
+          step: 6,
+          title: "Readiness & Token Modeling",
+          data: [
+            {
+              ID: "UC-REV-DERIVED",
+              "Use Case": "Revenue Derivation",
+              "Organizational Capacity": 7,
+              "Data Availability & Quality": 7,
+              "Technical Infrastructure": 7,
+              "Governance": 7,
+              "Time-to-Value (months)": 6,
+              "Runs/Month": 1000,
+              "Input Tokens/Run": 800,
+              "Output Tokens/Run": 800,
+            },
+          ],
+        },
+      ],
+      vrm: { schemaVersion: "2.0" },
+    };
+
+    const result = postProcessAnalysis(fixture);
+    const details: string[] = result.validationSummary.details;
+
+    // The derivation warning still appears (independent observability of
+    // the two paths), but no cap warning should be present.
+    expect(details.some((d) => /Revenue derived from Step 3 driver impact/.test(d))).toBe(true);
+    expect(details.some((d) => /revenue uplift capped from/.test(d))).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Regression (Task #51): the end-of-pipeline Validation Summary count
 // (`validationSummary.useCasesCapped`, also surfaced on the Report UI as
 // "X use cases capped to meet CFO-credible limits") must include use cases
