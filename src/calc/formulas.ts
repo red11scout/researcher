@@ -642,7 +642,15 @@ function calculateIRR(cashFlows: number[], guess: number = 0.10, maxIterations: 
       npv += cashFlows[t] / factor;
       dnpv -= t * cashFlows[t] / (factor * (1 + rate));
     }
-    if (Math.abs(npv) < tolerance) return rate;
+    if (Math.abs(npv) < tolerance) {
+      // Apply the unreasonable-rate guard on convergence too. Newton can
+      // legitimately converge to rates like 16 (1600%) for trivially small
+      // implementation costs vs huge benefits — the math is correct but the
+      // number is meaningless to a CFO and breaks every realism gate.
+      // Without this check the convergence path bypassed the guard at the
+      // bottom of the function, surfaced by tests/output-realism.test.ts.
+      return Math.abs(rate) < 10 ? rate : null;
+    }
     if (dnpv === 0) return null;
     rate = rate - npv / dnpv;
   }
