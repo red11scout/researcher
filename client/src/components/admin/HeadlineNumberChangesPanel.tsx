@@ -147,6 +147,25 @@ export function HeadlineNumberChangesPanel({
       )
     : sorted;
 
+  // Run-wide roll-up: total upward / downward metric movements across
+  // every bucket, plus the number of distinct reports that contributed
+  // at least one movement. Computed from `sorted` (the unfiltered set)
+  // so the summary always describes the *whole run* — toggling
+  // "Regressions only" hides buckets but doesn't change the verdict
+  // line. A single report can contribute multiple movements (one per
+  // metric that moved), so totalUp + totalDown >= reportsContributing.
+  let totalUp = 0;
+  let totalDown = 0;
+  const contributingReportIds = new Set<string>();
+  for (const bucket of sorted) {
+    for (const e of bucket.entries) {
+      if (e.delta.delta > 0) totalUp += 1;
+      else if (e.delta.delta < 0) totalDown += 1;
+      contributingReportIds.add(e.report.id);
+    }
+  }
+  const reportsContributing = contributingReportIds.size;
+
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const toggle = (code: string) => {
     setExpanded((prev) => {
@@ -162,30 +181,60 @@ export function HeadlineNumberChangesPanel({
       className="rounded-lg border border-slate-200 overflow-hidden"
       data-testid="panel-headline-changes"
     >
-      <div className="bg-slate-50 px-4 py-2 flex items-center gap-2 border-b border-slate-200">
-        <CheckCircle2 className="h-4 w-4 text-sky-600" />
-        <span className="text-sm font-medium text-slate-700">
-          Headline number changes
-        </span>
-        <span className="text-xs text-slate-500">
-          (grouped by which metric moved, most common first — click a row to
-          see every report)
-        </span>
-        <div className="ml-auto flex items-center gap-2">
-          <Switch
-            id="toggle-headline-regressions-only"
-            checked={regressionsOnly}
-            onCheckedChange={setRegressionsOnly}
-            data-testid="switch-headline-regressions-only"
-          />
-          <Label
-            htmlFor="toggle-headline-regressions-only"
-            className="text-xs text-slate-600 cursor-pointer"
-            data-testid="label-headline-regressions-only"
-          >
-            Regressions only
-          </Label>
+      <div className="bg-slate-50 px-4 py-2 border-b border-slate-200">
+        <div className="flex items-center gap-2">
+          <CheckCircle2 className="h-4 w-4 text-sky-600" />
+          <span className="text-sm font-medium text-slate-700">
+            Headline number changes
+          </span>
+          <span className="text-xs text-slate-500">
+            (grouped by which metric moved, most common first — click a row to
+            see every report)
+          </span>
+          <div className="ml-auto flex items-center gap-2">
+            <Switch
+              id="toggle-headline-regressions-only"
+              checked={regressionsOnly}
+              onCheckedChange={setRegressionsOnly}
+              data-testid="switch-headline-regressions-only"
+            />
+            <Label
+              htmlFor="toggle-headline-regressions-only"
+              className="text-xs text-slate-600 cursor-pointer"
+              data-testid="label-headline-regressions-only"
+            >
+              Regressions only
+            </Label>
+          </div>
         </div>
+        {sorted.length > 0 && (
+          <div
+            className="mt-1.5 flex items-center gap-2 text-xs text-slate-600 tabular-nums"
+            data-testid="summary-headline-runwide"
+          >
+            <span
+              className="inline-flex items-center gap-0.5 font-medium text-sky-700"
+              data-testid="summary-headline-up"
+            >
+              <ArrowUp className="h-3 w-3" aria-hidden="true" />
+              {totalUp} metric movement{totalUp === 1 ? "" : "s"} up
+            </span>
+            <span aria-hidden="true" className="text-slate-300">·</span>
+            <span
+              className="inline-flex items-center gap-0.5 font-medium text-amber-700"
+              data-testid="summary-headline-down"
+            >
+              <ArrowDown className="h-3 w-3" aria-hidden="true" />
+              {totalDown} down
+            </span>
+            <span
+              data-testid="summary-headline-reports"
+            >
+              across {reportsContributing} report
+              {reportsContributing === 1 ? "" : "s"}
+            </span>
+          </div>
+        )}
       </div>
       {sorted.length === 0 ? (
         <div
