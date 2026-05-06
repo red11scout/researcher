@@ -405,6 +405,7 @@ export const AUDIT_ACTION_OPTIONS: { value: string; label: string }[] = [
   { value: "admin-login", label: "Admin login" },
   { value: "admin-login-failed", label: "Admin login (failed)" },
   { value: "admin-access-denied", label: "Admin access denied" },
+  { value: "update-admin-settings", label: "Update admin settings" },
 ];
 
 export function AdminPanel() {
@@ -3296,11 +3297,217 @@ function AuditRetentionSettings({
                 </>
               ) : null}
             </div>
+
+            <RetentionHistory
+              refreshKey={data?.settings.updatedAt ?? null}
+            />
           </div>
         )}
       </CardContent>
     </Card>
   );
+}
+
+// "Recent retention changes" mini-table inside the Audit log retention card.
+// Sources rows from the existing admin audit log filtered to the
+// `update-admin-settings` action so the control is self-auditing — an
+// operator can see at a glance who shortened or extended the window last
+// time, and how often it has been touched, without leaving the card.
+//
+// `refreshKey` re-triggers the fetch whenever the parent's persisted
+// settings row changes (i.e. after a successful save), so a freshly-saved
+// change appears at the top of the list immediately.
+function RetentionHistory({ refreshKey }: { refreshKey: string | null }) {
+  const [entries, setEntries] = useState<AdminAuditEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        // Pull 6 rows so we can compute the "old → new" delta for the
+        // 5 most-recent successful changes (each row's "old" comes from
+        // the row that follows it in time-descending order).
+        const params = new URLSearchParams({
+          action: "update-admin-settings",
+          status: "success",
+          limit: "6",
+          offset: "0",
+        });
+        const res = await fetch(
+          `/api/admin/audit-log?${params.toString()}`,
+          { credentials: "include" },
+        );
+        if (!res.ok) {
+          throw new Error(`${res.status}: ${res.statusText}`);
+        }
+        const data: AuditLogResponse = await res.json();
+        if (cancelled) return;
+        setEntries(data.entries ?? []);
+      } catch (err: unknown) {
+        if (cancelled) return;
+        const message = err instanceof Error ? err.message : String(err);
+        setError(message);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshKey]);
+
+  // Each audit row's `params.auditRetentionDays` is the *new* value the
+  // operator saved. The "old" value is whatever the prior (older) row
+  // saved — or, for the very oldest row in our window, "earlier" since
+  // we don't have visibility further back.
+  const rows = entries.slice(0, 5).map((entry, idx) => {
+    const newValue = extractRetentionDays(entry.params);
+    const olderEntry = entries[idx + 1];
+    const oldValue = olderEntry
+      ? extractRetentionDays(olderEntry.params)
+      : undefined;
+    return { entry, newValue, oldValue, hasOlder: olderEntry != null };
+  });
+
+  // Link target into the full audit log filtered to the same action so
+  // the operator can drill in without re-typing the filter. Stays inside
+  // /admin (the page they're on) so client routing handles it.
+  const fullLogHref = "/admin?action=update-admin-settings";
+
+  return (
+    <div
+      className="rounded-md border border-slate-200 bg-slate-50/60 p-3"
+      data-testid="section-retention-history"
+    >
+      <div className="flex items-center justify-between mb-2">
+        <div className="text-xs font-medium text-slate-700">
+          Recent retention changes
+        </div>
+        {entries.length > 0 && (
+          <a
+            href={fullLogHref}
+            className="text-xs text-blue-600 hover:text-blue-800 hover:underline"
+            data-testid="link-retention-history-all"
+          >
+            View all →
+          </a>
+        )}
+      </div>
+
+      {loading ? (
+        <div
+          className="flex items-center gap-2 text-xs text-slate-500"
+          data-testid="state-retention-history-loading"
+        >
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          Loading recent changes…
+        </div>
+      ) : error ? (
+        <div
+          className="rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800 flex items-start gap-2"
+          data-testid="state-retention-history-error"
+        >
+          <AlertCircle className="h-3.5 w-3.5 text-amber-600 mt-0.5 shrink-0" />
+          <span>Could not load retention change history: {error}</span>
+        </div>
+      ) : rows.length === 0 ? (
+        <div
+          className="text-xs text-slate-500"
+          data-testid="state-retention-history-empty"
+        >
+          No settings changes recorded yet.
+        </div>
+      ) : (
+        <div className="rounded-md border border-slate-200 bg-white overflow-hidden">
+          <table className="w-full text-xs">
+            <thead className="bg-slate-50 text-slate-500 text-[11px] uppercase tracking-wide">
+              <tr>
+                <th className="text-left px-3 py-1.5 font-medium">When</th>
+                <th className="text-left px-3 py-1.5 font-medium">Actor IP</th>
+                <th className="text-left px-3 py-1.5 font-medium">Change</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {rows.map(({ entry, newValue, oldValue, hasOlder }) => (
+                <tr
+                  key={entry.id}
+                  className="align-top"
+                  data-testid={`row-retention-history-${entry.id}`}
+                >
+                  <td
+                    className="px-3 py-1.5 text-slate-700 tabular-nums whitespace-nowrap"
+                    data-testid={`text-retention-history-when-${entry.id}`}
+                    title={entry.createdAt}
+                  >
+                    <a
+                      href={fullLogHref}
+                      className="text-blue-600 hover:text-blue-800 hover:underline"
+                      data-testid={`link-retention-history-${entry.id}`}
+                    >
+                      {formatAuditTimestamp(entry.createdAt)}
+                    </a>
+                  </td>
+                  <td
+                    className="px-3 py-1.5 text-slate-600 font-mono whitespace-nowrap"
+                    data-testid={`text-retention-history-ip-${entry.id}`}
+                  >
+                    {entry.actorIp ?? "—"}
+                  </td>
+                  <td
+                    className="px-3 py-1.5 text-slate-700"
+                    data-testid={`text-retention-history-change-${entry.id}`}
+                  >
+                    <span className="tabular-nums">
+                      {hasOlder
+                        ? formatRetentionValue(oldValue)
+                        : "earlier"}
+                    </span>
+                    <span className="mx-1.5 text-slate-400">→</span>
+                    <span className="tabular-nums font-medium">
+                      {formatRetentionValue(newValue)}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Pull `auditRetentionDays` out of an audit row's `params` blob, tolerating
+// the various shapes the JSON column can take (missing key → undefined,
+// explicit null → null, numeric string → number). Anything we can't parse
+// becomes `undefined` so the formatter renders it as "unknown" rather than
+// silently displaying a misleading value.
+function extractRetentionDays(
+  params: Record<string, unknown> | null,
+): number | null | undefined {
+  if (!params || typeof params !== "object") return undefined;
+  if (!("auditRetentionDays" in params)) return undefined;
+  const raw = (params as { auditRetentionDays: unknown }).auditRetentionDays;
+  if (raw === null) return null;
+  if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+  if (typeof raw === "string" && /^-?\d+$/.test(raw.trim())) {
+    return Number(raw);
+  }
+  return undefined;
+}
+
+// Render one side of the "old → new" change cell. `null` means the
+// override was cleared (back to env-var / built-in default), `undefined`
+// means we couldn't read the value off the audit row.
+function formatRetentionValue(value: number | null | undefined): string {
+  if (value === null) return "default";
+  if (value === undefined) return "unknown";
+  return `${value} day${value === 1 ? "" : "s"}`;
 }
 
 interface RecentAdminActivityProps {
@@ -3746,6 +3953,8 @@ function actionLabel(action: string): string {
       return "Admin login (failed)";
     case "admin-access-denied":
       return "Admin access denied";
+    case "update-admin-settings":
+      return "Update admin settings";
     default:
       return action;
   }
