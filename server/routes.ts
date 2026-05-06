@@ -1214,6 +1214,54 @@ Return ONLY valid JSON with this structure:
     }
   });
 
+  // Preview how many existing audit_log rows would fall outside a proposed
+  // retention window. Used by the Admin UI to put a real number in front of
+  // the operator before they shorten retention — e.g. "going from 90 days to
+  // 7 will permanently delete 1,243 audit entries on the next sweep".
+  // Read-only: this never mutates anything; it just runs a COUNT(*) over the
+  // same filter the scheduler would use (createdAt < now - days).
+  app.get("/api/admin/settings/retention-impact", async (req, res) => {
+    const raw = req.query.days;
+    // Strict integer parsing — `parseInt` would silently accept "7abc"
+    // or "7.9" as 7, masking obvious bugs in the caller. We require a
+    // pure decimal string so the wire contract matches the stated
+    // "integer between 1 and 3650".
+    if (typeof raw !== "string" || !/^\d+$/.test(raw)) {
+      return res
+        .status(400)
+        .json({ error: "Query param `days` must be an integer between 1 and 3650." });
+    }
+    const days = Number(raw);
+    if (!Number.isFinite(days) || days <= 0 || days > 3650) {
+      return res
+        .status(400)
+        .json({ error: "Query param `days` must be an integer between 1 and 3650." });
+    }
+    try {
+      const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+      // The retention sweeper deletes rows where `createdAt < cutoff`
+      // (see `pruneOldAdminAuditEntries`). Mirror that strict comparison
+      // here so the previewed count is exactly what the next sweep will
+      // delete — not off-by-one for entries created at the cutoff
+      // instant. `getRecentAdminAuditEntries` only exposes a `<=` filter
+      // (`until`), so we shave a millisecond off the cutoff to emulate
+      // strict `<`.
+      const strictCutoff = new Date(cutoff.getTime() - 1);
+      const result = await storage.getRecentAdminAuditEntries({
+        until: strictCutoff,
+        limit: 1,
+        offset: 0,
+      });
+      res.json({ days, cutoff: cutoff.toISOString(), affected: result.total });
+    } catch (err: any) {
+      console.error(
+        "[admin/settings/retention-impact] Failed to count entries:",
+        err,
+      );
+      res.status(500).json({ error: err?.message ?? String(err) });
+    }
+  });
+
   // Read-only access to recent admin activity for the Admin UI panel.
   //
   // Accepts optional filters (`action`, `status`, `since`, `until`, `ip`)

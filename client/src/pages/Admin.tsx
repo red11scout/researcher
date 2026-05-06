@@ -3133,6 +3133,29 @@ function AuditRetentionSettings({
   const [saving, setSaving] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
 
+  // Confirmation prompt state for destructive shortenings. We keep the
+  // pending value in state so the dialog's confirm-button still has the
+  // exact number the operator typed when the click finally fires (the
+  // input itself isn't re-read at that point).
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingValue, setPendingValue] = useState<number | null>(null);
+  const [impactLoading, setImpactLoading] = useState(false);
+  const [impactCount, setImpactCount] = useState<number | null>(null);
+  const [impactError, setImpactError] = useState<string | null>(null);
+
+  // A change is "drastic" — and therefore worth a second click — when the
+  // operator is *shortening* the window AND either:
+  //   - the new value is below 7 days (deep cut into recent history), or
+  //   - the new value is less than half of the current effective window
+  //     (e.g. 90 → 30, 60 → 20). Extending retention is never destructive,
+  //     and small adjustments (90 → 75) shouldn't add friction.
+  const isDrasticShortening = (next: number | null): boolean => {
+    if (next === null) return false; // clearing override falls back to default; not destructive
+    if (effective === null) return false; // no baseline to compare against
+    if (next >= effective) return false; // extending or same — never prompt
+    return next < 7 || next * 2 < effective;
+  };
+
   // Mirror the server-side Zod rules so an obviously-invalid value
   // never even leaves the browser. Empty string is "clear override",
   // not an error.
@@ -3162,22 +3185,20 @@ function AuditRetentionSettings({
     (stored === null && draft.trim() === "") ||
     (stored !== null && draft.trim() === String(stored));
 
-  const handleSave = async () => {
-    const parsed = parseDraft(draft);
-    if (!parsed.ok) {
-      setValidationError(parsed.error);
-      return;
-    }
+  // The actual persistence step — split out from `handleSave` so both the
+  // direct path (small / extending change) and the confirmation path
+  // (drastic shortening) can reuse it without duplicating error handling.
+  const persistValue = async (value: number | null) => {
     setValidationError(null);
     setSaving(true);
     try {
-      await onSave({ auditRetentionDays: parsed.value });
+      await onSave({ auditRetentionDays: value });
       toast({
         title: "Retention window saved",
         description:
-          parsed.value === null
+          value === null
             ? "Cleared the override — falling back to the default."
-            : `Audit log will keep entries for ${parsed.value} day${parsed.value === 1 ? "" : "s"}.`,
+            : `Audit log will keep entries for ${value} day${value === 1 ? "" : "s"}.`,
       });
     } catch (err) {
       const message =
@@ -3193,7 +3214,49 @@ function AuditRetentionSettings({
     }
   };
 
+  const handleSave = async () => {
+    const parsed = parseDraft(draft);
+    if (!parsed.ok) {
+      setValidationError(parsed.error);
+      return;
+    }
+
+    // For drastic shortenings, surface the count of audit entries that
+    // would fall outside the new window and require a second explicit
+    // click before persisting. The fetch failing is non-fatal — we still
+    // open the dialog and let the operator confirm based on the policy
+    // change alone (the impact preview is best-effort context, not a gate).
+    if (isDrasticShortening(parsed.value)) {
+      setPendingValue(parsed.value);
+      setImpactCount(null);
+      setImpactError(null);
+      setImpactLoading(true);
+      setConfirmOpen(true);
+      try {
+        const res = await fetch(
+          `/api/admin/settings/retention-impact?days=${parsed.value}`,
+          { credentials: "include" },
+        );
+        if (!res.ok) {
+          throw new Error(`${res.status}: ${res.statusText}`);
+        }
+        const body = (await res.json()) as { affected?: number };
+        setImpactCount(typeof body.affected === "number" ? body.affected : 0);
+      } catch (err) {
+        setImpactError(
+          err instanceof Error ? err.message : "Could not estimate impact.",
+        );
+      } finally {
+        setImpactLoading(false);
+      }
+      return;
+    }
+
+    await persistValue(parsed.value);
+  };
+
   return (
+    <>
     <Card className="mt-6" data-testid="card-audit-retention-settings">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
@@ -3305,6 +3368,91 @@ function AuditRetentionSettings({
         )}
       </CardContent>
     </Card>
+
+    <AlertDialog
+      open={confirmOpen}
+      onOpenChange={(open) => {
+        if (saving) return; // don't allow dismissal while persisting
+        setConfirmOpen(open);
+      }}
+    >
+      <AlertDialogContent data-testid="dialog-confirm-shorten-retention">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <AlertCircle className="h-5 w-5 text-amber-600" />
+            Shorten audit retention?
+          </AlertDialogTitle>
+          <AlertDialogDescription asChild>
+            <div className="space-y-2 text-sm">
+              <div>
+                You're cutting the audit retention window from{" "}
+                <span className="font-medium tabular-nums">
+                  {effective ?? "?"}
+                </span>{" "}
+                day{effective === 1 ? "" : "s"} to{" "}
+                <span
+                  className="font-medium tabular-nums"
+                  data-testid="text-shorten-retention-target"
+                >
+                  {pendingValue ?? "?"}
+                </span>{" "}
+                day{pendingValue === 1 ? "" : "s"}. The next sweep (within
+                24h) will permanently delete every admin audit entry older
+                than the new window.
+              </div>
+              <div data-testid="text-shorten-retention-impact">
+                {impactLoading ? (
+                  <span className="text-slate-500 inline-flex items-center gap-1">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Estimating how many entries this affects…
+                  </span>
+                ) : impactError ? (
+                  <span className="text-slate-600">
+                    Could not estimate the number of affected entries
+                    ({impactError}). The deletion will still happen on the
+                    next sweep.
+                  </span>
+                ) : impactCount !== null && impactCount > 0 ? (
+                  <span className="text-amber-700">
+                    <strong className="tabular-nums">
+                      {impactCount.toLocaleString()}
+                    </strong>{" "}
+                    existing audit entr{impactCount === 1 ? "y" : "ies"}{" "}
+                    will fall outside the new window and be deleted.
+                  </span>
+                ) : (
+                  <span className="text-slate-600">
+                    No existing entries fall outside the new window yet, but
+                    future entries will be pruned more aggressively.
+                  </span>
+                )}
+              </div>
+            </div>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel
+            disabled={saving}
+            data-testid="button-cancel-shorten-retention"
+          >
+            Cancel
+          </AlertDialogCancel>
+          <AlertDialogAction
+            disabled={saving}
+            onClick={(e) => {
+              e.preventDefault();
+              const value = pendingValue;
+              setConfirmOpen(false);
+              void persistValue(value);
+            }}
+            data-testid="button-confirm-shorten-retention"
+          >
+            Yes, shorten retention
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
 
