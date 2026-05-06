@@ -151,10 +151,8 @@ vi.mock("@/components/ui/select", () => {
   };
 });
 
-import {
-  AUDIT_PAGE_SIZE,
-  RecentAdminActivity,
-} from "../client/src/pages/Admin";
+import { RecentAdminActivity } from "../client/src/pages/Admin";
+import { AUDIT_PAGE_SIZE } from "../client/src/components/admin/constants";
 import { EMPTY_AUDIT_FILTERS, type AuditFilters } from "@/lib/auditUrlParams";
 
 // ---------------------------------------------------------------------------

@@ -364,19 +364,17 @@ interface AuditCleanupStatus {
 // readability of the rest of this file.
 type AuditFilters = AuditFiltersHelper;
 
-export const AUDIT_PAGE_SIZE = 25;
-
-// Action codes recorded by the server. Mirrored in the dropdown so the
-// operator can pick from a finite list instead of typing a free-form string
-// they'd have to know exists.
-export const AUDIT_ACTION_OPTIONS: { value: string; label: string }[] = [
-  { value: "all", label: "All actions" },
-  { value: "backfill-reports", label: "Upgrade all reports" },
-  { value: "admin-login", label: "Admin login" },
-  { value: "admin-login-failed", label: "Admin login (failed)" },
-  { value: "admin-access-denied", label: "Admin access denied" },
-  { value: "update-admin-settings", label: "Update admin settings" },
-];
+// `AUDIT_PAGE_SIZE` and `AUDIT_ACTION_OPTIONS` live in
+// `client/src/components/admin/constants.ts` so this file can stay a
+// "components only" module for Vite + react-refresh Fast Refresh. Mixing
+// non-component exports (constants, types) with component exports forces a
+// full page reload on every Admin.tsx edit. Tests that need the constants
+// import directly from the constants module — see
+// `tests/admin-audit-filter-form.test.tsx`.
+import {
+  AUDIT_ACTION_OPTIONS,
+  AUDIT_PAGE_SIZE,
+} from "@/components/admin/constants";
 
 export function AdminPanel() {
   const { toast } = useToast();
