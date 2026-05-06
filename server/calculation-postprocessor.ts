@@ -37,6 +37,15 @@ import {
 
 import { estimateFromUseCaseRecord } from '../src/calc/tokenEstimator';
 import { computeRealismFlags, type RealismFlag } from '../src/calc/realismGates';
+import {
+  gateBenefitsByClass,
+  readDeclaredClasses,
+} from '../src/calc/useCaseClassification';
+import {
+  validateRiskAnchoring,
+  readRiskAnchorFromRecord,
+} from '../src/calc/riskAnchoring';
+import { validateBenchmarkCitations } from '../src/calc/benchmarksRegistry';
 
 import {
   normalizeFunctionName,
@@ -1092,6 +1101,15 @@ export function postProcessAnalysis(analysisResult: any): any {
   const step7 = steps.find((s: any) => s.step === 7);
 
   // Extract Step 0 metadata for revenue and employee count
+  // Buffer for Stage-C1 benchmark warnings raised during Step-2 normalization
+  // (which runs before integrityWarnings is initialised).
+  const pendingBenchmarkWarnings: Array<{
+    code: string;
+    severity: "info" | "warning" | "critical";
+    message: string;
+    recommendedAction: string;
+  }> = [];
+
   let annualRevenueFromStep0 = 0;
   let totalEmployeesFromStep0 = 0;
 
@@ -1137,6 +1155,21 @@ export function postProcessAnalysis(analysisResult: any): any {
       }
     }
     console.log(`[postProcessAnalysis] Normalized ${step2.data.length} Step 2 Function/Sub-Function values`);
+
+    // STAGE C1 — benchmark citation gate (advisory until LLM contract updated)
+    const industry =
+      analysisResult?.companyOverview?.industry ??
+      analysisResult?.industry ??
+      "";
+    const benchVal = validateBenchmarkCitations({
+      industry: String(industry || ""),
+      step2Records: step2.data as any[],
+      hardReject: false,
+    });
+    for (const w of benchVal.warnings) {
+      // Buffer for the integrity warning push (declared further down).
+      pendingBenchmarkWarnings.push(w);
+    }
   }
 
   // Normalize Step 3 (Friction Points) — functions, sub-functions, AND roles
@@ -1371,9 +1404,19 @@ export function postProcessAnalysis(analysisResult: any): any {
 
   // Accumulate all per-use-case warnings during recalculation
   const allUseCaseWarnings: string[] = [];
-  // Structured warnings (label-swap, realism) routed to vrm.diagnostic.warnings
-  // so they render in the existing MethodologyIntegrityPanel UI.
+  // Structured warnings (label-swap, realism, class gate, risk anchoring,
+  // benchmark citations) routed to vrm.diagnostic.warnings so they render
+  // in the existing MethodologyIntegrityPanel UI.
   const integrityWarnings: PortfolioWarning[] = [];
+  // Drain Stage-C1 benchmark warnings buffered earlier into the same stream.
+  for (const w of pendingBenchmarkWarnings) {
+    integrityWarnings.push({
+      severity: w.severity,
+      code: w.code,
+      message: w.message,
+      recommendedAction: w.recommendedAction,
+    });
+  }
   let useCasesCapped = 0;
   let parametersClamped = 0;
 
@@ -1656,6 +1699,66 @@ export function postProcessAnalysis(analysisResult: any): any {
     let revVal = revenueResult.value;
     let cfVal = cashFlowResult.value;
     let riskVal = riskResult.value;
+
+    // ========================================================================
+    // STAGE B1 — Class-aware benefit gating
+    // If the LLM has declared a Use Case Class, reject any benefit pillars
+    // that contradict the declaration (e.g. revenue benefit on a use case
+    // declared cost-only). When the field is absent, emit advisory warnings.
+    // ========================================================================
+    {
+      const declared = readDeclaredClasses(record);
+      const gate = gateBenefitsByClass({
+        useCaseId: record.ID || "UC",
+        declaredClasses: declared,
+        revenueBenefit: revVal,
+        costBenefit: costVal,
+        riskBenefit: riskVal,
+        cashFlowBenefit: cfVal,
+      });
+      revVal = gate.adjusted.revenue;
+      costVal = gate.adjusted.cost;
+      riskVal = gate.adjusted.risk;
+      cfVal = gate.adjusted.cashFlow;
+      for (const w of gate.warnings) {
+        integrityWarnings.push({
+          severity: w.severity,
+          code: w.code,
+          message: w.message,
+          recommendedAction: w.recommendedAction,
+        });
+      }
+    }
+
+    // ========================================================================
+    // STAGE B2 — Risk source-of-truth (anchor to lossCategory + Step-2 KPI)
+    // ========================================================================
+    {
+      const step2KpiIds = new Set<string>();
+      const step2Recs = (step2?.data as any[]) || [];
+      for (const k of step2Recs) {
+        const id = k?.["KPI ID"] ?? k?.["ID"] ?? k?.kpiId;
+        if (id) step2KpiIds.add(String(id));
+      }
+      const anchor = readRiskAnchorFromRecord(record);
+      const ra = validateRiskAnchoring({
+        useCaseId: record.ID || "UC",
+        riskBenefit: riskVal,
+        lossCategory: anchor.lossCategory,
+        kpiAnchorId: anchor.kpiAnchorId,
+        step2KpiIds,
+        hardReject: false, // advisory until LLM contract is updated
+      });
+      riskVal = ra.adjustedRiskBenefit;
+      for (const w of ra.warnings) {
+        integrityWarnings.push({
+          severity: w.severity,
+          code: w.code,
+          message: w.message,
+          recommendedAction: w.recommendedAction,
+        });
+      }
+    }
 
     let ucTotal = costVal + revVal + cfVal + riskVal;
 
