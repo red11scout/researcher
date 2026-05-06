@@ -1341,6 +1341,313 @@ describe("postProcessAnalysis — revenue-uplift cap warnings", () => {
 });
 
 // ---------------------------------------------------------------------------
+// Regression (Task #76): mirror of the Task #52 revenue-uplift cap-warnings
+// suite for the risk side. When the HyperFormula engine binds the per-use-case
+// risk-reduction cap (`INPUT_BOUNDS.riskReductionPct.max`), each risk branch
+// (`recalculateRiskBenefit`, the structured-labels branch, the
+// derived-from-Step-3 branch) must push a structured warning into its
+// `warnings: string[]` array. The audit `formulaText` already annotates this
+// inline (Task #26), but the warnings array is what the Validation Summary
+// `details` carries — and what admin tooling can filter/aggregate to spot
+// AI-generated reports leaning on overstated risk reduction without scraping
+// the audit text per row.
+// ---------------------------------------------------------------------------
+describe("postProcessAnalysis — risk-reduction cap warnings", () => {
+  it("emits a per-use-case warning when the structured-labels risk branch caps the reduction", () => {
+    // Structured-labels path: AI claims a 20% risk reduction but the engine
+    // caps at 8% per use case (INPUT_BOUNDS.riskReductionPct.max = 0.08).
+    // The audit text already shows "(capped from 20%)" via Task #26; here we
+    // assert the structured warning lands in the Validation Summary details too.
+    const fixture = {
+      steps: [
+        {
+          step: 0,
+          title: "Company Profile",
+          data: [{ "Annual Revenue ($)": 50_000_000, "Total Employees": 250 }],
+        },
+        {
+          step: 5,
+          title: "Benefits Quantification",
+          data: [
+            {
+              ID: "UC-RISK",
+              "Use Case": "Fraud Detection",
+              "Strategic Theme": "Risk",
+              "Cost Formula Labels": {
+                components: [
+                  { label: "Hours Saved", value: 1000 },
+                  { label: "Loaded Hourly Rate", value: 100 },
+                  { label: "Benefits Loading", value: 1.3 },
+                  { label: "Adoption Rate", value: 0.8 },
+                  { label: "Data Maturity", value: 0.75 },
+                ],
+              },
+              "Risk Formula Labels": {
+                components: [
+                  { label: "Risk Reduction %", value: 0.20 },
+                  { label: "Risk Exposure", value: 1_000_000 },
+                  { label: "Realization Factor", value: 0.80 },
+                  { label: "Data Maturity", value: 0.75 },
+                ],
+              },
+              "Probability of Success": 0.7,
+            },
+          ],
+        },
+        {
+          step: 6,
+          title: "Readiness & Token Modeling",
+          data: [
+            {
+              ID: "UC-RISK",
+              "Use Case": "Fraud Detection",
+              "Organizational Capacity": 7,
+              "Data Availability & Quality": 7,
+              "Technical Infrastructure": 7,
+              "Governance": 7,
+              "Time-to-Value (months)": 6,
+              "Runs/Month": 1000,
+              "Input Tokens/Run": 800,
+              "Output Tokens/Run": 800,
+            },
+          ],
+        },
+      ],
+      vrm: { schemaVersion: "2.0" },
+    };
+
+    const result = postProcessAnalysis(fixture);
+    const details: string[] = result.validationSummary.details;
+
+    // The warning must include the use case ID (so admin filters can group
+    // by UC) and use the same whole-number "from X% to Y%" phrasing the
+    // audit string uses, so the two surfaces stay consistent.
+    expect(details).toContain("UC-RISK risk reduction capped from 20% to 8%");
+  });
+
+  it("emits a per-use-case warning when the legacy formula-string risk branch caps the reduction", () => {
+    // Fallback path: no `Risk Formula Labels`, only a free-text `Risk Formula`
+    // string. recalculateRiskBenefit must still emit the structured warning
+    // into the Validation Summary details, and must include the record ID so
+    // admin tooling can attribute it.
+    const fixture = {
+      steps: [
+        {
+          step: 0,
+          title: "Company Profile",
+          data: [{ "Annual Revenue ($)": 50_000_000, "Total Employees": 250 }],
+        },
+        {
+          step: 5,
+          title: "Benefits Quantification",
+          data: [
+            {
+              ID: "UC-RISK-LEGACY",
+              "Use Case": "Legacy Risk String",
+              "Strategic Theme": "Risk",
+              "Cost Formula Labels": {
+                components: [
+                  { label: "Hours Saved", value: 1000 },
+                  { label: "Loaded Hourly Rate", value: 100 },
+                  { label: "Benefits Loading", value: 1.3 },
+                  { label: "Adoption Rate", value: 0.8 },
+                  { label: "Data Maturity", value: 0.75 },
+                ],
+              },
+              "Risk Formula": "20% × $1,000,000 × 0.80 × 0.75 = $120,000",
+              "Probability of Success": 0.7,
+            },
+          ],
+        },
+        {
+          step: 6,
+          title: "Readiness & Token Modeling",
+          data: [
+            {
+              ID: "UC-RISK-LEGACY",
+              "Use Case": "Legacy Risk String",
+              "Organizational Capacity": 7,
+              "Data Availability & Quality": 7,
+              "Technical Infrastructure": 7,
+              "Governance": 7,
+              "Time-to-Value (months)": 6,
+              "Runs/Month": 1000,
+              "Input Tokens/Run": 800,
+              "Output Tokens/Run": 800,
+            },
+          ],
+        },
+      ],
+      vrm: { schemaVersion: "2.0" },
+    };
+
+    const result = postProcessAnalysis(fixture);
+    const details: string[] = result.validationSummary.details;
+
+    expect(details).toContain("UC-RISK-LEGACY risk reduction capped from 20% to 8%");
+  });
+
+  it("does NOT emit the cap warning when the structured-labels reduction stays under the cap", () => {
+    // Negative control mirroring the Task #26 uncapped audit-text test:
+    // a 4% reduction is below the 8% per-use-case cap, so no warning should
+    // appear. Without this assertion a naive implementation that always
+    // pushed the warning would still pass the capped tests above.
+    const fixture = {
+      steps: [
+        {
+          step: 0,
+          title: "Company Profile",
+          data: [{ "Annual Revenue ($)": 50_000_000, "Total Employees": 250 }],
+        },
+        {
+          step: 5,
+          title: "Benefits Quantification",
+          data: [
+            {
+              ID: "UC-RISK-LOW",
+              "Use Case": "Modest Risk Reduction",
+              "Strategic Theme": "Risk",
+              "Cost Formula Labels": {
+                components: [
+                  { label: "Hours Saved", value: 1000 },
+                  { label: "Loaded Hourly Rate", value: 100 },
+                  { label: "Benefits Loading", value: 1.3 },
+                  { label: "Adoption Rate", value: 0.8 },
+                  { label: "Data Maturity", value: 0.75 },
+                ],
+              },
+              "Risk Formula Labels": {
+                components: [
+                  { label: "Risk Reduction %", value: 0.04 },
+                  { label: "Risk Exposure", value: 1_000_000 },
+                  { label: "Realization Factor", value: 0.80 },
+                  { label: "Data Maturity", value: 0.75 },
+                ],
+              },
+              "Probability of Success": 0.7,
+            },
+          ],
+        },
+        {
+          step: 6,
+          title: "Readiness & Token Modeling",
+          data: [
+            {
+              ID: "UC-RISK-LOW",
+              "Use Case": "Modest Risk Reduction",
+              "Organizational Capacity": 7,
+              "Data Availability & Quality": 7,
+              "Technical Infrastructure": 7,
+              "Governance": 7,
+              "Time-to-Value (months)": 6,
+              "Runs/Month": 1000,
+              "Input Tokens/Run": 800,
+              "Output Tokens/Run": 800,
+            },
+          ],
+        },
+      ],
+      vrm: { schemaVersion: "2.0" },
+    };
+
+    const result = postProcessAnalysis(fixture);
+    const details: string[] = result.validationSummary.details;
+
+    // No "risk reduction capped" line should appear for any UC ID.
+    expect(details.some((d) => /risk reduction capped from/.test(d))).toBe(false);
+  });
+
+  it("does NOT emit the cap warning in the derived-from-Step-3 risk branch (hardcoded 5% reduction stays under the cap)", () => {
+    // Derived-from-Step-3 path: Step 5 has no risk inputs at all, so the
+    // initial risk calculation returns $0 and the derivation branch fires
+    // with the hardcoded 5% reduction (well below the 8% cap). No cap
+    // warning should appear, but the existing "Risk derived from Step 3
+    // driver impact: ..." warning must still be emitted so the cap path is
+    // independently observable from the derivation path.
+    const fixture = {
+      steps: [
+        {
+          step: 0,
+          title: "Company Profile",
+          data: [{ "Annual Revenue ($)": 50_000_000, "Total Employees": 250 }],
+        },
+        {
+          step: 3,
+          title: "Friction Inventory",
+          data: [
+            {
+              "Friction Point": "Manual compliance review",
+              "Primary Driver Impact": "Risk mitigation",
+              "Annual Hours": 2000,
+              "Hourly Rate": 120,
+            },
+          ],
+        },
+        {
+          step: 4,
+          title: "Use Case Mapping",
+          data: [
+            {
+              ID: "UC-RISK-DERIVED",
+              "Use Case": "Risk Derivation",
+              "Target Friction": "Manual compliance review",
+            },
+          ],
+        },
+        {
+          step: 5,
+          title: "Benefits Quantification",
+          data: [
+            {
+              ID: "UC-RISK-DERIVED",
+              "Use Case": "Risk Derivation",
+              "Strategic Theme": "Risk",
+              "Cost Formula Labels": {
+                components: [
+                  { label: "Hours Saved", value: 1000 },
+                  { label: "Loaded Hourly Rate", value: 100 },
+                  { label: "Benefits Loading", value: 1.3 },
+                  { label: "Adoption Rate", value: 0.8 },
+                  { label: "Data Maturity", value: 0.75 },
+                ],
+              },
+              "Probability of Success": 0.7,
+            },
+          ],
+        },
+        {
+          step: 6,
+          title: "Readiness & Token Modeling",
+          data: [
+            {
+              ID: "UC-RISK-DERIVED",
+              "Use Case": "Risk Derivation",
+              "Organizational Capacity": 7,
+              "Data Availability & Quality": 7,
+              "Technical Infrastructure": 7,
+              "Governance": 7,
+              "Time-to-Value (months)": 6,
+              "Runs/Month": 1000,
+              "Input Tokens/Run": 800,
+              "Output Tokens/Run": 800,
+            },
+          ],
+        },
+      ],
+      vrm: { schemaVersion: "2.0" },
+    };
+
+    const result = postProcessAnalysis(fixture);
+    const details: string[] = result.validationSummary.details;
+
+    // The derivation warning still appears (independent observability of
+    // the two paths), but no cap warning should be present.
+    expect(details.some((d) => /Risk derived from Step 3 driver impact/.test(d))).toBe(true);
+    expect(details.some((d) => /risk reduction capped from/.test(d))).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Regression (Task #51): the end-of-pipeline Validation Summary count
 // (`validationSummary.useCasesCapped`, also surfaced on the Report UI as
 // "X use cases capped to meet CFO-credible limits") must include use cases

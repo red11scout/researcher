@@ -804,7 +804,7 @@ function parseRiskFormulaInputs(formula: string): RiskInputs | null {
   };
 }
 
-function recalculateRiskBenefit(formula: string): { value: number; formulaText: string; warnings: string[]; engineCapped: boolean } {
+function recalculateRiskBenefit(formula: string, id?: string): { value: number; formulaText: string; warnings: string[]; engineCapped: boolean } {
   const warnings: string[] = [];
 
   if (isNoValue(formula)) {
@@ -839,6 +839,10 @@ function recalculateRiskBenefit(formula: string): { value: number; formulaText: 
     cappedReductionPct,
   );
   const newFormula = `${reductionPctText} × ${formatExactMoneyForAudit(inputs.impactBefore)} × ${inputs.riskRealizationMultiplier.toFixed(2)} × ${inputs.dataMaturityMultiplier.toFixed(2)} = ${formatMoney(result.trace.output)} → ${formatMoney(result.value)}`;
+
+  if (engineCapped) {
+    warnings.push(formatRiskReductionCapWarning(id, inputs.probBefore, cappedReductionPct));
+  }
 
   return { value: result.value, formulaText: newFormula, warnings, engineCapped };
 }
@@ -934,6 +938,23 @@ function formatUpliftPctForAudit(rawUpliftPct: number, cappedUpliftPct: number):
 function formatRevenueUpliftCapWarning(id: string | undefined, rawUpliftPct: number, cappedUpliftPct: number): string {
   const idPrefix = id ? `${id} ` : "";
   return `${idPrefix}revenue uplift capped from ${formatPctForAudit(rawUpliftPct)} to ${formatPctForAudit(cappedUpliftPct)}`;
+}
+
+/**
+ * Format a structured per-use-case warning for the Validation Summary
+ * `details` array when the HyperFormula engine binds the risk-reduction cap
+ * (`INPUT_BOUNDS.riskReductionPct.max`) on a single use case (Task #76).
+ *
+ * Mirrors `formatRevenueUpliftCapWarning` (Task #52) and the audit-string
+ * convention from `formatRiskReductionPctForAudit` (Task #26) — same
+ * whole-number percentages, same "capped from X% to Y%" phrasing — so admins
+ * comparing the two surfaces see consistent numbers. Includes the use case
+ * ID when known so warnings can be filtered/aggregated by UC in admin tooling
+ * without re-scraping the audit `formulaText`.
+ */
+function formatRiskReductionCapWarning(id: string | undefined, rawReductionPct: number, cappedReductionPct: number): string {
+  const idPrefix = id ? `${id} ` : "";
+  return `${idPrefix}risk reduction capped from ${formatPctForAudit(rawReductionPct)} to ${formatPctForAudit(cappedReductionPct)}`;
 }
 
 // Parse friction point cost from AI-generated text
@@ -1571,12 +1592,14 @@ export function postProcessAnalysis(analysisResult: any): any {
       riskResult = {
         value: hfResult.value,
         formulaText: `${reductionPctText} × ${formatExactMoneyForAudit(structuredRiskInputs.impactBefore)} × ${structuredRiskInputs.riskRealizationMultiplier.toFixed(2)} × ${structuredRiskInputs.dataMaturityMultiplier.toFixed(2)} = ${formatMoney(hfResult.trace.output)} → ${formatMoney(hfResult.value)} [HF/labels]`,
-        warnings: [],
+        warnings: structuredRiskEngineCapped
+          ? [formatRiskReductionCapWarning(record.ID, structuredRiskInputs.probBefore, cappedReductionPct)]
+          : [],
         engineCapped: structuredRiskEngineCapped,
       };
       console.log(`[postProcessAnalysis] ${record.ID}: Risk via STRUCTURED LABELS: ${formatMoney(hfResult.value)}`);
     } else {
-      riskResult = recalculateRiskBenefit(record["Risk Formula"] || "");
+      riskResult = recalculateRiskBenefit(record["Risk Formula"] || "", record.ID);
       if (riskResult.engineCapped) useCaseHadEngineCap = true;
     }
 
@@ -1675,10 +1698,16 @@ export function postProcessAnalysis(analysisResult: any): any {
               riskReductionPct,
               derivedCappedReductionPct,
             );
+            const derivedRiskWarnings = [`Risk derived from Step 3 driver impact: ${driverImpact}`];
+            if (derivedRiskEngineCapped) {
+              derivedRiskWarnings.push(
+                formatRiskReductionCapWarning(record.ID, riskReductionPct, derivedCappedReductionPct),
+              );
+            }
             riskResult = {
               value: derivedRisk.value,
               formulaText: `${derivedReductionPctText} × ${formatExactMoneyForAudit(riskExposure)} × 0.80 × 0.75 = ${formatMoney(derivedRisk.trace.output)} → ${formatMoney(derivedRisk.value)} [derived from ${driverImpact}]`,
-              warnings: [`Risk derived from Step 3 driver impact: ${driverImpact}`],
+              warnings: derivedRiskWarnings,
               engineCapped: derivedRiskEngineCapped,
             };
             console.log(`[postProcessAnalysis] ${record.ID}: Derived risk from Step 3 driver "${driverImpact}": ${formatMoney(derivedRisk.value)}`);
