@@ -202,6 +202,8 @@ interface RenderOpts {
   offset?: number;
   total?: number;
   entryCount?: number;
+  loading?: boolean;
+  error?: string | null;
 }
 
 interface Handlers {
@@ -228,8 +230,8 @@ function renderPanel(opts: RenderOpts = {}): Handlers {
       <RecentAdminActivity
         entries={makeEntries(entryCount)}
         total={total}
-        loading={false}
-        error={null}
+        loading={opts.loading ?? false}
+        error={opts.error ?? null}
         filters={filters}
         offset={opts.offset ?? 0}
         pageSize={AUDIT_PAGE_SIZE}
@@ -489,6 +491,72 @@ describe("RecentAdminActivity — pager", () => {
     // the active filters, otherwise we'd double-fetch on every page.
     expect(onChangeOffset).toHaveBeenCalledTimes(1);
     expect(onChangeFilters).not.toHaveBeenCalled();
+  });
+});
+
+describe("RecentAdminActivity — non-table states", () => {
+  // The panel renders one of FOUR mutually-exclusive states inside its
+  // body: error banner, first-page spinner, empty-state message, or the
+  // populated table. Task #57 covered the populated path; this block
+  // pins down the other three so a regression that, e.g., swallowed
+  // the error message or showed the wrong empty-state copy can't ship
+  // silently. The branch order (error > loading-with-no-entries >
+  // empty > table) matters: an error must win even mid-fetch, otherwise
+  // the operator would see a spinner that never resolves.
+  it("shows the loading spinner when loading with no entries yet", () => {
+    renderPanel({ loading: true, total: 0, entryCount: 0 });
+    const spinner = getByTestId("state-audit-loading");
+    expect(spinner).not.toBeNull();
+    expect(spinner!.textContent).toContain("Loading recent activity");
+    // The other two non-table states (and the table itself) must NOT
+    // also be present — they're mutually exclusive branches.
+    expect(getByTestId("alert-audit-error")).toBeNull();
+    expect(getByTestId("text-audit-empty")).toBeNull();
+  });
+
+  it("renders the error banner with the supplied message and wins over loading", () => {
+    // `loading: true` plus `error: "..."` — the error branch must win
+    // (an in-flight retry shouldn't hide a still-relevant failure).
+    renderPanel({
+      loading: true,
+      error: "Network request failed",
+      total: 0,
+      entryCount: 0,
+    });
+    const alert = getByTestId("alert-audit-error");
+    expect(alert).not.toBeNull();
+    expect(alert!.textContent).toContain("Could not load audit log");
+    expect(alert!.textContent).toContain("Network request failed");
+    expect(getByTestId("state-audit-loading")).toBeNull();
+    expect(getByTestId("text-audit-empty")).toBeNull();
+  });
+
+  it("shows the 'no activity recorded yet' copy when zero entries and no active filter", () => {
+    renderPanel({ total: 0, entryCount: 0 });
+    const empty = getByTestId("text-audit-empty");
+    expect(empty).not.toBeNull();
+    // Distinct copy from the filtered case — this one nudges the
+    // operator to actually trigger an admin action.
+    expect(empty!.textContent).toContain(
+      "No admin activity recorded yet",
+    );
+    expect(empty!.textContent).not.toContain("matches the current filters");
+  });
+
+  it("shows the 'no activity matches the current filters' copy when zero entries and a filter is active", () => {
+    // Any one of the five filter dimensions flips `hasActiveFilter`;
+    // we exercise the action dropdown here as the most common path.
+    renderPanel({
+      total: 0,
+      entryCount: 0,
+      filters: { action: "admin-login" },
+    });
+    const empty = getByTestId("text-audit-empty");
+    expect(empty).not.toBeNull();
+    expect(empty!.textContent).toContain(
+      "No activity matches the current filters",
+    );
+    expect(empty!.textContent).not.toContain("recorded yet");
   });
 });
 
