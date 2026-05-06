@@ -70,34 +70,112 @@ function deriveAdminAction(req: Request): string {
   return "admin-unknown";
 }
 
-// Read-only admin endpoints we suppress from the generic audit hook so
-// the activity panel doesn't fill with self-noise from its own polling.
-// `last-backfill` is the singleton snapshot the Admin page hydrates from
-// on every load — auditing each one would dwarf the actual upgrade
-// actions operators care about, same reason `audit-log` is skipped.
-// "settings" covers GET /api/admin/settings — the Admin page polls it on
-// every load, so auditing each one would dwarf the actual settings
-// changes. PUT /api/admin/settings still records via the explicit
-// `recordAdminAudit` call in the route handler (which sets
-// `adminAuditRecorded = true`, so the generic skip below doesn't apply).
+// ---------------------------------------------------------------------------
+// Audit coverage inventory for every /api/admin/* endpoint.
 //
-// `audit-log/export` and `audit-log/export.xlsx` (task #59) are read-only
-// CSV/Excel downloads of the audit log. A nervous operator who mashes
-// "Download CSV" 50 times in a minute would otherwise write 50 export
-// rows back into the same table, each carrying the full filter query
-// string in `params`, diluting the signal in the activity panel and
-// slowing the export query itself. Same rule of thumb as the read
-// endpoints above: read-only admin GETs that are safe to call repeatedly
-// belong in this skip set; any new mutating endpoint must NOT be added
-// here and should record explicitly via `recordAdminAudit` instead.
-const ADMIN_AUDIT_SKIP_ACTIONS = new Set([
-  "audit-log",
-  "audit-log/export",
-  "audit-log/export.xlsx",
-  "last-backfill",
-  "last-audit-cleanup",
-  "settings",
-]);
+// This map is the single source of truth for "is this admin endpoint
+// audited, and how?". Adding a new admin route should force an explicit
+// decision: pick one of the three coverage modes below and add an entry
+// here. The `auditAdminRequest` middleware reads this map to know which
+// generic hits to skip, and (in non-production) emits a one-time warning
+// when it sees an admin action that isn't listed — making silent gaps
+// loud during development.
+//
+// Coverage modes:
+//   - "explicit": the route handler calls `recordAdminAudit(...)` itself,
+//     usually so it can attach structured `params`/`outcome`/`errorMessage`
+//     payloads (e.g. backfill summaries, validation failure reasons).
+//     The generic finish hook is suppressed via `req.adminAuditRecorded`
+//     so we don't double-write a baseline row alongside the rich one.
+//   - "generic": no explicit `recordAdminAudit` call; the finish hook
+//     in `auditAdminRequest` writes a baseline row with method/path/
+//     statusCode and the raw query string as `params`. Use this when a
+//     bare access record is enough.
+//   - "skipped": read-only / hot-polled endpoints (status snapshots, the
+//     audit log itself, CSV/Excel exports of the audit log) where rows
+//     would dwarf the operator actions we actually care about. Skipping
+//     is safe ONLY for non-mutating endpoints.
+//
+// Entries with a leading "—" describe actions logged from `recordAdminAudit`
+// call sites that aren't tied to a single URL (auth failures, login
+// success/failure on /api/auth/admin-login). They're documented here so
+// the inventory stays exhaustive even though the middleware never sees
+// them via `deriveAdminAction`.
+// ---------------------------------------------------------------------------
+type AdminAuditCoverage = "explicit" | "generic" | "skipped";
+
+const ADMIN_AUDIT_COVERAGE: Record<string, AdminAuditCoverage> = {
+  // POST /api/admin/backfill-reports — long-running upgrade run; records
+  // success with the per-status counts and durationMs as `outcome`, and
+  // failure with the error message + body-validation reason.
+  "backfill-reports": "explicit",
+  // GET /api/admin/last-backfill — singleton snapshot polled on every
+  // Admin-page load; would dwarf real activity if audited.
+  "last-backfill": "skipped",
+  // DELETE /api/admin/last-backfill — operator "Clear last run" button;
+  // records as a separate `clear-last-backfill` action so it's
+  // distinguishable from the GET above in the activity panel.
+  "clear-last-backfill": "explicit",
+  // GET /api/admin/last-audit-cleanup — banner status poll on /admin.
+  "last-audit-cleanup": "skipped",
+  // GET /api/admin/settings — polled on every Admin-page load; the PUT
+  // sibling records via `update-admin-settings` instead.
+  "settings": "skipped",
+  // PUT /api/admin/settings — records as `update-admin-settings` with
+  // both validation failures (400) and persistence failures (500).
+  "update-admin-settings": "explicit",
+  // GET /api/admin/settings/retention-impact — read-only COUNT(*) preview
+  // for the "shorten retention" confirmation prompt. Audited via the
+  // generic hook so we have a record of who previewed shortening
+  // retention and to what value (the `days` query param lands in
+  // `params`), without needing structured outcome data.
+  "settings/retention-impact": "generic",
+  // GET /api/admin/audit-log — the admin-activity panel itself polls
+  // this; auditing each poll would create infinite self-reference noise.
+  "audit-log": "skipped",
+  // GET /api/admin/audit-log/export — CSV download (task #59). A nervous
+  // operator who mashes "Download CSV" 50 times would otherwise write 50
+  // export rows carrying the full filter query string, slowing the
+  // export query itself and diluting the signal in the panel.
+  "audit-log/export": "skipped",
+  // GET /api/admin/audit-log/export.xlsx — Excel sibling of the CSV
+  // download; same reasoning.
+  "audit-log/export.xlsx": "skipped",
+
+  // — Actions recorded from `recordAdminAudit` call sites in this file
+  //   (server/auth.ts) that aren't tied to a unique /api/admin/* URL:
+  // requireAdmin gate — unauthenticated/unprivileged hits on /api/admin/*.
+  "admin-access-denied": "explicit",
+  // POST /api/auth/admin-login — successful elevation to admin.
+  "admin-login": "explicit",
+  // POST /api/auth/admin-login — failed elevation (bad password, missing
+  // password, ADMIN_PASSWORD not configured, unauthenticated session).
+  "admin-login-failed": "explicit",
+};
+
+const ADMIN_AUDIT_SKIP_ACTIONS = new Set(
+  Object.entries(ADMIN_AUDIT_COVERAGE)
+    .filter(([, mode]) => mode === "skipped")
+    .map(([action]) => action),
+);
+
+// Dev-time warning surface so a newly added admin route that nobody
+// classified in `ADMIN_AUDIT_COVERAGE` shows up loudly the first time it's
+// hit, instead of silently riding the generic hook (or worse, silently
+// being missed if the developer copy-pasted a skip). Production stays
+// quiet — this is purely a developer aid.
+const warnedUnknownAdminActions = new Set<string>();
+function warnIfUnknownAdminAction(action: string): void {
+  if (process.env.NODE_ENV === "production") return;
+  if (action in ADMIN_AUDIT_COVERAGE) return;
+  if (warnedUnknownAdminActions.has(action)) return;
+  warnedUnknownAdminActions.add(action);
+  console.warn(
+    `[admin-audit] No coverage entry for action "${action}". ` +
+      `Add it to ADMIN_AUDIT_COVERAGE in server/auth.ts ` +
+      `("explicit" | "generic" | "skipped") so audit coverage stays inventoried.`,
+  );
+}
 
 export function auditAdminRequest(
   req: Request,
@@ -107,6 +185,7 @@ export function auditAdminRequest(
   res.on("finish", () => {
     if (req.adminAuditRecorded) return;
     const action = deriveAdminAction(req);
+    warnIfUnknownAdminAction(action);
     if (ADMIN_AUDIT_SKIP_ACTIONS.has(action)) return;
     const statusCode = res.statusCode;
     const status: "success" | "failure" =
