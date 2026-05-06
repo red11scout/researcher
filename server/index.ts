@@ -4,7 +4,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import cookieParser from 'cookie-parser';
 import { registerRoutes } from "./routes";
-import { setupAuth } from "./auth";
+import { setupAuth, securityHeaders } from "./auth";
 import { serveStatic } from "./static";
 import { startAdminAuditRetentionScheduler } from "./admin-audit-retention";
 import { createServer } from "http";
@@ -32,6 +32,14 @@ validateEnvironment();
 
 const app = express();
 const httpServer = createServer(app);
+
+// Apply security headers BEFORE any static mounts so every response —
+// including /attached_assets/* PDFs — carries X-Content-Type-Options,
+// X-Frame-Options: DENY, X-XSS-Protection, and Referrer-Policy.
+// (setupAuth() also installs these later via app.use(securityHeaders),
+// but Express short-circuits on the first matching middleware for static
+// responses, so the early mount below would otherwise bypass them.)
+app.use(securityHeaders);
 
 // Serve attached_assets folder for PDF downloads (before other routes)
 const attachedAssetsPath = path.resolve(process.cwd(), "attached_assets");

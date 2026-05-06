@@ -5,6 +5,7 @@ import request from "supertest";
 import {
   authMiddleware,
   isPublicRoute,
+  securityHeaders,
 } from "../server/auth";
 
 function buildApp() {
@@ -110,5 +111,54 @@ describe("authMiddleware — page gating", () => {
 
     const api = await agent.get("/api/secret");
     expect(api.status).toBe(200);
+  });
+});
+
+describe("securityHeaders — applied to every response (including static)", () => {
+  function buildAppWithStatic() {
+    const app = express();
+    // Mirror server/index.ts ordering: securityHeaders FIRST, then static.
+    app.use(securityHeaders);
+    app.get("/attached_assets/sample.pdf", (_req, res) =>
+      res.status(200).type("application/pdf").send("%PDF-1.4 stub"),
+    );
+    app.use(authMiddleware);
+    app.get("/api/health", (_req, res) => res.json({ ok: true }));
+    app.get("*", (_req, res) => res.status(200).type("html").send("<html>SPA</html>"));
+    return app;
+  }
+
+  const expectedHeaders: Record<string, string> = {
+    "x-content-type-options": "nosniff",
+    "x-frame-options": "DENY",
+    "x-xss-protection": "1; mode=block",
+    "referrer-policy": "strict-origin-when-cross-origin",
+  };
+
+  it("sets headers on early-mounted static asset responses (regression)", async () => {
+    const app = buildAppWithStatic();
+    const r = await request(app).get("/attached_assets/sample.pdf");
+    expect(r.status).toBe(200);
+    for (const [k, v] of Object.entries(expectedHeaders)) {
+      expect(r.headers[k], `missing ${k} on static response`).toBe(v);
+    }
+  });
+
+  it("sets headers on public API responses", async () => {
+    const app = buildAppWithStatic();
+    const r = await request(app).get("/api/health");
+    expect(r.status).toBe(200);
+    for (const [k, v] of Object.entries(expectedHeaders)) {
+      expect(r.headers[k], `missing ${k} on /api/health`).toBe(v);
+    }
+  });
+
+  it("sets headers on the unauthenticated 302 redirect to /login", async () => {
+    const app = buildAppWithStatic();
+    const r = await request(app).get("/dashboard/xyz");
+    expect(r.status).toBe(302);
+    for (const [k, v] of Object.entries(expectedHeaders)) {
+      expect(r.headers[k], `missing ${k} on redirect`).toBe(v);
+    }
   });
 });
