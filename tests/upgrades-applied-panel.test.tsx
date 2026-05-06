@@ -365,6 +365,44 @@ describe("UpgradesAppliedPanel — Copy IDs buttons", () => {
     expect(payload.variant).toBeUndefined();
   });
 
+  it("disables Copy IDs when the headline-changes filter hides every report in a bucket", async () => {
+    // The `added-diagnostic` bucket holds rep-005 and rep-006, both of
+    // which have empty `metricDeltas`. With the
+    // `switch-hide-schema-only-upgrades` toggle ON, `filterReports`
+    // strips both reports, leaving `visibleReports.length === 0` and
+    // forcing the Copy IDs button into its disabled state. This test
+    // locks in that behavior so a future refactor can't silently let
+    // admins copy an empty list.
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+
+    renderPanel();
+
+    // Flip the "Show only reports with headline changes" toggle on.
+    clickByTestId("switch-hide-schema-only-upgrades");
+
+    // Expand the schema-only-upgrades bucket (`added-diagnostic`).
+    clickByTestId("button-toggle-upgrade-added-diagnostic");
+
+    const copyBtn = getByTestId("button-copy-ids-upgrade-added-diagnostic");
+    expect(copyBtn).not.toBeNull();
+    expect(copyBtn?.hasAttribute("disabled")).toBe(true);
+
+    // Clicking the disabled button must be a no-op: neither the
+    // clipboard nor the toast spy should fire.
+    clickByTestId("button-copy-ids-upgrade-added-diagnostic");
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(writeText).not.toHaveBeenCalled();
+    expect(toastSpy).not.toHaveBeenCalled();
+  });
+
   it("shows a destructive 'Copy failed' toast when clipboard.writeText rejects", async () => {
     const writeText = vi.fn().mockRejectedValue(new Error("blocked by browser"));
     Object.defineProperty(navigator, "clipboard", {
