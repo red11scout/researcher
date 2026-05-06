@@ -306,7 +306,9 @@ export function setupAuth(app: import("express").Express) {
   const sessionSecret = process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex");
 
   app.set("trust proxy", 1);
-  app.use(securityHeaders);
+  // securityHeaders is mounted globally in server/index.ts (before the
+  // /attached_assets static handler) so every response is covered. We do
+  // NOT re-mount it here to avoid running the same Set-Header pass twice.
   app.use(corsRestrictions);
 
   app.use(
@@ -456,7 +458,10 @@ export function setupAuth(app: import("express").Express) {
     });
   });
 
+  // Share endpoints serve unauthenticated public report viewers; rate-limit
+  // both naming variants so a future /api/shared/:id route is covered too.
   app.use("/api/share", shareRateLimiter);
+  app.use("/api/shared", shareRateLimiter);
 
   app.use(authMiddleware);
   // Gate every /api/admin/* route, then install the finish-time audit hook
