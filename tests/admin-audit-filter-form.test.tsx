@@ -363,6 +363,69 @@ describe("RecentAdminActivity — filter form", () => {
   });
 });
 
+describe("RecentAdminActivity — date picker min/max wiring", () => {
+  // The From/To inputs cross-constrain each other so an operator can't
+  // pick e.g. From=2026-04-29, To=2026-04-01 (which would silently
+  // return zero rows because the server treats `since > until` as a
+  // valid empty range). The wiring is: From's `max` mirrors `until`,
+  // To's `min` mirrors `since`. Task #57 covered the emitted query
+  // shape but not these attributes — a regression dropping them would
+  // ship silently.
+
+  it("sets To's `min` to the active `since` and From's `max` to the active `until`", () => {
+    renderPanel({ filters: { since: "2026-04-01", until: "2026-04-29" } });
+
+    const since = getByTestId("input-audit-since") as HTMLInputElement;
+    const until = getByTestId("input-audit-until") as HTMLInputElement;
+    expect(since).not.toBeNull();
+    expect(until).not.toBeNull();
+
+    // From's upper bound is the current To value — picking a date
+    // after `until` should be blocked by the native picker.
+    expect(since.getAttribute("max")).toBe("2026-04-29");
+    // To's lower bound is the current From value — picking a date
+    // before `since` should be blocked by the native picker.
+    expect(until.getAttribute("min")).toBe("2026-04-01");
+  });
+
+  it("sets only To's `min` when only `since` is active (and vice versa)", () => {
+    // Only From is set: To should be lower-bounded, From should NOT
+    // have a stray `max` (there's no upper bound to enforce yet).
+    const { } = renderPanel({ filters: { since: "2026-04-01" } });
+    let since = getByTestId("input-audit-since") as HTMLInputElement;
+    let until = getByTestId("input-audit-until") as HTMLInputElement;
+    expect(until.getAttribute("min")).toBe("2026-04-01");
+    expect(since.getAttribute("max")).toBeNull();
+
+    // Tear down + re-render with only To set.
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    renderPanel({ filters: { until: "2026-04-29" } });
+    since = getByTestId("input-audit-since") as HTMLInputElement;
+    until = getByTestId("input-audit-until") as HTMLInputElement;
+    expect(since.getAttribute("max")).toBe("2026-04-29");
+    expect(until.getAttribute("min")).toBeNull();
+  });
+
+  it("leaves both `min` and `max` unset when neither date is active", () => {
+    // EMPTY_AUDIT_FILTERS — without this guard, an empty-string
+    // `min`/`max` would silently constrain the picker to nothing
+    // (browsers treat min="" as "no valid date selectable" in some
+    // engines), so we assert the attributes are absent entirely.
+    renderPanel();
+    const since = getByTestId("input-audit-since") as HTMLInputElement;
+    const until = getByTestId("input-audit-until") as HTMLInputElement;
+    expect(since.getAttribute("max")).toBeNull();
+    expect(until.getAttribute("min")).toBeNull();
+  });
+});
+
 describe("RecentAdminActivity — pager", () => {
   it("Next adds one page worth of offset (and Previous subtracts it)", () => {
     const { onChangeOffset } = renderPanel({ offset: 0, total: 100 });
