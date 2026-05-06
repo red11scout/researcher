@@ -313,6 +313,91 @@ describe("HeadlineNumberChangesPanel — bucketing", () => {
     expect(allByTestIdPrefix("row-headline-bucket-")).toHaveLength(0);
   });
 
+  it("renders separate up/down counters reflecting the per-bucket direction split", () => {
+    renderPanel();
+
+    // total-annual-value bucket has mixed-sign movement:
+    //   rep-A delta = +200,000  (up)
+    //   rep-B delta = +200,000  (up)
+    //   rep-C delta = -200,000  (down)
+    // → up = 2, down = 1. Both counters must render side by side.
+    const upTotal = getByTestId("count-headline-up-total-annual-value");
+    const downTotal = getByTestId("count-headline-down-total-annual-value");
+    expect(upTotal).not.toBeNull();
+    expect(downTotal).not.toBeNull();
+    expect(upTotal?.textContent ?? "").toContain("2");
+    expect(downTotal?.textContent ?? "").toContain("1");
+  });
+
+  it("omits the down counter for a bucket whose deltas are all positive", () => {
+    renderPanel();
+
+    // champion-count bucket: rep-A (+1), rep-D (+1). Strictly positive →
+    // up counter shows 2, down span must NOT render at all (it would
+    // otherwise read as a misleading "↑2 ↓0").
+    const up = getByTestId("count-headline-up-champion-count");
+    expect(up).not.toBeNull();
+    expect(up?.textContent ?? "").toContain("2");
+    expect(getByTestId("count-headline-down-champion-count")).toBeNull();
+
+    // Same shape for the single-entry strictly-positive buckets.
+    expect(getByTestId("count-headline-up-prototyping-candidates")?.textContent ?? "").toContain("1");
+    expect(getByTestId("count-headline-down-prototyping-candidates")).toBeNull();
+    expect(getByTestId("count-headline-up-quick-win-count")?.textContent ?? "").toContain("1");
+    expect(getByTestId("count-headline-down-quick-win-count")).toBeNull();
+  });
+
+  it("omits the up counter for a bucket whose deltas are all negative", () => {
+    // Build a fixture where every entry in the only bucket moves
+    // *down*. This is the mirror of the all-positive case — the up
+    // span must collapse so the header reads as a single down counter
+    // rather than a misleading "↑0 ↓N".
+    const allDown: BackfillReportResult[] = [
+      {
+        id: "rep-down-1",
+        companyName: "Acme",
+        isWhatIf: false,
+        status: "updated",
+        durationMs: 10,
+        upgrades: [],
+        metricDeltas: [
+          {
+            code: "total-annual-value",
+            label: "Total value $1.2M → $1.0M",
+            before: 1_200_000,
+            after: 1_000_000,
+            delta: -200_000,
+            unit: "money",
+          },
+        ],
+      },
+      {
+        id: "rep-down-2",
+        companyName: "Beta",
+        isWhatIf: false,
+        status: "updated",
+        durationMs: 10,
+        upgrades: [],
+        metricDeltas: [
+          {
+            code: "total-annual-value",
+            label: "Total value $800K → $600K",
+            before: 800_000,
+            after: 600_000,
+            delta: -200_000,
+            unit: "money",
+          },
+        ],
+      },
+    ];
+    renderPanel(allDown);
+
+    expect(getByTestId("count-headline-up-total-annual-value")).toBeNull();
+    const down = getByTestId("count-headline-down-total-annual-value");
+    expect(down).not.toBeNull();
+    expect(down?.textContent ?? "").toContain("2");
+  });
+
   it("collapses bucket details by default and reveals the table when the toggle is clicked", () => {
     renderPanel();
 
