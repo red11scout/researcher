@@ -3100,6 +3100,7 @@ export function RecentAdminActivity({
           </div>
         ) : (
           <>
+            <AuditActivitySummary entries={entries} />
             <div className="rounded-lg border border-slate-200 overflow-hidden">
               <Table>
                 <TableHeader>
@@ -3156,6 +3157,121 @@ export function RecentAdminActivity({
         )}
       </CardContent>
     </Card>
+  );
+}
+
+// Per-action counts for the summary chips at the top of the activity
+// panel. `failures` is a subset of `total` and drives the red highlight
+// so an admin-login-failed spike or burst of admin-access-denied is
+// visually obvious without the operator having to scan every row.
+interface AuditActionCount {
+  action: string;
+  total: number;
+  failures: number;
+}
+
+// Aggregate the visible audit entries into per-action counts, sorted by
+// frequency desc (then alphabetically by action code for stable ordering
+// when several actions tie). Pure so it can be exercised by tests in
+// isolation. Exported so unit tests can lock in the aggregation rules
+// without rendering the parent page.
+export function summarizeAuditEntries(
+  entries: AdminAuditEntry[],
+): AuditActionCount[] {
+  const counts = new Map<string, AuditActionCount>();
+  for (const entry of entries) {
+    const existing = counts.get(entry.action) ?? {
+      action: entry.action,
+      total: 0,
+      failures: 0,
+    };
+    existing.total += 1;
+    if (entry.status === "failure") existing.failures += 1;
+    counts.set(entry.action, existing);
+  }
+  return Array.from(counts.values()).sort((a, b) => {
+    if (b.total !== a.total) return b.total - a.total;
+    return a.action.localeCompare(b.action);
+  });
+}
+
+// Compact per-action summary shown above the audit table. Operates on
+// whatever slice the operator currently has loaded (the visible page),
+// which keeps the math honest — the chips always describe the rows the
+// operator can actually see and scroll through. A separate "spike"
+// banner appears when the visible page is dominated by failures so a
+// brute-force login burst or repeated access-denied is impossible to
+// miss even before reading the chips.
+function AuditActivitySummary({ entries }: { entries: AdminAuditEntry[] }) {
+  const counts = useMemo(() => summarizeAuditEntries(entries), [entries]);
+  if (counts.length === 0) return null;
+
+  const totalFailures = counts.reduce((sum, c) => sum + c.failures, 0);
+  // Spike heuristic: 3+ failures *and* failures are at least a third of
+  // the visible page. Both conditions matter — three failures buried in
+  // 200 successes isn't a spike, but three failures in a page of nine
+  // probably is. The threshold is intentionally low so a brute-force
+  // login attempt (typically 5–10 rapid failures) trips the banner on
+  // its first page.
+  const spike = totalFailures >= 3 && totalFailures * 3 >= entries.length;
+
+  return (
+    <div
+      className="mb-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"
+      data-testid="audit-activity-summary"
+    >
+      <div className="flex items-center gap-2 text-xs font-medium text-slate-600 uppercase tracking-wide">
+        Most-called on this page
+      </div>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {counts.map((c) => {
+          // Treat the chip as "warning red" when every event is a failure
+          // (covers admin-login-failed and admin-access-denied, which
+          // never have successes) or when failures dominate the chip's
+          // own counts. Mixed-but-mostly-fine actions stay slate.
+          const allFailure = c.total > 0 && c.failures === c.total;
+          const failureHeavy = c.failures >= 3 || c.failures * 2 >= c.total;
+          const danger = allFailure || (c.failures > 0 && failureHeavy);
+          const tone = danger
+            ? "border-red-200 bg-red-50 text-red-700"
+            : "border-slate-200 bg-white text-slate-700";
+          const failureSuffix =
+            c.failures > 0 && !allFailure
+              ? ` (${c.failures} failed)`
+              : "";
+          return (
+            <span
+              key={c.action}
+              className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium ${tone}`}
+              data-testid={`audit-summary-chip-${c.action}`}
+              title={`${c.total} ${actionLabel(c.action)} event${
+                c.total === 1 ? "" : "s"
+              } in this page${
+                c.failures > 0 ? ` (${c.failures} failed)` : ""
+              }`}
+            >
+              {actionLabel(c.action)}:{" "}
+              <span className="tabular-nums">{c.total}</span>
+              {failureSuffix && (
+                <span className="text-red-600">{failureSuffix}</span>
+              )}
+            </span>
+          );
+        })}
+      </div>
+      {spike && (
+        <div
+          className="mt-2 flex items-start gap-1.5 text-xs text-red-700"
+          data-testid="audit-activity-spike"
+        >
+          <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+          <span>
+            Failure spike: {totalFailures} of {entries.length} visible events
+            failed. Investigate before clearing this page.
+          </span>
+        </div>
+      )}
+    </div>
   );
 }
 
