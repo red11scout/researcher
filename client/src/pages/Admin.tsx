@@ -141,13 +141,28 @@ function formatDuration(ms: number): string {
 // How old (in ms) a rehydrated summary needs to be before we visually
 // distinguish it as "stale". Operators returning to /admin after a long
 // break shouldn't mistake a week-old summary for a freshly-completed run.
-const STALE_RUN_THRESHOLD_MS = 24 * 60 * 60 * 1000;
+export const STALE_RUN_THRESHOLD_MS = 24 * 60 * 60 * 1000;
+
+// Pure helper that decides whether a rehydrated `completedAt` ISO string is
+// "stale" (older than STALE_RUN_THRESHOLD_MS). Exported so tests can lock in
+// the boundary, and so the chip / banner / panel-wrapper components below all
+// agree on the answer.
+export function isStaleRun(
+  hydratedAt: string | null | undefined,
+  now: number = Date.now(),
+): boolean {
+  if (!hydratedAt) return false;
+  const then = new Date(hydratedAt).getTime();
+  if (!Number.isFinite(then)) return false;
+  const age = now - then;
+  return Number.isFinite(age) && age >= STALE_RUN_THRESHOLD_MS;
+}
 
 // Compact, human-friendly relative time ("just now", "2h ago", "5d ago")
 // for the rehydrated last-run chip on the Admin page. We deliberately
 // keep it short so it fits as a badge next to the summary header without
 // wrapping; the absolute timestamp is still available via `title`.
-function formatRelativeTime(fromIso: string, now: number = Date.now()): string {
+export function formatRelativeTime(fromIso: string, now: number = Date.now()): string {
   const then = new Date(fromIso).getTime();
   if (!Number.isFinite(then)) return "";
   const diffMs = Math.max(0, now - then);
@@ -163,6 +178,92 @@ function formatRelativeTime(fromIso: string, now: number = Date.now()): string {
   if (mo < 12) return `${mo}mo ago`;
   const yr = Math.floor(day / 365);
   return `${yr}y ago`;
+}
+
+// Amber "this summary is stale" banner shown above the rehydrated last-run
+// panel when the saved `completedAt` is older than `STALE_RUN_THRESHOLD_MS`.
+// Returns `null` (renders nothing) for fresh or absent runs so callers can
+// drop it into the panel unconditionally. Exported for component tests.
+export function LastRunStaleBanner({
+  hydratedAt,
+  now,
+}: {
+  hydratedAt: string | null | undefined;
+  now?: number;
+}) {
+  if (!hydratedAt || !isStaleRun(hydratedAt, now)) return null;
+  return (
+    <div
+      className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 flex items-start gap-2 text-sm text-amber-800"
+      data-testid="banner-last-run-stale"
+    >
+      <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+      <span>
+        This summary is from a previous run completed{" "}
+        {formatRelativeTime(hydratedAt, now)} — re-run the upgrade to see fresh
+        results.
+      </span>
+    </div>
+  );
+}
+
+// "Last run · 2h ago" badge that lives next to the Last-run-summary header.
+// Renders nothing when no run has ever completed; switches to amber outline
+// styling once the underlying run crosses the stale threshold so the chip
+// itself signals freshness even when a reader scrolls past the banner.
+// Exported for component tests.
+export function LastRunRelativeChip({
+  hydratedAt,
+  now,
+}: {
+  hydratedAt: string | null | undefined;
+  now?: number;
+}) {
+  if (!hydratedAt) return null;
+  const stale = isStaleRun(hydratedAt, now);
+  return (
+    <Badge
+      variant={stale ? "outline" : "secondary"}
+      className={
+        stale
+          ? "border-amber-300 bg-amber-50 text-amber-800 gap-1"
+          : "gap-1"
+      }
+      data-testid="chip-last-run-relative"
+      title={`Last run completed ${new Date(hydratedAt).toLocaleString()}`}
+    >
+      <Clock className="h-3 w-3" />
+      Last run · {formatRelativeTime(hydratedAt, now)}
+    </Badge>
+  );
+}
+
+// Wrapper around the rehydrated last-run summary content. Owns the
+// `panel-backfill-result` testid + `data-stale` attribute, the muted
+// (opacity-70) visual treatment, the leading <Separator />, and the
+// stale-state banner — so any caller embedding the summary inherits all
+// four staleness affordances consistently. Exported for component tests.
+export function LastRunSummaryPanel({
+  hydratedAt,
+  now,
+  children,
+}: {
+  hydratedAt: string | null | undefined;
+  now?: number;
+  children: React.ReactNode;
+}) {
+  const stale = isStaleRun(hydratedAt, now);
+  return (
+    <div
+      className={`space-y-4 ${stale ? "opacity-70" : ""}`}
+      data-testid="panel-backfill-result"
+      data-stale={stale ? "true" : "false"}
+    >
+      <Separator />
+      <LastRunStaleBanner hydratedAt={hydratedAt} now={now} />
+      {children}
+    </div>
+  );
 }
 
 export default function Admin() {
@@ -1280,34 +1381,8 @@ export function AdminPanel() {
               </div>
             )}
 
-            {result && (() => {
-              const hydratedAge = hydratedAt
-                ? Date.now() - new Date(hydratedAt).getTime()
-                : 0;
-              const isStale =
-                !!hydratedAt &&
-                Number.isFinite(hydratedAge) &&
-                hydratedAge >= STALE_RUN_THRESHOLD_MS;
-              return (
-              <div
-                className={`space-y-4 ${isStale ? "opacity-70" : ""}`}
-                data-testid="panel-backfill-result"
-                data-stale={isStale ? "true" : "false"}
-              >
-                <Separator />
-                {isStale && (
-                  <div
-                    className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 flex items-start gap-2 text-sm text-amber-800"
-                    data-testid="banner-last-run-stale"
-                  >
-                    <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
-                    <span>
-                      This summary is from a previous run completed{" "}
-                      {formatRelativeTime(hydratedAt!)} — re-run the upgrade to
-                      see fresh results.
-                    </span>
-                  </div>
-                )}
+            {result && (
+              <LastRunSummaryPanel hydratedAt={hydratedAt}>
                 <div className="flex items-center gap-2 flex-wrap">
                   <CheckCircle2 className="h-5 w-5 text-emerald-600" />
                   <h3 className="text-base font-semibold text-slate-900">
@@ -1318,21 +1393,7 @@ export function AdminPanel() {
                       forced
                     </Badge>
                   )}
-                  {hydratedAt && (
-                    <Badge
-                      variant={isStale ? "outline" : "secondary"}
-                      className={
-                        isStale
-                          ? "border-amber-300 bg-amber-50 text-amber-800 gap-1"
-                          : "gap-1"
-                      }
-                      data-testid="chip-last-run-relative"
-                      title={`Last run completed ${new Date(hydratedAt).toLocaleString()}`}
-                    >
-                      <Clock className="h-3 w-3" />
-                      Last run · {formatRelativeTime(hydratedAt)}
-                    </Badge>
-                  )}
+                  <LastRunRelativeChip hydratedAt={hydratedAt} />
                   <Button
                     variant="outline"
                     size="sm"
@@ -1571,9 +1632,8 @@ export function AdminPanel() {
                     No failures — every report was processed successfully.
                   </div>
                 )}
-              </div>
-              );
-            })()}
+              </LastRunSummaryPanel>
+            )}
           </CardContent>
         </Card>
 
