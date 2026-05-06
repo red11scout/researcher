@@ -452,15 +452,22 @@ const StickyHeader = ({ clientName, onShareUrl, onViewHTMLReport, onViewEditoria
           <div className="text-gray-500 font-medium hidden md:block">{clientName} Assessment</div>
         </div>
         <div className="flex items-center gap-2 md:gap-3">
-          <button
-            onClick={handleShare}
-            className="p-2 rounded-full border border-gray-300 hover:bg-gray-100 transition-colors flex items-center gap-2 min-w-[40px] min-h-[40px] justify-center"
-            data-testid="button-share-url"
-            title="Copy shareable link"
-          >
-            {copied ? <Check className="w-4 h-4 text-green-600" /> : <Share2 className="w-4 h-4 text-gray-600" />}
-            <span className="hidden md:inline text-sm text-gray-600">{copied ? 'Copied!' : 'Share'}</span>
-          </button>
+          {/* Share button is owner-only — generates a fresh /shared/:id link
+              from /api/share. In a shared view the URL is already in the
+              public viewer's address bar; rendering a Share button there
+              would silently no-op (onShareUrl is undefined) and look like
+              a broken control. */}
+          {!isSharedView && (
+            <button
+              onClick={handleShare}
+              className="p-2 rounded-full border border-gray-300 hover:bg-gray-100 transition-colors flex items-center gap-2 min-w-[40px] min-h-[40px] justify-center"
+              data-testid="button-share-url"
+              title="Copy shareable link"
+            >
+              {copied ? <Check className="w-4 h-4 text-green-600" /> : <Share2 className="w-4 h-4 text-gray-600" />}
+              <span className="hidden md:inline text-sm text-gray-600">{copied ? 'Copied!' : 'Share'}</span>
+            </button>
+          )}
           {/* Report export dropdown */}
           <div className="relative" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setReportMenuOpen(false); }}>
             <button
