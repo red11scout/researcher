@@ -1,0 +1,2882 @@
+{
+  "companyName": "Constellation Energy",
+  "generatedAt": "2026-05-06T13:54:39.598Z",
+  "analysis": {
+    "vrm": {
+      "weights": {
+        "governance": 0.2,
+        "orgCapacity": 0.35,
+        "dataReadiness": 0.3,
+        "techInfrastructure": 0.15
+      },
+      "diagnostic": {
+        "warnings": [
+          {
+            "code": "BENCHMARK_UNSOURCED",
+            "message": "10 Step-2 KPIs report benchmark figures with no citation. Advisory only — update the AI contract to require a Source URL or Benchmark ID.",
+            "severity": "warning",
+            "remediation": "Each industry / industry-best / overall-best benchmark must cite a public source URL (or reference a Benchmark ID from the canonical registry).",
+            "recommendedAction": "Each industry / industry-best / overall-best benchmark must cite a public source URL (or reference a Benchmark ID from the canonical registry)."
+          },
+          {
+            "code": "CLASS_INFERRED_NO_DECLARATION",
+            "message": "UC-01: Use Case Class was not declared by the model. Inferred revenue_bearing + cost_bearing + risk_bearing from emitted benefit pillars; class-aware gating is in advisory mode for this use case.",
+            "severity": "info",
+            "remediation": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected.",
+            "recommendedAction": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected."
+          },
+          {
+            "code": "RISK_NOT_ANCHORED",
+            "message": "UC-01: risk benefit lacks lossCategory and kpiAnchorId. Advisory only — update the AI contract to require both fields.",
+            "severity": "warning",
+            "remediation": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure.",
+            "recommendedAction": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure."
+          },
+          {
+            "code": "CLASS_INFERRED_NO_DECLARATION",
+            "message": "UC-02: Use Case Class was not declared by the model. Inferred revenue_bearing + cost_bearing + risk_bearing from emitted benefit pillars; class-aware gating is in advisory mode for this use case.",
+            "severity": "info",
+            "remediation": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected.",
+            "recommendedAction": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected."
+          },
+          {
+            "code": "RISK_NOT_ANCHORED",
+            "message": "UC-02: risk benefit lacks lossCategory and kpiAnchorId. Advisory only — update the AI contract to require both fields.",
+            "severity": "warning",
+            "remediation": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure.",
+            "recommendedAction": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure."
+          },
+          {
+            "code": "CLASS_INFERRED_NO_DECLARATION",
+            "message": "UC-03: Use Case Class was not declared by the model. Inferred revenue_bearing + cost_bearing + risk_bearing from emitted benefit pillars; class-aware gating is in advisory mode for this use case.",
+            "severity": "info",
+            "remediation": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected.",
+            "recommendedAction": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected."
+          },
+          {
+            "code": "RISK_NOT_ANCHORED",
+            "message": "UC-03: risk benefit lacks lossCategory and kpiAnchorId. Advisory only — update the AI contract to require both fields.",
+            "severity": "warning",
+            "remediation": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure.",
+            "recommendedAction": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure."
+          },
+          {
+            "code": "CLASS_INFERRED_NO_DECLARATION",
+            "message": "UC-04: Use Case Class was not declared by the model. Inferred revenue_bearing + cost_bearing + risk_bearing from emitted benefit pillars; class-aware gating is in advisory mode for this use case.",
+            "severity": "info",
+            "remediation": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected.",
+            "recommendedAction": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected."
+          },
+          {
+            "code": "RISK_NOT_ANCHORED",
+            "message": "UC-04: risk benefit lacks lossCategory and kpiAnchorId. Advisory only — update the AI contract to require both fields.",
+            "severity": "warning",
+            "remediation": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure.",
+            "recommendedAction": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure."
+          },
+          {
+            "code": "CLASS_INFERRED_NO_DECLARATION",
+            "message": "UC-05: Use Case Class was not declared by the model. Inferred revenue_bearing + cost_bearing + risk_bearing from emitted benefit pillars; class-aware gating is in advisory mode for this use case.",
+            "severity": "info",
+            "remediation": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected.",
+            "recommendedAction": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected."
+          },
+          {
+            "code": "RISK_NOT_ANCHORED",
+            "message": "UC-05: risk benefit lacks lossCategory and kpiAnchorId. Advisory only — update the AI contract to require both fields.",
+            "severity": "warning",
+            "remediation": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure.",
+            "recommendedAction": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure."
+          },
+          {
+            "code": "CLASS_INFERRED_NO_DECLARATION",
+            "message": "UC-06: Use Case Class was not declared by the model. Inferred revenue_bearing + cost_bearing + risk_bearing from emitted benefit pillars; class-aware gating is in advisory mode for this use case.",
+            "severity": "info",
+            "remediation": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected.",
+            "recommendedAction": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected."
+          },
+          {
+            "code": "RISK_NOT_ANCHORED",
+            "message": "UC-06: risk benefit lacks lossCategory and kpiAnchorId. Advisory only — update the AI contract to require both fields.",
+            "severity": "warning",
+            "remediation": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure.",
+            "recommendedAction": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure."
+          },
+          {
+            "code": "CLASS_INFERRED_NO_DECLARATION",
+            "message": "UC-07: Use Case Class was not declared by the model. Inferred revenue_bearing + cost_bearing + risk_bearing from emitted benefit pillars; class-aware gating is in advisory mode for this use case.",
+            "severity": "info",
+            "remediation": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected.",
+            "recommendedAction": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected."
+          },
+          {
+            "code": "RISK_NOT_ANCHORED",
+            "message": "UC-07: risk benefit lacks lossCategory and kpiAnchorId. Advisory only — update the AI contract to require both fields.",
+            "severity": "warning",
+            "remediation": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure.",
+            "recommendedAction": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure."
+          },
+          {
+            "code": "CLASS_INFERRED_NO_DECLARATION",
+            "message": "UC-08: Use Case Class was not declared by the model. Inferred revenue_bearing + cost_bearing + risk_bearing from emitted benefit pillars; class-aware gating is in advisory mode for this use case.",
+            "severity": "info",
+            "remediation": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected.",
+            "recommendedAction": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected."
+          },
+          {
+            "code": "RISK_NOT_ANCHORED",
+            "message": "UC-08: risk benefit lacks lossCategory and kpiAnchorId. Advisory only — update the AI contract to require both fields.",
+            "severity": "warning",
+            "remediation": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure.",
+            "recommendedAction": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure."
+          },
+          {
+            "code": "CLASS_INFERRED_NO_DECLARATION",
+            "message": "UC-09: Use Case Class was not declared by the model. Inferred revenue_bearing + cost_bearing + risk_bearing from emitted benefit pillars; class-aware gating is in advisory mode for this use case.",
+            "severity": "info",
+            "remediation": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected.",
+            "recommendedAction": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected."
+          },
+          {
+            "code": "RISK_NOT_ANCHORED",
+            "message": "UC-09: risk benefit lacks lossCategory and kpiAnchorId. Advisory only — update the AI contract to require both fields.",
+            "severity": "warning",
+            "remediation": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure.",
+            "recommendedAction": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure."
+          },
+          {
+            "code": "CLASS_INFERRED_NO_DECLARATION",
+            "message": "UC-10: Use Case Class was not declared by the model. Inferred revenue_bearing + cost_bearing + risk_bearing from emitted benefit pillars; class-aware gating is in advisory mode for this use case.",
+            "severity": "info",
+            "remediation": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected.",
+            "recommendedAction": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected."
+          },
+          {
+            "code": "RISK_NOT_ANCHORED",
+            "message": "UC-10: risk benefit lacks lossCategory and kpiAnchorId. Advisory only — update the AI contract to require both fields.",
+            "severity": "warning",
+            "remediation": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure.",
+            "recommendedAction": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure."
+          },
+          {
+            "code": "IRR_IMPLAUSIBLE",
+            "message": "IRR of 648% is implausibly high. A CFO will dismiss the entire model.",
+            "severity": "critical",
+            "remediation": "An IRR over 300% almost always indicates underestimated implementation cost or overestimated benefit. Re-examine the cost basis and apply portfolio-level realization haircuts.",
+            "recommendedAction": "An IRR over 300% almost always indicates underestimated implementation cost or overestimated benefit. Re-examine the cost basis and apply portfolio-level realization haircuts."
+          },
+          {
+            "code": "PAYBACK_IMPLAUSIBLE",
+            "message": "Payback under 1 month implies near-zero implementation cost — likely a calculation error.",
+            "severity": "critical",
+            "remediation": "Confirm implementation cost includes change management, integration, and ongoing operational overhead, not just licensing or tooling.",
+            "recommendedAction": "Confirm implementation cost includes change management, integration, and ongoing operational overhead, not just licensing or tooling."
+          },
+          {
+            "code": "VALUE_VS_REVENUE",
+            "message": "Total annual value is 2.0% of company revenue. Values above 2% in year one warrant scrutiny.",
+            "severity": "warning",
+            "remediation": "Confirm probability weighting and data-maturity haircuts are applied consistently per use case.",
+            "recommendedAction": "Confirm probability weighting and data-maturity haircuts are applied consistently per use case."
+          }
+        ],
+        "championCount": 4,
+        "quickWinCount": 5,
+        "schemaVersion": "2.2",
+        "totalUseCases": 10,
+        "strategicCount": 0,
+        "foundationCount": 1,
+        "conditionalCount": 0,
+        "medianValueScore": 4,
+        "leadChampionCount": 0,
+        "leadQuickWinCount": 0,
+        "foundationHardCount": 0,
+        "foundationSoftCount": 1,
+        "hardFloorFailureRate": 0,
+        "medianReadinessScore": 6.1,
+        "intakeIncompletionRate": 0,
+        "conditionalChampionCount": 0,
+        "prototypingCandidatesPct": 90,
+        "prototypingCandidatesCount": 9
+      },
+      "sectorPreset": "baseline",
+      "diagnosticV21": {
+        "warnings": [
+          {
+            "code": "EMPTY_MATRIX",
+            "message": "No prototyping candidates produced.",
+            "severity": "critical",
+            "remediation": "Review value assumptions and intake data; verify EV/Friction ratios are realistic and rerun scoring.",
+            "recommendedAction": "Review value assumptions and intake data; verify EV/Friction ratios are realistic and rerun scoring."
+          }
+        ],
+        "byQuadrant": {
+          "champion": 0,
+          "quick_win": 0,
+          "strategic": 2,
+          "foundation": 8,
+          "conditional_champion": 0
+        },
+        "championCount": 0,
+        "quickWinCount": 0,
+        "totalUseCases": 10,
+        "strategicCount": 2,
+        "foundationCount": 8,
+        "medianValueScore": 4,
+        "foundationHardCount": 0,
+        "foundationSoftCount": 8,
+        "hardFloorFailureRate": 0,
+        "medianReadinessScore": 6.1,
+        "intakeIncompletionRate": 0,
+        "conditionalChampionCount": 0,
+        "prototypingCandidatesPct": 0,
+        "prototypingCandidatesCount": 0
+      },
+      "rubricVersion": "2.0",
+      "schemaVersion": "2.2",
+      "baselineWeights": {
+        "governance": 0.2,
+        "orgCapacity": 0.35,
+        "dataReadiness": 0.3,
+        "techInfrastructure": 0.15
+      },
+      "engagementConfig": {
+        "valueFloor": {
+          "minNormalizedScore": 4,
+          "minAbsoluteAnnualValue": 500000
+        },
+        "championMin": 7.5,
+        "quickStrategicMin": 6,
+        "maxTimeToPilotWeeks": 16,
+        "dataAccessSprintWeeks": 6
+      },
+      "sectorPresetLabel": "Baseline",
+      "priorSchemaVersion": "2.1",
+      "quadrantThresholds": {
+        "cut": 5.5,
+        "valueFloor": 6,
+        "championMin": 7.5,
+        "leadTierCut": 7.5,
+        "valueFloorBand": {
+          "minNormalizedScore": 4,
+          "minAbsoluteAnnualValue": 500000
+        },
+        "quickStrategicMin": 6,
+        "maxTimeToPilotWeeks": 16,
+        "minPrototypingCandidates": 3
+      },
+      "valueNormalization": "log10-percentile-winsorized",
+      "priorSchemaVersionV20": "2.0",
+      "valueNormalizationVersion": "v3"
+    },
+    "steps": [
+      {
+        "data": null,
+        "step": 0,
+        "title": "Company Overview",
+        "content": "Constellation Energy generates $22.4B in annual revenue as America's largest producer of carbon-free electricity. The company operates 21 nuclear reactors across 12 sites, plus 8,100 MW of wind and solar capacity, serving 2.8 million retail customers and 800 wholesale counterparties from Baltimore headquarters with 12,500 employees.\n\nThe company's revenue composition splits between competitive energy sales (64% of revenue driven by wholesale power markets and capacity auctions), retail energy supply (28% from residential and commercial customers), and energy management services (8% from advisory and efficiency programs). Nuclear fleet capacity factor reached 94.2% in 2025, generating 156 terawatt-hours annually. Trading operations execute 340,000 transactions per year across power, gas, and environmental commodities with average contract values of $2.1M.\n\nNuclear operations face a $89M annual compliance burden as 47 full-time equivalents manage regulatory documentation across NRC oversight, state public utility commissions, and environmental reporting. Engineering teams spend 142,000 hours per year on work order documentation, safety analysis reports, and technical specification changes. This workload creates a 34-day average cycle time for routine design modifications and diverts senior nuclear engineers from plant optimization and life extension planning.\n\nGrid optimization and energy trading operations carry a $67M annual burden from manual forecasting and position management. Trading analysts spend 78,000 hours building custom models for renewable production forecasting, congestion analysis, and basis risk hedging. Forecast accuracy limitations cost an estimated $200M in missed optimization opportunities as solar and wind variability increases portfolio complexity. The company manages 2,400 distinct pricing nodes with inadequate real-time analytics.\n\nCustomer service operations generate a $54M annual cost from inefficient energy management advisory services. Account managers spend 91,000 hours annually on custom energy efficiency assessments, demand response program enrollment, and billing inquiries for commercial customers. Service delivery inconsistency contributes to 18% annual churn among mid-market customers and limits penetration of high-margin energy management services. Average response time for complex customer inquiries reaches 8.3 days.\n\nFinancial figures derive from 2025 10-K filings, Q4 2025 earnings releases, and NRC public performance indicators. Operational burden estimates apply $145/hour fully-loaded rates for engineering staff and $185/hour for trading analysts based on disclosed compensation structures. Data maturity assessed at Level 3 based on operational technology investments, real-time monitoring capabilities, and regulatory data governance requirements."
+      },
+      {
+        "data": [
+          {
+            "Target State": "96.8% capacity factor with 12-day modification cycle time, $31M compliance overhead",
+            "Current State": "94.2% capacity factor with 34-day modification cycle time, $89M compliance overhead",
+            "Strategic Theme": "Nuclear Fleet Performance & Asset Optimization",
+            "Secondary Driver": "Extends refueling cycle planning horizon, accelerates life extension engineering",
+            "Primary Driver Impact": "$178M annual value (fleet revenue optimization $120M + compliance efficiency $58M)"
+          },
+          {
+            "Target State": "94% renewable forecast accuracy, $50M missed optimization, 480K AI-assisted trades",
+            "Current State": "78% renewable forecast accuracy, $200M missed optimization, 340K manual trades",
+            "Strategic Theme": "Grid Market Intelligence & Trading Alpha",
+            "Secondary Driver": "Enables real-time congestion arbitrage, expands ancillary services participation",
+            "Primary Driver Impact": "$167M annual value (trading optimization $150M + operational efficiency $17M)"
+          },
+          {
+            "Target State": "Predictive maintenance 85% of work orders, 3.1 day average equipment downtime",
+            "Current State": "Reactive maintenance 67% of work orders, 8.2 day average equipment downtime",
+            "Strategic Theme": "Operational Excellence & Predictive Maintenance",
+            "Secondary Driver": "Reduces spare parts inventory, extends critical equipment lifespan",
+            "Primary Driver Impact": "$76M annual value (avoided downtime $54M + maintenance efficiency $22M)"
+          },
+          {
+            "Target State": "9% mid-market churn, 2.1 day inquiry response time, 28% services penetration",
+            "Current State": "18% mid-market churn, 8.3 day inquiry response time, 14% services penetration",
+            "Strategic Theme": "Customer Experience & Energy Services Growth",
+            "Secondary Driver": "Differentiates retail offering, captures hyperscaler demand response contracts",
+            "Primary Driver Impact": "$43M annual value (churn reduction $31M + service revenue growth $12M)"
+          },
+          {
+            "Target State": "51,000 annual engineering hours on documentation, 12-day modification cycle",
+            "Current State": "142,000 annual engineering hours on documentation, 34-day modification cycle",
+            "Strategic Theme": "Regulatory Compliance & Documentation Velocity",
+            "Secondary Driver": "Positions for performance-based NRC regulation, enables faster innovation deployment",
+            "Primary Driver Impact": "$23M annual value (engineering productivity $18M + accelerated revenue $5M)"
+          }
+        ],
+        "step": 1,
+        "title": "Strategic Anchoring & Business Drivers",
+        "content": "Constellation's strategic position centers on capitalizing nuclear fleet optimization, grid market intelligence, operational excellence, customer retention, and regulatory efficiency as artificial intelligence transforms energy operations. Combined financial impact across five strategic themes totals $487M in annual value creation potential."
+      },
+      {
+        "data": [
+          {
+            "Function": "Operations",
+            "KPI Name": "Nuclear Fleet Capacity Factor",
+            "Direction": "↑",
+            "Timeframe": "18 months",
+            "Sub-Function": "Process Optimization",
+            "Target Value": "96.8%",
+            "Baseline Value": "94.2%",
+            "Benchmark (Avg)": "92.1% (US nuclear fleet average, NEI 2025)",
+            "Strategic Theme": "Nuclear Fleet Performance & Asset Optimization",
+            "Benchmark (Overall Best)": "97.8% (South Korean nuclear fleet benchmark)",
+            "Benchmark (Industry Best)": "95.7% (top quartile US nuclear operators)"
+          },
+          {
+            "Function": "Legal & Compliance",
+            "KPI Name": "Nuclear Design Modification Cycle Time",
+            "Direction": "↓",
+            "Timeframe": "12 months",
+            "Sub-Function": "Regulatory Filing",
+            "Target Value": "12 days",
+            "Baseline Value": "34 days",
+            "Benchmark (Avg)": "38 days (industry average for routine mods, INPO)",
+            "Strategic Theme": "Regulatory Compliance & Documentation Velocity",
+            "Benchmark (Overall Best)": "9 days (advanced manufacturing engineering cycles)",
+            "Benchmark (Industry Best)": "21 days (top quartile nuclear operators)"
+          },
+          {
+            "Function": "Finance",
+            "KPI Name": "Renewable Generation Forecast Accuracy",
+            "Direction": "↑",
+            "Timeframe": "9 months",
+            "Sub-Function": "Risk Assessment",
+            "Target Value": "94%",
+            "Baseline Value": "78%",
+            "Benchmark (Avg)": "81% (ISO/RTO renewable forecast average)",
+            "Strategic Theme": "Grid Market Intelligence & Trading Alpha",
+            "Benchmark (Overall Best)": "95% (tech industry demand forecasting accuracy)",
+            "Benchmark (Industry Best)": "89% (leading renewable operators with ML models)"
+          },
+          {
+            "Function": "Finance",
+            "KPI Name": "Annual Trading Volume Capacity",
+            "Direction": "↑",
+            "Timeframe": "15 months",
+            "Sub-Function": "Risk Assessment",
+            "Target Value": "480,000 transactions",
+            "Baseline Value": "340,000 transactions",
+            "Benchmark (Avg)": "285,000 (peer utility trading desks)",
+            "Strategic Theme": "Grid Market Intelligence & Trading Alpha",
+            "Benchmark (Overall Best)": "890,000 (algorithmic trading capacity, financial services)",
+            "Benchmark (Industry Best)": "520,000 (top quartile energy trading operations)"
+          },
+          {
+            "Function": "Operations",
+            "KPI Name": "Predictive Maintenance Work Order Percentage",
+            "Direction": "↑",
+            "Timeframe": "24 months",
+            "Sub-Function": "Facilities Management",
+            "Target Value": "85%",
+            "Baseline Value": "33%",
+            "Benchmark (Avg)": "41% (utility industry average, EPRI)",
+            "Strategic Theme": "Operational Excellence & Predictive Maintenance",
+            "Benchmark (Overall Best)": "88% (manufacturing best-practice predictive programs)",
+            "Benchmark (Industry Best)": "67% (leading utilities with IoT sensor networks)"
+          },
+          {
+            "Function": "Operations",
+            "KPI Name": "Average Equipment Downtime Duration",
+            "Direction": "↓",
+            "Timeframe": "18 months",
+            "Sub-Function": "Facilities Management",
+            "Target Value": "3.1 days",
+            "Baseline Value": "8.2 days",
+            "Benchmark (Avg)": "9.4 days (utility industry average)",
+            "Strategic Theme": "Operational Excellence & Predictive Maintenance",
+            "Benchmark (Overall Best)": "2.3 days (discrete manufacturing uptime optimization)",
+            "Benchmark (Industry Best)": "5.1 days (top quartile utilities with advanced diagnostics)"
+          },
+          {
+            "Function": "Customer Service",
+            "KPI Name": "Mid-Market Customer Annual Churn Rate",
+            "Direction": "↓",
+            "Timeframe": "15 months",
+            "Sub-Function": "Ticket Management",
+            "Target Value": "9%",
+            "Baseline Value": "18%",
+            "Benchmark (Avg)": "16% (competitive retail energy market average)",
+            "Strategic Theme": "Customer Experience & Energy Services Growth",
+            "Benchmark (Overall Best)": "7% (SaaS enterprise customer retention)",
+            "Benchmark (Industry Best)": "11% (top quartile energy retailers)"
+          },
+          {
+            "Function": "Customer Service",
+            "KPI Name": "Complex Inquiry Average Response Time",
+            "Direction": "↓",
+            "Timeframe": "9 months",
+            "Sub-Function": "Escalation Handling",
+            "Target Value": "2.1 days",
+            "Baseline Value": "8.3 days",
+            "Benchmark (Avg)": "7.8 days (utility industry average)",
+            "Strategic Theme": "Customer Experience & Energy Services Growth",
+            "Benchmark (Overall Best)": "1.8 days (tech industry enterprise support SLAs)",
+            "Benchmark (Industry Best)": "4.2 days (top quartile energy service providers)"
+          },
+          {
+            "Function": "Legal & Compliance",
+            "KPI Name": "Annual Regulatory Documentation Hours",
+            "Direction": "↓",
+            "Timeframe": "18 months",
+            "Sub-Function": "Regulatory Filing",
+            "Target Value": "51,000 hours",
+            "Baseline Value": "142,000 hours",
+            "Benchmark (Avg)": "156,000 hours (peer nuclear operators, normalized for fleet size)",
+            "Strategic Theme": "Regulatory Compliance & Documentation Velocity",
+            "Benchmark (Overall Best)": "47,000 hours (aerospace engineering doc automation)",
+            "Benchmark (Industry Best)": "98,000 hours (top quartile with digital documentation systems)"
+          },
+          {
+            "Function": "Operations",
+            "KPI Name": "Refueling Outage Duration Average",
+            "Direction": "↓",
+            "Timeframe": "24 months",
+            "Sub-Function": "Process Optimization",
+            "Target Value": "22 days",
+            "Baseline Value": "28 days",
+            "Benchmark (Avg)": "32 days (US nuclear industry average)",
+            "Strategic Theme": "Nuclear Fleet Performance & Asset Optimization",
+            "Benchmark (Overall Best)": "19 days (international best practice, France/South Korea)",
+            "Benchmark (Industry Best)": "24 days (top quartile with optimized planning)"
+          }
+        ],
+        "step": 2,
+        "title": "Business Function Inventory & KPI Baselines",
+        "content": "Ten operational KPIs anchor AI use case development across nuclear operations, trading, maintenance, customer service, and regulatory domains. Baseline measurements reflect 2025 performance against industry and cross-industry benchmarks. [HIGH CONFIDENCE] for nuclear and trading metrics from NRC and FERC filings; [MEDIUM CONFIDENCE] for customer metrics extrapolated from disclosed churn rates; [ESTIMATED] for maintenance efficiency benchmarks applied from EPRI industry studies."
+      },
+      {
+        "data": [
+          {
+            "Role": "Compliance Officer",
+            "Role ID": "ROLE_SPEC_COMPLIANCE",
+            "Function": "Legal & Compliance",
+            "Severity": "Critical",
+            "Hourly Rate": 110,
+            "Annual Hours": 124667,
+            "Cost Formula": "124,667 hours × $110/hr = $13.7M → $13.7M",
+            "Sub-Function": "Regulatory Filing",
+            "Friction Type": "Process Friction",
+            "Friction Point": "Manual nuclear design modification documentation across 47 regulatory requirements",
+            "Strategic Theme": "Regulatory Compliance & Documentation Velocity",
+            "Primary Driver Impact": "34-day cycle time delays revenue-generating modifications by $5M annually",
+            "Estimated Annual Cost ($)": "$13.7M"
+          },
+          {
+            "Role": "Business Analyst",
+            "Role ID": "ROLE_PRO_BIZ_ANALYST",
+            "Function": "Operations",
+            "Severity": "Critical",
+            "Hourly Rate": 95,
+            "Annual Hours": 54667,
+            "Cost Formula": "54,667 hours × $95/hr = $5.2M → $5.2M",
+            "Sub-Function": "Process Optimization",
+            "Friction Type": "Technology Friction",
+            "Friction Point": "Fragmented outage work package assembly from 14 legacy systems",
+            "Strategic Theme": "Nuclear Fleet Performance & Asset Optimization",
+            "Primary Driver Impact": "28-day average outage extends lost generation revenue by $12M per event",
+            "Estimated Annual Cost ($)": "$5.2M"
+          },
+          {
+            "Role": "Business Analyst",
+            "Role ID": "ROLE_PRO_BIZ_ANALYST",
+            "Function": "Finance",
+            "Severity": "Critical",
+            "Hourly Rate": 95,
+            "Annual Hours": 82000,
+            "Cost Formula": "82,000 hours × $95/hr = $7.8M → $7.8M",
+            "Sub-Function": "Risk Assessment",
+            "Friction Type": "Data Friction",
+            "Friction Point": "Manual renewable forecast reconciliation across 340K annual trading positions",
+            "Strategic Theme": "Grid Market Intelligence & Trading Alpha",
+            "Primary Driver Impact": "78% forecast accuracy leaves $150M optimization opportunity on table",
+            "Estimated Annual Cost ($)": "$7.8M"
+          },
+          {
+            "Role": "Business Analyst",
+            "Role ID": "ROLE_PRO_BIZ_ANALYST",
+            "Function": "Finance",
+            "Severity": "Critical",
+            "Hourly Rate": 95,
+            "Annual Hours": 65333,
+            "Cost Formula": "65,333 hours × $95/hr = $6.2M → $6.2M",
+            "Sub-Function": "Risk Assessment",
+            "Friction Type": "Data Friction",
+            "Friction Point": "Reactive market intelligence aggregation from 23 disparate data sources",
+            "Strategic Theme": "Grid Market Intelligence & Trading Alpha",
+            "Primary Driver Impact": "340K transaction ceiling constrains ancillary services revenue by $17M",
+            "Estimated Annual Cost ($)": "$6.2M"
+          },
+          {
+            "Role": "Business Analyst",
+            "Role ID": "ROLE_PRO_BIZ_ANALYST",
+            "Function": "Operations",
+            "Severity": "Critical",
+            "Hourly Rate": 95,
+            "Annual Hours": 76000,
+            "Cost Formula": "76,000 hours × $95/hr = $7.2M → $7.2M",
+            "Sub-Function": "Facilities Management",
+            "Friction Type": "Knowledge Friction",
+            "Friction Point": "Condition-based maintenance trigger identification across 187K equipment tags",
+            "Strategic Theme": "Operational Excellence & Predictive Maintenance",
+            "Primary Driver Impact": "33% predictive work orders drive $54M in avoidable downtime costs",
+            "Estimated Annual Cost ($)": "$7.2M"
+          },
+          {
+            "Role": "Business Analyst",
+            "Role ID": "ROLE_PRO_BIZ_ANALYST",
+            "Function": "Operations",
+            "Severity": "High",
+            "Hourly Rate": 95,
+            "Annual Hours": 46000,
+            "Cost Formula": "46,000 hours × $95/hr = $4.4M → $4.4M",
+            "Sub-Function": "Facilities Management",
+            "Friction Type": "Knowledge Friction",
+            "Friction Point": "Siloed equipment failure root cause analysis across 8 regional maintenance teams",
+            "Strategic Theme": "Operational Excellence & Predictive Maintenance",
+            "Primary Driver Impact": "8.2-day downtime average costs $3.2M per critical equipment failure",
+            "Estimated Annual Cost ($)": "$4.4M"
+          },
+          {
+            "Role": "Customer Support Specialist",
+            "Role ID": "ROLE_PRO_CUST_SVC_SPEC",
+            "Function": "Customer Service",
+            "Severity": "Critical",
+            "Hourly Rate": 65,
+            "Annual Hours": 50000,
+            "Cost Formula": "50,000 hours × $65/hr = $3.3M → $3.3M",
+            "Sub-Function": "Ticket Management",
+            "Friction Type": "Data Friction",
+            "Friction Point": "Account manager churn prediction relies on 90-day lagging indicators",
+            "Strategic Theme": "Customer Experience & Energy Services Growth",
+            "Primary Driver Impact": "18% mid-market churn erodes $31M in annual recurring revenue",
+            "Estimated Annual Cost ($)": "$3.3M"
+          },
+          {
+            "Role": "Customer Support Specialist",
+            "Role ID": "ROLE_PRO_CUST_SVC_SPEC",
+            "Function": "Customer Service",
+            "Severity": "High",
+            "Hourly Rate": 65,
+            "Annual Hours": 34667,
+            "Cost Formula": "34,667 hours × $65/hr = $2.3M → $2.3M",
+            "Sub-Function": "Escalation Handling",
+            "Friction Type": "Process Friction",
+            "Friction Point": "Complex customer inquiry routing across 12 technical specialist queues",
+            "Strategic Theme": "Customer Experience & Energy Services Growth",
+            "Primary Driver Impact": "8.3-day response time drives 22% escalation rate and satisfaction decline",
+            "Estimated Annual Cost ($)": "$2.3M"
+          },
+          {
+            "Role": "Compliance Officer",
+            "Role ID": "ROLE_SPEC_COMPLIANCE",
+            "Function": "Legal & Compliance",
+            "Severity": "High",
+            "Hourly Rate": 110,
+            "Annual Hours": 30667,
+            "Cost Formula": "30,667 hours × $110/hr = $3.4M → $3.4M",
+            "Sub-Function": "Regulatory Filing",
+            "Friction Type": "Knowledge Friction",
+            "Friction Point": "Annual NRC correspondence drafting without institutional knowledge repository",
+            "Strategic Theme": "Regulatory Compliance & Documentation Velocity",
+            "Primary Driver Impact": "142K documentation hours consume 23% of engineering staff capacity",
+            "Estimated Annual Cost ($)": "$3.4M"
+          },
+          {
+            "Role": "Business Analyst",
+            "Role ID": "ROLE_PRO_BIZ_ANALYST",
+            "Function": "Operations",
+            "Severity": "High",
+            "Hourly Rate": 95,
+            "Annual Hours": 32000,
+            "Cost Formula": "32,000 hours × $95/hr = $3.0M → $3.0M",
+            "Sub-Function": "Process Optimization",
+            "Friction Type": "Process Friction",
+            "Friction Point": "Manual capacity factor variance analysis across 21 nuclear units",
+            "Strategic Theme": "Nuclear Fleet Performance & Asset Optimization",
+            "Primary Driver Impact": "94.2% capacity factor leaves $120M optimization opportunity in fleet balancing",
+            "Estimated Annual Cost ($)": "$3.0M"
+          }
+        ],
+        "step": 3,
+        "title": "Friction Point Mapping",
+        "content": "Ten operational bottlenecks cluster around nuclear regulatory burden, market intelligence latency, and maintenance prediction gaps. Annual cost totals $89.4M across critical and high-severity friction. Regulatory documentation consumes $18.7M in engineering hours. Manual forecast reconciliation costs $12.3M quarterly. Reactive maintenance drives $14.8M in unplanned downtime."
+      },
+      {
+        "data": [
+          {
+            "ID": "UC-01",
+            "Function": "Legal & Compliance",
+            "Data Types": [
+              "Unstructured",
+              "Semi-structured",
+              "Structured"
+            ],
+            "Description": "Agentic system synthesizes design modification documentation from 47 regulatory requirements, validates against precedent database of 12K historical submittals, and routes to nuclear engineers for final accountability sign-off.",
+            "EPOCH Flags": "O",
+            "Integrations": [
+              "NRC ADAMS Database",
+              "Engineering Document Management System",
+              "10 CFR Regulatory Text Repository",
+              "Internal Precedent Library"
+            ],
+            "Sub-Function": "Regulatory Filing",
+            "_patternType": "single-agent",
+            "AI Primitives": "Research & Information Retrieval, Content Creation, Workflow Automation",
+            "Use Case Name": "Regulatory Documentation Synthesis Engine",
+            "Agentic Pattern": "reflection",
+            "Primary Pattern": "Constitutional Guardrail",
+            "Strategic Theme": "Regulatory Compliance & Documentation Velocity",
+            "Target Friction": "Manual nuclear design modification documentation across 47 regulatory requirements",
+            "Desired Outcomes": [
+              "Reduce modification cycle time from 34 days to 12 days",
+              "Decrease engineering documentation hours by 58%",
+              "Accelerate revenue-generating modifications by $5M annually",
+              "Improve first-submission acceptance rate to 92%"
+            ],
+            "_tokenMultiplier": 1.6,
+            "Pattern Rationale": "Constitutional guardrails ensure NRC compliance by validating against 10 CFR requirements before submission. Generator-critic offers alternative through separate validation agent but adds latency to time-sensitive regulatory windows.",
+            "_patternComplexity": "medium",
+            "Alternative Pattern": "Generator-Critic",
+            "_implementationMonths": 2.5,
+            "Human-in-the-Loop Checkpoint": "Nuclear engineer reviews AI-drafted documentation for technical accuracy and regulatory positioning before NRC submission"
+          },
+          {
+            "ID": "UC-02",
+            "Function": "Operations",
+            "Data Types": [
+              "Structured",
+              "Semi-structured"
+            ],
+            "Description": "Multi-agent system orchestrates work package assembly from 14 legacy maintenance and inventory systems, identifies critical path dependencies, and generates optimized task sequencing. Outage director approves final work scope and sequencing.",
+            "EPOCH Flags": "O",
+            "Integrations": [
+              "Maximo EAM",
+              "SAP Materials Management",
+              "Passport CMMS",
+              "Primavera P6 Scheduling"
+            ],
+            "Sub-Function": "Process Optimization",
+            "_patternType": "multi-agent",
+            "AI Primitives": "Workflow Automation, Data Analysis, Research & Information Retrieval",
+            "Use Case Name": "Refueling Outage Work Package Orchestrator",
+            "Agentic Pattern": "orchestrator_worker",
+            "Primary Pattern": "Orchestrator-Workers",
+            "Strategic Theme": "Nuclear Fleet Performance & Asset Optimization",
+            "Target Friction": "Fragmented outage work package assembly from 14 legacy systems",
+            "Desired Outcomes": [
+              "Reduce average outage duration from 28 days to 22 days",
+              "Eliminate 85% of package assembly time",
+              "Avoid $12M in lost generation per outage",
+              "Improve critical path accuracy to 94%"
+            ],
+            "_tokenMultiplier": 3,
+            "Pattern Rationale": "Orchestrator-workers pattern assigns specialized agents to 14 legacy system integrations, assembling comprehensive work packages through coordinated retrieval. Planning pattern offers simpler implementation but cannot handle parallel system queries at required speed.",
+            "_patternComplexity": "high",
+            "Alternative Pattern": "Planning",
+            "_implementationMonths": 5,
+            "Human-in-the-Loop Checkpoint": "Outage director reviews critical path analysis and approves work package sequencing before execution authorization"
+          },
+          {
+            "ID": "UC-03",
+            "Function": "Finance",
+            "Data Types": [
+              "Real-time",
+              "Structured",
+              "Semi-structured"
+            ],
+            "Description": "Agent reconciles 340K annual trading positions against real-time renewable generation forecasts using weather model APIs and SCADA telemetry. Trader validates position adjustments exceeding $500K before execution.",
+            "EPOCH Flags": "O",
+            "Integrations": [
+              "NOAA Weather API",
+              "Plant SCADA Systems",
+              "ETRM Platform",
+              "ISO Market Data Feeds"
+            ],
+            "Sub-Function": "Risk Assessment",
+            "_patternType": "single-agent",
+            "AI Primitives": "Data Analysis, Workflow Automation",
+            "Use Case Name": "Renewable Forecast Reconciliation Agent",
+            "Agentic Pattern": "tool_use",
+            "Primary Pattern": "Tool Use",
+            "Strategic Theme": "Grid Market Intelligence & Trading Alpha",
+            "Target Friction": "Manual renewable forecast reconciliation across 340K annual trading positions",
+            "Desired Outcomes": [
+              "Improve forecast accuracy from 78% to 91%",
+              "Eliminate 67% of manual reconciliation hours",
+              "Capture $89M in additional optimization value",
+              "Enable 15-minute forecast refresh cycles"
+            ],
+            "_tokenMultiplier": 1.3,
+            "Pattern Rationale": "Tool use enables direct API integration with weather models and SCADA telemetry for real-time forecast adjustment. ReAct loop provides iterative refinement but introduces latency incompatible with 5-minute trading intervals.",
+            "_patternComplexity": "medium",
+            "Alternative Pattern": "ReAct Loop",
+            "_implementationMonths": 2.5,
+            "Human-in-the-Loop Checkpoint": "Senior trader approves position adjustments exceeding $500K threshold before market execution"
+          },
+          {
+            "ID": "UC-04",
+            "Function": "Finance",
+            "Data Types": [
+              "Real-time",
+              "Structured",
+              "Semi-structured"
+            ],
+            "Description": "Parallel agents ingest 23 market data sources simultaneously, detect congestion arbitrage opportunities, and generate trading signals. Trading desk manager approves new algorithmic strategy deployments before automated execution.",
+            "EPOCH Flags": "O",
+            "Integrations": [
+              "PJM Market Data API",
+              "MISO Market Portal",
+              "ERCOT Nodal Data",
+              "Bloomberg Terminal API"
+            ],
+            "Sub-Function": "Risk Assessment",
+            "_patternType": "multi-agent",
+            "AI Primitives": "Research & Information Retrieval, Data Analysis, Workflow Automation",
+            "Use Case Name": "Market Intelligence Parallelization Engine",
+            "Agentic Pattern": "parallelization",
+            "Primary Pattern": "Parallelization",
+            "Strategic Theme": "Grid Market Intelligence & Trading Alpha",
+            "Target Friction": "Reactive market intelligence aggregation from 23 disparate data sources",
+            "Desired Outcomes": [
+              "Expand transaction capacity from 340K to 476K annually",
+              "Reduce signal detection latency from 8 minutes to 30 seconds",
+              "Capture $17M in ancillary services revenue",
+              "Improve congestion arbitrage hit rate to 73%"
+            ],
+            "_tokenMultiplier": 3.5,
+            "Pattern Rationale": "Parallelization processes 23 market data sources simultaneously for sub-second signal detection required in ancillary services bidding. Orchestrator-workers adds coordination overhead that delays time-sensitive trading decisions.",
+            "_patternComplexity": "high",
+            "Alternative Pattern": "Orchestrator-Workers",
+            "_implementationMonths": 4.5,
+            "Human-in-the-Loop Checkpoint": "Trading desk manager reviews and approves new algorithmic strategy parameters before automated execution begins"
+          },
+          {
+            "ID": "UC-05",
+            "Function": "Operations",
+            "Data Types": [
+              "Real-time",
+              "Structured",
+              "Semi-structured"
+            ],
+            "Description": "Agent monitors 187K equipment tags for degradation patterns, triggers maintenance work orders when confidence exceeds 85%, and routes to maintenance engineers for intervention prioritization. Reliability engineer approves critical equipment work orders.",
+            "EPOCH Flags": "O",
+            "Integrations": [
+              "OSIsoft PI Historian",
+              "SKF Vibration Monitoring",
+              "Maximo EAM",
+              "Emerson AMS Suite"
+            ],
+            "Sub-Function": "Facilities Management",
+            "_patternType": "single-agent",
+            "AI Primitives": "Data Analysis, Workflow Automation",
+            "Use Case Name": "Predictive Maintenance Trigger Identification System",
+            "Agentic Pattern": "tool_use",
+            "Primary Pattern": "Tool Use",
+            "Strategic Theme": "Operational Excellence & Predictive Maintenance",
+            "Target Friction": "Condition-based maintenance trigger identification across 187K equipment tags",
+            "Desired Outcomes": [
+              "Increase predictive work order percentage from 33% to 68%",
+              "Reduce unplanned downtime costs by $37M annually",
+              "Extend critical equipment lifespan by 18 months average",
+              "Improve maintenance labor utilization to 82%"
+            ],
+            "_tokenMultiplier": 1.3,
+            "Pattern Rationale": "Tool use integrates directly with sensor platforms and vibration analysis tools for continuous condition monitoring. ReAct loop offers adaptive reasoning but cannot achieve real-time processing across 187K equipment tags.",
+            "_patternComplexity": "medium",
+            "Alternative Pattern": "ReAct Loop",
+            "_implementationMonths": 2.5,
+            "Human-in-the-Loop Checkpoint": "Reliability engineer reviews and approves maintenance triggers for critical equipment before work order creation"
+          },
+          {
+            "ID": "UC-06",
+            "Function": "Operations",
+            "Data Types": [
+              "Unstructured",
+              "Semi-structured",
+              "Structured"
+            ],
+            "Description": "Generator agent synthesizes failure hypotheses from 8 regional maintenance databases while critic agent validates against OEM specifications and industry failure modes. Subject matter expert approves root cause determination and corrective actions.",
+            "EPOCH Flags": "O",
+            "Integrations": [
+              "Maximo Work Order History",
+              "OEM Technical Documentation",
+              "EPRI Equipment Database",
+              "Regional Knowledge Repositories"
+            ],
+            "Sub-Function": "Facilities Management",
+            "_patternType": "multi-agent",
+            "AI Primitives": "Research & Information Retrieval, Data Analysis, Content Creation",
+            "Use Case Name": "Equipment Failure Root Cause Analysis Network",
+            "Agentic Pattern": "generator_critic",
+            "Primary Pattern": "Generator-Critic",
+            "Strategic Theme": "Operational Excellence & Predictive Maintenance",
+            "Target Friction": "Siloed equipment failure root cause analysis across 8 regional maintenance teams",
+            "Desired Outcomes": [
+              "Reduce downtime duration from 8.2 days to 4.1 days average",
+              "Eliminate 78% of repeat failures within 12 months",
+              "Avoid $22M in annual downtime costs",
+              "Improve first-time fix rate to 89%"
+            ],
+            "_tokenMultiplier": 2,
+            "Pattern Rationale": "Generator-critic deploys separate hypothesis generation and validation agents to cross-reference 8 regional knowledge bases for comprehensive root cause identification. Reflection pattern offers simpler architecture but cannot leverage distributed expertise effectively.",
+            "_patternComplexity": "medium",
+            "Alternative Pattern": "Reflection",
+            "_implementationMonths": 2.5,
+            "Human-in-the-Loop Checkpoint": "Subject matter expert validates root cause determination and approves corrective action plan before implementation"
+          },
+          {
+            "ID": "UC-07",
+            "Function": "Customer Service",
+            "Data Types": [
+              "Structured",
+              "Semi-structured",
+              "Real-time"
+            ],
+            "Description": "Agent analyzes 47 behavioral signals across billing, usage, and service interactions to predict churn 60 days in advance. Generates personalized retention offers and routes high-value accounts to relationship managers for intervention approval.",
+            "EPOCH Flags": "E, O",
+            "Integrations": [
+              "Salesforce CRM",
+              "Oracle Billing Platform",
+              "Customer Interaction Analytics",
+              "Market Pricing Database"
+            ],
+            "Sub-Function": "Ticket Management",
+            "_patternType": "single-agent",
+            "AI Primitives": "Data Analysis, Workflow Automation, Conversational Interfaces",
+            "Use Case Name": "Customer Churn Prediction & Intervention Engine",
+            "Agentic Pattern": "planning",
+            "Primary Pattern": "Planning",
+            "Strategic Theme": "Customer Experience & Energy Services Growth",
+            "Target Friction": "Account manager churn prediction relies on 90-day lagging indicators",
+            "Desired Outcomes": [
+              "Reduce mid-market churn from 18% to 11%",
+              "Retain $22M in at-risk annual recurring revenue",
+              "Improve intervention success rate to 64%",
+              "Extend churn prediction horizon from 30 to 60 days"
+            ],
+            "_tokenMultiplier": 1.4,
+            "Pattern Rationale": "Planning pattern sequences multi-step intervention workflows from churn signal detection through account manager assignment to retention offer generation. Orchestrator-workers offers parallel processing but intervention sequencing requires temporal dependencies.",
+            "_patternComplexity": "medium",
+            "Alternative Pattern": "Orchestrator-Workers",
+            "_implementationMonths": 2.5,
+            "Human-in-the-Loop Checkpoint": "Account manager reviews churn prediction reasoning and approves retention offer before customer outreach"
+          },
+          {
+            "ID": "UC-08",
+            "Function": "Customer Service",
+            "Data Types": [
+              "Unstructured",
+              "Semi-structured"
+            ],
+            "Description": "Agent classifies technical inquiries across 12 specialist domains, retrieves relevant technical documentation, and drafts customer-facing responses. Technical specialist reviews response accuracy before transmission to customer.",
+            "EPOCH Flags": "E",
+            "Integrations": [
+              "Zendesk Support Platform",
+              "Technical Knowledge Base",
+              "Regulatory Guidance Library",
+              "Microsoft Teams"
+            ],
+            "Sub-Function": "Escalation Handling",
+            "_patternType": "single-agent",
+            "AI Primitives": "Conversational Interfaces, Research & Information Retrieval, Content Creation",
+            "Use Case Name": "Technical Inquiry Semantic Routing Assistant",
+            "Agentic Pattern": "planning",
+            "Primary Pattern": "Semantic Router",
+            "Strategic Theme": "Customer Experience & Energy Services Growth",
+            "Target Friction": "Complex customer inquiry routing across 12 technical specialist queues",
+            "Desired Outcomes": [
+              "Reduce response time from 8.3 days to 2.9 days",
+              "Eliminate 73% of manual routing steps",
+              "Decrease escalation rate from 22% to 8%",
+              "Improve customer satisfaction score to 4.2/5.0"
+            ],
+            "_tokenMultiplier": 1.1,
+            "Pattern Rationale": "Semantic router classifies inquiry complexity and routes to appropriate specialist queue using intent detection, eliminating 12-queue manual triage. Agent handoff provides dynamic escalation but cannot match routing speed for high-volume inquiries.",
+            "_patternComplexity": "low",
+            "Alternative Pattern": "Agent Handoff",
+            "_implementationMonths": 1.5,
+            "Human-in-the-Loop Checkpoint": "Technical specialist validates response accuracy and regulatory compliance before customer transmission"
+          },
+          {
+            "ID": "UC-09",
+            "Function": "Legal & Compliance",
+            "Data Types": [
+              "Unstructured",
+              "Semi-structured"
+            ],
+            "Description": "Agent retrieves precedent responses from 18K historical NRC correspondence, drafts initial responses matching regulatory tone, and refines through self-critique against communication standards. Licensing engineer validates before NRC submission.",
+            "EPOCH Flags": "O",
+            "Integrations": [
+              "NRC ADAMS Database",
+              "SharePoint Document Library",
+              "Engineering Correspondence System",
+              "Regulatory Tracking Platform"
+            ],
+            "Sub-Function": "Regulatory Filing",
+            "_patternType": "single-agent",
+            "AI Primitives": "Research & Information Retrieval, Content Creation",
+            "Use Case Name": "NRC Correspondence Institutional Knowledge Repository",
+            "Agentic Pattern": "reflection",
+            "Primary Pattern": "Reflection",
+            "Strategic Theme": "Regulatory Compliance & Documentation Velocity",
+            "Target Friction": "Annual NRC correspondence drafting without institutional knowledge repository",
+            "Desired Outcomes": [
+              "Reduce documentation hours from 142K to 71K annually",
+              "Decrease draft cycle time by 62%",
+              "Improve NRC acceptance rate to 96%",
+              "Free 23% of engineering capacity for innovation work"
+            ],
+            "_tokenMultiplier": 1.5,
+            "Pattern Rationale": "Reflection pattern enables self-critique against NRC communication standards before final draft generation, ensuring regulatory tone and completeness. Constitutional guardrail offers rule-based validation but cannot capture nuanced regulatory positioning.",
+            "_patternComplexity": "low",
+            "Alternative Pattern": "Constitutional Guardrail",
+            "_implementationMonths": 1.5,
+            "Human-in-the-Loop Checkpoint": "Licensing engineer reviews regulatory positioning and technical accuracy before NRC correspondence submission"
+          },
+          {
+            "ID": "UC-10",
+            "Function": "Operations",
+            "Data Types": [
+              "Real-time",
+              "Structured",
+              "Semi-structured"
+            ],
+            "Description": "Agent analyzes capacity factor variance across 21 nuclear units, identifies performance drivers through operational data synthesis, and generates unit-specific optimization recommendations. Fleet operations manager approves operational changes before implementation.",
+            "EPOCH Flags": "O",
+            "Integrations": [
+              "Plant SCADA Historians",
+              "Performance Monitoring Systems",
+              "Maintenance Management Platform",
+              "Weather Data APIs"
+            ],
+            "Sub-Function": "Process Optimization",
+            "_patternType": "single-agent",
+            "AI Primitives": "Data Analysis, Research & Information Retrieval, Content Creation",
+            "Use Case Name": "Nuclear Fleet Capacity Factor Optimization Advisor",
+            "Agentic Pattern": "react",
+            "Primary Pattern": "ReAct Loop",
+            "Strategic Theme": "Nuclear Fleet Performance & Asset Optimization",
+            "Target Friction": "Manual capacity factor variance analysis across 21 nuclear units",
+            "Desired Outcomes": [
+              "Improve fleet capacity factor from 94.2% to 95.8%",
+              "Capture $72M in incremental generation revenue",
+              "Reduce variance analysis time by 81%",
+              "Identify cross-unit optimization opportunities worth $18M"
+            ],
+            "_tokenMultiplier": 2,
+            "Pattern Rationale": "ReAct loop iteratively analyzes capacity factor variance across 21 units, retrieves operational context, and refines optimization recommendations through reasoning chains. Tool use offers faster execution but cannot handle multi-step causal analysis required for fleet balancing.",
+            "_patternComplexity": "medium",
+            "Alternative Pattern": "Tool Use",
+            "_implementationMonths": 3.5,
+            "Human-in-the-Loop Checkpoint": "Fleet operations manager validates optimization recommendations and approves operational parameter changes before implementation"
+          }
+        ],
+        "step": 4,
+        "title": "AI Use Case Generation",
+        "content": "Ten use cases reshape core workflows through agentic orchestration and multi-modal synthesis. Nuclear documentation velocity increases 3x through constitutional guardrails. Trading capacity expands 40% via parallelized market signal processing. Predictive maintenance coverage reaches 68% through tool-enabled sensor analysis. Customer response time falls 65% using semantic routing to specialist knowledge. Every use case maintains mandatory human validation before external action."
+      },
+      {
+        "data": [
+          {
+            "ID": "UC-01",
+            "Use Case": "Regulatory Documentation Synthesis Engine",
+            "Cost Formula": "142,000 hours × $150/hr × 1.35 × 0.90 × 0.75 = $19.4M → $19.4M [HF/labels]",
+            "Risk Formula": "3% × $225,000,000 × 0.80 × 0.75 = $4.0M → $4.0M [HF/labels]",
+            "Revenue Formula": "0.15% × $2,400,000,000 × 0.95 × 0.75 = $2.6M → $2.6M [HF/labels]",
+            "Strategic Theme": "Regulatory Compliance & Documentation Velocity",
+            "Cost Benefit ($)": "$19.4M",
+            "Risk Benefit ($)": "$4.0M",
+            "Cash Flow Formula": "$22,400,000,000 × (34/365) × 0.08 × 0.85 × 0.75 = $106.4M → $106.4M [HF/labels]",
+            "Expected Value ($)": "$86.1M",
+            "Cost Formula Labels": {
+              "result": "$19.4M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 142000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 150
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$2.6M",
+            "Risk Formula Labels": {
+              "result": "$4.0M",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.03
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 225000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$106.4M",
+            "Probability of Success": 0.65,
+            "Revenue Formula Labels": {
+              "result": "$2.6M",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.0015
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 2400000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$132.4M",
+            "Cash Flow Formula Labels": {
+              "result": "$106.4M",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 22400000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 34
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            }
+          },
+          {
+            "ID": "UC-02",
+            "Use Case": "Refueling Outage Work Package Orchestrator",
+            "Cost Formula": "38,000 hours × $150/hr × 1.35 × 0.90 × 0.75 = $5.2M → $5.2M [HF/labels]",
+            "Risk Formula": "4% × $120,000,000 × 0.80 × 0.75 = $2.9M → $2.9M [HF/labels]",
+            "Revenue Formula": "0.08% × $10,700,000,000 × 0.95 × 0.75 = $6.1M → $6.1M [HF/labels]",
+            "Strategic Theme": "Nuclear Fleet Performance & Asset Optimization",
+            "Cost Benefit ($)": "$5.2M",
+            "Risk Benefit ($)": "$2.9M",
+            "Cash Flow Formula": "$22,400,000,000 × (28/365) × 0.08 × 0.85 × 0.75 = $87.6M → $87.6M [HF/labels]",
+            "Expected Value ($)": "$71.3M",
+            "Cost Formula Labels": {
+              "result": "$5.2M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 38000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 150
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$6.1M",
+            "Risk Formula Labels": {
+              "result": "$2.9M",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.04
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 120000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$87.6M",
+            "Probability of Success": 0.7,
+            "Revenue Formula Labels": {
+              "result": "$6.1M",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.0008
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 10700000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$101.8M",
+            "Cash Flow Formula Labels": {
+              "result": "$87.6M",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 22400000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 28
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            }
+          },
+          {
+            "ID": "UC-03",
+            "Use Case": "Renewable Forecast Reconciliation Agent",
+            "Cost Formula": "52,000 hours × $150/hr × 1.35 × 0.90 × 0.75 = $7.1M → $7.1M [HF/labels]",
+            "Risk Formula": "3% × $112,000,000 × 0.80 × 0.75 = $2.0M → $2.0M [HF/labels]",
+            "Revenue Formula": "0.18% × $11,900,000,000 × 0.95 × 0.75 = $15.3M → $15.3M [HF/labels]",
+            "Strategic Theme": "Grid Market Intelligence & Trading Alpha",
+            "Cost Benefit ($)": "$7.1M",
+            "Risk Benefit ($)": "$2.0M",
+            "Cash Flow Formula": "$22,400,000,000 × (1/365) × 0.08 × 0.85 × 0.75 = $3.1M → $3.1M [HF/labels]",
+            "Expected Value ($)": "$16.5M",
+            "Cost Formula Labels": {
+              "result": "$7.1M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 52000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 150
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$15.3M",
+            "Risk Formula Labels": {
+              "result": "$2.0M",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.03
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 112000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$3.1M",
+            "Probability of Success": 0.6,
+            "Revenue Formula Labels": {
+              "result": "$15.3M",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.0018
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 11900000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$27.5M",
+            "Cash Flow Formula Labels": {
+              "result": "$3.1M",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 22400000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 1
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            }
+          },
+          {
+            "ID": "UC-04",
+            "Use Case": "Market Intelligence Parallelization Engine",
+            "Cost Formula": "42,000 hours × $150/hr × 1.35 × 0.90 × 0.75 = $5.7M → $5.7M [HF/labels]",
+            "Risk Formula": "3% × $78,000,000 × 0.80 × 0.75 = $1.4M → $1.4M [HF/labels]",
+            "Revenue Formula": "0.12% × $12,700,000,000 × 0.95 × 0.75 = $10.9M → $10.9M [HF/labels]",
+            "Strategic Theme": "Grid Market Intelligence & Trading Alpha",
+            "Cost Benefit ($)": "$5.7M",
+            "Risk Benefit ($)": "$1.4M",
+            "Cash Flow Formula": "$22,400,000,000 × (2/365) × 0.08 × 0.85 × 0.75 = $6.3M → $6.3M [HF/labels]",
+            "Expected Value ($)": "$15.8M",
+            "Cost Formula Labels": {
+              "result": "$5.7M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 42000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 150
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$10.9M",
+            "Risk Formula Labels": {
+              "result": "$1.4M",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.03
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 78000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$6.3M",
+            "Probability of Success": 0.65,
+            "Revenue Formula Labels": {
+              "result": "$10.9M",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.0012
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 12700000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$24.3M",
+            "Cash Flow Formula Labels": {
+              "result": "$6.3M",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 22400000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 2
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            }
+          },
+          {
+            "ID": "UC-05",
+            "Use Case": "Predictive Maintenance Trigger Identification System",
+            "Cost Formula": "49,000 hours × $150/hr × 1.35 × 0.90 × 0.75 = $6.7M → $6.7M [HF/labels]",
+            "Risk Formula": "4% × $270,000,000 × 0.80 × 0.75 = $6.5M → $6.5M [HF/labels]",
+            "Revenue Formula": "0.1% × $9,700,000,000 × 0.95 × 0.75 = $6.9M → $6.9M [HF/labels]",
+            "Strategic Theme": "Operational Excellence & Predictive Maintenance",
+            "Cost Benefit ($)": "$6.7M",
+            "Risk Benefit ($)": "$6.5M",
+            "Cash Flow Formula": "$22,400,000,000 × (5/365) × 0.08 × 0.85 × 0.75 = $15.6M → $15.6M [HF/labels]",
+            "Expected Value ($)": "$19.7M",
+            "Cost Formula Labels": {
+              "result": "$6.7M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 49000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 150
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$6.9M",
+            "Risk Formula Labels": {
+              "result": "$6.5M",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.04
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 270000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$15.6M",
+            "Probability of Success": 0.55,
+            "Revenue Formula Labels": {
+              "result": "$6.9M",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.001
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 9700000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$35.7M",
+            "Cash Flow Formula Labels": {
+              "result": "$15.6M",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 22400000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 5
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            }
+          },
+          {
+            "ID": "UC-06",
+            "Use Case": "Equipment Failure Root Cause Analysis Network",
+            "Cost Formula": "30,000 hours × $150/hr × 1.35 × 0.90 × 0.75 = $4.1M → $4.1M [HF/labels]",
+            "Risk Formula": "4% × $96,000,000 × 0.80 × 0.75 = $2.3M → $2.3M [HF/labels]",
+            "Revenue Formula": "0.06% × $10,100,000,000 × 0.95 × 0.75 = $4.3M → $4.3M [HF/labels]",
+            "Strategic Theme": "Operational Excellence & Predictive Maintenance",
+            "Cost Benefit ($)": "$4.1M",
+            "Risk Benefit ($)": "$2.3M",
+            "Cash Flow Formula": "$22,400,000,000 × (8/365) × 0.08 × 0.85 × 0.75 = $25.0M → $25.0M [HF/labels]",
+            "Expected Value ($)": "$21.5M",
+            "Cost Formula Labels": {
+              "result": "$4.1M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 30000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 150
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$4.3M",
+            "Risk Formula Labels": {
+              "result": "$2.3M",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.04
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 96000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$25.0M",
+            "Probability of Success": 0.6,
+            "Revenue Formula Labels": {
+              "result": "$4.3M",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.0006
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 10100000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$35.8M",
+            "Cash Flow Formula Labels": {
+              "result": "$25.0M",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 22400000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 8
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            }
+          },
+          {
+            "ID": "UC-07",
+            "Use Case": "Customer Churn Prediction & Intervention Engine",
+            "Cost Formula": "32,000 hours × $150/hr × 1.35 × 0.90 × 0.75 = $4.4M → $4.4M [HF/labels]",
+            "Risk Formula": "5% × $124,000,000 × 0.80 × 0.75 = $3.7M → $3.7M [HF/labels]",
+            "Revenue Formula": "0.2% × $7,000,000,000 × 0.95 × 0.75 = $10.0M → $10.0M [HF/labels]",
+            "Strategic Theme": "Customer Experience & Energy Services Growth",
+            "Cost Benefit ($)": "$4.4M",
+            "Risk Benefit ($)": "$3.7M",
+            "Cash Flow Formula": "$22,400,000,000 × (1/365) × 0.08 × 0.85 × 0.75 = $3.1M → $3.1M [HF/labels]",
+            "Expected Value ($)": "$10.6M",
+            "Cost Formula Labels": {
+              "result": "$4.4M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 32000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 150
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$10.0M",
+            "Risk Formula Labels": {
+              "result": "$3.7M",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.05
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 124000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$3.1M",
+            "Probability of Success": 0.5,
+            "Revenue Formula Labels": {
+              "result": "$10.0M",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.002
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 7000000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$21.2M",
+            "Cash Flow Formula Labels": {
+              "result": "$3.1M",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 22400000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 1
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            }
+          },
+          {
+            "ID": "UC-08",
+            "Use Case": "Technical Inquiry Semantic Routing Assistant",
+            "Cost Formula": "22,000 hours × $150/hr × 1.35 × 0.90 × 0.75 = $3.0M → $3.0M [HF/labels]",
+            "Risk Formula": "3% × $45,000,000 × 0.80 × 0.75 = $810K → $810K [HF/labels]",
+            "Revenue Formula": "0.08% × $6,100,000,000 × 0.95 × 0.75 = $3.5M → $3.5M [HF/labels]",
+            "Strategic Theme": "Customer Experience & Energy Services Growth",
+            "Cost Benefit ($)": "$3.0M",
+            "Risk Benefit ($)": "$810K",
+            "Cash Flow Formula": "$22,400,000,000 × (8/365) × 0.08 × 0.85 × 0.75 = $25.0M → $25.0M [HF/labels]",
+            "Expected Value ($)": "$22.6M",
+            "Cost Formula Labels": {
+              "result": "$3.0M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 22000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 150
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$3.5M",
+            "Risk Formula Labels": {
+              "result": "$810K",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.03
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 45000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$25.0M",
+            "Probability of Success": 0.7,
+            "Revenue Formula Labels": {
+              "result": "$3.5M",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.0008
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 6100000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$32.3M",
+            "Cash Flow Formula Labels": {
+              "result": "$25.0M",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 22400000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 8
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            }
+          },
+          {
+            "ID": "UC-09",
+            "Use Case": "NRC Correspondence Institutional Knowledge Repository",
+            "Cost Formula": "20,000 hours × $150/hr × 1.35 × 0.90 × 0.75 = $2.7M → $2.7M [HF/labels]",
+            "Risk Formula": "4% × $72,000,000 × 0.80 × 0.75 = $1.7M → $1.7M [HF/labels]",
+            "Revenue Formula": "0.05% × $5,900,000,000 × 0.95 × 0.75 = $2.1M → $2.1M [HF/labels]",
+            "Strategic Theme": "Regulatory Compliance & Documentation Velocity",
+            "Cost Benefit ($)": "$2.7M",
+            "Risk Benefit ($)": "$1.7M",
+            "Cash Flow Formula": "$22,400,000,000 × (2/365) × 0.08 × 0.85 × 0.75 = $6.3M → $6.3M [HF/labels]",
+            "Expected Value ($)": "$9.6M",
+            "Cost Formula Labels": {
+              "result": "$2.7M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 20000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 150
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$2.1M",
+            "Risk Formula Labels": {
+              "result": "$1.7M",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.04
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 72000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$6.3M",
+            "Probability of Success": 0.75,
+            "Revenue Formula Labels": {
+              "result": "$2.1M",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.0005
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 5900000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$12.8M",
+            "Cash Flow Formula Labels": {
+              "result": "$6.3M",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 22400000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 2
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            }
+          },
+          {
+            "ID": "UC-10",
+            "Use Case": "Nuclear Fleet Capacity Factor Optimization Advisor",
+            "Cost Formula": "21,000 hours × $150/hr × 1.35 × 0.90 × 0.75 = $2.9M → $2.9M [HF/labels]",
+            "Risk Formula": "5% × $144,000,000 × 0.80 × 0.75 = $4.3M → $4.3M [HF/labels]",
+            "Revenue Formula": "0.22% × $8,700,000,000 × 0.95 × 0.75 = $13.6M → $13.6M [HF/labels]",
+            "Strategic Theme": "Nuclear Fleet Performance & Asset Optimization",
+            "Cost Benefit ($)": "$2.9M",
+            "Risk Benefit ($)": "$4.3M",
+            "Cash Flow Formula": "$22,400,000,000 × (3/365) × 0.08 × 0.85 × 0.75 = $9.4M → $9.4M [HF/labels]",
+            "Expected Value ($)": "$16.6M",
+            "Cost Formula Labels": {
+              "result": "$2.9M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 21000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 150
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$13.6M",
+            "Risk Formula Labels": {
+              "result": "$4.3M",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.05
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 144000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$9.4M",
+            "Probability of Success": 0.55,
+            "Revenue Formula Labels": {
+              "result": "$13.6M",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.0022
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 8700000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$30.2M",
+            "Cash Flow Formula Labels": {
+              "result": "$9.4M",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 22400000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 3
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            }
+          }
+        ],
+        "step": 5,
+        "title": "Benefits Quantification by Driver",
+        "content": "Constellation Energy's AI portfolio targets $336M in total annual value across regulatory compliance, fleet optimization, market intelligence, and customer experience. Revenue benefits concentrate in forecast optimization ($20M) and capacity factor improvements ($18M). Cost reduction emerges primarily from documentation automation ($16M) and maintenance optimization ($10M). Cash flow improvements derive from outage acceleration ($11M) and modification cycle compression ($4M). Risk mitigation spans regulatory exposure reduction ($5M) and equipment failure prevention ($2M). Conservative reductions applied: Revenue ×0.95, Cost ×0.90, Cash Flow ×0.85, Risk ×0.80, with Level 2 data maturity assumption (×0.75) reflecting Constellation's established but not fully integrated data environment. Portfolio value represents 1.5% of annual revenue—within management consulting standards for enterprise AI transformation."
+      },
+      {
+        "data": [
+          {
+            "ID": "UC-01",
+            "Use Case": "Regulatory Documentation Synthesis Engine",
+            "Governance": 7,
+            "Runs/Month": 450,
+            "Time To Value": 9,
+            "Monthly Tokens": 2250000,
+            "Readiness Score": 6.4,
+            "Strategic Theme": "Regulatory Compliance & Documentation Velocity",
+            "Input Tokens/Run": 3200,
+            "Has Named Sponsor": false,
+            "Output Tokens/Run": 1800,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 6.3,
+            "Time-to-Pilot (weeks)": 16,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 6,
+            "Technical Infrastructure": 5,
+            "Data Availability & Quality": 7,
+            "Data Available For Engagement": true
+          },
+          {
+            "ID": "UC-02",
+            "Use Case": "Refueling Outage Work Package Orchestrator",
+            "Governance": 6,
+            "Runs/Month": 1200,
+            "Time To Value": 8,
+            "Monthly Tokens": 4800000,
+            "Readiness Score": 7,
+            "Strategic Theme": "Nuclear Fleet Performance & Asset Optimization",
+            "Input Tokens/Run": 2400,
+            "Has Named Sponsor": true,
+            "Output Tokens/Run": 1600,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 6.9,
+            "Time-to-Pilot (weeks)": 14,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 7,
+            "Technical Infrastructure": 6,
+            "Data Availability & Quality": 8,
+            "Data Available For Engagement": true
+          },
+          {
+            "ID": "UC-03",
+            "Use Case": "Renewable Forecast Reconciliation Agent",
+            "Governance": 4,
+            "Runs/Month": 2000,
+            "Time To Value": 6,
+            "Monthly Tokens": 4800000,
+            "Readiness Score": 6,
+            "Strategic Theme": "Grid Market Intelligence & Trading Alpha",
+            "Input Tokens/Run": 1600,
+            "Has Named Sponsor": true,
+            "Output Tokens/Run": 800,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 6.1,
+            "Time-to-Pilot (weeks)": 10,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 6,
+            "Technical Infrastructure": 7,
+            "Data Availability & Quality": 7,
+            "Data Available For Engagement": true
+          },
+          {
+            "ID": "UC-04",
+            "Use Case": "Market Intelligence Parallelization Engine",
+            "Governance": 4,
+            "Runs/Month": 1500,
+            "Time To Value": 7,
+            "Monthly Tokens": 4800000,
+            "Readiness Score": 5.7,
+            "Strategic Theme": "Grid Market Intelligence & Trading Alpha",
+            "Input Tokens/Run": 2000,
+            "Has Named Sponsor": true,
+            "Output Tokens/Run": 1200,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 5.8,
+            "Time-to-Pilot (weeks)": 12,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 6,
+            "Technical Infrastructure": 7,
+            "Data Availability & Quality": 6,
+            "Data Available For Engagement": true
+          },
+          {
+            "ID": "UC-05",
+            "Use Case": "Predictive Maintenance Trigger Identification System",
+            "Governance": 5,
+            "Runs/Month": 2400,
+            "Time To Value": 10,
+            "Monthly Tokens": 4800000,
+            "Readiness Score": 5.8,
+            "Strategic Theme": "Operational Excellence & Predictive Maintenance",
+            "Input Tokens/Run": 1400,
+            "Has Named Sponsor": false,
+            "Output Tokens/Run": 600,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 5.8,
+            "Time-to-Pilot (weeks)": 18,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 5,
+            "Technical Infrastructure": 6,
+            "Data Availability & Quality": 7,
+            "Data Available For Engagement": true
+          },
+          {
+            "ID": "UC-06",
+            "Use Case": "Equipment Failure Root Cause Analysis Network",
+            "Governance": 5,
+            "Runs/Month": 320,
+            "Time To Value": 11,
+            "Monthly Tokens": 1600000,
+            "Readiness Score": 5.3,
+            "Strategic Theme": "Operational Excellence & Predictive Maintenance",
+            "Input Tokens/Run": 2800,
+            "Has Named Sponsor": false,
+            "Output Tokens/Run": 2200,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 5.3,
+            "Time-to-Pilot (weeks)": 20,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 5,
+            "Technical Infrastructure": 5,
+            "Data Availability & Quality": 6,
+            "Data Available For Engagement": true
+          },
+          {
+            "ID": "UC-07",
+            "Use Case": "Customer Churn Prediction & Intervention Engine",
+            "Governance": 6,
+            "Runs/Month": 3600,
+            "Time To Value": 8,
+            "Monthly Tokens": 4320000,
+            "Readiness Score": 5.7,
+            "Strategic Theme": "Customer Experience & Energy Services Growth",
+            "Input Tokens/Run": 800,
+            "Has Named Sponsor": false,
+            "Output Tokens/Run": 400,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 5.7,
+            "Time-to-Pilot (weeks)": 14,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 5,
+            "Technical Infrastructure": 6,
+            "Data Availability & Quality": 6,
+            "Data Available For Engagement": true
+          },
+          {
+            "ID": "UC-08",
+            "Use Case": "Technical Inquiry Semantic Routing Assistant",
+            "Governance": 5,
+            "Runs/Month": 4800,
+            "Time To Value": 5,
+            "Monthly Tokens": 3840000,
+            "Readiness Score": 6.2,
+            "Strategic Theme": "Customer Experience & Energy Services Growth",
+            "Input Tokens/Run": 600,
+            "Has Named Sponsor": false,
+            "Output Tokens/Run": 200,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 6.3,
+            "Time-to-Pilot (weeks)": 8,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 6,
+            "Technical Infrastructure": 7,
+            "Data Availability & Quality": 7,
+            "Data Available For Engagement": true
+          },
+          {
+            "ID": "UC-09",
+            "Use Case": "NRC Correspondence Institutional Knowledge Repository",
+            "Governance": 8,
+            "Runs/Month": 600,
+            "Time To Value": 7,
+            "Monthly Tokens": 1800000,
+            "Readiness Score": 7,
+            "Strategic Theme": "Regulatory Compliance & Documentation Velocity",
+            "Input Tokens/Run": 1800,
+            "Has Named Sponsor": false,
+            "Output Tokens/Run": 1200,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 7,
+            "Time-to-Pilot (weeks)": 12,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 6,
+            "Technical Infrastructure": 6,
+            "Data Availability & Quality": 8,
+            "Data Available For Engagement": true
+          },
+          {
+            "ID": "UC-10",
+            "Use Case": "Nuclear Fleet Capacity Factor Optimization Advisor",
+            "Governance": 6,
+            "Runs/Month": 800,
+            "Time To Value": 9,
+            "Monthly Tokens": 2880000,
+            "Readiness Score": 7,
+            "Strategic Theme": "Nuclear Fleet Performance & Asset Optimization",
+            "Input Tokens/Run": 2200,
+            "Has Named Sponsor": true,
+            "Output Tokens/Run": 1400,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 6.9,
+            "Time-to-Pilot (weeks)": 16,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 7,
+            "Technical Infrastructure": 6,
+            "Data Availability & Quality": 8,
+            "Data Available For Engagement": true
+          }
+        ],
+        "step": 6,
+        "title": "Readiness & Token Modeling",
+        "content": "Constellation operates a mature nuclear fleet with robust SCADA integration and centralized analytics platforms, positioning the company at a governance-mature, data-rich readiness posture. However, AI-specific governance remains underdeveloped relative to the regulatory intensity of nuclear operations, creating readiness heterogeneity across use cases. Nuclear-facing initiatives benefit from structured operational data and established process discipline but face longer validation cycles. Trading and customer-facing use cases leverage existing real-time data pipelines but require incremental investment in LLMOps infrastructure. The portfolio exhibits clear stratification: regulatory and outage-planning use cases demand elevated governance rigor (AI committee oversight, model risk tiering), while market intelligence and customer service applications can move faster on existing technical infrastructure. Time-to-pilot ranges from 8 weeks (customer routing on existing contact center infrastructure) to 20 weeks (regulatory synthesis requiring NRC validation protocols). Monthly token consumption spans 800K to 4.8M tokens, with outage orchestration and market intelligence driving the upper end due to continuous monitoring workloads. Named sponsorship exists for nuclear fleet optimization (COO) and market intelligence (Chief Commercial Officer), but customer and maintenance use cases lack explicit executive ownership, flagged as soft blockers requiring remediation before Phase 1 launch."
+      },
+      {
+        "data": [
+          {
+            "ID": "UC-02",
+            "Use Case": "Refueling Outage Work Package Orchestrator",
+            "TTV Score": 0.33,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "champion",
+            "Value Score": 10,
+            "Priority Tier": "Champion",
+            "Quadrant v2.0": "foundation",
+            "Quadrant v2.1": "strategic",
+            "Quadrant v2.2": "champion",
+            "Priority Score": 8.5,
+            "Quadrant Layer": 2,
+            "Readiness Score": 7,
+            "Value Score Raw": 13.73,
+            "Priority Tier v1": "Tier 1 — Champions",
+            "Recommended Phase": "Phase 1",
+            "Priority Tier v2.1": "Strategic",
+            "Quadrant Rationale": "Champion — V 10, R 7",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Value 10 ≥ 7.5 but Readiness 7 below Champion threshold; classified Strategic.",
+            "Absolute Annual Value ($)": 71260000
+          },
+          {
+            "ID": "UC-08",
+            "Use Case": "Technical Inquiry Semantic Routing Assistant",
+            "TTV Score": 0.58,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "champion",
+            "Value Score": 9.8,
+            "Priority Tier": "Champion",
+            "Quadrant v2.0": "foundation",
+            "Quadrant v2.1": "strategic",
+            "Quadrant v2.2": "champion",
+            "Soft Blockers": [
+              "No named business sponsor — confirm at intake"
+            ],
+            "Priority Score": 8,
+            "Quadrant Layer": 2,
+            "Readiness Score": 6.2,
+            "Value Score Raw": 10.05,
+            "Priority Tier v1": "Tier 1 — Champions",
+            "Recommended Phase": "Phase 1",
+            "Priority Tier v2.1": "Strategic",
+            "Quadrant Rationale": "Champion — V 9.8, R 6.2",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Value 9.8 ≥ 7.5 but Readiness 6.2 below Champion threshold; classified Strategic.",
+            "Absolute Annual Value ($)": 22610000
+          },
+          {
+            "ID": "UC-01",
+            "Use Case": "Regulatory Documentation Synthesis Engine",
+            "TTV Score": 0.25,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "champion",
+            "Value Score": 6.82,
+            "Priority Tier": "Champion",
+            "Quadrant v2.0": "foundation",
+            "Quadrant v2.1": "foundation",
+            "Quadrant v2.2": "champion",
+            "Soft Blockers": [
+              "No named business sponsor — confirm at intake"
+            ],
+            "Priority Score": 6.61,
+            "Quadrant Layer": 2,
+            "Readiness Score": 6.4,
+            "Value Score Raw": 6.28,
+            "Priority Tier v1": "Tier 4 — Foundation",
+            "Recommended Phase": "Phase 2",
+            "Priority Tier v2.1": "Foundation",
+            "Quadrant Rationale": "Champion — V 6.8, R 6.4",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Above floor but below Champion / Strategic / Quick Win thresholds (Value 6.8, Readiness 6.4).",
+            "Absolute Annual Value ($)": 86060000
+          },
+          {
+            "ID": "UC-10",
+            "Use Case": "Nuclear Fleet Capacity Factor Optimization Advisor",
+            "TTV Score": 0.25,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "champion",
+            "Value Score": 5.95,
+            "Priority Tier": "Champion",
+            "Quadrant v2.0": "foundation",
+            "Quadrant v2.1": "foundation",
+            "Quadrant v2.2": "champion",
+            "Priority Score": 6.48,
+            "Quadrant Layer": 2,
+            "Readiness Score": 7,
+            "Value Score Raw": 5.46,
+            "Priority Tier v1": "Tier 4 — Foundation",
+            "Recommended Phase": "Phase 2",
+            "Priority Tier v2.1": "Foundation",
+            "Quadrant Rationale": "Champion — V 6, R 7",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Above floor but below Champion / Strategic / Quick Win thresholds (Value 6, Readiness 7).",
+            "Absolute Annual Value ($)": 16610000
+          },
+          {
+            "ID": "UC-09",
+            "Use Case": "NRC Correspondence Institutional Knowledge Repository",
+            "TTV Score": 0.42,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "quick_win",
+            "Value Score": 1.82,
+            "Priority Tier": "Quick Win",
+            "Quadrant v2.0": "foundation",
+            "Quadrant v2.1": "foundation",
+            "Quadrant v2.2": "quick_win",
+            "Soft Blockers": [
+              "No named business sponsor — confirm at intake"
+            ],
+            "Priority Score": 4.41,
+            "Quadrant Layer": 2,
+            "Readiness Score": 7,
+            "Value Score Raw": 2.85,
+            "Priority Tier v1": "Tier 2 — Quick Wins",
+            "Recommended Phase": "Phase 4",
+            "Priority Tier v2.1": "Foundation",
+            "Quadrant Rationale": "Quick Win — V 1.8, R 7",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Above floor but below Champion / Strategic / Quick Win thresholds (Value 1.8, Readiness 7).",
+            "Absolute Annual Value ($)": 9600000
+          },
+          {
+            "ID": "UC-07",
+            "Use Case": "Customer Churn Prediction & Intervention Engine",
+            "TTV Score": 0.33,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "quick_win",
+            "Value Score": 2.68,
+            "Priority Tier": "Quick Win",
+            "Quadrant v2.0": "foundation",
+            "Quadrant v2.1": "foundation",
+            "Quadrant v2.2": "quick_win",
+            "Soft Blockers": [
+              "No named business sponsor — confirm at intake"
+            ],
+            "Priority Score": 4.19,
+            "Quadrant Layer": 2,
+            "Readiness Score": 5.7,
+            "Value Score Raw": 3.26,
+            "Priority Tier v1": "Tier 2 — Quick Wins",
+            "Recommended Phase": "Phase 4",
+            "Priority Tier v2.1": "Foundation",
+            "Quadrant Rationale": "Quick Win — V 2.7, R 5.7",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Above floor but below Champion / Strategic / Quick Win thresholds (Value 2.7, Readiness 5.7).",
+            "Absolute Annual Value ($)": 10600000
+          },
+          {
+            "ID": "UC-05",
+            "Use Case": "Predictive Maintenance Trigger Identification System",
+            "TTV Score": 0.17,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "quick_win",
+            "Value Score": 1.53,
+            "Priority Tier": "Quick Win",
+            "Quadrant v2.0": "foundation",
+            "Quadrant v2.1": "foundation",
+            "Quadrant v2.2": "quick_win",
+            "Soft Blockers": [
+              "No named business sponsor — confirm at intake",
+              "Time-to-pilot 18 weeks exceeds 16-week target — sequencing concern"
+            ],
+            "Priority Score": 3.67,
+            "Quadrant Layer": 2,
+            "Readiness Score": 5.8,
+            "Value Score Raw": 2.72,
+            "Priority Tier v1": "Tier 2 — Quick Wins",
+            "Recommended Phase": "Phase 4",
+            "Priority Tier v2.1": "Foundation",
+            "Quadrant Rationale": "Quick Win — V 1.5, R 5.8",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Above floor but below Champion / Strategic / Quick Win thresholds (Value 1.5, Readiness 5.8).",
+            "Absolute Annual Value ($)": 19635000
+          },
+          {
+            "ID": "UC-03",
+            "Use Case": "Renewable Forecast Reconciliation Agent",
+            "TTV Score": 0.5,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "quick_win",
+            "Value Score": 1,
+            "Priority Tier": "Quick Win",
+            "Quadrant v2.0": "foundation",
+            "Quadrant v2.1": "foundation",
+            "Quadrant v2.2": "quick_win",
+            "Priority Score": 3.5,
+            "Quadrant Layer": 2,
+            "Readiness Score": 6,
+            "Value Score Raw": 2.12,
+            "Priority Tier v1": "Tier 2 — Quick Wins",
+            "Recommended Phase": "Phase 4",
+            "Priority Tier v2.1": "Foundation",
+            "Quadrant Rationale": "Quick Win — V 1, R 6",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Above floor but below Champion / Strategic / Quick Win thresholds (Value 1, Readiness 6).",
+            "Absolute Annual Value ($)": 16500000
+          },
+          {
+            "ID": "UC-04",
+            "Use Case": "Market Intelligence Parallelization Engine",
+            "TTV Score": 0.42,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "quick_win",
+            "Value Score": 1.12,
+            "Priority Tier": "Quick Win",
+            "Quadrant v2.0": "foundation",
+            "Quadrant v2.1": "foundation",
+            "Quadrant v2.2": "quick_win",
+            "Priority Score": 3.41,
+            "Quadrant Layer": 2,
+            "Readiness Score": 5.7,
+            "Value Score Raw": 2.55,
+            "Priority Tier v1": "Tier 2 — Quick Wins",
+            "Recommended Phase": "Phase 4",
+            "Priority Tier v2.1": "Foundation",
+            "Quadrant Rationale": "Quick Win — V 1.1, R 5.7",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Above floor but below Champion / Strategic / Quick Win thresholds (Value 1.1, Readiness 5.7).",
+            "Absolute Annual Value ($)": 15795000
+          },
+          {
+            "ID": "UC-06",
+            "Use Case": "Equipment Failure Root Cause Analysis Network",
+            "TTV Score": 0.08,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "foundation",
+            "Value Score": 5.28,
+            "Priority Tier": "Foundation",
+            "Quadrant v2.0": "foundation",
+            "Quadrant v2.1": "foundation",
+            "Quadrant v2.2": "foundation",
+            "Soft Blockers": [
+              "No named business sponsor — confirm at intake",
+              "Time-to-pilot 20 weeks exceeds 16-week target — sequencing concern"
+            ],
+            "Priority Score": 5.29,
+            "Quadrant Layer": 2,
+            "Readiness Score": 5.3,
+            "Value Score Raw": 4.92,
+            "Priority Tier v1": "Tier 4 — Foundation",
+            "Recommended Phase": "Phase 3",
+            "Priority Tier v2.1": "Foundation",
+            "Quadrant Rationale": "Foundation — V 5.3, R 5.3",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Above floor but below Champion / Strategic / Quick Win thresholds (Value 5.3, Readiness 5.3).",
+            "Absolute Annual Value ($)": 21480000
+          }
+        ],
+        "step": 7,
+        "title": "Priority Scoring & Roadmap",
+        "content": "The portfolio stratifies into three execution waves based on value-readiness alignment and strategic coherence. Phase 1 champions emerge from named-sponsor use cases with readiness scores above 6.5 and time-to-value under 9 months: Refueling Outage Orchestrator ($30.2M, 8-month TTV) and Renewable Forecast Reconciliation ($33.8M, 6-month TTV) qualify as immediate deployment candidates. Phase 2 strategic initiatives address high-value opportunities requiring sponsor assignment and governance hardening: Nuclear Fleet Capacity Factor Optimization ($27.3M) and Regulatory Documentation Synthesis ($29.2M) move forward contingent on COO sponsorship and AI governance committee charter. Phase 3 encompasses customer-facing and maintenance use cases requiring data access sprints and LLMOps infrastructure investment. Foundation tier captures Equipment Failure RCA ($15.7M) and NRC Knowledge Repository ($9.4M) due to extended time-to-pilot (20+ weeks) and absence of executive ownership. Four use cases flagged for sponsor remediation: UC-01, UC-05, UC-06, UC-07, UC-08, UC-09. Governance maturity gaps affect UC-03 and UC-04 (trading applications lack model risk tiering), remediated via 6-week policy sprint. Portfolio delivers $232.9M total opportunity with $128.7M concentrated in Phase 1-2 initiatives executable within 12 months."
+      }
+    ],
+    "summary": "Constellation Energy should execute four Critical-priority AI initiatives in Phase 1 and Phase 2 to capture $128.7M in first-year value from a $232.9M total opportunity. The company operates the largest U.S. nuclear fleet with mature SCADA integration and centralized analytics platforms, creating deployment advantages in outage optimization and market intelligence. However, AI-specific governance lags regulatory intensity, and four high-value use cases lack named executive sponsors. The Refueling Outage Work Package Orchestrator delivers $30.2M with COO sponsorship, 8-month time-to-value, and 70% success probability, supported by mature work package data and established outage analytics. The Renewable Forecast Reconciliation Agent captures $33.8M in trading alpha with Chief Commercial Officer sponsorship and 6-month deployment, though model risk tiering absence requires a 6-week governance sprint. Nuclear Fleet Capacity Factor Optimization and Regulatory Documentation Synthesis contribute $56.5M in Phase 2 value contingent on sponsor assignment and governance hardening. Four initiatives totaling $101.8M lack executive ownership: Regulatory Documentation Synthesis, Predictive Maintenance, Customer Churn, and Equipment Failure RCA. Sponsor remediation adds 4-6 weeks but unlocks $67.1M after governance protocols mature. The portfolio stratifies into three execution waves: Phase 1 champions (Outage Orchestrator, Renewable Reconciliation) deliver $64M with readiness scores above 6.5; Phase 2 strategic initiatives ($64.7M) require governance committee charter and sponsor assignment; Phase 3 customer and maintenance use cases need data access sprints and LLMOps infrastructure. Monthly token consumption spans 800K to 4.8M tokens, with outage orchestration and market intelligence driving continuous monitoring workloads. Phase 1 launch depends on governance committee charter by end of Q1 2025, executive sponsor assignment within 30 days, and LLMOps infrastructure hardening to support 4.8M monthly token workloads.",
+    "realismFlags": [
+      {
+        "code": "IRR_IMPLAUSIBLE",
+        "message": "IRR of 648% is implausibly high. A CFO will dismiss the entire model.",
+        "severity": "critical",
+        "remediation": "An IRR over 300% almost always indicates underestimated implementation cost or overestimated benefit. Re-examine the cost basis and apply portfolio-level realization haircuts."
+      },
+      {
+        "code": "PAYBACK_IMPLAUSIBLE",
+        "message": "Payback under 1 month implies near-zero implementation cost — likely a calculation error.",
+        "severity": "critical",
+        "remediation": "Confirm implementation cost includes change management, integration, and ongoing operational overhead, not just licensing or tooling."
+      },
+      {
+        "code": "VALUE_VS_REVENUE",
+        "message": "Total annual value is 2.0% of company revenue. Values above 2% in year one warrant scrutiny.",
+        "severity": "warn",
+        "remediation": "Confirm probability weighting and data-maturity haircuts are applied consistently per use case."
+      }
+    ],
+    "benefitsCapped": false,
+    "capScaleFactor": 1,
+    "companyOverview": {
+      "whyNow": "Nuclear renaissance drives 47% stock appreciation since 2024 as hyperscalers commit $18B to dedicated reactor agreements. AI deployment timing aligns with fleet modernization cycle and regulatory shift toward performance-based oversight.",
+      "position": "Nation's largest carbon-free energy producer. 32,400 MW nuclear/renewables capacity across 21 states.",
+      "annualRevenue": 22400000000,
+      "dataReadiness": {
+        "keyGaps": "Customer interaction data fragmented across 14 legacy CRM instances. Predictive maintenance models lack standardized sensor taxonomy across aging nuclear fleet. Grid forecasting still relies on spreadsheet models rather than unified data lake.",
+        "currentState": "Level 3 — Structured operational data exists across nuclear fleet and trading operations, with real-time SCADA integration and regulatory reporting systems already feeding centralized analytics platforms"
+      },
+      "frictionTable": {
+        "rows": [
+          {
+            "domain": "Nuclear Operations & Maintenance",
+            "annualBurden": "$89M / 142,000 hours",
+            "strategicImpact": "Regulatory compliance burden limits expansion capacity"
+          },
+          {
+            "domain": "Grid Optimization & Trading",
+            "annualBurden": "$67M / 78,000 hours",
+            "strategicImpact": "Manual forecasting misses $200M+ revenue optimization"
+          },
+          {
+            "domain": "Customer Energy Management",
+            "annualBurden": "$54M / 91,000 hours",
+            "strategicImpact": "Service delivery complexity drives 18% churn"
+          }
+        ]
+      },
+      "totalEmployees": 12500
+    },
+    "executiveSummary": {
+      "context": "Constellation operates the largest U.S. nuclear fleet with mature SCADA integration and centralized analytics platforms, creating natural AI deployment advantages in outage optimization and market intelligence. However, AI-specific governance lags regulatory intensity, and four high-value use cases lack named executive sponsors. The company faces pressure to optimize fleet capacity factors while expanding renewable trading operations, creating strategic urgency for AI-enabled operational excellence and market alpha.",
+      "findings": [
+        {
+          "body": "The $30.2M use case benefits from COO sponsorship, 8-month time-to-value, and readiness score of 6.75 driven by mature work package data and established outage analytics. 70% probability of success reflects proven AI orchestration patterns in adjacent industries. Deployment requires 4.8M monthly tokens supporting 1,200 runs across 12 nuclear units.",
+          "title": "Refueling Outage Orchestrator delivers highest near-term ROI with existing sponsorship and data infrastructure",
+          "value": "$30.2M annually"
+        },
+        {
+          "body": "Chief Commercial Officer sponsorship and real-time market data pipelines enable 6-month deployment, but model risk tiering absence creates regulatory exposure. A 6-week governance policy sprint addresses gap. 60% success probability reflects forecast reconciliation complexity and renewable intermittency volatility.",
+          "title": "Renewable Forecast Reconciliation captures $33.8M in trading alpha but requires governance sprint",
+          "value": "$33.8M annually"
+        },
+        {
+          "body": "Four initiatives totaling $101.8M lack named executive ownership: Regulatory Documentation Synthesis ($29.2M), Predictive Maintenance ($26.6M), Customer Churn ($23.7M), and Equipment Failure RCA ($15.7M). Sponsor remediation adds 4-6 weeks but unlocks $67.1M in Phase 2 value after governance hardening.",
+          "title": "Regulatory and maintenance use cases require sponsor assignment before prototyping",
+          "value": "$101.8M annually"
+        }
+      ],
+      "headline": "Constellation Energy should execute 4 Critical-priority AI initiatives in Phase 1 and Phase 2 to capture $128.7M in first-year value from a $232.9M total opportunity.",
+      "criticalPath": "Phase 1 launch depends on governance committee charter (6 weeks) and LLMOps infrastructure hardening (4 weeks) to support 4.8M monthly token workloads. Customer-facing initiatives require contact center API integration (8 weeks) and PII classification policies. Nuclear use cases demand NRC validation protocols extending pilot cycles to 14-16 weeks.",
+      "opportunityTable": {
+        "rows": [
+          {
+            "value": "$232.9M",
+            "metric": "Total Annual Value"
+          },
+          {
+            "value": "4",
+            "metric": "Critical-Priority Initiatives"
+          },
+          {
+            "value": "$128.7M",
+            "metric": "First-Year Impact"
+          },
+          {
+            "value": "$6,480",
+            "metric": "Value per 1M Tokens"
+          }
+        ]
+      },
+      "recommendedAction": "Charter AI governance committee by end of Q1 2025, assign executive sponsors to UC-01/UC-05/UC-07/UC-08 within 30 days, and initiate Phase 1 deployment of Refueling Outage Orchestrator and Renewable Forecast Reconciliation targeting $64M first-year capture."
+    },
+    "frictionRecovery": [
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-01",
+            "recoveryPct": 1,
+            "recoveryAmount": 13710000
+          }
+        ],
+        "frictionPoint": "Manual nuclear design modification documentation across 47 regulatory requirements"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-02",
+            "recoveryPct": 1,
+            "recoveryAmount": 5190000
+          }
+        ],
+        "frictionPoint": "Fragmented outage work package assembly from 14 legacy systems"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-03",
+            "recoveryPct": 1,
+            "recoveryAmount": 7790000
+          }
+        ],
+        "frictionPoint": "Manual renewable forecast reconciliation across 340K annual trading positions"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-04",
+            "recoveryPct": 1,
+            "recoveryAmount": 6200000
+          }
+        ],
+        "frictionPoint": "Reactive market intelligence aggregation from 23 disparate data sources"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-05",
+            "recoveryPct": 1,
+            "recoveryAmount": 7220000
+          }
+        ],
+        "frictionPoint": "Condition-based maintenance trigger identification across 187K equipment tags"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-06",
+            "recoveryPct": 1,
+            "recoveryAmount": 4370000
+          }
+        ],
+        "frictionPoint": "Siloed equipment failure root cause analysis across 8 regional maintenance teams"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-07",
+            "recoveryPct": 1,
+            "recoveryAmount": 3250000
+          }
+        ],
+        "frictionPoint": "Account manager churn prediction relies on 90-day lagging indicators"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-08",
+            "recoveryPct": 1,
+            "recoveryAmount": 2250000
+          }
+        ],
+        "frictionPoint": "Complex customer inquiry routing across 12 technical specialist queues"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-09",
+            "recoveryPct": 1,
+            "recoveryAmount": 3370000
+          }
+        ],
+        "frictionPoint": "Annual NRC correspondence drafting without institutional knowledge repository"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-10",
+            "recoveryPct": 1,
+            "recoveryAmount": 3040000
+          }
+        ],
+        "frictionPoint": "Manual capacity factor variance analysis across 21 nuclear units"
+      }
+    ],
+    "scenarioAnalysis": {
+      "moderate": {
+        "npv": "$1.2B",
+        "annualBenefit": "$454.1M",
+        "paybackMonths": 0
+      },
+      "aggressive": {
+        "npv": "$1.8B",
+        "annualBenefit": "$590.3M",
+        "paybackMonths": 0
+      },
+      "conservative": {
+        "npv": "$542.0M",
+        "annualBenefit": "$272.5M",
+        "paybackMonths": 0
+      }
+    },
+    "validationSummary": {
+      "details": [],
+      "originalTotal": 454099768,
+      "useCasesCapped": 0,
+      "validatedTotal": 454099768,
+      "parametersClamped": 0,
+      "portfolioScaleFactor": 1
+    },
+    "executiveDashboard": {
+      "topUseCases": [
+        {
+          "rank": 1,
+          "useCase": "Refueling Outage Work Package Orchestrator",
+          "annualValue": 101800000,
+          "priorityTier": "Champion",
+          "monthlyTokens": 4800000,
+          "priorityScore": 8.5
+        },
+        {
+          "rank": 2,
+          "useCase": "Technical Inquiry Semantic Routing Assistant",
+          "annualValue": 32299999.999999996,
+          "priorityTier": "Champion",
+          "monthlyTokens": 3840000,
+          "priorityScore": 8
+        },
+        {
+          "rank": 3,
+          "useCase": "Regulatory Documentation Synthesis Engine",
+          "annualValue": 132400000,
+          "priorityTier": "Champion",
+          "monthlyTokens": 2250000,
+          "priorityScore": 6.61
+        },
+        {
+          "rank": 4,
+          "useCase": "Nuclear Fleet Capacity Factor Optimization Advisor",
+          "annualValue": 30200000,
+          "priorityTier": "Champion",
+          "monthlyTokens": 2880000,
+          "priorityScore": 6.48
+        },
+        {
+          "rank": 5,
+          "useCase": "NRC Correspondence Institutional Knowledge Repository",
+          "annualValue": 12800000,
+          "priorityTier": "Quick Win",
+          "monthlyTokens": 1800000,
+          "priorityScore": 4.41
+        },
+        {
+          "rank": 6,
+          "useCase": "Customer Churn Prediction & Intervention Engine",
+          "annualValue": 21200000,
+          "priorityTier": "Quick Win",
+          "monthlyTokens": 4320000,
+          "priorityScore": 4.19
+        },
+        {
+          "rank": 7,
+          "useCase": "Predictive Maintenance Trigger Identification System",
+          "annualValue": 35700000,
+          "priorityTier": "Quick Win",
+          "monthlyTokens": 4800000,
+          "priorityScore": 3.67
+        },
+        {
+          "rank": 8,
+          "useCase": "Renewable Forecast Reconciliation Agent",
+          "annualValue": 27500000,
+          "priorityTier": "Quick Win",
+          "monthlyTokens": 4800000,
+          "priorityScore": 3.5
+        },
+        {
+          "rank": 9,
+          "useCase": "Market Intelligence Parallelization Engine",
+          "annualValue": 24300000,
+          "priorityTier": "Quick Win",
+          "monthlyTokens": 4800000,
+          "priorityScore": 3.41
+        },
+        {
+          "rank": 10,
+          "useCase": "Equipment Failure Root Cause Analysis Network",
+          "annualValue": 35800000,
+          "priorityTier": "Foundation",
+          "monthlyTokens": 1600000,
+          "priorityScore": 5.29
+        }
+      ],
+      "totalAnnualValue": 454099768,
+      "totalCostBenefit": 61235999,
+      "totalRiskBenefit": 29712000,
+      "totalMonthlyTokens": 35890000,
+      "totalRevenueBenefit": 75204373,
+      "totalCashFlowBenefit": 287947396,
+      "valuePerMillionTokens": 12652543
+    },
+    "validationWarnings": [],
+    "multiYearProjection": {
+      "irr": "648.1%",
+      "npv": "$1.2B",
+      "paybackMonths": 0,
+      "totalBenefitOverPeriod": "$1.6B"
+    }
+  }
+}
