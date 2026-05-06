@@ -398,6 +398,103 @@ describe("HeadlineNumberChangesPanel — bucketing", () => {
     expect(down?.textContent ?? "").toContain("2");
   });
 
+  it("copies newline-separated IDs in insertion order and shows a success toast (plural)", async () => {
+    // Stub navigator.clipboard.writeText so we can assert the exact
+    // payload the panel handed off to the OS clipboard. The
+    // total-annual-value bucket holds rep-A, rep-B, rep-C in that
+    // insertion order — the helper must join them with "\n" and the
+    // toast must use the plural "report IDs" form.
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+
+    renderPanel();
+    clickByTestId("button-toggle-headline-total-annual-value");
+    clickByTestId("button-copy-ids-headline-total-annual-value");
+
+    // copyIds awaits navigator.clipboard.writeText — flush the
+    // microtask queue so the success branch's toast() has fired
+    // before we assert.
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(writeText).toHaveBeenCalledTimes(1);
+    expect(writeText).toHaveBeenCalledWith("rep-A\nrep-B\nrep-C");
+
+    expect(toastSpy).toHaveBeenCalledTimes(1);
+    const payload = toastSpy.mock.calls[0][0];
+    expect(payload.title).toBe("Copied to clipboard");
+    expect(payload.description).toContain("3 report IDs");
+    // Bucket label comes from METRIC_LABELS — "total-annual-value" → "Total value".
+    expect(payload.description).toContain('"Total value"');
+    expect(payload.variant).toBeUndefined();
+  });
+
+  it("copies a single ID and pluralizes as 'report ID' (singular)", async () => {
+    // The prototyping-candidates bucket has only rep-F — a single id
+    // exercises the `ids.length === 1` branch of the inline
+    // pluralizer in `copyIds`.
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+
+    renderPanel();
+    clickByTestId("button-toggle-headline-prototyping-candidates");
+    clickByTestId("button-copy-ids-headline-prototyping-candidates");
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(writeText).toHaveBeenCalledTimes(1);
+    expect(writeText).toHaveBeenCalledWith("rep-F");
+
+    expect(toastSpy).toHaveBeenCalledTimes(1);
+    const payload = toastSpy.mock.calls[0][0];
+    expect(payload.title).toBe("Copied to clipboard");
+    // Note the SINGULAR "report ID " (trailing space prevents matching
+    // the plural "report IDs" prefix accidentally).
+    expect(payload.description).toContain("1 report ID ");
+    expect(payload.description).not.toContain("1 report IDs");
+    expect(payload.variant).toBeUndefined();
+  });
+
+  it("shows a destructive 'Copy failed' toast when clipboard.writeText rejects", async () => {
+    // When the browser blocks clipboard access (e.g. insecure
+    // context, missing permission), copyIds must surface a destructive
+    // toast rather than silently swallowing the failure.
+    const writeText = vi.fn().mockRejectedValue(new Error("blocked by browser"));
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+
+    renderPanel();
+    clickByTestId("button-toggle-headline-champion-count");
+    clickByTestId("button-copy-ids-headline-champion-count");
+
+    // Two microtask turns: one for the writeText promise to reject,
+    // another for the catch block's `toast(...)` to run.
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // The champion-count bucket holds rep-A and rep-D — the panel
+    // still attempts the write before catching the rejection.
+    expect(writeText).toHaveBeenCalledWith("rep-A\nrep-D");
+    expect(toastSpy).toHaveBeenCalledTimes(1);
+    const payload = toastSpy.mock.calls[0][0];
+    expect(payload.title).toBe("Copy failed");
+    expect(payload.description).toContain("clipboard access");
+    expect(payload.variant).toBe("destructive");
+  });
+
   it("collapses bucket details by default and reveals the table when the toggle is clicked", () => {
     renderPanel();
 
