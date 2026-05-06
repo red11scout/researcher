@@ -112,16 +112,34 @@ const updated = [
     ],
   },
   // A report with NO upgrades and NO metric movement — drops into the
-  // generic "Reprocessed (no schema changes)" bucket, which does NOT
-  // expose a Copy IDs button (no expandable details). Included to
-  // ensure the test is realistic and to guard against the metric-only
-  // bucket accidentally swallowing it.
+  // expandable "Reprocessed (no schema changes)" bucket and exposes a
+  // `button-copy-ids-upgrade-no-change` button when expanded.
   {
     id: "rep-004",
     companyName: "Delta Inc",
     isWhatIf: false,
     status: "updated" as const,
     upgrades: [],
+    metricDeltas: [],
+  },
+  // Two reports with schema upgrades but NO metric movement — populate
+  // the expandable "Schema-only (no headline numbers moved)" bucket
+  // and let us assert the Copy IDs button concatenates both ids with
+  // a newline separator.
+  {
+    id: "rep-005",
+    companyName: "Epsilon Ltd",
+    isWhatIf: false,
+    status: "updated" as const,
+    upgrades: [{ code: "added-diagnostic" as const, label: "Added diagnostic" }],
+    metricDeltas: [],
+  },
+  {
+    id: "rep-006",
+    companyName: "Zeta GmbH",
+    isWhatIf: true,
+    status: "updated" as const,
+    upgrades: [{ code: "added-diagnostic" as const, label: "Added diagnostic" }],
     metricDeltas: [],
   },
 ];
@@ -257,6 +275,92 @@ describe("UpgradesAppliedPanel — Copy IDs buttons", () => {
     expect(payload.description).toContain("1 report ID ");
     expect(payload.description).toContain(
       '"Reprocessed — headline numbers moved (no schema change)"',
+    );
+    expect(payload.variant).toBeUndefined();
+  });
+
+  it("reveals button-copy-ids-upgrade-schema-only when the schema-only bucket expands", () => {
+    renderPanel();
+
+    // Header is present from first paint, button is hidden until expand.
+    expect(getByTestId("button-toggle-upgrade-schema-only")).not.toBeNull();
+    expect(getByTestId("button-copy-ids-upgrade-schema-only")).toBeNull();
+
+    clickByTestId("button-toggle-upgrade-schema-only");
+
+    const copyBtn = getByTestId("button-copy-ids-upgrade-schema-only");
+    expect(copyBtn).not.toBeNull();
+    expect(copyBtn?.textContent ?? "").toContain("Copy IDs");
+  });
+
+  it("reveals button-copy-ids-upgrade-no-change when the no-change bucket expands", () => {
+    renderPanel();
+
+    expect(getByTestId("button-toggle-upgrade-no-change")).not.toBeNull();
+    expect(getByTestId("button-copy-ids-upgrade-no-change")).toBeNull();
+
+    clickByTestId("button-toggle-upgrade-no-change");
+
+    const copyBtn = getByTestId("button-copy-ids-upgrade-no-change");
+    expect(copyBtn).not.toBeNull();
+    expect(copyBtn?.textContent ?? "").toContain("Copy IDs");
+  });
+
+  it("copies newline-separated IDs and shows a success toast for the schema-only bucket", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+
+    renderPanel();
+    clickByTestId("button-toggle-upgrade-schema-only");
+    clickByTestId("button-copy-ids-upgrade-schema-only");
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    // rep-005 and rep-006 both have a schema upgrade with no metric
+    // movement, so they form the schema-only bucket in insertion order.
+    expect(writeText).toHaveBeenCalledTimes(1);
+    expect(writeText).toHaveBeenCalledWith("rep-005\nrep-006");
+
+    expect(toastSpy).toHaveBeenCalledTimes(1);
+    const payload = toastSpy.mock.calls[0][0];
+    expect(payload.title).toBe("Copied to clipboard");
+    expect(payload.description).toContain("2 report IDs");
+    expect(payload.description).toContain(
+      '"Schema-only (no headline numbers moved)"',
+    );
+    expect(payload.variant).toBeUndefined();
+  });
+
+  it("copies the single no-change ID and pluralizes as 'report ID' (singular)", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      configurable: true,
+      value: { writeText },
+    });
+
+    renderPanel();
+    clickByTestId("button-toggle-upgrade-no-change");
+    clickByTestId("button-copy-ids-upgrade-no-change");
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    // Only rep-004 ended up in the no-change bucket.
+    expect(writeText).toHaveBeenCalledTimes(1);
+    expect(writeText).toHaveBeenCalledWith("rep-004");
+
+    expect(toastSpy).toHaveBeenCalledTimes(1);
+    const payload = toastSpy.mock.calls[0][0];
+    expect(payload.title).toBe("Copied to clipboard");
+    expect(payload.description).toContain("1 report ID ");
+    expect(payload.description).toContain(
+      '"Reprocessed (no schema changes)"',
     );
     expect(payload.variant).toBeUndefined();
   });

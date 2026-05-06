@@ -2003,12 +2003,17 @@ export function UpgradesAppliedPanel({ updated }: UpgradesAppliedPanelProps) {
     string,
     { label: string; reports: BackfillReportResult[] }
   >();
-  let reprocessedNoChange = 0;
+  // Reports that had NO schema upgrades AND no metric movement — typical
+  // for force=true reruns of already-fresh reports. Tracked as a list so
+  // admins can expand the bucket and copy the IDs (e.g. to spot-check
+  // which reports were touched by a no-op rerun).
+  const reprocessedNoChangeReports: BackfillReportResult[] = [];
   // Reports that had at least one schema upgrade applied but where every
   // headline number stayed the same — surfaced separately so admins can
   // immediately ignore them ("the schema bumped but the bottom line did
-  // not move, no need to re-read the report").
-  let schemaOnlyCount = 0;
+  // not move, no need to re-read the report"). Tracked as a list so the
+  // bucket can be expanded and its IDs copied.
+  const schemaOnlyReports: BackfillReportResult[] = [];
   // Reports that had NO schema upgrades but whose headline numbers still
   // moved — typically a force=true rerun where the post-processor's
   // calculation logic shifted since the report was last persisted. These
@@ -2024,12 +2029,12 @@ export function UpgradesAppliedPanel({ updated }: UpgradesAppliedPanelProps) {
       if (r.metricDeltas && r.metricDeltas.length > 0) {
         reprocessedWithMetricChange.push(r);
       } else {
-        reprocessedNoChange++;
+        reprocessedNoChangeReports.push(r);
       }
       continue;
     }
     if (!r.metricDeltas || r.metricDeltas.length === 0) {
-      schemaOnlyCount++;
+      schemaOnlyReports.push(r);
     }
     for (const u of upgrades) {
       const existing = buckets.get(u.code);
@@ -2073,7 +2078,7 @@ export function UpgradesAppliedPanel({ updated }: UpgradesAppliedPanelProps) {
 
   if (
     sorted.length === 0 &&
-    reprocessedNoChange === 0 &&
+    reprocessedNoChangeReports.length === 0 &&
     reprocessedWithMetricChange.length === 0
   )
     return null;
@@ -2431,52 +2436,221 @@ export function UpgradesAppliedPanel({ updated }: UpgradesAppliedPanelProps) {
             )}
           </li>
         )}
-        {schemaOnlyCount > 0 && (
-          <li
-            className="px-4 py-3 flex items-start gap-3"
-            data-testid="row-upgrade-bucket-schema-only"
-          >
-            <Badge
-              variant="outline"
-              className="border-slate-200 bg-slate-50 text-slate-600 font-medium tabular-nums shrink-0"
-              data-testid="count-upgrade-schema-only"
+        {schemaOnlyReports.length > 0 && (
+          <li data-testid="row-upgrade-bucket-schema-only">
+            <button
+              type="button"
+              onClick={() => toggle("__schema_only__")}
+              aria-expanded={expanded.has("__schema_only__")}
+              className="w-full px-4 py-3 flex items-start gap-3 text-left hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-navy focus-visible:ring-inset"
+              data-testid="button-toggle-upgrade-schema-only"
             >
-              {schemaOnlyCount}
-            </Badge>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium text-slate-700">
-                Schema-only (no headline numbers moved)
+              {expanded.has("__schema_only__") ? (
+                <ChevronDown className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
+              ) : (
+                <ChevronRight className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
+              )}
+              <Badge
+                variant="outline"
+                className="border-slate-200 bg-slate-50 text-slate-600 font-medium tabular-nums shrink-0"
+                data-testid="count-upgrade-schema-only"
+              >
+                {schemaOnlyReports.length}
+              </Badge>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium text-slate-700">
+                  Schema-only (no headline numbers moved)
+                </div>
+                <div className="text-xs text-slate-500 mt-0.5">
+                  The schema/diagnostic shape changed but the executive
+                  dashboard totals and portfolio counts stayed the same — safe
+                  to ignore unless you specifically want to audit the new
+                  shape. (Counted across the upgrade buckets above.)
+                </div>
               </div>
-              <div className="text-xs text-slate-500 mt-0.5">
-                The schema/diagnostic shape changed but the executive
-                dashboard totals and portfolio counts stayed the same — safe
-                to ignore unless you specifically want to audit the new
-                shape. (Counted across the upgrade buckets above.)
+            </button>
+            {expanded.has("__schema_only__") && (
+              <div
+                className="px-4 pb-3 pl-11"
+                data-testid="details-upgrade-schema-only"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs text-slate-500">
+                    {schemaOnlyReports.length} report
+                    {schemaOnlyReports.length === 1 ? "" : "s"} in this bucket
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-2 text-xs gap-1"
+                    onClick={() =>
+                      copyIds(
+                        schemaOnlyReports.map((r) => r.id),
+                        "Schema-only (no headline numbers moved)",
+                      )
+                    }
+                    data-testid="button-copy-ids-upgrade-schema-only"
+                  >
+                    <Copy className="h-3 w-3" />
+                    Copy IDs
+                  </Button>
+                </div>
+                <div className="rounded-md border border-slate-200 bg-white max-h-64 overflow-auto">
+                  <table className="w-full text-xs font-mono">
+                    <thead className="sticky top-0 bg-slate-50 text-slate-500 text-[11px] uppercase tracking-wide">
+                      <tr>
+                        <th className="text-left px-3 py-1.5 font-medium">
+                          Company
+                        </th>
+                        <th className="text-left px-3 py-1.5 font-medium">
+                          Report ID
+                        </th>
+                        <th className="text-left px-3 py-1.5 font-medium">
+                          What-if
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {schemaOnlyReports.map((r) => (
+                        <tr
+                          key={r.id}
+                          className="hover:bg-slate-50 align-top"
+                          data-testid={`row-upgrade-schema-only-${r.id}`}
+                        >
+                          <td
+                            className="px-3 py-1.5 text-slate-700 select-text"
+                            data-testid={`text-upgrade-schema-only-company-${r.id}`}
+                          >
+                            {r.companyName}
+                          </td>
+                          <td
+                            className="px-3 py-1.5 text-slate-600 select-all"
+                            data-testid={`text-upgrade-schema-only-report-id-${r.id}`}
+                          >
+                            {r.id}
+                          </td>
+                          <td
+                            className="px-3 py-1.5 text-slate-500"
+                            data-testid={`text-upgrade-schema-only-whatif-${r.id}`}
+                          >
+                            {r.isWhatIf ? "yes" : "no"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
+            )}
           </li>
         )}
-        {reprocessedNoChange > 0 && (
-          <li
-            className="px-4 py-3 flex items-start gap-3"
-            data-testid="row-upgrade-bucket-no-change"
-          >
-            <Badge
-              variant="outline"
-              className="border-slate-200 bg-slate-50 text-slate-600 font-medium tabular-nums shrink-0"
-              data-testid="count-upgrade-no-change"
+        {reprocessedNoChangeReports.length > 0 && (
+          <li data-testid="row-upgrade-bucket-no-change">
+            <button
+              type="button"
+              onClick={() => toggle("__no_change__")}
+              aria-expanded={expanded.has("__no_change__")}
+              className="w-full px-4 py-3 flex items-start gap-3 text-left hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-navy focus-visible:ring-inset"
+              data-testid="button-toggle-upgrade-no-change"
             >
-              {reprocessedNoChange}
-            </Badge>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-medium text-slate-700">
-                Reprocessed (no schema changes)
+              {expanded.has("__no_change__") ? (
+                <ChevronDown className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
+              ) : (
+                <ChevronRight className="h-4 w-4 text-slate-400 mt-0.5 shrink-0" />
+              )}
+              <Badge
+                variant="outline"
+                className="border-slate-200 bg-slate-50 text-slate-600 font-medium tabular-nums shrink-0"
+                data-testid="count-upgrade-no-change"
+              >
+                {reprocessedNoChangeReports.length}
+              </Badge>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium text-slate-700">
+                  Reprocessed (no schema changes)
+                </div>
+                <div className="text-xs text-slate-500 mt-0.5">
+                  Re-ran the post-processor without changing the staleness
+                  signals — typical for forced reruns of already-fresh reports.
+                </div>
               </div>
-              <div className="text-xs text-slate-500 mt-0.5">
-                Re-ran the post-processor without changing the staleness
-                signals — typical for forced reruns of already-fresh reports.
+            </button>
+            {expanded.has("__no_change__") && (
+              <div
+                className="px-4 pb-3 pl-11"
+                data-testid="details-upgrade-no-change"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs text-slate-500">
+                    {reprocessedNoChangeReports.length} report
+                    {reprocessedNoChangeReports.length === 1 ? "" : "s"} in
+                    this bucket
+                  </span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 px-2 text-xs gap-1"
+                    onClick={() =>
+                      copyIds(
+                        reprocessedNoChangeReports.map((r) => r.id),
+                        "Reprocessed (no schema changes)",
+                      )
+                    }
+                    data-testid="button-copy-ids-upgrade-no-change"
+                  >
+                    <Copy className="h-3 w-3" />
+                    Copy IDs
+                  </Button>
+                </div>
+                <div className="rounded-md border border-slate-200 bg-white max-h-64 overflow-auto">
+                  <table className="w-full text-xs font-mono">
+                    <thead className="sticky top-0 bg-slate-50 text-slate-500 text-[11px] uppercase tracking-wide">
+                      <tr>
+                        <th className="text-left px-3 py-1.5 font-medium">
+                          Company
+                        </th>
+                        <th className="text-left px-3 py-1.5 font-medium">
+                          Report ID
+                        </th>
+                        <th className="text-left px-3 py-1.5 font-medium">
+                          What-if
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {reprocessedNoChangeReports.map((r) => (
+                        <tr
+                          key={r.id}
+                          className="hover:bg-slate-50 align-top"
+                          data-testid={`row-upgrade-no-change-${r.id}`}
+                        >
+                          <td
+                            className="px-3 py-1.5 text-slate-700 select-text"
+                            data-testid={`text-upgrade-no-change-company-${r.id}`}
+                          >
+                            {r.companyName}
+                          </td>
+                          <td
+                            className="px-3 py-1.5 text-slate-600 select-all"
+                            data-testid={`text-upgrade-no-change-report-id-${r.id}`}
+                          >
+                            {r.id}
+                          </td>
+                          <td
+                            className="px-3 py-1.5 text-slate-500"
+                            data-testid={`text-upgrade-no-change-whatif-${r.id}`}
+                          >
+                            {r.isWhatIf ? "yes" : "no"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
+            )}
           </li>
         )}
       </ul>
