@@ -41,6 +41,7 @@ vi.mock("@/hooks/use-toast", () => ({
 }));
 
 import { UpgradesAppliedPanel } from "../client/src/pages/Admin";
+import { HIDE_SCHEMA_ONLY_STORAGE_KEY } from "../client/src/components/admin/UpgradesAppliedPanel";
 
 // ---------------------------------------------------------------------------
 // Test fixtures
@@ -141,6 +142,10 @@ let root: Root;
 
 beforeEach(() => {
   toastSpy.mockReset();
+  // Each test starts with a clean localStorage so the persisted-toggle
+  // tests below don't leak state into the existing default-off
+  // assertions (and vice-versa).
+  window.localStorage.clear();
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
@@ -314,5 +319,70 @@ describe("UpgradesAppliedPanel — schema-only filter toggle", () => {
     expect(
       getByTestId("row-upgrade-report-added-diagnostic-rep-A2"),
     ).not.toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Persistence: the toggle's checked state is stored in localStorage under
+// `admin.upgrades.hideSchemaOnly` so admins who consistently want the
+// filter on don't have to flip it back on every visit (task #75).
+// ---------------------------------------------------------------------------
+describe("UpgradesAppliedPanel — persisted hide-schema-only preference", () => {
+  it("defaults to off for first-time visitors (no localStorage entry)", () => {
+    expect(window.localStorage.getItem(HIDE_SCHEMA_ONLY_STORAGE_KEY)).toBeNull();
+    renderPanel();
+
+    expect(getByTestId("switch-hide-schema-only-upgrades")?.getAttribute("aria-checked"))
+      .toBe("false");
+    // Bare counts confirm the filter is off.
+    expect(textOf("count-upgrade-added-diagnostic")).toBe("3");
+  });
+
+  it("writes the preference to localStorage when the toggle is flipped", () => {
+    renderPanel();
+    clickByTestId("switch-hide-schema-only-upgrades");
+
+    expect(window.localStorage.getItem(HIDE_SCHEMA_ONLY_STORAGE_KEY)).toBe("true");
+
+    clickByTestId("switch-hide-schema-only-upgrades");
+    expect(window.localStorage.getItem(HIDE_SCHEMA_ONLY_STORAGE_KEY)).toBe("false");
+  });
+
+  it("reads the persisted preference on mount and survives a remount", () => {
+    // Simulate a previous visit that left the filter on.
+    window.localStorage.setItem(HIDE_SCHEMA_ONLY_STORAGE_KEY, "true");
+
+    renderPanel();
+
+    // Toggle starts checked because we read from localStorage on mount.
+    expect(getByTestId("switch-hide-schema-only-upgrades")?.getAttribute("aria-checked"))
+      .toBe("true");
+    // Filter is in effect: badge flips to "X of Y" form.
+    expect(textOf("count-upgrade-added-diagnostic")).toBe("2 of 3");
+
+    // Unmount and remount in a fresh container — the equivalent of an
+    // admin reloading the page or navigating away and back. The persisted
+    // preference must still be honored on the second mount.
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    renderPanel();
+
+    expect(getByTestId("switch-hide-schema-only-upgrades")?.getAttribute("aria-checked"))
+      .toBe("true");
+    expect(textOf("count-upgrade-added-diagnostic")).toBe("2 of 3");
+  });
+
+  it("ignores unrelated values in localStorage and stays off", () => {
+    // Anything other than the literal string "true" should be treated as off.
+    window.localStorage.setItem(HIDE_SCHEMA_ONLY_STORAGE_KEY, "yes");
+    renderPanel();
+    expect(getByTestId("switch-hide-schema-only-upgrades")?.getAttribute("aria-checked"))
+      .toBe("false");
   });
 });

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -15,6 +15,24 @@ import type { BackfillReportResult } from "./types";
 
 interface UpgradesAppliedPanelProps {
   updated: BackfillReportResult[];
+}
+
+// localStorage key for the "Show only reports with headline changes" toggle.
+// Persisting it means admins who consistently want the filter on don't have
+// to flip it back on every visit. Default for first-time visitors stays
+// "off" (any non-"true" value, including missing/unparseable, is treated
+// as off).
+export const HIDE_SCHEMA_ONLY_STORAGE_KEY = "admin.upgrades.hideSchemaOnly";
+
+function readPersistedHideSchemaOnly(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return window.localStorage.getItem(HIDE_SCHEMA_ONLY_STORAGE_KEY) === "true";
+  } catch {
+    // localStorage can throw in private mode or when disabled by policy.
+    // Fall back to the default (off) rather than crashing the panel.
+    return false;
+  }
 }
 
 /**
@@ -116,8 +134,25 @@ export function UpgradesAppliedPanel({ updated }: UpgradesAppliedPanelProps) {
   // When on, hide reports inside each upgrade bucket whose `metricDeltas`
   // is empty (the "schema-only" rows already labeled inline) so admins can
   // focus on the reports that actually moved a headline number. The state
-  // lives on the panel itself so it survives expanding/collapsing buckets.
-  const [hideSchemaOnly, setHideSchemaOnly] = useState(false);
+  // lives on the panel itself so it survives expanding/collapsing buckets,
+  // and is persisted to localStorage so it also survives navigating away
+  // and back to the Admin page.
+  const [hideSchemaOnly, setHideSchemaOnly] = useState<boolean>(
+    readPersistedHideSchemaOnly,
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(
+        HIDE_SCHEMA_ONLY_STORAGE_KEY,
+        hideSchemaOnly ? "true" : "false",
+      );
+    } catch {
+      // Swallow storage errors (private mode, quota, disabled by policy);
+      // the in-memory state still works for the current session.
+    }
+  }, [hideSchemaOnly]);
 
   const filterReports = (reports: BackfillReportResult[]) =>
     hideSchemaOnly
