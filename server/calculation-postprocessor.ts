@@ -2096,34 +2096,202 @@ export function postProcessAnalysis(analysisResult: any): any {
   }
 
   // ============================================
-  // PORTFOLIO CASH-FLOW SHARE GATE (Task #107, advisory)
+  // PORTFOLIO CASH-FLOW SHARE CAP (Task #107).
   //
-  // Even after the days cap, if cash-flow benefits dominate the portfolio
-  // (> PORTFOLIO_BOUNDS.cashFlowShareOfTotalValue.max = 35% of total), this
-  // is usually a sign that the same working-capital pool is still being
-  // counted multiple times. Emits a warning rather than scaling further so
-  // the days cap remains the canonical scaling lever; admins can investigate
-  // why so much value is concentrated in one driver.
+  // If cash flow exceeds PORTFOLIO_BOUNDS.cashFlowShareOfTotalValue.max
+  // (35%) of total annual value, scale every UC's cash flow down so the
+  // share equals exactly the cap. Mirror the days-cap pattern: update Step
+  // 5 rows, formula text, Total Annual Value, EV, validation array, and
+  // emit per-UC + portfolio integrity warnings.
   // ============================================
   {
-    const provisionalTotal =
-      totalCostBenefit + totalRevenueBenefit + totalCashFlowBenefit + totalRiskBenefit;
-    if (provisionalTotal > 0) {
+    const otherPillars = totalCostBenefit + totalRevenueBenefit + totalRiskBenefit;
+    const provisionalTotal = otherPillars + totalCashFlowBenefit;
+    if (provisionalTotal > 0 && totalCashFlowBenefit > 0) {
+      const cap = PORTFOLIO_BOUNDS.cashFlowShareOfTotalValue.max;
       const cfShare = totalCashFlowBenefit / provisionalTotal;
-      if (cfShare > PORTFOLIO_BOUNDS.cashFlowShareOfTotalValue.max) {
-        const msg =
-          `Portfolio cash-flow share is ${(cfShare * 100).toFixed(1)}% of total annual value, ` +
-          `above the ${(PORTFOLIO_BOUNDS.cashFlowShareOfTotalValue.max * 100).toFixed(0)}% ceiling. ` +
-          `Cash-flow benefits ride on a single working-capital pool; concentrations this high ` +
-          `usually indicate residual double-counting that the days cap could not catch.`;
-        allUseCaseWarnings.push(msg);
+      if (cfShare > cap) {
+        // Solve for new cash flow such that new_cf / (other + new_cf) = cap
+        // ⇒ new_cf = cap × other / (1 − cap).
+        const targetCashFlow = (cap * otherPillars) / (1 - cap);
+        const shareScale = totalCashFlowBenefit > 0
+          ? Math.max(0, targetCashFlow) / totalCashFlowBenefit
+          : 1;
+
+        let newPortfolioCashFlow = 0;
+        const scaledIds: string[] = [];
+
+        for (let j = 0; j < useCaseCashFlowMeta.length; j++) {
+          const meta = useCaseCashFlowMeta[j];
+          if (meta.cashFlowBenefit <= 0) continue;
+          const rec = correctedStep5Data[meta.indexInCorrected] as any;
+          const oldCfVal = parseNumber(rec["Cash Flow Benefit ($)"]);
+          const newCfVal = Math.floor(oldCfVal * shareScale);
+          newPortfolioCashFlow += newCfVal;
+
+          const oldFormulaText = String(rec["Cash Flow Formula"] || "");
+          rec["Cash Flow Formula"] =
+            oldFormulaText +
+            ` × ${shareScale.toFixed(6)} (portfolio cash-flow share cap) → ${formatMoney(newCfVal)}`;
+          rec["Cash Flow Benefit ($)"] = formatMoney(newCfVal);
+
+          const cfLabels = rec["Cash Flow Formula Labels"];
+          if (cfLabels && typeof cfLabels === "object" && cfLabels.result) {
+            cfLabels.result = formatMoney(newCfVal);
+            cfLabels.portfolioCashflowShareCap = {
+              cap,
+              scaleFactor: shareScale,
+              originalValue: oldCfVal,
+              scaledValue: newCfVal,
+            };
+          }
+
+          // Recompute per-UC totals and EV.
+          const cost = parseNumber(rec["Cost Benefit ($)"]);
+          const revenue = parseNumber(rec["Revenue Benefit ($)"]);
+          const risk = parseNumber(rec["Risk Benefit ($)"]);
+          const newTotalAnnual = cost + revenue + newCfVal + risk;
+          const probSuccess = parseNumber(rec["Probability of Success"]) || 0.75;
+          const newEV = newTotalAnnual * probSuccess;
+          rec["Total Annual Value ($)"] = formatMoney(newTotalAnnual);
+          rec["Expected Value ($)"] = formatMoney(newEV);
+
+          // Mirror into validation array.
+          const validationEntry = useCaseBenefitsForValidation.find((v) => v.id === meta.id);
+          if (validationEntry) {
+            validationEntry.cashFlowBenefit = newCfVal;
+            (validationEntry as any).totalAnnualValue = newTotalAnnual;
+          }
+
+          scaledIds.push(meta.id);
+
+          // Per-UC structured warning.
+          integrityWarnings.push({
+            severity: "info",
+            code: "PORTFOLIO_CASHFLOW_SHARE_UC",
+            message:
+              `${meta.id} cash flow further prorated from ${formatMoney(oldCfVal)} to ` +
+              `${formatMoney(newCfVal)} (× ${shareScale.toFixed(3)}) — portfolio cash-flow share cap.`,
+            recommendedAction:
+              "Cash-flow benefits across the portfolio exceeded the 35% concentration ceiling. Verify each UC discounts a distinct working-capital pool.",
+          });
+          useCasesCapped++;
+        }
+
+        totalCashFlowBenefit = newPortfolioCashFlow;
+
+        const portfolioMsg =
+          `Portfolio cash-flow share capped from ${(cfShare * 100).toFixed(1)}% to ` +
+          `${(cap * 100).toFixed(0)}% of total annual value; ${scaledIds.length} ` +
+          `cash-flow use case${scaledIds.length === 1 ? "" : "s"} prorated by ` +
+          `${shareScale.toFixed(3)}× to prevent CFO-implausible cash-flow concentration.`;
+        allUseCaseWarnings.push(portfolioMsg);
         integrityWarnings.push({
           severity: "warning",
           code: "PORTFOLIO_CASHFLOW_SHARE",
-          message: msg,
+          message: portfolioMsg,
           recommendedAction:
             "Re-examine each cash-flow use case to confirm it discounts a distinct receivables/payables/inventory pool. If two UCs target the same pool, merge them or zero out one of the cash-flow lines.",
         });
+      }
+    }
+  }
+
+  // ============================================
+  // PORTFOLIO TOTAL VALUE / REVENUE CAP (Task #107).
+  //
+  // If total annual value exceeds PORTFOLIO_BOUNDS.totalValueAsShareOfRevenue.max
+  // (5%) of company revenue, scale ALL four pillars uniformly so the
+  // portfolio total equals exactly the cap. CFOs uniformly dismiss
+  // year-one programs claiming > 5% of revenue from a single AI initiative
+  // bundle; this gate prevents the report from going to slide review with
+  // a defeating headline.
+  // ============================================
+  {
+    const totalSoFar = totalCostBenefit + totalRevenueBenefit + totalCashFlowBenefit + totalRiskBenefit;
+    if (annualRevenueFromStep0 > 0 && totalSoFar > 0) {
+      const revenueCap = PORTFOLIO_BOUNDS.totalValueAsShareOfRevenue.max;
+      const valueShare = totalSoFar / annualRevenueFromStep0;
+      if (valueShare > revenueCap) {
+        const targetTotal = annualRevenueFromStep0 * revenueCap;
+        const revScale = targetTotal / totalSoFar;
+        const scaledIds: string[] = [];
+
+        let newCost = 0, newRevenue = 0, newCashFlow = 0, newRisk = 0;
+
+        for (let i = 0; i < correctedStep5Data.length; i++) {
+          const rec = correctedStep5Data[i] as any;
+          const oldCost = parseNumber(rec["Cost Benefit ($)"]);
+          const oldRev = parseNumber(rec["Revenue Benefit ($)"]);
+          const oldCf = parseNumber(rec["Cash Flow Benefit ($)"]);
+          const oldRisk = parseNumber(rec["Risk Benefit ($)"]);
+
+          const sCost = Math.floor(oldCost * revScale);
+          const sRev = Math.floor(oldRev * revScale);
+          const sCf = Math.floor(oldCf * revScale);
+          const sRisk = Math.floor(oldRisk * revScale);
+
+          newCost += sCost; newRevenue += sRev; newCashFlow += sCf; newRisk += sRisk;
+
+          // Update each pillar value and append a portfolio-revenue-cap
+          // annotation to its formula so audit reconciliation still holds.
+          if (oldCost > 0) {
+            rec["Cost Benefit ($)"] = formatMoney(sCost);
+            const f = String(rec["Cost Formula"] || "");
+            if (f) rec["Cost Formula"] = f + ` × ${revScale.toFixed(6)} (portfolio revenue cap) → ${formatMoney(sCost)}`;
+          }
+          if (oldRev > 0) {
+            rec["Revenue Benefit ($)"] = formatMoney(sRev);
+            const f = String(rec["Revenue Formula"] || "");
+            if (f) rec["Revenue Formula"] = f + ` × ${revScale.toFixed(6)} (portfolio revenue cap) → ${formatMoney(sRev)}`;
+          }
+          if (oldCf > 0) {
+            rec["Cash Flow Benefit ($)"] = formatMoney(sCf);
+            const f = String(rec["Cash Flow Formula"] || "");
+            if (f) rec["Cash Flow Formula"] = f + ` × ${revScale.toFixed(6)} (portfolio revenue cap) → ${formatMoney(sCf)}`;
+          }
+          if (oldRisk > 0) {
+            rec["Risk Benefit ($)"] = formatMoney(sRisk);
+            const f = String(rec["Risk Formula"] || "");
+            if (f) rec["Risk Formula"] = f + ` × ${revScale.toFixed(6)} (portfolio revenue cap) → ${formatMoney(sRisk)}`;
+          }
+
+          const newTotalAnnual = sCost + sRev + sCf + sRisk;
+          const probSuccess = parseNumber(rec["Probability of Success"]) || 0.75;
+          rec["Total Annual Value ($)"] = formatMoney(newTotalAnnual);
+          rec["Expected Value ($)"] = formatMoney(newTotalAnnual * probSuccess);
+
+          const validationEntry = useCaseBenefitsForValidation.find((v) => v.id === rec.ID);
+          if (validationEntry) {
+            validationEntry.costBenefit = sCost;
+            validationEntry.revenueBenefit = sRev;
+            validationEntry.cashFlowBenefit = sCf;
+            validationEntry.riskBenefit = sRisk;
+            (validationEntry as any).totalAnnualValue = newTotalAnnual;
+          }
+
+          if (oldCost + oldRev + oldCf + oldRisk > 0) scaledIds.push(rec.ID);
+        }
+
+        totalCostBenefit = newCost;
+        totalRevenueBenefit = newRevenue;
+        totalCashFlowBenefit = newCashFlow;
+        totalRiskBenefit = newRisk;
+
+        const portfolioMsg =
+          `Portfolio total annual value capped from ${(valueShare * 100).toFixed(2)}% to ` +
+          `${(revenueCap * 100).toFixed(0)}% of company revenue (${formatMoney(annualRevenueFromStep0)}); ` +
+          `${scaledIds.length} use case${scaledIds.length === 1 ? "" : "s"} prorated by ` +
+          `${revScale.toFixed(3)}× across all four benefit pillars.`;
+        allUseCaseWarnings.push(portfolioMsg);
+        integrityWarnings.push({
+          severity: "warning",
+          code: "PORTFOLIO_TOTAL_VS_REVENUE_CAP",
+          message: portfolioMsg,
+          recommendedAction:
+            "Total annual value exceeded 5% of company revenue — implausibly high for a one-year AI program. Verify probability weighting and data-maturity haircuts; check for double-counting between use cases.",
+        });
+        useCasesCapped += scaledIds.length;
       }
     }
   }
@@ -2776,7 +2944,11 @@ export function postProcessAnalysis(analysisResult: any): any {
   // override flows through `...analysisResult` in the return.
   // ============================================
   try {
-    const canonicalFirstYear = scenarioSummary.conservative.totalBenefit;
+    // Canonical reference is `totalAnnualValue` — the post-processed rollup
+    // that flows into every downstream surface (executive dashboard,
+    // exports, scenarios). This is the single source of truth the headline
+    // must agree with on slide 1.
+    const canonicalFirstYear = totalAnnualValue;
     const exec = (analysisResult as any).executiveSummary;
     if (exec && typeof exec.headline === "string" && exec.headline.length > 0) {
       const dollarFigures = parseDollarFiguresFromHeadline(exec.headline);

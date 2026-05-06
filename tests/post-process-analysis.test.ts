@@ -2316,10 +2316,16 @@ describe("PORTFOLIO CASH-FLOW DAYS CAP — Constellation Energy regression (Task
     // First do a dry post-process to discover the canonical value, then
     // inject a matching headline and re-process.
     const dry: any = postProcessAnalysis(JSON.parse(JSON.stringify(analysis)));
-    const canonical = dry.scenarioAnalysis.conservative.annualBenefit; // formatted "$X.XM"
-    // Use the same formatted figure verbatim — it'll parse back to the same value.
+    // Canonical reference is totalAnnualValue (post-cap rollup).
+    const canonicalRaw = dry.executiveDashboard.totalAnnualValue;
+    // Compose a headline whose dollar figure rounds to the same formatted
+    // value — guaranteed within the 10% override tolerance.
+    const canonicalFmt =
+      canonicalRaw >= 1e9 ? `$${(canonicalRaw / 1e9).toFixed(1)}B`
+      : canonicalRaw >= 1e6 ? `$${(canonicalRaw / 1e6).toFixed(1)}M`
+      : `$${(canonicalRaw / 1e3).toFixed(0)}K`;
     analysis.executiveSummary = {
-      headline: `Capture ${canonical} in first-year value.`,
+      headline: `Capture ${canonicalFmt} in first-year value.`,
     };
     const result: any = postProcessAnalysis(analysis);
     const warnings: any[] = result?.vrm?.diagnostic?.warnings ?? [];
@@ -2328,33 +2334,27 @@ describe("PORTFOLIO CASH-FLOW DAYS CAP — Constellation Energy regression (Task
     expect(result.executiveSummary.headlineLLMOriginal).toBeUndefined();
   });
 
-  it("PORTFOLIO_CASHFLOW_SHARE warning fires when cash flow > 35% of total (advisory only)", () => {
-    // Constellation-shaped portfolio: even AFTER the days cap prorates cash
-    // flow, cash-flow share stays > 35% of total annual value because the
-    // other pillars (cost/revenue/risk) are tiny. Gate (3) is advisory — it
-    // emits a warning but does NOT scale further.
+  it("PORTFOLIO_CASHFLOW_SHARE actually CAPS cash flow at 35% of total (not advisory)", () => {
+    // Constellation-shaped portfolio: even after the days cap, cash flow
+    // would still dominate the four pillars. Gate (3) must scale cash flow
+    // down so it ends up at exactly the 35% ceiling — not just emit a
+    // warning.
     const result: any = postProcessAnalysis(makeConstellationLikeAnalysis());
     const dash = result.executiveDashboard;
-    const cfShare = dash.totalCashFlowBenefit / dash.totalAnnualValue;
-    expect(cfShare).toBeGreaterThan(0.35);
+    if (dash.totalAnnualValue > 0) {
+      const cfShare = dash.totalCashFlowBenefit / dash.totalAnnualValue;
+      // Allow tiny rounding slack from per-UC Math.floor.
+      expect(cfShare).toBeLessThanOrEqual(0.35 + 0.005);
+    }
 
     const warnings: any[] = result?.vrm?.diagnostic?.warnings ?? [];
     const hit = warnings.find((w) => w?.code === "PORTFOLIO_CASHFLOW_SHARE");
     expect(hit).toBeTruthy();
-    expect(String(hit.message)).toMatch(/cash-flow share/i);
-    expect(hit.severity).toBe("warning"); // advisory, not critical
+    expect(String(hit.message)).toMatch(/cash-flow share capped/i);
 
-    // Advisory-only: the cash-flow benefit equals the days-cap-prorated total
-    // (no further scaling beyond what the days cap already applied).
-    const step5 = result.steps.find((s: any) => s.step === 5).data as any[];
-    const cashFlowSum = step5.reduce(
-      (s, r) => s + moneyToNumber(r["Cash Flow Benefit ($)"]),
-      0,
-    );
-    // Within abbreviated-formatMoney rounding tolerance.
-    expect(Math.abs(cashFlowSum - dash.totalCashFlowBenefit)).toBeLessThan(
-      Math.max(50_000, dash.totalCashFlowBenefit * 0.02),
-    );
+    // Per-UC structured warnings emitted for every scaled UC.
+    const ucHits = warnings.filter((w) => w?.code === "PORTFOLIO_CASHFLOW_SHARE_UC");
+    expect(ucHits.length).toBeGreaterThan(0);
   });
 
   it("PORTFOLIO_CASHFLOW_SHARE does NOT fire when cash flow ≤ 35% of total", () => {
@@ -2420,6 +2420,96 @@ describe("PORTFOLIO CASH-FLOW DAYS CAP — Constellation Energy regression (Task
     expect(cfShare).toBeLessThanOrEqual(0.35);
     const warnings: any[] = result?.vrm?.diagnostic?.warnings ?? [];
     expect(warnings.find((w) => w?.code === "PORTFOLIO_CASHFLOW_SHARE")).toBeUndefined();
+  });
+
+  it("PORTFOLIO_TOTAL_VS_REVENUE_CAP scales all 4 pillars when total > 5% of revenue", () => {
+    // Build a portfolio whose total exceeds 5% of revenue so the new cap
+    // fires. Use a small revenue base ($100M) and large per-UC values to
+    // guarantee tripping. After scaling, total annual value must be at or
+    // below 5% of revenue.
+    const annualRevenue = 100_000_000;
+    const ucs = Array.from({ length: 5 }, (_, i) => ({
+      ID: `UC-${i + 1}`,
+      "Use Case": `Initiative ${i + 1}`,
+      "Cost Formula Labels": {
+        components: [
+          { label: "Hours Saved", value: 20_000 },
+          { label: "Loaded Hourly Rate", value: 150 },
+          { label: "Benefits Loading", value: 1.35 },
+          { label: "Adoption Rate", value: 0.9 },
+        ],
+      },
+      "Probability of Success": 0.8,
+    }));
+    const analysis: any = {
+      steps: [
+        {
+          step: 0,
+          title: "Company Profile",
+          data: [{ "Annual Revenue ($)": annualRevenue, "Total Employees": 500 }],
+        },
+        { step: 5, title: "Benefits Quantification", data: ucs },
+      ],
+      vrm: { schemaVersion: "2.0" },
+    };
+    const result: any = postProcessAnalysis(analysis);
+    const dash = result.executiveDashboard;
+
+    // Total annual value ≤ 5% of revenue (within rounding).
+    expect(dash.totalAnnualValue).toBeLessThanOrEqual(annualRevenue * 0.05 + 50_000);
+
+    const warnings: any[] = result?.vrm?.diagnostic?.warnings ?? [];
+    const hit = warnings.find((w) => w?.code === "PORTFOLIO_TOTAL_VS_REVENUE_CAP");
+    expect(hit).toBeTruthy();
+    expect(String(hit.message)).toMatch(/total annual value capped/i);
+
+    // Every Step 5 row scaled — Total Annual Value still equals sum of pillars.
+    const step5 = result.steps.find((s: any) => s.step === 5).data as any[];
+    for (const r of step5) {
+      const sum =
+        moneyToNumber(r["Cost Benefit ($)"]) +
+        moneyToNumber(r["Revenue Benefit ($)"]) +
+        moneyToNumber(r["Cash Flow Benefit ($)"]) +
+        moneyToNumber(r["Risk Benefit ($)"]);
+      const printed = moneyToNumber(r["Total Annual Value ($)"]);
+      const tolerance = Math.max(50_000, sum * 0.01);
+      expect(Math.abs(printed - sum)).toBeLessThanOrEqual(tolerance);
+    }
+
+    // Cost formulas carry the prorate annotation.
+    expect(step5.some((r) => String(r["Cost Formula"] || "").includes("portfolio revenue cap"))).toBe(true);
+  });
+
+  it("PORTFOLIO_TOTAL_VS_REVENUE_CAP does NOT fire when total ≤ 5% of revenue", () => {
+    // Big revenue, modest portfolio — total well under 5%.
+    const annualRevenue = 10_000_000_000;
+    const ucs = [
+      {
+        ID: "UC-1",
+        "Use Case": "Modest Initiative",
+        "Cost Formula Labels": {
+          components: [
+            { label: "Hours Saved", value: 5000 },
+            { label: "Loaded Hourly Rate", value: 100 },
+          ],
+        },
+        "Probability of Success": 0.75,
+      },
+    ];
+    const analysis: any = {
+      steps: [
+        {
+          step: 0,
+          title: "Company Profile",
+          data: [{ "Annual Revenue ($)": annualRevenue, "Total Employees": 50_000 }],
+        },
+        { step: 5, title: "Benefits Quantification", data: ucs },
+      ],
+      vrm: { schemaVersion: "2.0" },
+    };
+    const result: any = postProcessAnalysis(analysis);
+    const warnings: any[] = result?.vrm?.diagnostic?.warnings ?? [];
+    expect(warnings.find((w) => w?.code === "PORTFOLIO_TOTAL_VS_REVENUE_CAP")).toBeUndefined();
   });
 
   it("realistic 3-UC portfolio (cumulative ≤ 30 days) does NOT trip the cap", () => {
