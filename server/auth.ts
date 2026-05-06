@@ -148,6 +148,41 @@ export function isPublicRoute(path: string): boolean {
   return PUBLIC_API_ROUTES.some((pattern) => pattern.test(path));
 }
 
+// Public PAGE routes — direct browser navigation must work without a session.
+const PUBLIC_PAGE_ROUTES = [
+  /^\/login\/?$/,
+  /^\/shared\/[^/]+\/?$/, // /shared/:shareId — public share landing page
+];
+
+// Static asset & framework paths the browser fetches alongside the SPA.
+// These cannot be auth-gated or the login page itself can't load.
+const STATIC_ASSET_EXT = /\.(?:js|mjs|cjs|css|map|json|txt|xml|webmanifest|ico|png|jpg|jpeg|gif|svg|webp|avif|woff|woff2|ttf|otf|eot|pdf|mp3|mp4|webm|wav|ogg)$/i;
+const STATIC_ASSET_PREFIXES = [
+  "/assets/",          // Vite production build output
+  "/attached_assets/", // express.static mount in server/index.ts
+  "/static/",
+  "/favicon",
+  "/robots.txt",
+  "/manifest",
+  // Vite dev-server internals
+  "/@vite/",
+  "/@id/",
+  "/@fs/",
+  "/@react-refresh",
+  "/node_modules/",
+  "/src/",
+  "/__vite",
+];
+
+function isPublicPageOrAsset(path: string): boolean {
+  if (PUBLIC_PAGE_ROUTES.some((re) => re.test(path))) return true;
+  if (STATIC_ASSET_EXT.test(path)) return true;
+  for (const p of STATIC_ASSET_PREFIXES) {
+    if (path === p || path.startsWith(p)) return true;
+  }
+  return false;
+}
+
 const AUTH_ENABLED = true;
 
 export function authMiddleware(req: Request, res: Response, next: NextFunction) {
@@ -155,19 +190,35 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction) 
     return next();
   }
 
-  if (!req.path.startsWith("/api/")) {
-    return next();
+  // ----- API requests -----
+  if (req.path.startsWith("/api/")) {
+    if (isPublicRoute(req.path)) {
+      return next();
+    }
+    if (req.session?.authenticated) {
+      return next();
+    }
+    return res.status(401).json({ message: "Authentication required" });
   }
 
-  if (isPublicRoute(req.path)) {
+  // ----- Page requests -----
+  // The previous implementation short-circuited every non-API path, so direct
+  // navigation to /dashboard/:id, /reports/:id, /admin etc. served the SPA
+  // without a session and relied entirely on the client-side ProtectedRoute
+  // for redirection. That gives no defense against scripted clients that
+  // bypass JS, and races the SPA bundle. Now we redirect server-side.
+  if (req.method !== "GET" && req.method !== "HEAD") {
+    return next(); // mutating verbs on non-API paths shouldn't exist; let them 404 normally
+  }
+  if (isPublicPageOrAsset(req.path)) {
     return next();
   }
-
   if (req.session?.authenticated) {
     return next();
   }
-
-  return res.status(401).json({ message: "Authentication required" });
+  const target = req.originalUrl || req.path;
+  const returnTo = encodeURIComponent(target);
+  return res.redirect(302, `/login?returnTo=${returnTo}`);
 }
 
 // Gate the destructive admin endpoints. Mounted at `/api/admin` from
