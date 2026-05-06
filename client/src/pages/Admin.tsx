@@ -180,6 +180,36 @@ export function formatRelativeTime(fromIso: string, now: number = Date.now()): s
   return `${yr}y ago`;
 }
 
+// Ticking clock hook used by the last-run chip / banner / panel so the
+// "X ago" relative time and the >24h stale treatment update on long-lived
+// admin sessions without requiring a page reload. Defaults to a 60s tick,
+// which matches the granularity of `formatRelativeTime` (minutes+). The
+// interval is cleared on unmount so no timers leak.
+export function useNow(intervalMs: number = 60_000): number {
+  const [now, setNow] = useState<number>(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), intervalMs);
+    return () => window.clearInterval(id);
+  }, [intervalMs]);
+  return now;
+}
+
+// Resolves the effective "now" for a staleness-aware component. When a
+// caller passes an explicit `now` (e.g. tests, or a parent that already
+// owns its own ticker), we skip starting a redundant interval so we
+// don't pile up one ticker per nested component. Hooks are always
+// called in the same order; the interval is just a no-op when unused.
+function useEffectiveNow(now?: number): number {
+  const [tickingNow, setTickingNow] = useState<number>(() => Date.now());
+  const enabled = now === undefined;
+  useEffect(() => {
+    if (!enabled) return;
+    const id = window.setInterval(() => setTickingNow(Date.now()), 60_000);
+    return () => window.clearInterval(id);
+  }, [enabled]);
+  return now ?? tickingNow;
+}
+
 // Amber "this summary is stale" banner shown above the rehydrated last-run
 // panel when the saved `completedAt` is older than `STALE_RUN_THRESHOLD_MS`.
 // Returns `null` (renders nothing) for fresh or absent runs so callers can
@@ -191,7 +221,8 @@ export function LastRunStaleBanner({
   hydratedAt: string | null | undefined;
   now?: number;
 }) {
-  if (!hydratedAt || !isStaleRun(hydratedAt, now)) return null;
+  const effectiveNow = useEffectiveNow(now);
+  if (!hydratedAt || !isStaleRun(hydratedAt, effectiveNow)) return null;
   return (
     <div
       className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 flex items-start gap-2 text-sm text-amber-800"
@@ -200,8 +231,8 @@ export function LastRunStaleBanner({
       <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
       <span>
         This summary is from a previous run completed{" "}
-        {formatRelativeTime(hydratedAt, now)} — re-run the upgrade to see fresh
-        results.
+        {formatRelativeTime(hydratedAt, effectiveNow)} — re-run the upgrade to
+        see fresh results.
       </span>
     </div>
   );
@@ -219,8 +250,9 @@ export function LastRunRelativeChip({
   hydratedAt: string | null | undefined;
   now?: number;
 }) {
+  const effectiveNow = useEffectiveNow(now);
   if (!hydratedAt) return null;
-  const stale = isStaleRun(hydratedAt, now);
+  const stale = isStaleRun(hydratedAt, effectiveNow);
   return (
     <Badge
       variant={stale ? "outline" : "secondary"}
@@ -233,7 +265,7 @@ export function LastRunRelativeChip({
       title={`Last run completed ${new Date(hydratedAt).toLocaleString()}`}
     >
       <Clock className="h-3 w-3" />
-      Last run · {formatRelativeTime(hydratedAt, now)}
+      Last run · {formatRelativeTime(hydratedAt, effectiveNow)}
     </Badge>
   );
 }
@@ -252,7 +284,8 @@ export function LastRunSummaryPanel({
   now?: number;
   children: React.ReactNode;
 }) {
-  const stale = isStaleRun(hydratedAt, now);
+  const effectiveNow = useEffectiveNow(now);
+  const stale = isStaleRun(hydratedAt, effectiveNow);
   return (
     <div
       className={`space-y-4 ${stale ? "opacity-70" : ""}`}
@@ -260,7 +293,7 @@ export function LastRunSummaryPanel({
       data-stale={stale ? "true" : "false"}
     >
       <Separator />
-      <LastRunStaleBanner hydratedAt={hydratedAt} now={now} />
+      <LastRunStaleBanner hydratedAt={hydratedAt} now={effectiveNow} />
       {children}
     </div>
   );

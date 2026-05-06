@@ -29,6 +29,7 @@ import {
   LastRunRelativeChip,
   LastRunStaleBanner,
   LastRunSummaryPanel,
+  useNow,
 } from "../client/src/pages/Admin";
 
 // Fixed "now" so every relative-time assertion is deterministic and
@@ -157,6 +158,78 @@ describe("isStaleRun", () => {
 
   it("treats unparseable timestamps as not stale", () => {
     expect(isStaleRun("garbage", NOW)).toBe(false);
+  });
+});
+
+// -------------------------------------------------------------------------
+// useNow — ticking clock that keeps the chip / banner / panel current on
+// long-lived admin sessions without requiring a page reload.
+// -------------------------------------------------------------------------
+describe("useNow ticker", () => {
+  it("re-renders the chip across the 24h boundary while the page stays open", () => {
+    vi.useFakeTimers();
+    const start = NOW;
+    vi.setSystemTime(new Date(start));
+    // hydratedAt is just under the stale threshold — fresh on first render,
+    // stale after the ticker advances past 24h.
+    const hydratedAt = new Date(
+      start - (STALE_RUN_THRESHOLD_MS - 30_000),
+    ).toISOString();
+    act(() => {
+      // No `now` prop → the chip uses the internal useNow ticker.
+      root.render(<LastRunRelativeChip hydratedAt={hydratedAt} />);
+    });
+    let chip = getByTestId("chip-last-run-relative");
+    expect(chip).not.toBeNull();
+    expect(chip!.className).not.toContain("border-amber-300");
+
+    // Advance the wall clock past the 24h boundary, then fire the 60s
+    // interval so the hook re-renders with the new `now`.
+    act(() => {
+      vi.setSystemTime(new Date(start + 2 * 60_000));
+      vi.advanceTimersByTime(60_000);
+    });
+
+    chip = getByTestId("chip-last-run-relative");
+    expect(chip).not.toBeNull();
+    // Now stale → amber outline kicks in without a reload.
+    expect(chip!.className).toContain("border-amber-300");
+    vi.useRealTimers();
+  });
+
+  it("does not start a ticker when callers pass an explicit `now`", () => {
+    vi.useFakeTimers();
+    const setSpy = vi.spyOn(window, "setInterval");
+    act(() => {
+      root.render(
+        <LastRunRelativeChip hydratedAt={isoMsAgo(60_000)} now={NOW} />,
+      );
+    });
+    // No ticker should have been registered: the parent already owns
+    // `now`, so we don't pile up redundant intervals on nested
+    // staleness-aware components.
+    expect(setSpy).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
+
+  it("clears its interval on unmount so no timers leak", () => {
+    vi.useFakeTimers();
+    const clearSpy = vi.spyOn(window, "clearInterval");
+    function Probe() {
+      useNow(1_000);
+      return null;
+    }
+    act(() => {
+      root.render(<Probe />);
+    });
+    act(() => {
+      root.unmount();
+    });
+    expect(clearSpy).toHaveBeenCalled();
+    vi.useRealTimers();
+    // Recreate the root so the shared afterEach unmount() is a no-op
+    // instead of double-unmounting.
+    root = createRoot(container);
   });
 });
 
