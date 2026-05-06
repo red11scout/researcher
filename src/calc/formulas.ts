@@ -62,6 +62,92 @@ export const INPUT_BOUNDS = {
   probabilityOfSuccess: { min: 0.40, max: 0.85, label: 'Probability of Success' },
 } as const;
 
+// ============================================================================
+// PORTFOLIO-LEVEL CFO-CREDIBILITY BOUNDS (Task #107)
+//
+// Per-use-case `INPUT_BOUNDS` (above) cap a single use case in isolation.
+// They cannot detect aggregation failures — e.g. 10 use cases each claiming a
+// per-UC-credible 9 days of working-capital improvement against the same
+// company revenue base, which sums to 90 portfolio days and double-counts
+// the same dollars under different rationale. These bounds bind the
+// **portfolio aggregate** so the headline ships only CFO-defensible numbers.
+//
+//   cumulativeDaysImprovement: 30 days = ~1 month of working capital. Beyond
+//     this, every additional day claims dollars already counted by an earlier
+//     use case (the same DSO / DPO / inventory pool can only be financed once).
+//
+//   cashFlowShareOfTotalValue: 0.35 = 35%. Cash-flow benefits ride on a single
+//     working-capital pool; if they exceed roughly a third of total reported
+//     value, the math is almost certainly aggregating the same pool repeatedly.
+//
+//   totalValueAsShareOfRevenue: 0.05 = 5%. Mirrors `benefitsCapPct` (3%) with
+//     a slightly looser ceiling for industries with above-average AI leverage;
+//     trips a portfolio-level realism flag rather than scaling.
+// ============================================================================
+export const PORTFOLIO_BOUNDS = {
+  cumulativeDaysImprovement:   { min: 0, max: 30,   label: 'Cumulative Days Improvement (Portfolio)' },
+  cashFlowShareOfTotalValue:   { min: 0, max: 0.35, label: 'Cash Flow Share of Total Value' },
+  totalValueAsShareOfRevenue:  { min: 0, max: 0.05, label: 'Total Value as Share of Revenue (Portfolio)' },
+} as const;
+
+/**
+ * Apply the portfolio cumulative-days-of-cashflow guardrail (Task #107).
+ *
+ * Per-UC `INPUT_BOUNDS.daysImprovement.max` (= 90) caps a single use case in
+ * isolation but does nothing when 10 UCs each claim a per-UC-credible 9 days
+ * against the same revenue base. The same DSO / DPO / inventory pool cannot
+ * be financed twice; summing those days double-counts the working capital.
+ *
+ * If the portfolio total of days exceeds `PORTFOLIO_BOUNDS.cumulativeDaysImprovement.max`
+ * (= 30), every per-UC cash-flow benefit is scaled by `30 / sum(days)` so the
+ * portfolio respects a single shared working-capital denominator.
+ *
+ * Returns a pure result — caller is responsible for updating downstream rollup
+ * totals and surfacing warnings into the validation summary.
+ */
+export interface PortfolioCashflowGuardrailInput {
+  perUseCase: Array<{ id: string; daysImprovement: number; cashFlowBenefit: number }>;
+}
+export interface PortfolioCashflowGuardrailResult {
+  scaleFactor: number;          // 1.0 if cap did not bind; (0,1) if it did
+  cumulativeDaysRaw: number;    // sum of per-UC days BEFORE scaling
+  cumulativeDaysCapped: number; // PORTFOLIO_BOUNDS.cumulativeDaysImprovement.max
+  perUseCase: Array<{
+    id: string;
+    daysImprovement: number;
+    originalCashFlowBenefit: number;
+    scaledCashFlowBenefit: number;
+  }>;
+  capBound: boolean;
+}
+export function applyPortfolioCashflowGuardrail(
+  inputs: PortfolioCashflowGuardrailInput,
+): PortfolioCashflowGuardrailResult {
+  const cap = PORTFOLIO_BOUNDS.cumulativeDaysImprovement.max;
+  let cumulativeDays = 0;
+  for (const uc of inputs.perUseCase) {
+    if (Number.isFinite(uc.daysImprovement) && uc.daysImprovement > 0) {
+      cumulativeDays += uc.daysImprovement;
+    }
+  }
+  const capBound = cumulativeDays > cap;
+  const scaleFactor = capBound ? cap / cumulativeDays : 1.0;
+  return {
+    scaleFactor,
+    cumulativeDaysRaw: cumulativeDays,
+    cumulativeDaysCapped: cap,
+    capBound,
+    perUseCase: inputs.perUseCase.map((uc) => ({
+      id: uc.id,
+      daysImprovement: uc.daysImprovement,
+      originalCashFlowBenefit: uc.cashFlowBenefit,
+      scaledCashFlowBenefit: capBound
+        ? Math.floor(uc.cashFlowBenefit * scaleFactor)
+        : uc.cashFlowBenefit,
+    })),
+  };
+}
+
 export interface ValidationResult {
   isValid: boolean;
   errors: string[];

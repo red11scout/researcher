@@ -14,6 +14,8 @@ import {
   calculateFrictionRecovery,
   generateThreeScenarioSummary,
   calculateMultiYearProjection,
+  applyPortfolioCashflowGuardrail,
+  PORTFOLIO_BOUNDS,
   calculateReadinessScore,
   normalizeValuesToScale,
   normalizeValueToScale,
@@ -720,11 +722,11 @@ function parseCashFlowFormulaInputs(formula: string): CashFlowInputs | null {
   };
 }
 
-function recalculateCashFlowBenefit(formula: string): { value: number; formulaText: string; warnings: string[] } {
+function recalculateCashFlowBenefit(formula: string): { value: number; formulaText: string; warnings: string[]; daysImprovement: number } {
   const warnings: string[] = [];
 
   if (isNoValue(formula)) {
-    return { value: 0, formulaText: "No direct cash flow impact", warnings };
+    return { value: 0, formulaText: "No direct cash flow impact", warnings, daysImprovement: 0 };
   }
 
   const inputs = parseCashFlowFormulaInputs(formula);
@@ -732,7 +734,7 @@ function recalculateCashFlowBenefit(formula: string): { value: number; formulaTe
   if (!inputs) {
     // Cannot parse - log warning and return 0 to avoid incorrect values
     console.warn(`[recalculateCashFlowBenefit] Could not parse formula, returning 0: ${formula}`);
-    return { value: 0, formulaText: formula + " (could not validate)", warnings };
+    return { value: 0, formulaText: formula + " (could not validate)", warnings, daysImprovement: 0 };
   }
 
   const result = hfCalculateCashFlowBenefit({
@@ -748,7 +750,7 @@ function recalculateCashFlowBenefit(formula: string): { value: number; formulaTe
   // Updated formula text to show correct working capital calculation
   const newFormula = `${formatExactMoneyForAudit(inputs.annualRevenue)} × (${inputs.daysImprovement} / 365) × ${inputs.costOfCapital.toFixed(2)} × ${inputs.cashFlowRealizationMultiplier.toFixed(2)} × ${inputs.dataMaturityMultiplier.toFixed(2)} = ${formatMoney(result.trace.output)} → ${formatMoney(result.value)}`;
 
-  return { value: result.value, formulaText: newFormula, warnings };
+  return { value: result.value, formulaText: newFormula, warnings, daysImprovement: inputs.daysImprovement };
 }
 
 // Parse risk formula inputs
@@ -1423,6 +1425,18 @@ export function postProcessAnalysis(analysisResult: any): any {
     hoursSaved?: number;
   }> = [];
 
+  // Per-UC cash-flow days for the portfolio-level guardrail (Task #107).
+  // Even when each UC's `daysImprovement` sits inside per-UC INPUT_BOUNDS,
+  // the SUM across UCs can implausibly exceed a working-capital month
+  // because every UC discounts the same DSO/DPO/inventory pool. Captured
+  // here, applied after the loop via `applyPortfolioCashflowGuardrail`.
+  const useCaseCashFlowMeta: Array<{
+    id: string;
+    daysImprovement: number;
+    cashFlowBenefit: number;
+    indexInCorrected: number;
+  }> = [];
+
   // Accumulate all per-use-case warnings during recalculation
   const allUseCaseWarnings: string[] = [];
   // Structured warnings (label-swap, realism, class gate, risk anchoring,
@@ -1451,7 +1465,7 @@ export function postProcessAnalysis(analysisResult: any): any {
 
     let costResult: { value: number; formulaText: string; warnings: string[] };
     let revenueResult: { value: number; formulaText: string; warnings: string[]; engineCapped: boolean };
-    let cashFlowResult: { value: number; formulaText: string; warnings: string[] };
+    let cashFlowResult: { value: number; formulaText: string; warnings: string[]; daysImprovement?: number };
     let riskResult: { value: number; formulaText: string; warnings: string[]; engineCapped: boolean };
 
     // Track whether the HyperFormula engine bound a per-use-case cap on this
@@ -1545,6 +1559,7 @@ export function postProcessAnalysis(analysisResult: any): any {
         value: hfResult.value,
         formulaText: `${formatExactMoneyForAudit(structuredCashFlowInputs.annualRevenue)} × (${structuredCashFlowInputs.daysImprovement}/365) × ${structuredCashFlowInputs.costOfCapital.toFixed(2)} × ${structuredCashFlowInputs.cashFlowRealizationMultiplier.toFixed(2)} × ${structuredCashFlowInputs.dataMaturityMultiplier.toFixed(2)} = ${formatMoney(hfResult.trace.output)} → ${formatMoney(hfResult.value)} [HF/labels]`,
         warnings: [],
+        daysImprovement: structuredCashFlowInputs.daysImprovement,
       };
       console.log(`[postProcessAnalysis] ${record.ID}: CashFlow via STRUCTURED LABELS: ${formatMoney(hfResult.value)}`);
     } else if (cashFlowLabelSwap) {
@@ -1568,6 +1583,7 @@ export function postProcessAnalysis(analysisResult: any): any {
         warnings: [
           `${id} cash flow label swap detected: structured "Annual Revenue" of ${formatMoney(structuredCashFlowInputs!.annualRevenue)} is below 50% of company revenue (${formatMoney(annualRevenueFromStep0)}); ignoring structured inputs and deriving from Step 3 driver impact.`,
         ],
+        daysImprovement: 0,
       };
     } else {
       cashFlowResult = recalculateCashFlowBenefit(record["Cash Flow Formula"] || "");
@@ -1679,6 +1695,7 @@ export function postProcessAnalysis(analysisResult: any): any {
                 ...priorCashFlowWarnings,
                 `Cash flow derived from Step 3 driver impact: ${driverImpact}`,
               ],
+              daysImprovement,
             };
             console.log(`[postProcessAnalysis] ${record.ID}: Derived cash flow from Step 3 driver "${driverImpact}": ${formatMoney(derivedCashFlow.value)}`);
           }
@@ -1819,6 +1836,16 @@ export function postProcessAnalysis(analysisResult: any): any {
       hoursSaved,
     });
 
+    // Capture per-UC cash-flow days for the portfolio guardrail. The index
+    // is set later (immediately after we push the orderedStep5Record) so the
+    // guardrail can mutate the correct record by index.
+    useCaseCashFlowMeta.push({
+      id: record.ID,
+      daysImprovement: cashFlowResult.daysImprovement ?? 0,
+      cashFlowBenefit: cfVal,
+      indexInCorrected: -1, // filled in below after push
+    });
+
     const buildCostLabels = (inputs: CostInputs, value: number) => ({
       components: [
         { label: "Hours Saved", value: inputs.hoursSaved },
@@ -1896,6 +1923,12 @@ export function postProcessAnalysis(analysisResult: any): any {
       }
     }
     correctedStep5Data.push(orderedStep5Record as Step5Record);
+    // Wire the most-recently-pushed UC to its meta entry so the portfolio
+    // cash-flow guardrail (run after the loop) can mutate the right record.
+    if (useCaseCashFlowMeta.length > 0) {
+      useCaseCashFlowMeta[useCaseCashFlowMeta.length - 1].indexInCorrected =
+        correctedStep5Data.length - 1;
+    }
 
     // Collect per-use-case warnings for the validation report
     allUseCaseWarnings.push(...ucWarnings);
@@ -1909,6 +1942,132 @@ export function postProcessAnalysis(analysisResult: any): any {
     if (useCaseHadEngineCap) useCasesCapped++;
 
     console.log(`[postProcessAnalysis] ${record.ID}: Cost=${formatMoney(costVal)}, Revenue=${formatMoney(revVal)}, CashFlow=${formatMoney(cfVal)}, Risk=${formatMoney(riskVal)}, Total=${formatMoney(ucTotal)}, P(S)=${prob}, EV=${formatMoney(expectedValue)}${ucWarnings.length > 0 ? ` [${ucWarnings.length} warnings]` : ''}${useCaseHadEngineCap ? ' [engine-capped]' : ''}`);
+  }
+
+  // ============================================
+  // PORTFOLIO CASH-FLOW GUARDRAIL (Task #107)
+  //
+  // Per-UC `INPUT_BOUNDS.daysImprovement.max` (= 90) caps a single use case
+  // in isolation. It cannot detect the aggregation failure where N use cases
+  // each book a credible-looking 5–10 days of working-capital improvement
+  // against the SAME company revenue base — those days sum to a portfolio
+  // total that double-counts the same DSO/DPO/inventory pool (Constellation
+  // Energy: 10 UCs × ~9 days each = 92 cumulative days against $22.4B,
+  // producing $288M of cash-flow benefit that was 63% of total reported
+  // value and not CFO-defensible).
+  //
+  // If the portfolio total exceeds PORTFOLIO_BOUNDS.cumulativeDaysImprovement.max
+  // (= 30 days ≈ one month of working capital), every per-UC cash-flow value
+  // is prorated by `30 / sum(days)` so the portfolio respects a single
+  // shared working-capital denominator. Audit reconciliation
+  // (printed math == printed dollar) is preserved by appending the scale
+  // factor as an explicit term to each cash-flow `formulaText`.
+  // ============================================
+  {
+    const guardrail = applyPortfolioCashflowGuardrail({
+      perUseCase: useCaseCashFlowMeta.map((m) => ({
+        id: m.id,
+        daysImprovement: m.daysImprovement,
+        cashFlowBenefit: m.cashFlowBenefit,
+      })),
+    });
+    if (guardrail.capBound) {
+      const factor = guardrail.scaleFactor;
+      console.log(
+        `[postProcessAnalysis] PORTFOLIO_CASHFLOW_DAYS_CAP: cumulative ${guardrail.cumulativeDaysRaw.toFixed(1)} days → ${guardrail.cumulativeDaysCapped} days (scale ${factor.toFixed(3)}) across ${useCaseCashFlowMeta.filter((m) => m.daysImprovement > 0).length} cash-flow UCs`,
+      );
+
+      let scaledTotal = 0;
+      const ucsActuallyScaled: string[] = [];
+      for (let i = 0; i < useCaseCashFlowMeta.length; i++) {
+        const meta = useCaseCashFlowMeta[i];
+        const scaledOut = guardrail.perUseCase[i];
+        const newCfVal = scaledOut.scaledCashFlowBenefit;
+        scaledTotal += newCfVal;
+
+        // Only mutate records where there was a non-zero days/benefit to scale.
+        if (meta.cashFlowBenefit <= 0 || meta.daysImprovement <= 0) continue;
+        if (meta.indexInCorrected < 0 || meta.indexInCorrected >= correctedStep5Data.length) continue;
+
+        const rec = correctedStep5Data[meta.indexInCorrected] as any;
+        const oldCfVal = meta.cashFlowBenefit;
+        ucsActuallyScaled.push(meta.id);
+
+        // Append the prorate term to the formulaText so audit reconciliation
+        // (printed math evaluates to printed dollar) is preserved.
+        // Original formulaText already ends with "→ $X"; append "× factor → $Y".
+        const scaledNote = ` × ${factor.toFixed(3)} (portfolio days cap) → ${formatMoney(newCfVal)}`;
+        const oldFormulaText = String(rec["Cash Flow Formula"] || "");
+        rec["Cash Flow Formula"] = oldFormulaText + scaledNote;
+        rec["Cash Flow Benefit ($)"] = formatMoney(newCfVal);
+
+        // Update the structured Cash Flow Formula Labels result if present so
+        // downstream consumers (exports, UI) reflect the prorated value.
+        const labels = rec["Cash Flow Formula Labels"];
+        if (labels && typeof labels === "object") {
+          if (typeof labels.result === "object" && labels.result !== null) {
+            labels.result.value = newCfVal;
+          } else if ("result" in labels) {
+            labels.result = { value: newCfVal, label: "Cash Flow Benefit", format: "currency" };
+          }
+          // Mark the portfolio adjustment in the annotation for traceability.
+          labels.portfolioCashflowGuardrail = {
+            scaleFactor: factor,
+            originalValue: oldCfVal,
+            scaledValue: newCfVal,
+            cumulativeDaysRaw: guardrail.cumulativeDaysRaw,
+            cumulativeDaysCapped: guardrail.cumulativeDaysCapped,
+          };
+        }
+
+        // Mirror the new value into the validation array so cross-validate
+        // (and the benefits cap) operate on the corrected portfolio.
+        const valEntry = useCaseBenefitsForValidation.find((v) => v.id === meta.id);
+        if (valEntry) valEntry.cashFlowBenefit = newCfVal;
+
+        // Recompute the per-UC `Total Annual Value ($)` and `Expected Value ($)`
+        // so the Step 5 row reflects the prorated cash-flow total. Without
+        // this, downstream consumers that read row totals (topUseCases,
+        // exports, executive dashboard per-UC fields) would show the pre-cap
+        // total alongside post-cap portfolio rollups — an internal inconsistency
+        // (architect review, Task #107).
+        const recCost = parseNumber(rec["Cost Benefit ($)"]);
+        const recRev = parseNumber(rec["Revenue Benefit ($)"]);
+        const recRisk = parseNumber(rec["Risk Benefit ($)"]);
+        const newUcTotal = recCost + recRev + newCfVal + recRisk;
+        const recProbRaw = typeof rec["Probability of Success"] === "number"
+          ? rec["Probability of Success"]
+          : parseFloat(String(rec["Probability of Success"] ?? 0.75)) || 0.75;
+        const recProb = clamp(
+          recProbRaw,
+          INPUT_BOUNDS.probabilityOfSuccess.min,
+          INPUT_BOUNDS.probabilityOfSuccess.max,
+        );
+        rec["Total Annual Value ($)"] = formatMoney(newUcTotal);
+        rec["Expected Value ($)"] = formatMoney(newUcTotal * recProb);
+      }
+
+      // Update rolled-up totals so totalAnnualValue, headline, multi-year
+      // projection, and IRR/payback all flow from the corrected cash-flow base.
+      totalCashFlowBenefit = scaledTotal;
+
+      // Surface a portfolio-level warning so the Validation Summary panel
+      // and methodology-integrity panel both show the cap fired.
+      const portfolioMsg =
+        `Portfolio cash-flow capped: cumulative working-capital improvement of ` +
+        `${guardrail.cumulativeDaysRaw.toFixed(1)} days exceeded the ` +
+        `${guardrail.cumulativeDaysCapped}-day portfolio ceiling; all ${ucsActuallyScaled.length} ` +
+        `cash-flow use case${ucsActuallyScaled.length === 1 ? "" : "s"} prorated by ` +
+        `${factor.toFixed(3)}× to prevent double-counting the same DSO/DPO/inventory pool.`;
+      allUseCaseWarnings.push(portfolioMsg);
+      integrityWarnings.push({
+        severity: "warning",
+        code: "PORTFOLIO_CASHFLOW_DAYS_CAP",
+        message: portfolioMsg,
+        recommendedAction:
+          "Reduce per-use-case `daysImprovement` so the portfolio total stays within ~30 days (one month of working capital). Each UC discounting the same receivables/payables/inventory pool above this threshold double-counts cash that was already freed by an earlier UC.",
+      });
+    }
   }
 
   // ============================================

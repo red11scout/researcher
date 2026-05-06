@@ -2155,3 +2155,151 @@ describe("postProcessAnalysis — custom engagement config", () => {
     ).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// PORTFOLIO CASH-FLOW DAYS CAP — Task #107 regression (Constellation Energy).
+// ---------------------------------------------------------------------------
+//
+// Constellation-Energy-shaped fixture: 10 use cases each booking ~9 days of
+// working-capital improvement against the same $22.4B revenue base. Each UC
+// is per-UC-credible (well below INPUT_BOUNDS.daysImprovement.max = 90), but
+// the SUM is portfolio-implausible (~92 days = three months, all discounting
+// the same DSO/DPO/inventory pool). The portfolio cash-flow guardrail must:
+//   1. fire and emit a `PORTFOLIO_CASHFLOW_DAYS_CAP` integrity warning
+//   2. scale every Step 5 row's `Cash Flow Benefit ($)` down
+//   3. update each row's `Total Annual Value ($)` and `Expected Value ($)`
+//      so per-UC totals stay consistent with the portfolio rollup
+//   4. preserve audit reconciliation by appending the prorate term to the
+//      `Cash Flow Formula` string
+describe("PORTFOLIO CASH-FLOW DAYS CAP — Constellation Energy regression (Task #107)", () => {
+  function makeConstellationLikeAnalysis(): any {
+    const annualRevenue = 22_400_000_000; // $22.4B
+    const useCases = Array.from({ length: 10 }, (_, i) => {
+      const days = 9 + (i % 3); // 9, 10, 11 day mix
+      return {
+        ID: `UC-${i + 1}`,
+        "Use Case": `Working Capital Initiative ${i + 1}`,
+        "Cost Formula Labels": {
+          components: [
+            { label: "Hours Saved", value: 4000 },
+            { label: "Loaded Hourly Rate", value: 120 },
+            { label: "Benefits Loading", value: 1.35 },
+            { label: "Adoption Rate", value: 0.9 },
+            { label: "Data Maturity", value: 0.75 },
+          ],
+        },
+        "Cash Flow Formula Labels": {
+          components: [
+            { label: "Annual Revenue", value: annualRevenue },
+            { label: "Days Improved", value: days },
+            { label: "Cost of Capital", value: 0.08 },
+            { label: "Realization", value: 0.85 },
+          ],
+        },
+        "Probability of Success": 0.75,
+      };
+    });
+    return {
+      steps: [
+        {
+          step: 0,
+          title: "Company Profile",
+          data: [{ "Annual Revenue ($)": annualRevenue, "Total Employees": 13_000 }],
+        },
+        { step: 5, title: "Benefits Quantification", data: useCases },
+      ],
+      vrm: { schemaVersion: "2.0" },
+    };
+  }
+
+  function moneyToNumber(m: any): number {
+    if (typeof m === "number") return m;
+    if (typeof m !== "string") return 0;
+    const t = m.trim().replace(/[$,]/g, "");
+    const mult = t.endsWith("B") ? 1e9 : t.endsWith("M") ? 1e6 : t.endsWith("K") ? 1e3 : 1;
+    const n = parseFloat(mult === 1 ? t : t.slice(0, -1));
+    return isFinite(n) ? n * mult : 0;
+  }
+
+  it("guardrail fires, scales every UC's cash flow, and keeps per-UC totals consistent", () => {
+    const result: any = postProcessAnalysis(makeConstellationLikeAnalysis());
+    const step5 = result.steps.find((s: any) => s.step === 5).data as any[];
+    expect(step5).toHaveLength(10);
+
+    // Sum of per-UC scaled cash flow must be far below the unscaled portfolio
+    // total (which would be ~$370M for ~92 days × $22.4B × 0.08 × 0.85). The
+    // cap (30 days) clips it to roughly 30/92 ≈ 33% of that.
+    const cashFlowSum = step5.reduce((s, r) => s + moneyToNumber(r["Cash Flow Benefit ($)"]), 0);
+    expect(cashFlowSum).toBeGreaterThan(0);
+    expect(cashFlowSum).toBeLessThan(150_000_000); // < $150M — portfolio is bounded
+
+    // Every per-UC `Total Annual Value ($)` must reconcile with its 4 pillars
+    // AFTER the cap (architect-found gap: row totals were stale before the fix).
+    for (const r of step5) {
+      const sum =
+        moneyToNumber(r["Cost Benefit ($)"]) +
+        moneyToNumber(r["Revenue Benefit ($)"]) +
+        moneyToNumber(r["Cash Flow Benefit ($)"]) +
+        moneyToNumber(r["Risk Benefit ($)"]);
+      const printedTotal = moneyToNumber(r["Total Annual Value ($)"]);
+      // Allow a small rounding tolerance from the abbreviated `formatMoney` form.
+      const tolerance = Math.max(50_000, sum * 0.01);
+      expect(Math.abs(printedTotal - sum)).toBeLessThanOrEqual(tolerance);
+    }
+
+    // Every cash-flow formula string must end with the appended prorate term so
+    // the audit reconciliation rule (printed math == printed dollar) holds.
+    for (const r of step5) {
+      const formula = String(r["Cash Flow Formula"] || "");
+      expect(formula).toContain("portfolio days cap");
+    }
+
+    // The PORTFOLIO_CASHFLOW_DAYS_CAP integrity warning must surface so the
+    // Methodology Integrity panel renders it.
+    const warnings: any[] = result?.vrm?.diagnostic?.warnings ?? [];
+    const hit = warnings.find((w) => w?.code === "PORTFOLIO_CASHFLOW_DAYS_CAP");
+    expect(hit).toBeTruthy();
+    expect(String(hit.message)).toMatch(/portfolio cash-flow capped/i);
+  });
+
+  it("realistic 3-UC portfolio (cumulative ≤ 30 days) does NOT trip the cap", () => {
+    const annualRevenue = 500_000_000;
+    const ucs = [12, 8, 5].map((days, i) => ({
+      ID: `UC-${i + 1}`,
+      "Use Case": `WC Initiative ${i + 1}`,
+      "Cost Formula Labels": {
+        components: [
+          { label: "Hours Saved", value: 1000 },
+          { label: "Loaded Hourly Rate", value: 100 },
+        ],
+      },
+      "Cash Flow Formula Labels": {
+        components: [
+          { label: "Annual Revenue", value: annualRevenue },
+          { label: "Days Improved", value: days },
+          { label: "Cost of Capital", value: 0.08 },
+        ],
+      },
+      "Probability of Success": 0.75,
+    }));
+    const analysis: any = {
+      steps: [
+        {
+          step: 0,
+          title: "Company Profile",
+          data: [{ "Annual Revenue ($)": annualRevenue, "Total Employees": 2_500 }],
+        },
+        { step: 5, title: "Benefits Quantification", data: ucs },
+      ],
+      vrm: { schemaVersion: "2.0" },
+    };
+    const result: any = postProcessAnalysis(analysis);
+    const warnings: any[] = result?.vrm?.diagnostic?.warnings ?? [];
+    const hit = warnings.find((w) => w?.code === "PORTFOLIO_CASHFLOW_DAYS_CAP");
+    expect(hit).toBeUndefined();
+    const step5 = result.steps.find((s: any) => s.step === 5).data as any[];
+    for (const r of step5) {
+      expect(String(r["Cash Flow Formula"] || "")).not.toContain("portfolio days cap");
+    }
+  });
+});

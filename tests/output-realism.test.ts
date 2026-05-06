@@ -40,6 +40,8 @@ import {
   DEFAULT_MULTIPLIERS,
   SCENARIO_MULTIPLIERS,
   ADOPTION_CURVES,
+  applyPortfolioCashflowGuardrail,
+  PORTFOLIO_BOUNDS,
 } from "../src/calc/formulas";
 
 // Deterministic PRNG — same one as the QA file, repeated locally so this file
@@ -587,6 +589,73 @@ describe("END-TO-END FIXTURE: a realistic mid-market company produces sane publi
     });
     expect(proj.npv).toBeGreaterThan(0);
     expect(proj.paybackMonths).toBeLessThanOrEqual(36);
+  });
+});
+
+// =============================================================================
+// 8b. PORTFOLIO CASH-FLOW GUARDRAIL — protects against the Constellation Energy
+//     bug (Task #107) where N use cases each book per-UC-credible working
+//     capital improvements that sum to a portfolio-implausible total.
+// =============================================================================
+describe("PORTFOLIO CASH-FLOW GUARDRAIL: cumulative days improvement is bounded across all UCs", () => {
+  it("10 UCs × 9 days each (= 92 days) against the same revenue base trips the cap", () => {
+    // Constellation-Energy-shaped fixture: each individual UC sits well inside
+    // INPUT_BOUNDS.daysImprovement.max (= 90), but the sum is clearly
+    // double-counting the same working-capital pool.
+    const annualRevenue = 22_400_000_000; // $22.4B
+    const ucs = Array.from({ length: 10 }, (_, i) => {
+      const days = 9 + (i % 3); // 9, 10, 11 day mix
+      return {
+        id: `UC${i + 1}`,
+        daysImprovement: days,
+        cashFlowBenefit: calculateCashFlowBenefit({
+          annualRevenue,
+          daysImprovement: days,
+        }).value,
+      };
+    });
+    const cumulativeBefore = ucs.reduce((s, u) => s + u.daysImprovement, 0);
+    const cashFlowBefore = ucs.reduce((s, u) => s + u.cashFlowBenefit, 0);
+
+    const result = applyPortfolioCashflowGuardrail({ perUseCase: ucs });
+
+    expect(cumulativeBefore).toBeGreaterThan(PORTFOLIO_BOUNDS.cumulativeDaysImprovement.max);
+    expect(result.capBound).toBe(true);
+    expect(result.scaleFactor).toBeLessThan(1.0);
+    expect(result.scaleFactor).toBeGreaterThan(0);
+
+    // Every per-UC scaled value must be strictly less than its original.
+    const scaledTotal = result.perUseCase.reduce((s, u) => s + u.scaledCashFlowBenefit, 0);
+    expect(scaledTotal).toBeLessThan(cashFlowBefore);
+
+    // Effective scaled cumulative days is at the cap (within rounding).
+    const effectiveDays = cumulativeBefore * result.scaleFactor;
+    expect(effectiveDays).toBeCloseTo(PORTFOLIO_BOUNDS.cumulativeDaysImprovement.max, 0);
+  });
+
+  it("Realistic portfolio (3 UCs, total ≤ 30 days) does NOT trip the cap", () => {
+    const annualRevenue = 500_000_000;
+    const ucs = [
+      { id: "UC1", daysImprovement: 12, cashFlowBenefit: calculateCashFlowBenefit({ annualRevenue, daysImprovement: 12 }).value },
+      { id: "UC2", daysImprovement: 8,  cashFlowBenefit: calculateCashFlowBenefit({ annualRevenue, daysImprovement: 8 }).value },
+      { id: "UC3", daysImprovement: 5,  cashFlowBenefit: calculateCashFlowBenefit({ annualRevenue, daysImprovement: 5 }).value },
+    ];
+    const result = applyPortfolioCashflowGuardrail({ perUseCase: ucs });
+    expect(result.capBound).toBe(false);
+    expect(result.scaleFactor).toBe(1.0);
+    for (let i = 0; i < ucs.length; i++) {
+      expect(result.perUseCase[i].scaledCashFlowBenefit).toBe(ucs[i].cashFlowBenefit);
+    }
+  });
+
+  it("Empty / zero-days portfolio is a no-op", () => {
+    const r1 = applyPortfolioCashflowGuardrail({ perUseCase: [] });
+    expect(r1.capBound).toBe(false);
+    expect(r1.scaleFactor).toBe(1.0);
+    const r2 = applyPortfolioCashflowGuardrail({
+      perUseCase: [{ id: "UC1", daysImprovement: 0, cashFlowBenefit: 0 }],
+    });
+    expect(r2.capBound).toBe(false);
   });
 });
 
