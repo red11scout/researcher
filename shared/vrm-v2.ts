@@ -1004,7 +1004,8 @@ export interface PortfolioWarning {
   severity: WarningSeverity;
   code: string;
   message: string;
-  recommendedAction: string;
+  recommendedAction?: string;
+  remediation?: string;
 }
 
 export interface PortfolioDiagnostic {

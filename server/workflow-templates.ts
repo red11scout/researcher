@@ -1,9 +1,9 @@
-import type { WorkflowStep, TargetWorkflowStep, WorkflowComparisonMetrics, AgenticPattern } from "@shared/schema";
+import type { WorkflowStep, TargetWorkflowStep, WorkflowComparisonMetrics, AgentRoleLabel } from "@shared/schema";
 
 export interface UseCaseWorkflowTemplate {
   keywords: string[];
   businessFunction: string;
-  agenticPattern: AgenticPattern;
+  agenticPattern: AgentRoleLabel;
   patternRationale: string;
   currentStateWorkflow: WorkflowStep[];
   targetStateWorkflow: Omit<TargetWorkflowStep, "agentType">[];

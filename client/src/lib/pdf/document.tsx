@@ -722,7 +722,7 @@ function UseCaseCards({ useCases }: { useCases: any[] }) {
                 {epochFlags !== '' && (() => {
                   const epochLabelMap: Record<string, string> = { 'E': 'Empathy', 'P': 'Presence', 'O': 'Opinion', 'C': 'Creativity', 'H': 'Hope' };
                   const validKeys = new Set(['E', 'P', 'O', 'C', 'H']);
-                  const parsedFlags = epochFlags.split(',').map(f => f.trim().charAt(0).toUpperCase()).filter(f => validKeys.has(f));
+                  const parsedFlags = epochFlags.split(',').map((f: string) => f.trim().charAt(0).toUpperCase()).filter((f: string) => validKeys.has(f));
                   return parsedFlags.length > 0 ? (
                     <View style={[cardStyles.fieldRow, { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 4 }]}>
                       <Text style={{ fontSize: 7, fontWeight: 600, color: '#94a3b8' }}>E.P.O.C.H.:</Text>

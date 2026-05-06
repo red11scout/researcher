@@ -748,6 +748,16 @@ export const AGENTIC_PATTERNS = [
 
 export type AgenticPattern = typeof AGENTIC_PATTERNS[number];
 
+// Legacy / display-only agent role labels still surfaced by the workflow
+// generator (kept distinct from the canonical 12 to preserve runtime
+// validation while giving TypeScript a name for the wider set).
+export type LegacyAgentRoleLabel =
+  | "Drafter-Critic"
+  | "RAG Detective"
+  | "Memetic Agent"
+  | "Human-in-the-Loop";
+export type AgentRoleLabel = AgenticPattern | LegacyAgentRoleLabel;
+
 export type AgenticPatternType = "single-agent" | "multi-agent";
 export type PatternComplexity = "low" | "medium" | "high";
 
@@ -897,7 +907,7 @@ export interface TargetWorkflowStep extends WorkflowStep {
   isAIEnabled: boolean;
   isHumanInTheLoop: boolean;
   aiCapabilities: string[];
-  agentType: AgenticPattern | null;
+  agentType: AgentRoleLabel | null;
   model: string | null;
   automationLevel: "full" | "assisted" | "supervised" | "manual";
 }
@@ -1024,7 +1034,7 @@ export interface UseCaseWorkflowData {
   useCaseId: string;
   useCaseName: string;
   businessFunction: string;
-  agenticPattern: AgenticPattern;
+  agenticPattern: AgentRoleLabel;
   patternRationale: string;
   patternMapping?: AgenticPatternMapping;
   currentStateWorkflow: WorkflowStep[];

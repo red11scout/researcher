@@ -1,6 +1,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import type {
   AgenticPattern,
+  AgentRoleLabel,
   UseCaseWorkflowData,
   WorkflowStep,
   TargetWorkflowStep,
@@ -15,7 +16,7 @@ import type {
   WorkflowValidationResult,
   WorkflowValidationConfig,
 } from "@shared/schema";
-import { AGENTIC_PATTERNS, AGENTIC_PATTERN_META, DEFAULT_MIRO_METADATA, DEFAULT_VALIDATION_CONFIG } from "@shared/schema";
+import { AGENTIC_PATTERNS, AGENTIC_PATTERN_META, DEFAULT_MIRO_METADATA, DEFAULT_VALIDATION_CONFIG, resolvePatternName } from "@shared/schema";
 import { findMatchingTemplate, type UseCaseWorkflowTemplate } from "./workflow-templates";
 import { extractJSON } from "./ai-service";
 
@@ -558,7 +559,7 @@ function generateFallbackProcessSteps(input: ProcessStepsInput): ProcessStepsOut
   };
 }
 
-function determineAgentTypeFromCapabilities(capabilities: string[], defaultPattern: AgenticPattern): AgenticPattern {
+function determineAgentTypeFromCapabilities(capabilities: string[], defaultPattern: AgentRoleLabel): AgentRoleLabel {
   const capText = capabilities.join(" ").toLowerCase();
   
   if (capText.includes("classification") || capText.includes("routing") || capText.includes("triage")) {
@@ -604,7 +605,7 @@ function generateFallbackWorkflow(useCase: UseCase): UseCaseWorkflowData {
     const targetWorkflow: TargetWorkflowStep[] = matchingTemplate.targetStateWorkflow.map(step => ({
       ...step,
       agentType: step.isHumanInTheLoop 
-        ? "Human-in-the-Loop" as AgenticPattern 
+        ? "Human-in-the-Loop"
         : (step.aiCapabilities && step.aiCapabilities.length > 0 
             ? determineAgentTypeFromCapabilities(step.aiCapabilities, matchingTemplate.agenticPattern) 
             : matchingTemplate.agenticPattern),
@@ -619,7 +620,7 @@ function generateFallbackWorkflow(useCase: UseCase): UseCaseWorkflowData {
     
     const templatePatternMapping: AgenticPatternMapping = {
       ...patternMapping,
-      primaryPattern: matchingTemplate.agenticPattern,
+      primaryPattern: resolvePatternName(matchingTemplate.agenticPattern),
       primaryRationale: matchingTemplate.patternRationale,
     };
     
@@ -825,7 +826,7 @@ const BUSINESS_FUNCTION_KEYWORDS: Record<string, string[]> = {
 };
 
 // Pattern scoring weights based on primitives
-const PATTERN_PRIMITIVE_SCORES: Record<AgenticPattern, Record<string, number>> = {
+const PATTERN_PRIMITIVE_SCORES: Partial<Record<AgentRoleLabel, Record<string, number>>> = {
   "Semantic Router": { classification: 3, routing: 3, extraction: 2, prediction: 1 },
   "Orchestrator-Workers": { orchestration: 3, routing: 2, monitoring: 2, generation: 1 },
   "ReAct Loop": { reasoning: 3, validation: 2, extraction: 2, monitoring: 1 },
@@ -837,7 +838,7 @@ const PATTERN_PRIMITIVE_SCORES: Record<AgenticPattern, Record<string, number>> =
 };
 
 // Pattern scoring weights based on business function
-const PATTERN_FUNCTION_SCORES: Record<AgenticPattern, Record<string, number>> = {
+const PATTERN_FUNCTION_SCORES: Partial<Record<AgentRoleLabel, Record<string, number>>> = {
   "Semantic Router": { "Customer Service": 3, Sales: 2, Operations: 2, HR: 1 },
   "Orchestrator-Workers": { Operations: 3, "Supply Chain": 3, Finance: 2, IT: 2 },
   "ReAct Loop": { IT: 3, "R&D": 2, Operations: 2, "Customer Service": 1 },
@@ -948,8 +949,10 @@ export function mapAgenticPatterns(useCase: UseCase): AgenticPatternMapping {
   
   const scores = calculatePatternScores(primitives, businessFunction);
   
+  // calculatePatternScores only iterates AGENTIC_PATTERNS (the canonical 12),
+  // so "Human-in-the-Loop" — a legacy label — can no longer appear here. Kept
+  // as a no-op cast for clarity that scoring excludes the HITL meta-pattern.
   const sortedPatterns = Array.from(scores.entries())
-    .filter(([pattern]) => pattern !== "Human-in-the-Loop")
     .sort((a, b) => b[1] - a[1]);
   
   const [primaryPattern, primaryScore] = sortedPatterns[0] || ["Semantic Router", 0];
@@ -990,7 +993,7 @@ function generatePatternRationale(
 ): string {
   const primitivesText = primitives.length > 0 ? primitives.join(", ") : "general processing";
   
-  const rationales: Record<AgenticPattern, string> = {
+  const rationales: Partial<Record<AgentRoleLabel, string>> = {
     "Semantic Router": `Semantic Router pattern optimally handles ${primitivesText} operations for ${businessFunction}. It excels at intelligent classification and routing of requests to appropriate processing paths, reducing manual triage overhead by 70-90%.`,
     "Orchestrator-Workers": `Orchestrator-Workers pattern coordinates multiple ${primitivesText} tasks for ${businessFunction}. A central orchestrator decomposes complex work and delegates to specialized worker agents, enabling parallel processing and efficient resource utilization.`,
     "ReAct Loop": `ReAct Loop pattern enables iterative ${primitivesText} with reasoning-action cycles for ${businessFunction}. The agent reasons about observations, takes actions, and refines its approach until reaching the optimal solution.`,
