@@ -44,7 +44,7 @@ vi.mock("@/hooks/use-toast", () => ({
 // Imported AFTER the vi.mock above so the panel picks up the mocked
 // `useToast`. The panel itself is exported from the page module purely
 // for testability — it is not a public route.
-import { UpgradesAppliedPanel } from "../client/src/pages/Admin";
+import { UpgradesAppliedPanel } from "../client/src/components/admin/UpgradesAppliedPanel";
 
 // ---------------------------------------------------------------------------
 // Test fixtures: a representative mix of buckets so a single render
