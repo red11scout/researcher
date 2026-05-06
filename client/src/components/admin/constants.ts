@@ -15,4 +15,5 @@ export const AUDIT_ACTION_OPTIONS: { value: string; label: string }[] = [
   { value: "admin-login-failed", label: "Admin login (failed)" },
   { value: "admin-access-denied", label: "Admin access denied" },
   { value: "update-admin-settings", label: "Update admin settings" },
+  { value: "clear-last-backfill", label: "Clear last run" },
 ];
