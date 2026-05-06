@@ -1996,7 +1996,10 @@ export function postProcessAnalysis(analysisResult: any): any {
         // Append the prorate term to the formulaText so audit reconciliation
         // (printed math evaluates to printed dollar) is preserved.
         // Original formulaText already ends with "→ $X"; append "× factor → $Y".
-        const scaledNote = ` × ${factor.toFixed(3)} (portfolio days cap) → ${formatMoney(newCfVal)}`;
+        // Use 6-decimal precision so `oldCfVal × printedFactor` reconciles to
+        // `formatMoney(newCfVal)` within tolerance even when the abbreviated
+        // result has limited precision.
+        const scaledNote = ` × ${factor.toFixed(6)} (portfolio days cap) → ${formatMoney(newCfVal)}`;
         const oldFormulaText = String(rec["Cash Flow Formula"] || "");
         rec["Cash Flow Formula"] = oldFormulaText + scaledNote;
         rec["Cash Flow Benefit ($)"] = formatMoney(newCfVal);
@@ -2067,6 +2070,61 @@ export function postProcessAnalysis(analysisResult: any): any {
         recommendedAction:
           "Reduce per-use-case `daysImprovement` so the portfolio total stays within ~30 days (one month of working capital). Each UC discounting the same receivables/payables/inventory pool above this threshold double-counts cash that was already freed by an earlier UC.",
       });
+
+      // Per-UC structured warnings — one per affected use case so admins can
+      // see which specific UCs were prorated, mirroring the per-UC pattern
+      // used by revenue/risk caps.
+      for (let j = 0; j < useCaseCashFlowMeta.length; j++) {
+        const meta = useCaseCashFlowMeta[j];
+        const out = guardrail.perUseCase[j];
+        if (meta.cashFlowBenefit <= 0 || meta.daysImprovement <= 0) continue;
+        const ucMsg =
+          `${meta.id} cash flow prorated from ${formatMoney(out.originalCashFlowBenefit)} ` +
+          `to ${formatMoney(out.scaledCashFlowBenefit)} (× ${factor.toFixed(3)}) — ` +
+          `portfolio days cap.`;
+        allUseCaseWarnings.push(ucMsg);
+        integrityWarnings.push({
+          severity: "info",
+          code: "PORTFOLIO_CASHFLOW_DAYS_CAP_UC",
+          message: ucMsg,
+          recommendedAction:
+            "Lower this use case's `daysImprovement` so the portfolio total stays within ~30 days; alternatively, consolidate overlapping working-capital initiatives into one use case.",
+        });
+        useCasesCapped++;
+      }
+    }
+  }
+
+  // ============================================
+  // PORTFOLIO CASH-FLOW SHARE GATE (Task #107, advisory)
+  //
+  // Even after the days cap, if cash-flow benefits dominate the portfolio
+  // (> PORTFOLIO_BOUNDS.cashFlowShareOfTotalValue.max = 35% of total), this
+  // is usually a sign that the same working-capital pool is still being
+  // counted multiple times. Emits a warning rather than scaling further so
+  // the days cap remains the canonical scaling lever; admins can investigate
+  // why so much value is concentrated in one driver.
+  // ============================================
+  {
+    const provisionalTotal =
+      totalCostBenefit + totalRevenueBenefit + totalCashFlowBenefit + totalRiskBenefit;
+    if (provisionalTotal > 0) {
+      const cfShare = totalCashFlowBenefit / provisionalTotal;
+      if (cfShare > PORTFOLIO_BOUNDS.cashFlowShareOfTotalValue.max) {
+        const msg =
+          `Portfolio cash-flow share is ${(cfShare * 100).toFixed(1)}% of total annual value, ` +
+          `above the ${(PORTFOLIO_BOUNDS.cashFlowShareOfTotalValue.max * 100).toFixed(0)}% ceiling. ` +
+          `Cash-flow benefits ride on a single working-capital pool; concentrations this high ` +
+          `usually indicate residual double-counting that the days cap could not catch.`;
+        allUseCaseWarnings.push(msg);
+        integrityWarnings.push({
+          severity: "warning",
+          code: "PORTFOLIO_CASHFLOW_SHARE",
+          message: msg,
+          recommendedAction:
+            "Re-examine each cash-flow use case to confirm it discounts a distinct receivables/payables/inventory pool. If two UCs target the same pool, merge them or zero out one of the cash-flow lines.",
+        });
+      }
     }
   }
 
@@ -2663,6 +2721,93 @@ export function postProcessAnalysis(analysisResult: any): any {
   }
 
   // ============================================
+  // IRR / PAYBACK DISPLAY CLAMPS (Task #107).
+  //
+  // CFO-killer numbers (IRR > 200%, payback < 6 months) lose all credibility
+  // on slide one. We clamp the *displayed* values to a qualitative band
+  // ("200%+", "<6 mo") and preserve the raw values in dedicated audit-trail
+  // fields (`irrRaw`, `paybackMonthsRaw`) so the methodology integrity panel
+  // and exports can still show them. Computed BEFORE the vrm-block return so
+  // the warnings end up in vrm.diagnostic.warnings.
+  // ============================================
+  const rawIrr = multiYearProjection.irr;
+  const rawPayback = multiYearProjection.paybackMonths;
+  const IRR_DISPLAY_CEILING = 2.0; // 200%
+  const PAYBACK_DISPLAY_FLOOR_MONTHS = 6;
+
+  let irrDisplay: string;
+  if (rawIrr === null || !Number.isFinite(rawIrr)) {
+    irrDisplay = "N/A";
+  } else if (rawIrr > IRR_DISPLAY_CEILING) {
+    irrDisplay = `${(IRR_DISPLAY_CEILING * 100).toFixed(0)}%+`;
+    integrityWarnings.push({
+      severity: "warning",
+      code: "IRR_DISPLAY_CLAMPED",
+      message: `IRR clamped from ${(rawIrr * 100).toFixed(0)}% to "${irrDisplay}" for executive display. Raw value preserved in audit trail.`,
+      recommendedAction:
+        "An IRR above 200% is rarely defensible to a CFO. Verify implementation cost includes change management, integration, and ongoing operational overhead.",
+    });
+  } else {
+    irrDisplay = `${(rawIrr * 100).toFixed(1)}%`;
+  }
+
+  let paybackDisplay: number | string = rawPayback;
+  if (rawPayback >= 0 && rawPayback < PAYBACK_DISPLAY_FLOOR_MONTHS) {
+    paybackDisplay = `<${PAYBACK_DISPLAY_FLOOR_MONTHS} mo`;
+    integrityWarnings.push({
+      severity: "warning",
+      code: "PAYBACK_DISPLAY_CLAMPED",
+      message: `Payback clamped from ${rawPayback} months to "${paybackDisplay}" for executive display. Raw value preserved in audit trail.`,
+      recommendedAction:
+        "Sub-6-month payback usually means implementation cost is understated. Confirm the cost basis is fully loaded.",
+    });
+  }
+
+  // ============================================
+  // HEADLINE RECONCILIATION OVERRIDE (Task #107).
+  //
+  // The LLM-authored `executiveSummary.headline` embeds dollar figures (e.g.
+  // "$420M in first-year value"). When the LLM hallucinates these — or when
+  // post-processing reshapes totals (portfolio caps) — the headline can
+  // diverge from canonical scenarioSummary by > 10%. That is the single most
+  // common CFO-killer: slide 1 says one number, slide 5 says another. We
+  // override the headline with canonical numbers and emit a
+  // HEADLINE_RECONCILIATION_OVERRIDE warning. Mutates analysisResult so the
+  // override flows through `...analysisResult` in the return.
+  // ============================================
+  try {
+    const canonicalFirstYear = scenarioSummary.conservative.totalBenefit;
+    const exec = (analysisResult as any).executiveSummary;
+    if (exec && typeof exec.headline === "string" && exec.headline.length > 0) {
+      const dollarFigures = parseDollarFiguresFromHeadline(exec.headline);
+      if (dollarFigures.length > 0 && canonicalFirstYear > 0) {
+        const llmFirstYear = dollarFigures[0];
+        const divergence = Math.abs(llmFirstYear - canonicalFirstYear) / canonicalFirstYear;
+        if (divergence > 0.10) {
+          const originalHeadline = exec.headline;
+          exec.headlineLLMOriginal = originalHeadline;
+          exec.headline =
+            `Canonical first-year value: ${formatMoney(canonicalFirstYear)} ` +
+            `(LLM-stated ${formatMoney(llmFirstYear)} differed by ${(divergence * 100).toFixed(0)}%; ` +
+            `using post-processed canonical figure).`;
+          integrityWarnings.push({
+            severity: "warning",
+            code: "HEADLINE_RECONCILIATION_OVERRIDE",
+            message:
+              `Executive-summary headline diverged from canonical first-year value by ` +
+              `${(divergence * 100).toFixed(0)}% (LLM said ${formatMoney(llmFirstYear)}, ` +
+              `canonical is ${formatMoney(canonicalFirstYear)}). Headline overridden.`,
+            recommendedAction:
+              "The original LLM headline is preserved at executiveSummary.headlineLLMOriginal. Review why the model's narrative diverged — usually because portfolio caps reshaped the totals after the LLM wrote the summary.",
+          });
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("[postProcessAnalysis] Headline reconciliation skipped:", err);
+  }
+
+  // ============================================
   // Update executive dashboard with deterministic calculations
   // ============================================
 
@@ -2817,8 +2962,10 @@ export function postProcessAnalysis(analysisResult: any): any {
     },
     multiYearProjection: {
       npv: formatMoney(multiYearProjection.npv),
-      paybackMonths: multiYearProjection.paybackMonths,
-      irr: multiYearProjection.irr !== null ? `${(multiYearProjection.irr * 100).toFixed(1)}%` : 'N/A',
+      paybackMonths: paybackDisplay,
+      paybackMonthsRaw: rawPayback,
+      irr: irrDisplay,
+      irrRaw: rawIrr,
       totalBenefitOverPeriod: formatMoney(multiYearProjection.totalBenefitOverPeriod),
     },
     realismFlags,
@@ -2837,4 +2984,29 @@ export function postProcessAnalysis(analysisResult: any): any {
   console.log(`[postProcessAnalysis] Dashboard totals: TotalValue=${formatMoney(totalAnnualValue)}, Cost=${formatMoney(totalCostBenefit)}, Revenue=${formatMoney(totalRevenueBenefit)}, CashFlow=${formatMoney(totalCashFlowBenefit)}, Risk=${formatMoney(totalRiskBenefit)}`);
 
   return correctedResult;
+}
+
+/**
+ * Parse dollar figures (e.g. "$420M", "$1.2B", "$25,500,000") out of an
+ * LLM-authored executive-summary headline. Used by the
+ * HEADLINE_RECONCILIATION_OVERRIDE gate to catch divergence between the
+ * narrative and the canonical post-processed totals.
+ *
+ * Returns figures in raw dollars, in the order they appear.
+ */
+function parseDollarFiguresFromHeadline(headline: string): number[] {
+  const re = /\$\s*([\d,]+(?:\.\d+)?)\s*(B|M|K|billion|million|thousand)?/gi;
+  const out: number[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(headline)) !== null) {
+    const raw = parseFloat(m[1].replace(/,/g, ""));
+    if (!Number.isFinite(raw)) continue;
+    const suffix = (m[2] || "").toLowerCase();
+    let mult = 1;
+    if (suffix === "b" || suffix === "billion") mult = 1e9;
+    else if (suffix === "m" || suffix === "million") mult = 1e6;
+    else if (suffix === "k" || suffix === "thousand") mult = 1e3;
+    out.push(raw * mult);
+  }
+  return out;
 }

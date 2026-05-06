@@ -2262,6 +2262,166 @@ describe("PORTFOLIO CASH-FLOW DAYS CAP — Constellation Energy regression (Task
     expect(String(hit.message)).toMatch(/portfolio cash-flow capped/i);
   });
 
+  it("emits per-UC structured warnings (PORTFOLIO_CASHFLOW_DAYS_CAP_UC) for every affected UC", () => {
+    const result: any = postProcessAnalysis(makeConstellationLikeAnalysis());
+    const warnings: any[] = result?.vrm?.diagnostic?.warnings ?? [];
+    const ucHits = warnings.filter((w) => w?.code === "PORTFOLIO_CASHFLOW_DAYS_CAP_UC");
+    // 10 UCs all carry days; all should be prorated.
+    expect(ucHits.length).toBe(10);
+    for (const w of ucHits) {
+      expect(String(w.message)).toMatch(/UC-\d+ cash flow prorated from .* to .* portfolio days cap/);
+    }
+  });
+
+  it("clamps IRR > 200% and payback < 6 months for display, preserving raw values", () => {
+    const result: any = postProcessAnalysis(makeConstellationLikeAnalysis());
+    const m = result.multiYearProjection;
+    expect(m).toBeTruthy();
+    // Raw values are preserved as numbers.
+    expect(typeof m.irrRaw === "number" || m.irrRaw === null).toBe(true);
+    expect(typeof m.paybackMonthsRaw).toBe("number");
+    // Display values are clamped strings when out of band.
+    if (m.irrRaw !== null && m.irrRaw > 2.0) {
+      expect(m.irr).toBe("200%+");
+      const warnings: any[] = result?.vrm?.diagnostic?.warnings ?? [];
+      expect(warnings.some((w) => w?.code === "IRR_DISPLAY_CLAMPED")).toBe(true);
+    }
+    if (m.paybackMonthsRaw >= 0 && m.paybackMonthsRaw < 6) {
+      expect(m.paybackMonths).toBe("<6 mo");
+      const warnings: any[] = result?.vrm?.diagnostic?.warnings ?? [];
+      expect(warnings.some((w) => w?.code === "PAYBACK_DISPLAY_CLAMPED")).toBe(true);
+    }
+  });
+
+  it("overrides the LLM executive-summary headline when it diverges > 10% from canonical", () => {
+    const analysis: any = makeConstellationLikeAnalysis();
+    // Inject an LLM headline whose dollar figure is wildly off from the
+    // canonical (post-processed, post-cap) first-year value.
+    analysis.executiveSummary = {
+      headline:
+        "Constellation Energy should execute 10 Critical-priority AI initiatives to capture $999M in first-year value.",
+    };
+    const result: any = postProcessAnalysis(analysis);
+    const warnings: any[] = result?.vrm?.diagnostic?.warnings ?? [];
+    const hit = warnings.find((w) => w?.code === "HEADLINE_RECONCILIATION_OVERRIDE");
+    expect(hit).toBeTruthy();
+    // Original LLM headline must be preserved verbatim.
+    expect(result.executiveSummary.headlineLLMOriginal).toMatch(/\$999M/);
+    // Overridden headline must reference canonical figure.
+    expect(result.executiveSummary.headline).toMatch(/Canonical first-year value/);
+  });
+
+  it("does NOT override the headline when LLM figure is within 10% of canonical", () => {
+    const analysis: any = makeConstellationLikeAnalysis();
+    // First do a dry post-process to discover the canonical value, then
+    // inject a matching headline and re-process.
+    const dry: any = postProcessAnalysis(JSON.parse(JSON.stringify(analysis)));
+    const canonical = dry.scenarioAnalysis.conservative.annualBenefit; // formatted "$X.XM"
+    // Use the same formatted figure verbatim — it'll parse back to the same value.
+    analysis.executiveSummary = {
+      headline: `Capture ${canonical} in first-year value.`,
+    };
+    const result: any = postProcessAnalysis(analysis);
+    const warnings: any[] = result?.vrm?.diagnostic?.warnings ?? [];
+    const hit = warnings.find((w) => w?.code === "HEADLINE_RECONCILIATION_OVERRIDE");
+    expect(hit).toBeUndefined();
+    expect(result.executiveSummary.headlineLLMOriginal).toBeUndefined();
+  });
+
+  it("PORTFOLIO_CASHFLOW_SHARE warning fires when cash flow > 35% of total (advisory only)", () => {
+    // Constellation-shaped portfolio: even AFTER the days cap prorates cash
+    // flow, cash-flow share stays > 35% of total annual value because the
+    // other pillars (cost/revenue/risk) are tiny. Gate (3) is advisory — it
+    // emits a warning but does NOT scale further.
+    const result: any = postProcessAnalysis(makeConstellationLikeAnalysis());
+    const dash = result.executiveDashboard;
+    const cfShare = dash.totalCashFlowBenefit / dash.totalAnnualValue;
+    expect(cfShare).toBeGreaterThan(0.35);
+
+    const warnings: any[] = result?.vrm?.diagnostic?.warnings ?? [];
+    const hit = warnings.find((w) => w?.code === "PORTFOLIO_CASHFLOW_SHARE");
+    expect(hit).toBeTruthy();
+    expect(String(hit.message)).toMatch(/cash-flow share/i);
+    expect(hit.severity).toBe("warning"); // advisory, not critical
+
+    // Advisory-only: the cash-flow benefit equals the days-cap-prorated total
+    // (no further scaling beyond what the days cap already applied).
+    const step5 = result.steps.find((s: any) => s.step === 5).data as any[];
+    const cashFlowSum = step5.reduce(
+      (s, r) => s + moneyToNumber(r["Cash Flow Benefit ($)"]),
+      0,
+    );
+    // Within abbreviated-formatMoney rounding tolerance.
+    expect(Math.abs(cashFlowSum - dash.totalCashFlowBenefit)).toBeLessThan(
+      Math.max(50_000, dash.totalCashFlowBenefit * 0.02),
+    );
+  });
+
+  it("PORTFOLIO_CASHFLOW_SHARE does NOT fire when cash flow ≤ 35% of total", () => {
+    // Balanced portfolio: 1 modest cash-flow UC + 2 hefty cost UCs so cash
+    // flow stays well under 35% of the total.
+    const annualRevenue = 500_000_000;
+    const ucs = [
+      {
+        ID: "UC-1",
+        "Use Case": "Working Capital",
+        "Cost Formula Labels": {
+          components: [
+            { label: "Hours Saved", value: 500 },
+            { label: "Loaded Hourly Rate", value: 100 },
+          ],
+        },
+        "Cash Flow Formula Labels": {
+          components: [
+            { label: "Annual Revenue", value: annualRevenue },
+            { label: "Days Improved", value: 5 },
+            { label: "Cost of Capital", value: 0.08 },
+          ],
+        },
+        "Probability of Success": 0.75,
+      },
+      {
+        ID: "UC-2",
+        "Use Case": "Cost Reduction A",
+        "Cost Formula Labels": {
+          components: [
+            { label: "Hours Saved", value: 50_000 },
+            { label: "Loaded Hourly Rate", value: 150 },
+          ],
+        },
+        "Probability of Success": 0.75,
+      },
+      {
+        ID: "UC-3",
+        "Use Case": "Cost Reduction B",
+        "Cost Formula Labels": {
+          components: [
+            { label: "Hours Saved", value: 50_000 },
+            { label: "Loaded Hourly Rate", value: 150 },
+          ],
+        },
+        "Probability of Success": 0.75,
+      },
+    ];
+    const analysis: any = {
+      steps: [
+        {
+          step: 0,
+          title: "Company Profile",
+          data: [{ "Annual Revenue ($)": annualRevenue, "Total Employees": 5_000 }],
+        },
+        { step: 5, title: "Benefits Quantification", data: ucs },
+      ],
+      vrm: { schemaVersion: "2.0" },
+    };
+    const result: any = postProcessAnalysis(analysis);
+    const dash = result.executiveDashboard;
+    const cfShare = dash.totalCashFlowBenefit / dash.totalAnnualValue;
+    expect(cfShare).toBeLessThanOrEqual(0.35);
+    const warnings: any[] = result?.vrm?.diagnostic?.warnings ?? [];
+    expect(warnings.find((w) => w?.code === "PORTFOLIO_CASHFLOW_SHARE")).toBeUndefined();
+  });
+
   it("realistic 3-UC portfolio (cumulative ≤ 30 days) does NOT trip the cap", () => {
     const annualRevenue = 500_000_000;
     const ucs = [12, 8, 5].map((days, i) => ({
