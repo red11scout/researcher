@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useLocation, Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Layout from "@/components/Layout";
+import { ValidationSummaryPanel } from "@/components/admin";
 import { HowWeScoreReadiness } from "@/components/dashboard/how-we-score-readiness";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -3517,58 +3518,12 @@ export default function Report() {
                     </>
                   )}
                   <StepCard step={step} />
-                  {step.step === 5 && data && (
-                    (() => {
-                      const showValidation = 
-                        data.benefitsCapped === true ||
-                        (data.validationSummary?.useCasesCapped ?? 0) > 0 ||
-                        (data.validationSummary?.parametersClamped ?? 0) > 0;
-                      
-                      if (!showValidation || !data.validationSummary) return null;
-                      
-                      const scaleFactor = data.validationSummary.portfolioScaleFactor ?? 1;
-                      const originalTotal = data.validationSummary.originalTotal ?? 0;
-                      const validatedTotal = data.validationSummary.validatedTotal ?? 0;
-                      const useCasesCapped = data.validationSummary.useCasesCapped ?? 0;
-                      const parametersClamped = data.validationSummary.parametersClamped ?? 0;
-                      
-                      return (
-                        <Card className="mt-3 border-blue-200 bg-blue-50/50" data-testid="validation-summary">
-                          <CardContent className="pt-4 pb-3">
-                            <div className="flex items-center gap-2 mb-3">
-                              <Info className="h-4 w-4 text-blue-600" />
-                              <h4 className="font-semibold text-sm text-blue-800">Validation Applied</h4>
-                            </div>
-                            <div className="space-y-2.5">
-                              {useCasesCapped > 0 && (
-                                <p className="text-xs text-blue-700">
-                                  <span className="font-medium">{useCasesCapped} use case{useCasesCapped !== 1 ? 's' : ''} capped</span> to meet CFO-credible limits
-                                </p>
-                              )}
-                              {parametersClamped > 0 && (
-                                <p className="text-xs text-blue-700">
-                                  <span className="font-medium">{parametersClamped} parameter{parametersClamped !== 1 ? 's' : ''} clamped</span> to valid ranges
-                                </p>
-                              )}
-                              {scaleFactor < 1 && (
-                                <p className="text-xs text-blue-700">
-                                  <span className="font-medium">Portfolio scaled by {scaleFactor.toFixed(3)}x</span> to meet 3% revenue ceiling
-                                </p>
-                              )}
-                              {originalTotal !== validatedTotal && (
-                                <div className="flex items-center gap-1 text-xs text-blue-700 bg-white/60 rounded px-2 py-1">
-                                  <span>Original:</span>
-                                  <span className="font-medium">${(originalTotal / 1_000_000).toFixed(1)}M</span>
-                                  <span className="text-blue-500">→</span>
-                                  <span>Validated:</span>
-                                  <span className="font-medium">${(validatedTotal / 1_000_000).toFixed(1)}M</span>
-                                </div>
-                              )}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      );
-                    })()
+                  {step.step === 5 && data && data.validationSummary && (
+                    <ValidationSummaryPanel
+                      summary={data.validationSummary}
+                      benefitsCapped={data.benefitsCapped}
+                      totalUseCases={Array.isArray(step.data) ? step.data.length : undefined}
+                    />
                   )}
                 </div>
               ))}
