@@ -99,7 +99,7 @@ interface QuadrantBubbleChartProps {
   onBubbleClick?: (point: MatrixDataPoint) => void;
   // VRM v2.1 — engagement config used to render the hard-floor band visually
   vrmConfig?: {
-    valueFloorBand?: { minNormalized: number; minAbsoluteAnnual: number };
+    valueFloorBand?: { minNormalizedScore: number; minAbsoluteAnnualValue: number };
     championMin?: number;
     quickStrategicMin?: number;
   };

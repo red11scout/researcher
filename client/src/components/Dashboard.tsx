@@ -181,7 +181,7 @@ interface DashboardData {
     sectorPresetLabel: string;
     weights: { orgCapacity: number; dataReadiness: number; governance: number; techInfrastructure: number };
     baselineWeights: { orgCapacity: number; dataReadiness: number; governance: number; techInfrastructure: number };
-    quadrantThresholds: { championMin: number; quickStrategicMin: number; valueFloor: number; maxTimeToPilotWeeks: number; valueFloorBand?: { minNormalized: number; minAbsoluteAnnual: number } };
+    quadrantThresholds: { championMin: number; quickStrategicMin: number; valueFloor: number; maxTimeToPilotWeeks: number; valueFloorBand?: { minNormalizedScore: number; minAbsoluteAnnualValue: number } };
     engagementConfig?: any;
     valueNormalization?: string;
     diagnostic?: {
@@ -879,7 +879,7 @@ const PriorityMatrix = ({ data, vrm }: PriorityMatrixProps) => {
             <span className="mx-2 text-slate-500">·</span>
             <span className="text-slate-400">
               {vrm.quadrantThresholds.valueFloorBand
-                ? `Champion ≥ ${vrm.quadrantThresholds.championMin}, Hard floor V<${vrm.quadrantThresholds.valueFloorBand.minNormalized ?? 4.0} & abs<$${((((vrm.quadrantThresholds.valueFloorBand.minAbsoluteAnnual ?? 500_000))/1000)).toFixed(0)}K, TTP ≤ ${vrm.quadrantThresholds.maxTimeToPilotWeeks ?? 16} wks`
+                ? `Champion ≥ ${vrm.quadrantThresholds.championMin}, Hard floor V<${vrm.quadrantThresholds.valueFloorBand.minNormalizedScore ?? 4.0} & abs<$${(((vrm.quadrantThresholds.valueFloorBand.minAbsoluteAnnualValue ?? 500_000)/1000)).toFixed(0)}K, TTP ≤ ${vrm.quadrantThresholds.maxTimeToPilotWeeks ?? 16} wks`
                 : `Champion ≥ ${vrm.quadrantThresholds.championMin}, Value floor ${vrm.quadrantThresholds.valueFloor}, TTP ≤ ${vrm.quadrantThresholds.maxTimeToPilotWeeks} wks`}
             </span>
             {vrm.valueNormalization && (
