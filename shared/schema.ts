@@ -575,8 +575,8 @@ export const DEFAULT_ASSUMPTIONS: Record<AssumptionCategory, Array<{
     { fieldName: "model_context_window", displayName: "Model Context Window", defaultValue: "200000", valueType: "number", unit: "tokens", description: "Maximum tokens per request (Claude 3.5 Sonnet: 200K) - affects prompt design and caching", usedInSteps: ["4", "6"] },
     { fieldName: "prompt_caching_discount", displayName: "Prompt Caching Discount", defaultValue: "90", valueType: "percentage", unit: "%", description: "Cost reduction for cached prompts", sourceUrl: "https://www.anthropic.com/pricing", usedInSteps: ["6"] },
     { fieldName: "caching_effectiveness", displayName: "Caching Effectiveness", defaultValue: "40", valueType: "percentage", unit: "%", description: "Percentage of queries using cached prompts", usedInSteps: ["6"] },
-    { fieldName: "avg_input_tokens", displayName: "Avg Input Tokens per Run", defaultValue: "500", valueType: "number", description: "Estimated tokens consumed per use-case run (from Step 6)", usedInSteps: ["6"] },
-    { fieldName: "avg_output_tokens", displayName: "Avg Output Tokens per Run", defaultValue: "300", valueType: "number", description: "Estimated output tokens per use-case run", usedInSteps: ["6"] },
+    { fieldName: "avg_input_tokens", displayName: "Avg Input Tokens per Run", defaultValue: "5000", valueType: "number", description: "Estimated input tokens consumed per use-case run (agentic Claude baseline; multi-agent or RAG raises this 3-8x)", usedInSteps: ["6"] },
+    { fieldName: "avg_output_tokens", displayName: "Avg Output Tokens per Run", defaultValue: "1500", valueType: "number", description: "Estimated output tokens per use-case run (structured JSON + multi-paragraph reasoning baseline)", usedInSteps: ["6"] },
   ],
   ai_adoption: [
     { fieldName: "user_adoption_rate", displayName: "User Adoption Rate", defaultValue: "65", valueType: "percentage", unit: "%", description: "Expected percentage of employees using AI solution - scales token usage and cost estimates", usedInSteps: ["5", "6", "7"] },

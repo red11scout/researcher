@@ -35,6 +35,9 @@ import {
   hfCalculateTokenCost,
 } from '../src/calc/hyperformulaEngine';
 
+import { estimateFromUseCaseRecord } from '../src/calc/tokenEstimator';
+import { computeRealismFlags, type RealismFlag } from '../src/calc/realismGates';
+
 import {
   normalizeFunctionName,
   normalizeSubFunction,
@@ -74,6 +77,7 @@ import {
   type UseCaseScoring,
   type UseCaseScoringV21,
   type EngagementConfig,
+  type PortfolioWarning,
 } from '../shared/vrm-v2';
 
 // ============================================================================
@@ -1367,6 +1371,9 @@ export function postProcessAnalysis(analysisResult: any): any {
 
   // Accumulate all per-use-case warnings during recalculation
   const allUseCaseWarnings: string[] = [];
+  // Structured warnings (label-swap, realism) routed to vrm.diagnostic.warnings
+  // so they render in the existing MethodologyIntegrityPanel UI.
+  const integrityWarnings: PortfolioWarning[] = [];
   let useCasesCapped = 0;
   let parametersClamped = 0;
 
@@ -1448,8 +1455,21 @@ export function postProcessAnalysis(analysisResult: any): any {
       if (revenueResult.engineCapped) useCaseHadEngineCap = true;
     }
 
-    // CASH FLOW: Prefer structured labels
-    if (structuredCashFlowInputs) {
+    // CASH FLOW: Prefer structured labels — but guard against label swap.
+    //
+    // The LLM occasionally puts "Revenue at Risk" (e.g. $14M) into the
+    // "Annual Revenue" slot of the cash-flow formula labels. The math then
+    // looks plausible but is calculated against the wrong base. We detect
+    // this by comparing the LLM-supplied annualRevenue against the Step-0
+    // company revenue: if it is below 50% of the company total (and Step-0
+    // revenue is known), we reject the structured inputs and fall back to
+    // the derived path (which always uses the canonical Step-0 revenue).
+    const cashFlowLabelSwap =
+      structuredCashFlowInputs &&
+      annualRevenueFromStep0 > 0 &&
+      structuredCashFlowInputs.annualRevenue < annualRevenueFromStep0 * 0.5;
+
+    if (structuredCashFlowInputs && !cashFlowLabelSwap) {
       const hfResult = hfCalculateCashFlowBenefit({
         annualRevenue: structuredCashFlowInputs.annualRevenue,
         daysImprovement: structuredCashFlowInputs.daysImprovement,
@@ -1463,6 +1483,28 @@ export function postProcessAnalysis(analysisResult: any): any {
         warnings: [],
       };
       console.log(`[postProcessAnalysis] ${record.ID}: CashFlow via STRUCTURED LABELS: ${formatMoney(hfResult.value)}`);
+    } else if (cashFlowLabelSwap) {
+      const id = record.ID || "UC";
+      console.warn(
+        `[postProcessAnalysis] ${id}: LABEL_SWAP_DETECTED structuredAnnualRevenue=${formatMoney(structuredCashFlowInputs!.annualRevenue)} vs step0Revenue=${formatMoney(annualRevenueFromStep0)}; ignoring structured cash-flow inputs and falling back to Step-3 derivation`,
+      );
+      // Push a structured warning so the methodology integrity panel renders it.
+      integrityWarnings.push({
+        severity: "warning",
+        code: "LABEL_SWAP_DETECTED",
+        message: `${id} cash-flow "Annual Revenue" of ${formatMoney(structuredCashFlowInputs!.annualRevenue)} is below 50% of company revenue (${formatMoney(annualRevenueFromStep0)}); the structured input was rejected and the value was re-derived from Step 3.`,
+        recommendedAction:
+          "Review the LLM cash-flow formula labels for this use case — the 'Annual Revenue' slot is being populated with a sub-segment figure (often Revenue at Risk) instead of the company total.",
+      });
+      // Force fallthrough to the Step-3-driven derived path below by setting
+      // the recalculated value to 0; the existing derivation block then fires.
+      cashFlowResult = {
+        value: 0,
+        formulaText: "",
+        warnings: [
+          `${id} cash flow label swap detected: structured "Annual Revenue" of ${formatMoney(structuredCashFlowInputs!.annualRevenue)} is below 50% of company revenue (${formatMoney(annualRevenueFromStep0)}); ignoring structured inputs and deriving from Step 3 driver impact.`,
+        ],
+      };
     } else {
       cashFlowResult = recalculateCashFlowBenefit(record["Cash Flow Formula"] || "");
     }
@@ -1560,10 +1602,17 @@ export function postProcessAnalysis(analysisResult: any): any {
               annualRevenue: companyRevenue,
               daysImprovement,
             });
+            // Preserve any prior warnings (e.g. LABEL_SWAP_DETECTED) so the
+            // upstream label-swap detection does not get silently wiped when
+            // we fall through to the Step-3 derived path.
+            const priorCashFlowWarnings = cashFlowResult.warnings || [];
             cashFlowResult = {
               value: derivedCashFlow.value,
               formulaText: `${formatExactMoneyForAudit(companyRevenue)} × (${daysImprovement}/365) × 0.08 × 0.85 × 0.75 = ${formatMoney(derivedCashFlow.trace.output)} → ${formatMoney(derivedCashFlow.value)} [derived from ${driverImpact}]`,
-              warnings: [`Cash flow derived from Step 3 driver impact: ${driverImpact}`],
+              warnings: [
+                ...priorCashFlowWarnings,
+                `Cash flow derived from Step 3 driver impact: ${driverImpact}`,
+              ],
             };
             console.log(`[postProcessAnalysis] ${record.ID}: Derived cash flow from Step 3 driver "${driverImpact}": ${formatMoney(derivedCashFlow.value)}`);
           }
@@ -1922,8 +1971,13 @@ export function postProcessAnalysis(analysisResult: any): any {
 
   if (correctedStep5Data.length > 0) {
     const synthesizeStep6Record = (s5: Step5Record): Record<string, any> => {
-      const inputTokens = 800;
-      const outputTokens = 800;
+      // A3: token estimator overhaul. The legacy flat 800/800 default
+      // grossly undercounted realistic agentic Claude workloads. Instead we
+      // derive a defensible estimate from the use-case record's structural
+      // signals (multi-agent, RAG, tool use, complexity keywords).
+      const tokenEstimate = estimateFromUseCaseRecord(s5);
+      const inputTokens = tokenEstimate.inputTokens;
+      const outputTokens = tokenEstimate.outputTokens;
       const runsPerMonth = 1000;
       const monthlyTokens = runsPerMonth * (inputTokens + outputTokens);
       const tokenResult = hfCalculateTokenCost({
@@ -2289,6 +2343,34 @@ export function postProcessAnalysis(analysisResult: any): any {
   console.log(`[postProcessAnalysis] Three-Scenario Summary: ${scenarioSummary.headline}`);
   console.log(`[postProcessAnalysis] NPV (5-year): ${formatMoney(multiYearProjection.npv)}, Payback: ${multiYearProjection.paybackMonths} months`);
 
+  // A2: Aggregate realism gates. These flag CFO-killer numbers (IRR > 100%,
+  // payback under 3 months, total annual value > 2% of company revenue) so
+  // they surface in the methodology integrity panel instead of silently
+  // flowing into the executive dashboard.
+  const realismFlags: RealismFlag[] = computeRealismFlags({
+    totalAnnualValue,
+    companyRevenue: annualRevenueFromStep0 > 0 ? annualRevenueFromStep0 : undefined,
+    irr: multiYearProjection.irr,
+    paybackMonths: multiYearProjection.paybackMonths,
+  });
+  if (realismFlags.length > 0) {
+    console.warn(
+      `[postProcessAnalysis] Realism flags: ${realismFlags
+        .map((f) => `${f.severity}:${f.code}`)
+        .join(", ")}`,
+    );
+    // Promote realism flags into the methodology integrity warnings stream.
+    // PortfolioWarning severities are info|warning|critical, so map "warn" → "warning".
+    for (const f of realismFlags) {
+      integrityWarnings.push({
+        severity: f.severity === "warn" ? "warning" : "critical",
+        code: f.code,
+        message: f.message,
+        recommendedAction: f.remediation,
+      });
+    }
+  }
+
   // ============================================
   // Update executive dashboard with deterministic calculations
   // ============================================
@@ -2372,8 +2454,13 @@ export function postProcessAnalysis(analysisResult: any): any {
           ...portfolioDiagnosticV22,
           // Convenience aliases the existing UI is keyed off (v2.1 names)
           conditionalChampionCount: portfolioDiagnosticV22.conditionalCount,
-          // Map to UI-friendly key names for the warnings (the UI reads `remediation`)
-          warnings: (portfolioDiagnosticV22.warnings || []).map((w) => ({
+          // Merge VRM warnings with structured integrity warnings (label-swap,
+          // realism gates) so they all render in MethodologyIntegrityPanel.
+          // Map to UI-friendly key names for the warnings (the UI reads `remediation`).
+          warnings: ([
+            ...(portfolioDiagnosticV22.warnings || []),
+            ...integrityWarnings,
+          ]).map((w) => ({
             ...w,
             remediation: (w as any).recommendedAction ?? (w as any).remediation,
           })),
@@ -2443,6 +2530,7 @@ export function postProcessAnalysis(analysisResult: any): any {
       irr: multiYearProjection.irr !== null ? `${(multiYearProjection.irr * 100).toFixed(1)}%` : 'N/A',
       totalBenefitOverPeriod: formatMoney(multiYearProjection.totalBenefitOverPeriod),
     },
+    realismFlags,
     executiveDashboard: {
       totalRevenueBenefit,
       totalCostBenefit,
