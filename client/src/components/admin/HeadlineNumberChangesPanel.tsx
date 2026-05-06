@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
   ArrowDown,
   ArrowUp,
@@ -127,6 +129,24 @@ export function HeadlineNumberChangesPanel({
       return METRIC_ORDER.indexOf(a.code) - METRIC_ORDER.indexOf(b.code);
     });
 
+  // "Regressions only" toggle: when on, hide every bucket whose downCount
+  // is 0 so an admin reviewing a "bumped schema" backfill can immediately
+  // see only the buckets where the run made a metric move *down* on at
+  // least one report. Intentionally not persisted — each new run starts
+  // showing the full picture.
+  const [regressionsOnly, setRegressionsOnly] = useState(false);
+  // Reset the filter whenever a new backfill run replaces the `updated`
+  // array — admins typically want to see the full picture first when a
+  // fresh run lands, then opt back into the regressions-only view.
+  useEffect(() => {
+    setRegressionsOnly(false);
+  }, [updated]);
+  const visible = regressionsOnly
+    ? sorted.filter((bucket) =>
+        bucket.entries.some((e) => e.delta.delta < 0),
+      )
+    : sorted;
+
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const toggle = (code: string) => {
     setExpanded((prev) => {
@@ -151,6 +171,21 @@ export function HeadlineNumberChangesPanel({
           (grouped by which metric moved, most common first — click a row to
           see every report)
         </span>
+        <div className="ml-auto flex items-center gap-2">
+          <Switch
+            id="toggle-headline-regressions-only"
+            checked={regressionsOnly}
+            onCheckedChange={setRegressionsOnly}
+            data-testid="switch-headline-regressions-only"
+          />
+          <Label
+            htmlFor="toggle-headline-regressions-only"
+            className="text-xs text-slate-600 cursor-pointer"
+            data-testid="label-headline-regressions-only"
+          >
+            Regressions only
+          </Label>
+        </div>
       </div>
       {sorted.length === 0 ? (
         <div
@@ -160,9 +195,16 @@ export function HeadlineNumberChangesPanel({
           No headline numbers moved across this run — every upgrade was
           schema-only.
         </div>
+      ) : visible.length === 0 ? (
+        <div
+          className="px-4 py-3 text-sm text-slate-600"
+          data-testid="text-headline-no-regressions"
+        >
+          No regressions in this run.
+        </div>
       ) : (
         <ul className="divide-y divide-slate-100">
-          {sorted.map((bucket) => {
+          {visible.map((bucket) => {
             const exampleCompanies = Array.from(
               new Set(bucket.entries.map((e) => e.report.companyName)),
             ).slice(0, 3);
