@@ -4,6 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Lock, Eye, EyeOff } from "lucide-react";
+import { sanitizeReturnTo } from "@/lib/sanitizeReturnTo";
 
 const COOLDOWN_THRESHOLD = 5;
 const COOLDOWN_WINDOW_MS = 60 * 1000;
@@ -21,7 +22,14 @@ export default function Login() {
   const [, setLocation] = useLocation();
   const search = useSearch();
 
-  const returnTo = new URLSearchParams(search).get("returnTo") || "/";
+  // Sanitize `returnTo` to a same-origin relative path. Any value that doesn't
+  // start with a single "/" — including absolute URLs ("https://evil.com"),
+  // protocol-relative URLs ("//evil.com"), and backslash-prefixed variants
+  // browsers sometimes normalize ("/\evil.com") — collapses to "/". This
+  // closes the open-redirect vector where an attacker hands a victim a
+  // /login?returnTo=https://evil.com link and steals the post-login bounce.
+  const rawReturnTo = new URLSearchParams(search).get("returnTo") || "/";
+  const returnTo = sanitizeReturnTo(rawReturnTo);
   const isCoolingDown = cooldownSeconds > 0;
 
   useEffect(() => {
