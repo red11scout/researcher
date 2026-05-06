@@ -337,6 +337,17 @@ export function setupAuth(app: import("express").Express) {
     );
   }
   if (adminPassword && appPassword && adminPassword === appPassword) {
+    // In production, sharing the secret means /api/auth/admin-login will
+    // accept APP_PASSWORD and elevate any logged-in user to admin —
+    // turning the "admin" tier into security theater. Refuse to start so
+    // the misconfiguration is caught at deploy time, not after a destructive
+    // /api/admin/backfill-reports call from an ordinary session.
+    if (process.env.NODE_ENV === "production") {
+      console.error(
+        "FATAL: ADMIN_PASSWORD matches APP_PASSWORD in production — admin elevation provides no extra protection. Set them to distinct values and redeploy.",
+      );
+      process.exit(1);
+    }
     console.warn(
       "ADMIN_PASSWORD matches APP_PASSWORD — admin elevation provides no extra protection. Set them to distinct values.",
     );

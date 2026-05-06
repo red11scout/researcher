@@ -54,6 +54,7 @@ Preferred communication style: Simple, everyday language.
 - **Admin Audit Log Export:** Exports are capped at `10,000` rows; check `X-Audit-Export-Truncated` header for truncated results.
 - **Client-Side Calculation Fallbacks:** Do not re-introduce client-side re-computation of post-processor totals; if canonical data is missing, render "Unavailable".
 - **Audit `formulaText` Reconciliation:** The printed Cost/Revenue/Cash Flow/Risk Formula strings *must* evaluate to the printed dollar result. Use `formatPctForAudit` (adaptive precision, never collapses sub-1% to "0%") for percentages and `formatExactMoneyForAudit` (full precision, e.g. "$23,500,000,000") for dollar inputs. Only the result side may use abbreviated `formatMoney`. Locked in by `tests/formula-text-reconciles.test.ts`.
+- **`ADMIN_PASSWORD` in production:** Must differ from `APP_PASSWORD`. `setupAuth` in `server/auth.ts` refuses to start (`process.exit(1)`) when they match and `NODE_ENV=production`; in dev the same condition is a `console.warn`. Sharing the secret would let any logged-in user elevate to admin via `/api/auth/admin-login`.
 
 ## Pointers
 - **Shadcn/ui Documentation:** [https://ui.shadcn.com/docs](https://ui.shadcn.com/docs)
