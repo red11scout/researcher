@@ -810,10 +810,60 @@ export function AdminPanel() {
   const [auditExporting, setAuditExporting] = useState<null | "csv" | "xlsx">(
     null,
   );
+
+  // "Last exported" chip state. After a successful download we remember
+  // what was saved (format, row count, when) so a small chip under the
+  // download buttons can tell the operator "you already grabbed this slice
+  // 2 minutes ago" — preventing duplicate CSV-then-Excel downloads of an
+  // identical filtered view. Tied to a stable filter-key snapshot so the
+  // chip auto-clears the moment the operator narrows / widens the slice
+  // (since the previous download no longer represents the current view).
+  const auditFilterKey = useMemo(
+    () =>
+      JSON.stringify({
+        action: auditFilters.action ?? null,
+        status: auditFilters.status ?? null,
+        since: auditFilters.since ?? null,
+        until: auditFilters.until ?? null,
+        ip: auditFilters.ip.trim(),
+      }),
+    [auditFilters],
+  );
+  const [lastAuditExport, setLastAuditExport] = useState<
+    | {
+        format: "csv" | "xlsx";
+        rows: number;
+        at: number;
+        filterKey: string;
+      }
+    | null
+  >(null);
+  // Drop the chip whenever the filter slice changes — the previous download
+  // no longer corresponds to what the panel is showing, so claiming "you
+  // already exported this" would be misleading.
+  useEffect(() => {
+    setLastAuditExport((prev) =>
+      prev && prev.filterKey === auditFilterKey ? prev : null,
+    );
+  }, [auditFilterKey]);
+  // Mirror the live filter key in a ref so the export-completion handler
+  // can compare against the *current* slice (not the slice that was active
+  // when the request started) and discard stale results when filters
+  // changed mid-flight. Without this, a slow CSV download whose response
+  // returns after the operator narrows filters would attach an out-of-date
+  // chip to the new slice.
+  const auditFilterKeyRef = useRef(auditFilterKey);
+  auditFilterKeyRef.current = auditFilterKey;
+
   const exportAuditLog = useCallback(
     async (format: "csv" | "xlsx") => {
       setAuditExporting(format);
       const formatLabel = format === "xlsx" ? "Excel" : "CSV";
+      // Snapshot the filter key at request start; the completion handler
+      // compares this against the *live* key (via `auditFilterKeyRef`) so a
+      // mid-flight filter change discards the stale chip metadata instead
+      // of attaching it to the new slice.
+      const requestFilterKey = auditFilterKey;
       try {
         // Mirror the same filter→query-param translation as `loadAuditLog`
         // so the download contains exactly what the panel is showing.
@@ -890,6 +940,27 @@ export function AdminPanel() {
             description: `${rows} row${rows === "1" ? "" : "s"} saved as ${filename}`,
           });
         }
+        // Update the "last exported" chip so the operator can see at a
+        // glance that this slice has just been saved. Use the parsed row
+        // count from the response header (the source of truth — matches the
+        // toast's "N rows saved" copy and the file's actual row count, even
+        // when truncated). Tag with the filter key snapshot we captured
+        // *before* the network request so a mid-flight filter change can
+        // discard the stale result instead of attaching it to the new
+        // slice (race: operator narrows filters while the download is
+        // still in flight; the response no longer represents what the
+        // panel is showing).
+        if (rows && auditFilterKeyRef.current === requestFilterKey) {
+          const parsedRows = Number.parseInt(rows, 10);
+          if (Number.isFinite(parsedRows)) {
+            setLastAuditExport({
+              format,
+              rows: parsedRows,
+              at: Date.now(),
+              filterKey: requestFilterKey,
+            });
+          }
+        }
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
         toast({
@@ -901,7 +972,7 @@ export function AdminPanel() {
         setAuditExporting(null);
       }
     },
-    [auditFilters, toast],
+    [auditFilters, auditFilterKey, toast],
   );
 
   // Hydrate the post-run summary from the server on page load. The Admin
@@ -1684,6 +1755,7 @@ export function AdminPanel() {
           onRefresh={refreshAuditLog}
           onExport={(format) => void exportAuditLog(format)}
           exporting={auditExporting}
+          lastExport={lastAuditExport}
           cleanup={auditCleanup}
           cleanupLoading={auditCleanupLoading}
           cleanupError={auditCleanupError}
@@ -2745,6 +2817,44 @@ function formatRetentionValue(value: number | null | undefined): string {
   return `${value} day${value === 1 ? "" : "s"}`;
 }
 
+/**
+ * Small pill rendered under the Download CSV/Excel buttons after a
+ * successful export, e.g. "Last exported: 2m ago (Excel, 1,243 rows)".
+ * Exists so an operator who's already saved a slice doesn't accidentally
+ * re-download the same data in the other format. Re-uses the page-wide
+ * `useNow` ticker so the relative time stays fresh without each chip
+ * spinning up its own interval.
+ */
+function LastAuditExportChip({
+  lastExport,
+}: {
+  lastExport: {
+    format: "csv" | "xlsx";
+    rows: number;
+    at: number;
+  } | null;
+}) {
+  const now = useNow();
+  if (!lastExport) return null;
+  const formatLabel = lastExport.format === "xlsx" ? "Excel" : "CSV";
+  const rowsLabel = `${lastExport.rows.toLocaleString()} ${
+    lastExport.rows === 1 ? "row" : "rows"
+  }`;
+  const relative = formatRelativeTime(new Date(lastExport.at).toISOString(), now);
+  return (
+    <div
+      className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-600"
+      title={`Saved at ${new Date(lastExport.at).toLocaleString()}`}
+      data-testid="text-last-audit-export"
+    >
+      <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+      <span>
+        Last exported: {relative} ({formatLabel}, {rowsLabel})
+      </span>
+    </div>
+  );
+}
+
 interface RecentAdminActivityProps {
   entries: AdminAuditEntry[];
   total: number;
@@ -2763,6 +2873,15 @@ interface RecentAdminActivityProps {
   // pressed button and a second download can't be queued mid-flight.
   onExport: (format: "csv" | "xlsx") => void;
   exporting: null | "csv" | "xlsx";
+  // Most recent successful export of the currently-displayed slice (or
+  // null if none in this session, or if the operator changed filters
+  // since). Drives the "Last exported: …" chip under the Download buttons
+  // — see the chip's comment in the header for why this exists.
+  lastExport: {
+    format: "csv" | "xlsx";
+    rows: number;
+    at: number;
+  } | null;
   cleanup: AuditCleanupStatus | null;
   cleanupLoading: boolean;
   cleanupError: string | null;
@@ -2791,6 +2910,7 @@ export function RecentAdminActivity({
   onRefresh,
   onExport,
   exporting,
+  lastExport,
   cleanup,
   cleanupLoading,
   cleanupError,
@@ -2846,7 +2966,8 @@ export function RecentAdminActivity({
               brute-force attempts on the admin password.
             </CardDescription>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
@@ -2933,6 +3054,8 @@ export function RecentAdminActivity({
               )}
               Refresh
             </Button>
+            </div>
+            <LastAuditExportChip lastExport={lastExport} />
           </div>
         </div>
       </CardHeader>
