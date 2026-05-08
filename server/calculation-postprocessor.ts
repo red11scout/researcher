@@ -3104,7 +3104,7 @@ export function postProcessAnalysis(analysisResult: any): any {
             `(moderate scenario was IMPLAUSIBLE at ${(scenarioSummary.moderate.totalBenefit / annualRevenueFromStep0 * 100).toFixed(2)}% ` +
             `of revenue; rebased to land on the believable ~0.75% midline). All four pillars and scenario / NPV / IRR figures were re-derived.`,
           recommendedAction:
-            "The headline now reflects an independently-verified CFO-believable target. The pre-rescale figures are preserved at executiveDashboard.preCfoRescale for the audit trail.",
+            "The headline now reflects an independently-verified CFO-believable target. The pre-rescale figures are preserved at the top-level `preCfoRescale` field for the audit trail.",
         });
       }
     }
