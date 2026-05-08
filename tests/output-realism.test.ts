@@ -633,12 +633,12 @@ describe("PORTFOLIO CASH-FLOW GUARDRAIL: cumulative days improvement is bounded 
     expect(effectiveDays).toBeCloseTo(PORTFOLIO_BOUNDS.cumulativeDaysImprovement.max, 0);
   });
 
-  it("Realistic portfolio (3 UCs, total ≤ 30 days) does NOT trip the cap", () => {
+  it("Realistic portfolio (3 UCs, total ≤ 15 days) does NOT trip the cap", () => {
     const annualRevenue = 500_000_000;
     const ucs = [
-      { id: "UC1", daysImprovement: 12, cashFlowBenefit: calculateCashFlowBenefit({ annualRevenue, daysImprovement: 12 }).value },
-      { id: "UC2", daysImprovement: 8,  cashFlowBenefit: calculateCashFlowBenefit({ annualRevenue, daysImprovement: 8 }).value },
-      { id: "UC3", daysImprovement: 5,  cashFlowBenefit: calculateCashFlowBenefit({ annualRevenue, daysImprovement: 5 }).value },
+      { id: "UC1", daysImprovement: 6, cashFlowBenefit: calculateCashFlowBenefit({ annualRevenue, daysImprovement: 6 }).value },
+      { id: "UC2", daysImprovement: 5, cashFlowBenefit: calculateCashFlowBenefit({ annualRevenue, daysImprovement: 5 }).value },
+      { id: "UC3", daysImprovement: 3, cashFlowBenefit: calculateCashFlowBenefit({ annualRevenue, daysImprovement: 3 }).value },
     ];
     const result = applyPortfolioCashflowGuardrail({ perUseCase: ucs });
     expect(result.capBound).toBe(false);

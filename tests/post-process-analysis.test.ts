@@ -2512,9 +2512,9 @@ describe("PORTFOLIO CASH-FLOW DAYS CAP — Constellation Energy regression (Task
     expect(warnings.find((w) => w?.code === "PORTFOLIO_TOTAL_VS_REVENUE_CAP")).toBeUndefined();
   });
 
-  it("realistic 3-UC portfolio (cumulative ≤ 30 days) does NOT trip the cap", () => {
+  it("realistic 3-UC portfolio (cumulative ≤ 15 days) does NOT trip the cap", () => {
     const annualRevenue = 500_000_000;
-    const ucs = [12, 8, 5].map((days, i) => ({
+    const ucs = [6, 5, 3].map((days, i) => ({
       ID: `UC-${i + 1}`,
       "Use Case": `WC Initiative ${i + 1}`,
       "Cost Formula Labels": {

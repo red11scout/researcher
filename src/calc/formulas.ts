@@ -72,22 +72,29 @@ export const INPUT_BOUNDS = {
 // the same dollars under different rationale. These bounds bind the
 // **portfolio aggregate** so the headline ships only CFO-defensible numbers.
 //
-//   cumulativeDaysImprovement: 30 days = ~1 month of working capital. Beyond
-//     this, every additional day claims dollars already counted by an earlier
-//     use case (the same DSO / DPO / inventory pool can only be financed once).
+//   cumulativeDaysImprovement: 15 days = ~half a month of working capital
+//     released. CFOs at large enterprises (Constellation Energy class) treat
+//     anything beyond two weeks of cumulative DSO/DPO/inventory improvement
+//     across a single AI program as double-counting — the same working
+//     capital pool can only be financed once. Tightened from 30 → 15 days
+//     after the Constellation Energy regression where 39 cumulative days
+//     still produced $82M in cash flow that the CFO desk rejected as
+//     implausible (Task #107 follow-up).
 //
-//   cashFlowShareOfTotalValue: 0.35 = 35%. Cash-flow benefits ride on a single
-//     working-capital pool; if they exceed roughly a third of total reported
-//     value, the math is almost certainly aggregating the same pool repeatedly.
+//   cashFlowShareOfTotalValue: 0.20 = 20%. Cash-flow benefits ride on a
+//     single working-capital pool; CFO desks consider concentrations above
+//     ~20% structurally suspect for a multi-driver AI portfolio. Tightened
+//     from 35% → 20% after the same Constellation regression.
 //
-//   totalValueAsShareOfRevenue: 0.05 = 5%. Mirrors `benefitsCapPct` (3%) with
-//     a slightly looser ceiling for industries with above-average AI leverage;
-//     trips a portfolio-level realism flag rather than scaling.
+//   totalValueAsShareOfRevenue: 0.025 = 2.5%. Year-one AI program benefits
+//     above ~2.5% of revenue almost never survive CFO scrutiny — the
+//     conservative scenario must land around 1% of revenue to be slide-1
+//     defensible. Tightened from 5% → 2.5%.
 // ============================================================================
 export const PORTFOLIO_BOUNDS = {
-  cumulativeDaysImprovement:   { min: 0, max: 30,   label: 'Cumulative Days Improvement (Portfolio)' },
-  cashFlowShareOfTotalValue:   { min: 0, max: 0.35, label: 'Cash Flow Share of Total Value' },
-  totalValueAsShareOfRevenue:  { min: 0, max: 0.05, label: 'Total Value as Share of Revenue (Portfolio)' },
+  cumulativeDaysImprovement:   { min: 0, max: 15,    label: 'Cumulative Days Improvement (Portfolio)' },
+  cashFlowShareOfTotalValue:   { min: 0, max: 0.20,  label: 'Cash Flow Share of Total Value' },
+  totalValueAsShareOfRevenue:  { min: 0, max: 0.025, label: 'Total Value as Share of Revenue (Portfolio)' },
 } as const;
 
 /**

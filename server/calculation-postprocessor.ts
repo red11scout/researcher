@@ -14,6 +14,9 @@ import {
   calculateFrictionRecovery,
   generateThreeScenarioSummary,
   calculateMultiYearProjection,
+} from "../src/calc/formulas.js";
+import { runCfoRealityCheck } from "../src/calc/cfoRealityCheck.js";
+import {
   applyPortfolioCashflowGuardrail,
   PORTFOLIO_BOUNDS,
   calculateReadinessScore,
@@ -2843,7 +2846,7 @@ export function postProcessAnalysis(analysisResult: any): any {
   // ============================================
   // STEP 7: POST-PROCESSING - THREE-SCENARIO SUMMARY & NPV
   // ============================================
-  const totalAnnualValue = totalCostBenefit + totalRevenueBenefit + totalCashFlowBenefit + totalRiskBenefit;
+  let totalAnnualValue = totalCostBenefit + totalRevenueBenefit + totalCashFlowBenefit + totalRiskBenefit;
 
   // Generate three-scenario summary
   const scenarioSummary = generateThreeScenarioSummary({
@@ -2898,8 +2901,8 @@ export function postProcessAnalysis(analysisResult: any): any {
   // and exports can still show them. Computed BEFORE the vrm-block return so
   // the warnings end up in vrm.diagnostic.warnings.
   // ============================================
-  const rawIrr = multiYearProjection.irr;
-  const rawPayback = multiYearProjection.paybackMonths;
+  let rawIrr = multiYearProjection.irr;
+  let rawPayback = multiYearProjection.paybackMonths;
   const IRR_DISPLAY_CEILING = 2.0; // 200%
   const PAYBACK_DISPLAY_FLOOR_MONTHS = 6;
 
@@ -2920,7 +2923,7 @@ export function postProcessAnalysis(analysisResult: any): any {
   }
 
   let paybackDisplay: number | string = rawPayback;
-  if (rawPayback >= 0 && rawPayback < PAYBACK_DISPLAY_FLOOR_MONTHS) {
+  if (typeof rawPayback === "number" && rawPayback >= 0 && rawPayback < PAYBACK_DISPLAY_FLOOR_MONTHS) {
     paybackDisplay = `<${PAYBACK_DISPLAY_FLOOR_MONTHS} mo`;
     integrityWarnings.push({
       severity: "warning",
@@ -2929,6 +2932,184 @@ export function postProcessAnalysis(analysisResult: any): any {
       recommendedAction:
         "Sub-6-month payback usually means implementation cost is understated. Confirm the cost basis is fully loaded.",
     });
+  }
+
+  // ============================================
+  // CFO REALITY CHECK (Task #107 follow-up) — independent verification.
+  //
+  // Runs an independent believability check (does NOT share assumptions
+  // with the calculation engine) against industry-typical year-1 AI
+  // program ranges. When the moderate scenario is flagged IMPLAUSIBLE,
+  // every pillar is uniformly scaled down so the moderate scenario lands
+  // on the believable midline (~0.75% of revenue). Per-UC totals are
+  // recomputed and a structured `cfoRealityCheck` block is attached to
+  // the output for the executive panel and audit trail.
+  // ============================================
+  let cfoRealityCheckResult: ReturnType<typeof runCfoRealityCheck> | null = null;
+  let preCfoRescale: {
+    totalAnnualValue: number;
+    totalCostBenefit: number;
+    totalRevenueBenefit: number;
+    totalCashFlowBenefit: number;
+    totalRiskBenefit: number;
+    moderateScenario: number;
+    irr: number | null;
+    paybackMonths: number | string;
+    irrDisplay: string;
+    paybackDisplay: number | string;
+  } | null = null;
+  try {
+    if (annualRevenueFromStep0 > 0) {
+      const ucList = (correctedStep5Data as any[]).map((r) => ({
+        id: String(r.ID || ""),
+        totalAnnualValue: parseNumber(r["Total Annual Value ($)"]),
+      }));
+      const check = runCfoRealityCheck({
+        totalAnnualValue,
+        totalCostBenefit,
+        totalRevenueBenefit,
+        totalCashFlowBenefit,
+        totalRiskBenefit,
+        companyAnnualRevenue: annualRevenueFromStep0,
+        scenarios: {
+          conservative: scenarioSummary.conservative.totalBenefit,
+          moderate: scenarioSummary.moderate.totalBenefit,
+          aggressive: scenarioSummary.aggressive.totalBenefit,
+        },
+        perUseCase: ucList,
+      });
+      cfoRealityCheckResult = check;
+
+      // Push every finding into the integrity warnings stream.
+      for (const f of check.findings) {
+        integrityWarnings.push({
+          severity: f.verdict === "IMPLAUSIBLE" ? "critical" : "warning",
+          code: f.code,
+          message: f.message,
+          recommendedAction: f.recommendedAction,
+        });
+      }
+
+      // If moderate scenario is IMPLAUSIBLE, scale all four pillars
+      // uniformly so the canonical totals re-center on the CFO-believable
+      // midline. Mirrors the PORTFOLIO_TOTAL_VS_REVENUE_CAP pattern: scale
+      // per-UC values, append a prorate annotation to each non-zero
+      // formula string, recompute Total Annual Value / EV per row, and
+      // re-derive scenario / multi-year / IRR off the new base.
+      const cfoScale = check.recommendedScale;
+      if (cfoScale > 0 && cfoScale < 1) {
+        // Snapshot the pre-rescale figures so the audit panel can show
+        // both the original and the post-rescale numbers.
+        preCfoRescale = {
+          totalAnnualValue,
+          totalCostBenefit,
+          totalRevenueBenefit,
+          totalCashFlowBenefit,
+          totalRiskBenefit,
+          moderateScenario: scenarioSummary.moderate.totalBenefit,
+          irr: rawIrr,
+          paybackMonths: rawPayback,
+          irrDisplay,
+          paybackDisplay,
+        };
+        let nCost = 0, nRev = 0, nCf = 0, nRisk = 0;
+        for (let i = 0; i < correctedStep5Data.length; i++) {
+          const rec = correctedStep5Data[i] as any;
+          const oCost = parseNumber(rec["Cost Benefit ($)"]);
+          const oRev = parseNumber(rec["Revenue Benefit ($)"]);
+          const oCf = parseNumber(rec["Cash Flow Benefit ($)"]);
+          const oRisk = parseNumber(rec["Risk Benefit ($)"]);
+          const sCost = Math.floor(oCost * cfoScale);
+          const sRev = Math.floor(oRev * cfoScale);
+          const sCf = Math.floor(oCf * cfoScale);
+          const sRisk = Math.floor(oRisk * cfoScale);
+          nCost += sCost; nRev += sRev; nCf += sCf; nRisk += sRisk;
+          if (oCost > 0) {
+            rec["Cost Benefit ($)"] = formatMoney(sCost);
+            const f = String(rec["Cost Formula"] || "");
+            if (f) rec["Cost Formula"] = f + ` × ${cfoScale.toFixed(6)} (CFO reality check) → ${formatMoney(sCost)}`;
+          }
+          if (oRev > 0) {
+            rec["Revenue Benefit ($)"] = formatMoney(sRev);
+            const f = String(rec["Revenue Formula"] || "");
+            if (f) rec["Revenue Formula"] = f + ` × ${cfoScale.toFixed(6)} (CFO reality check) → ${formatMoney(sRev)}`;
+          }
+          if (oCf > 0) {
+            rec["Cash Flow Benefit ($)"] = formatMoney(sCf);
+            const f = String(rec["Cash Flow Formula"] || "");
+            if (f) rec["Cash Flow Formula"] = f + ` × ${cfoScale.toFixed(6)} (CFO reality check) → ${formatMoney(sCf)}`;
+          }
+          if (oRisk > 0) {
+            rec["Risk Benefit ($)"] = formatMoney(sRisk);
+            const f = String(rec["Risk Formula"] || "");
+            if (f) rec["Risk Formula"] = f + ` × ${cfoScale.toFixed(6)} (CFO reality check) → ${formatMoney(sRisk)}`;
+          }
+          const newTotal = sCost + sRev + sCf + sRisk;
+          const probSuccess = parseNumber(rec["Probability of Success"]) || 0.75;
+          rec["Total Annual Value ($)"] = formatMoney(newTotal);
+          rec["Expected Value ($)"] = formatMoney(newTotal * probSuccess);
+          const ve = useCaseBenefitsForValidation.find((v) => v.id === rec.ID);
+          if (ve) {
+            ve.costBenefit = sCost; ve.revenueBenefit = sRev;
+            ve.cashFlowBenefit = sCf; ve.riskBenefit = sRisk;
+            (ve as any).totalAnnualValue = newTotal;
+          }
+        }
+        totalCostBenefit = nCost;
+        totalRevenueBenefit = nRev;
+        totalCashFlowBenefit = nCf;
+        totalRiskBenefit = nRisk;
+        // Re-derive totals + scenarios + multi-year off the new base.
+        totalAnnualValue = totalCostBenefit + totalRevenueBenefit + totalCashFlowBenefit + totalRiskBenefit;
+        const newScenarioSummary = generateThreeScenarioSummary({
+          baseBenefitAtFullAdoption: totalAnnualValue,
+          implementationCost: totalFrictionCost * 0.5,
+        });
+        scenarioSummary.conservative = newScenarioSummary.conservative;
+        scenarioSummary.moderate = newScenarioSummary.moderate;
+        scenarioSummary.aggressive = newScenarioSummary.aggressive;
+        const newMyp = calculateMultiYearProjection({
+          annualBenefit: totalAnnualValue,
+          implementationCost: totalFrictionCost * 0.5,
+        });
+        multiYearProjection.npv = newMyp.npv;
+        multiYearProjection.irr = newMyp.irr;
+        multiYearProjection.paybackMonths = newMyp.paybackMonths;
+        multiYearProjection.totalBenefitOverPeriod = newMyp.totalBenefitOverPeriod;
+
+        // Re-derive IRR/payback display values off the rescaled
+        // multi-year projection. Without this the response would carry
+        // pre-rescale display strings while every other figure
+        // reflected the rescaled portfolio.
+        rawIrr = newMyp.irr;
+        rawPayback = newMyp.paybackMonths;
+        if (rawIrr === null || !Number.isFinite(rawIrr)) {
+          irrDisplay = "N/A";
+        } else if (rawIrr > IRR_DISPLAY_CEILING) {
+          irrDisplay = `${(IRR_DISPLAY_CEILING * 100).toFixed(0)}%+`;
+        } else {
+          irrDisplay = `${(rawIrr * 100).toFixed(1)}%`;
+        }
+        if (typeof rawPayback === "number" && rawPayback >= 0 && rawPayback < PAYBACK_DISPLAY_FLOOR_MONTHS) {
+          paybackDisplay = `<${PAYBACK_DISPLAY_FLOOR_MONTHS} mo`;
+        } else {
+          paybackDisplay = rawPayback;
+        }
+
+        integrityWarnings.push({
+          severity: "critical",
+          code: "CFO_REALITY_RESCALE",
+          message:
+            `CFO reality check rescaled the portfolio by ${cfoScale.toFixed(3)}× ` +
+            `(moderate scenario was IMPLAUSIBLE at ${(scenarioSummary.moderate.totalBenefit / annualRevenueFromStep0 * 100).toFixed(2)}% ` +
+            `of revenue; rebased to land on the believable ~0.75% midline). All four pillars and scenario / NPV / IRR figures were re-derived.`,
+          recommendedAction:
+            "The headline now reflects an independently-verified CFO-believable target. The pre-rescale figures are preserved at executiveDashboard.preCfoRescale for the audit trail.",
+        });
+      }
+    }
+  } catch (err) {
+    console.warn("[postProcessAnalysis] CFO reality check skipped:", err);
   }
 
   // ============================================
@@ -2955,7 +3136,28 @@ export function postProcessAnalysis(analysisResult: any): any {
       if (dollarFigures.length > 0 && canonicalFirstYear > 0) {
         const llmFirstYear = dollarFigures[0];
         const divergence = Math.abs(llmFirstYear - canonicalFirstYear) / canonicalFirstYear;
-        if (divergence > 0.10) {
+        // ONE-WAY override: only rewrite the headline when the LLM
+        // **exaggerated upward** vs canonical (LLM > canonical by > 10%).
+        // When the LLM is more conservative than canonical, do NOT replace
+        // — that situation almost always means canonical is the inflated
+        // figure (the very Constellation Energy regression that triggered
+        // this follow-up). Instead emit an audit warning so the
+        // methodology panel surfaces the gap.
+        const llmExceedsCanonical = llmFirstYear > canonicalFirstYear;
+        if (divergence > 0.10 && !llmExceedsCanonical) {
+          integrityWarnings.push({
+            severity: "warning",
+            code: "HEADLINE_LLM_MORE_CONSERVATIVE",
+            message:
+              `Executive-summary headline (${formatMoney(llmFirstYear)}) is ` +
+              `${(divergence * 100).toFixed(0)}% lower than canonical totals ` +
+              `(${formatMoney(canonicalFirstYear)}). Headline NOT overridden — ` +
+              `the LLM's conservative figure was preserved because canonical-above-LLM ` +
+              `is usually a sign that the post-processor inflated totals, not that the LLM hallucinated.`,
+            recommendedAction:
+              "Investigate why the canonical rollup exceeds the LLM's narrative. Common causes: working-capital double-counting that the portfolio caps did not catch, or a use case whose probability weighting was set too high.",
+          });
+        } else if (divergence > 0.10) {
           const originalHeadline = exec.headline;
           exec.headlineLLMOriginal = originalHeadline;
           exec.headline =
@@ -3151,6 +3353,8 @@ export function postProcessAnalysis(analysisResult: any): any {
       valuePerMillionTokens: valuePerMillion.value,
       topUseCases,
     },
+    cfoRealityCheck: cfoRealityCheckResult,
+    preCfoRescale,
   };
 
   console.log(`[postProcessAnalysis] Dashboard totals: TotalValue=${formatMoney(totalAnnualValue)}, Cost=${formatMoney(totalCostBenefit)}, Revenue=${formatMoney(totalRevenueBenefit)}, CashFlow=${formatMoney(totalCashFlowBenefit)}, Risk=${formatMoney(totalRiskBenefit)}`);
