@@ -802,12 +802,13 @@ export function AdminPanel() {
 
   // Export handler — downloads every row matching the current filters
   // (not just the visible page), capped server-side at 10k rows. Used by
-  // the "Download CSV" / "Download Excel" buttons next to Refresh on the
-  // audit panel so an operator can attach a slice of the trail to an
-  // incident ticket or pivot it in a spreadsheet without screenshotting
-  // page-by-page. The `format` arg picks between the two routes; the
+  // the "Download CSV" / "Download Excel" / "Download PDF" buttons next
+  // to Refresh on the audit panel so an operator can attach a slice of
+  // the trail to an incident ticket, pivot it in a spreadsheet, or hand
+  // a print-ready copy to a compliance reviewer without screenshotting
+  // page-by-page. The `format` arg picks between the three routes; the
   // toast/filename labels follow it so the user-facing copy reads right.
-  const [auditExporting, setAuditExporting] = useState<null | "csv" | "xlsx">(
+  const [auditExporting, setAuditExporting] = useState<null | "csv" | "xlsx" | "pdf">(
     null,
   );
 
@@ -831,7 +832,7 @@ export function AdminPanel() {
   );
   const [lastAuditExport, setLastAuditExport] = useState<
     | {
-        format: "csv" | "xlsx";
+        format: "csv" | "xlsx" | "pdf";
         rows: number;
         at: number;
         filterKey: string;
@@ -856,9 +857,10 @@ export function AdminPanel() {
   auditFilterKeyRef.current = auditFilterKey;
 
   const exportAuditLog = useCallback(
-    async (format: "csv" | "xlsx") => {
+    async (format: "csv" | "xlsx" | "pdf") => {
       setAuditExporting(format);
-      const formatLabel = format === "xlsx" ? "Excel" : "CSV";
+      const formatLabel =
+        format === "xlsx" ? "Excel" : format === "pdf" ? "PDF" : "CSV";
       // Snapshot the filter key at request start; the completion handler
       // compares this against the *live* key (via `auditFilterKeyRef`) so a
       // mid-flight filter change discards the stale chip metadata instead
@@ -889,7 +891,9 @@ export function AdminPanel() {
         const path =
           format === "xlsx"
             ? "/api/admin/audit-log/export.xlsx"
-            : "/api/admin/audit-log/export";
+            : format === "pdf"
+              ? "/api/admin/audit-log/export.pdf"
+              : "/api/admin/audit-log/export";
         const res = await fetch(`${path}?${params.toString()}`, {
           credentials: "include",
         });
@@ -2829,14 +2833,19 @@ function LastAuditExportChip({
   lastExport,
 }: {
   lastExport: {
-    format: "csv" | "xlsx";
+    format: "csv" | "xlsx" | "pdf";
     rows: number;
     at: number;
   } | null;
 }) {
   const now = useNow();
   if (!lastExport) return null;
-  const formatLabel = lastExport.format === "xlsx" ? "Excel" : "CSV";
+  const formatLabel =
+    lastExport.format === "xlsx"
+      ? "Excel"
+      : lastExport.format === "pdf"
+        ? "PDF"
+        : "CSV";
   const rowsLabel = `${lastExport.rows.toLocaleString()} ${
     lastExport.rows === 1 ? "row" : "rows"
   }`;
@@ -2871,14 +2880,14 @@ interface RecentAdminActivityProps {
   // to Refresh trigger `onExport(format)`; `exporting` is the format
   // currently in flight (or null) so the spinner only spins on the
   // pressed button and a second download can't be queued mid-flight.
-  onExport: (format: "csv" | "xlsx") => void;
-  exporting: null | "csv" | "xlsx";
+  onExport: (format: "csv" | "xlsx" | "pdf") => void;
+  exporting: null | "csv" | "xlsx" | "pdf";
   // Most recent successful export of the currently-displayed slice (or
   // null if none in this session, or if the operator changed filters
   // since). Drives the "Last exported: …" chip under the Download buttons
   // — see the chip's comment in the header for why this exists.
   lastExport: {
-    format: "csv" | "xlsx";
+    format: "csv" | "xlsx" | "pdf";
     rows: number;
     at: number;
   } | null;
@@ -3039,6 +3048,25 @@ export function RecentAdminActivity({
                 <Download className="h-3.5 w-3.5 mr-1.5" />
               )}
               Download Excel
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onExport("pdf")}
+              disabled={exporting !== null || total === 0}
+              title={
+                total === 0
+                  ? "No rows match the current filters"
+                  : "Download every row matching the current filters as a print-ready PDF (active filters and timestamp at the top, paginated for archival)"
+              }
+              data-testid="button-download-audit-pdf"
+            >
+              {exporting === "pdf" ? (
+                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+              ) : (
+                <Download className="h-3.5 w-3.5 mr-1.5" />
+              )}
+              Download PDF
             </Button>
             <Button
               variant="outline"

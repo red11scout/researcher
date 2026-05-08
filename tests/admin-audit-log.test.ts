@@ -1507,6 +1507,163 @@ describe("GET /api/admin/audit-log/export.xlsx — Excel response", () => {
 });
 
 // ===========================================================================
+// 6. GET /api/admin/audit-log/export.pdf — PDF emission + headers
+// ===========================================================================
+//
+// Coverage for the PDF export route added in task #84. The CSV / .xlsx
+// routes already prove filter forwarding, the 10k cap, and pre-stream
+// error handling — those concerns are shared via `parseAuditLogQuery`
+// and `storage.exportAdminAuditEntries`, so we don't re-test them
+// here. What this section proves is what the PDF contract specifically
+// promises beyond the spreadsheet routes:
+//   - Real PDF bytes (the `%PDF-` magic header), not a renamed binary
+//   - The right MIME type so browsers open it natively
+//   - Filename has the .pdf extension and still encodes filter tags
+//   - Same X-Audit-Export-* truncation headers as the other exports
+//   - Pre-stream errors fall back to JSON 500
+describe("GET /api/admin/audit-log/export.pdf — PDF response", () => {
+  beforeEach(() => {
+    routeCalls.length = 0;
+    routeThrow = null;
+    exportReturn = { entries: [], total: 0, truncated: false };
+  });
+
+  function fakeEntry(overrides: Partial<AdminAuditLogEntry>): AdminAuditLogEntry {
+    return {
+      id: "id-1",
+      action: "admin-login",
+      status: "success",
+      statusCode: 200,
+      actorIp: "10.0.0.5",
+      actorUserAgent: "Mozilla/5.0",
+      path: "/api/auth/admin-login",
+      params: null,
+      outcome: null,
+      errorMessage: null,
+      createdAt: new Date("2026-04-29T12:34:56.000Z"),
+      ...overrides,
+    };
+  }
+
+  it("emits a real PDF document with the application/pdf MIME type and %PDF- magic header", async () => {
+    const app = await buildRealApp();
+    exportReturn = {
+      entries: [
+        fakeEntry({
+          id: "a",
+          action: "backfill-reports",
+          outcome: { updated: 3, skipped: 0, failed: 0 },
+        }),
+      ],
+      total: 1,
+      truncated: false,
+    };
+    const res = await request(app)
+      .get("/api/admin/audit-log/export.pdf")
+      .buffer(true)
+      .parse((response, callback) => {
+        const chunks: Buffer[] = [];
+        response.on("data", (c: Buffer) => chunks.push(c));
+        response.on("end", () => callback(null, Buffer.concat(chunks)));
+      });
+    expect(res.status).toBe(200);
+    expect(res.headers["content-type"]).toMatch(/application\/pdf/);
+    const body = res.body as Buffer;
+    // Every PDF starts with the literal `%PDF-` so a renamed file
+    // (e.g. accidentally serving HTML / CSV) would fail this check.
+    expect(body.length).toBeGreaterThan(100);
+    expect(body.slice(0, 5).toString("ascii")).toBe("%PDF-");
+    // And ends with `%%EOF` — proves the document closed cleanly.
+    expect(body.slice(-6).toString("ascii")).toMatch(/%%EOF\s*$/);
+  });
+
+  it("uses a .pdf filename and still encodes active filter tags for archival", async () => {
+    const app = await buildRealApp();
+    exportReturn = { entries: [], total: 0, truncated: false };
+    const res = await request(app)
+      .get(
+        "/api/admin/audit-log/export.pdf?action=backfill-reports&status=failure&since=2026-04-01T00:00:00Z&until=2026-04-30T00:00:00Z&ip=10.0.0.6",
+      )
+      .buffer(true)
+      .parse((response, callback) => {
+        const chunks: Buffer[] = [];
+        response.on("data", (c: Buffer) => chunks.push(c));
+        response.on("end", () => callback(null, Buffer.concat(chunks)));
+      });
+    expect(res.status).toBe(200);
+    const cd = res.headers["content-disposition"] as string;
+    expect(cd).toMatch(/filename="admin-audit-[0-9TZ.-]+.*\.pdf"/);
+    expect(cd).toMatch(/action_backfill-reports/);
+    expect(cd).toMatch(/status_failure/);
+    expect(cd).toMatch(/from_2026-04-01/);
+    expect(cd).toMatch(/to_2026-04-30/);
+    expect(cd).toMatch(/ip_10\.0\.0\.6/);
+  });
+
+  it("forwards the same truncation headers as the CSV / xlsx routes", async () => {
+    const app = await buildRealApp();
+    exportReturn = {
+      entries: [fakeEntry({ id: "only-one-on-the-page" })],
+      total: 25_000,
+      truncated: true,
+    };
+    const res = await request(app)
+      .get("/api/admin/audit-log/export.pdf")
+      .buffer(true)
+      .parse((response, callback) => {
+        const chunks: Buffer[] = [];
+        response.on("data", (c: Buffer) => chunks.push(c));
+        response.on("end", () => callback(null, Buffer.concat(chunks)));
+      });
+    expect(res.status).toBe(200);
+    expect(res.headers["x-audit-export-truncated"]).toBe("1");
+    expect(res.headers["x-audit-export-total"]).toBe("25000");
+    expect(res.headers["x-audit-export-rows"]).toBe("1");
+    expect(res.headers["access-control-expose-headers"]).toMatch(
+      /X-Audit-Export-Truncated/i,
+    );
+  });
+
+  it("falls back to JSON 500 when the storage layer throws", async () => {
+    const app = await buildRealApp();
+    routeThrow = new Error("db down");
+    try {
+      const res = await request(app).get("/api/admin/audit-log/export.pdf");
+      expect(res.status).toBe(500);
+      expect(res.headers["content-type"]).toMatch(/application\/json/);
+      expect(res.body.error).toContain("db down");
+    } finally {
+      routeThrow = null;
+    }
+  });
+
+  it("forwards the same filter parameters to the storage layer as the CSV / xlsx routes", async () => {
+    const app = await buildRealApp();
+    exportReturn = { entries: [], total: 0, truncated: false };
+    await request(app)
+      .get(
+        "/api/admin/audit-log/export.pdf?action=backfill-reports&status=failure&since=2026-04-04T00:00:00Z&until=2026-04-05T00:00:00Z&ip=10.0.0.6",
+      )
+      .buffer(true)
+      .parse((response, callback) => {
+        const chunks: Buffer[] = [];
+        response.on("data", (c: Buffer) => chunks.push(c));
+        response.on("end", () => callback(null, Buffer.concat(chunks)));
+      });
+    const opts = lastCall();
+    expect(opts.action).toBe("backfill-reports");
+    expect(opts.status).toBe("failure");
+    expect(opts.ip).toBe("10.0.0.6");
+    expect((opts.since as Date).toISOString()).toBe(
+      "2026-04-04T00:00:00.000Z",
+    );
+    expect((opts.until as Date).toISOString()).toBe(
+      "2026-04-05T00:00:00.000Z",
+    );
+  });
+});
+
+// ===========================================================================
 // 3. DatabaseStorage.pruneOldAdminAuditEntries — retention cleanup
 // ===========================================================================
 //

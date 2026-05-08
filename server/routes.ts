@@ -144,7 +144,7 @@ function formatAuditEntryAsCsvRow(entry: {
 // shared drives where Windows paths reject `:`, `/`, etc.
 function buildAuditExportFilename(
   opts: AdminAuditLogQuery,
-  extension: "csv" | "xlsx" = "csv",
+  extension: "csv" | "xlsx" | "pdf" = "csv",
 ): string {
   const stamp = new Date()
     .toISOString()
@@ -266,6 +266,174 @@ async function buildAuditExportXlsxBuffer(
   // exceljs returns ArrayBuffer-like; coerce to Node Buffer for res.end().
   const arrayBuffer = await wb.xlsx.writeBuffer();
   return Buffer.from(arrayBuffer as ArrayBuffer);
+}
+
+// Build a print-ready PDF of the filtered audit slice. Operators who
+// archive these to compliance systems or attach them to incident
+// tickets prefer a paginated PDF over a spreadsheet because it reads
+// well on mobile, captures the active filters at the top of every
+// page, and avoids "is this column a date or a string?" import
+// questions entirely.
+//
+// Rendering choices:
+//   - Landscape A4 — eight columns of audit data don't fit portrait
+//     once `path` and `errorMessage` get any breathing room.
+//   - Header band (page 1 + repeated atop every page via autotable's
+//     `didDrawPage` hook) lists the active filter values, the export
+//     timestamp, and a truncation banner when the slice exceeded the
+//     10k cap. Operators routinely flip to page 7 to find one row;
+//     repeating the filter context means they don't have to flip back.
+//   - `outcome` is rendered as compact JSON inline (PDFs don't have
+//     a sister "Outcomes sheet" the way the .xlsx export does) so the
+//     row stays self-contained.
+async function buildAuditExportPdfBuffer(
+  entries: ReadonlyArray<{
+    id: string;
+    createdAt: Date;
+    action: string;
+    status: string;
+    statusCode: number | null;
+    actorIp: string | null;
+    path: string | null;
+    errorMessage: string | null;
+    outcome: unknown;
+  }>,
+  opts: AdminAuditLogQuery,
+  meta: { total: number; truncated: boolean; generatedAt: Date },
+): Promise<Buffer> {
+  const { jsPDF } = await import("jspdf");
+  const autoTable = (await import("jspdf-autotable")).default;
+
+  const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+
+  // Build a human-readable summary of the active filters so the
+  // header band reads like the panel's filter row, not like a
+  // query-string dump.
+  const filterLines: string[] = [];
+  const fmtDate = (d: Date) => d.toISOString().replace("T", " ").replace(/\..+$/, "Z");
+  if (opts.action) filterLines.push(`Action: ${opts.action}`);
+  if (opts.status === "success" || opts.status === "failure") {
+    filterLines.push(`Status: ${opts.status}`);
+  }
+  if (opts.since instanceof Date && !Number.isNaN(opts.since.getTime())) {
+    filterLines.push(`From: ${fmtDate(opts.since)}`);
+  }
+  if (opts.until instanceof Date && !Number.isNaN(opts.until.getTime())) {
+    filterLines.push(`To: ${fmtDate(opts.until)}`);
+  }
+  if (opts.ip && opts.ip.trim().length > 0) {
+    filterLines.push(`IP contains: ${opts.ip.trim()}`);
+  }
+  if (filterLines.length === 0) filterLines.push("Filters: (none — full slice)");
+
+  const headerBlock = (): number => {
+    let y = 32;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.text("Admin audit log", 32, y);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    y += 16;
+    doc.text(
+      `Generated ${meta.generatedAt.toISOString()}  ·  Rows: ${entries.length}${
+        meta.truncated ? ` of ${meta.total} (truncated)` : ""
+      }`,
+      32,
+      y,
+    );
+    y += 14;
+    for (const line of filterLines) {
+      doc.text(line, 32, y);
+      y += 12;
+    }
+    if (meta.truncated) {
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(180, 0, 0);
+      doc.text(
+        `Truncated at ${entries.length} rows (cap: ${entries.length}). Narrow the filters to capture the remaining ${
+          meta.total - entries.length
+        } rows.`,
+        32,
+        y,
+      );
+      doc.setTextColor(0, 0, 0);
+      doc.setFont("helvetica", "normal");
+      y += 14;
+    }
+    return y + 6;
+  };
+
+  const startY = headerBlock();
+
+  const body = entries.map((e) => [
+    e.createdAt instanceof Date ? e.createdAt.toISOString() : String(e.createdAt ?? ""),
+    e.action,
+    e.status,
+    typeof e.statusCode === "number" ? String(e.statusCode) : "",
+    e.actorIp ?? "",
+    e.path ?? "",
+    e.errorMessage ?? "",
+    e.outcome === null || e.outcome === undefined ? "" : JSON.stringify(e.outcome),
+  ]);
+
+  autoTable(doc, {
+    head: [[
+      "when",
+      "action",
+      "status",
+      "statusCode",
+      "actorIp",
+      "path",
+      "errorMessage",
+      "outcome",
+    ]],
+    body,
+    startY,
+    margin: { left: 32, right: 32, top: 32, bottom: 32 },
+    styles: { fontSize: 7, cellPadding: 3, overflow: "linebreak" },
+    headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: "bold" },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    columnStyles: {
+      0: { cellWidth: 110 },
+      1: { cellWidth: 90 },
+      2: { cellWidth: 45 },
+      3: { cellWidth: 45 },
+      4: { cellWidth: 75 },
+      5: { cellWidth: 130 },
+      6: { cellWidth: 130 },
+      7: { cellWidth: "auto" },
+    },
+    didDrawPage: (data) => {
+      // Page 1 already had the full header rendered before
+      // autotable started; subsequent pages get just a compact
+      // "Admin audit log — page N" strip so the filter context
+      // isn't lost mid-document.
+      if ((data.pageNumber ?? 1) > 1) {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.text("Admin audit log (continued)", 32, 24);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.text(filterLines.join("  ·  "), 32, 38);
+      }
+      // Footer with page numbers on every page.
+      const pageHeight = doc.internal.pageSize.getHeight();
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(100, 116, 139);
+      doc.text(
+        `Page ${data.pageNumber}`,
+        pageWidth - 32,
+        pageHeight - 16,
+        { align: "right" },
+      );
+      doc.setTextColor(0, 0, 0);
+    },
+  });
+
+  const ab = doc.output("arraybuffer");
+  return Buffer.from(ab as ArrayBuffer);
 }
 
 export async function registerRoutes(
@@ -1433,6 +1601,62 @@ Return ONLY valid JSON with this structure:
       // Mirror the CSV route's pre-stream error handling: build the whole
       // workbook in-memory before sending bytes, so any failure (storage
       // throw, exceljs serialization error) can still surface as JSON.
+      if (!res.headersSent) {
+        res
+          .status(500)
+          .json({ error: err?.message ?? String(err) });
+      } else {
+        res.end();
+      }
+    }
+  });
+
+  // PDF export of the same filtered slice as the CSV / .xlsx routes
+  // above. Operators who attach audit trails to compliance archives or
+  // incident tickets typically prefer a print-ready PDF: it reads well
+  // on mobile, captures the active filter values + timestamp at the top
+  // of every page, and avoids spreadsheet import quirks. Identical
+  // filter shape, 10k row cap, and truncation headers as the other
+  // export routes — so the UI can offer all three side-by-side.
+  app.get("/api/admin/audit-log/export.pdf", async (req, res) => {
+    try {
+      const opts = parseAuditLogQuery(
+        req.query as Record<string, unknown>,
+        AUDIT_EXPORT_MAX_ROWS,
+      );
+      const result = await storage.exportAdminAuditEntries(opts);
+
+      const buffer = await buildAuditExportPdfBuffer(result.entries, opts, {
+        total: result.total,
+        truncated: result.truncated,
+        generatedAt: new Date(),
+      });
+      const filename = buildAuditExportFilename(opts, "pdf");
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${filename}"`,
+      );
+      res.setHeader("X-Audit-Export-Total", String(result.total));
+      res.setHeader("X-Audit-Export-Rows", String(result.entries.length));
+      res.setHeader(
+        "X-Audit-Export-Truncated",
+        result.truncated ? "1" : "0",
+      );
+      res.setHeader(
+        "Access-Control-Expose-Headers",
+        "Content-Disposition, X-Audit-Export-Total, X-Audit-Export-Rows, X-Audit-Export-Truncated",
+      );
+      res.setHeader("Content-Length", String(buffer.length));
+      res.end(buffer);
+    } catch (err: any) {
+      console.error(
+        "[admin/audit-log/export.pdf] Failed to export audit log:",
+        err,
+      );
+      // Mirror the .xlsx route's pre-stream error handling: the whole
+      // PDF is built in memory before any byte hits the wire, so a
+      // failure can still surface as JSON for the browser fetch.
       if (!res.headersSent) {
         res
           .status(500)
