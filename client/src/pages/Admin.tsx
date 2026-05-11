@@ -476,7 +476,7 @@ interface AdminSettingsResponse {
 
 // Most recent admin_audit_log retention sweep, served by
 // `/api/admin/last-audit-cleanup` and rendered by AuditCleanupBanner.
-interface AuditCleanupStatus {
+export interface AuditCleanupStatus {
   status: "success" | "failure" | string;
   removedCount: number;
   retentionDays: number;
@@ -2055,7 +2055,7 @@ function LiveProgressPanel({ progress, running }: LiveProgressPanelProps) {
 
 // Status banner above the audit log table summarising the most recent
 // retention sweep (success / failure / never run / load-error / loading).
-function AuditCleanupBanner({
+export function AuditCleanupBanner({
   cleanup,
   loading,
   error,
