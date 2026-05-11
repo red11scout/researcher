@@ -173,6 +173,25 @@ function makeLegacyV20Analysis(): any {
 // evaluateReportStaleness — unit tests
 // ---------------------------------------------------------------------------
 describe("evaluateReportStaleness", () => {
+  it("returns stale=false with reason 'imported-from-json:preserve-inputs' when analysis carries `importedFromJson: true`", () => {
+    // Even when *every* other staleness signal would normally fire
+    // (no Step 6, missing diagnostic, legacy schema, legacy phase
+    // labels), an imported assessment must NOT be reprocessed —
+    // postProcessAnalysis would overwrite the per-UC benefit values
+    // and formulas the user explicitly chose to import.
+    const analysis: any = {
+      importedFromJson: true,
+      vrm: { schemaVersion: "1.0" }, // legacy
+      steps: [
+        { step: 5, title: "Benefits", data: [{ ID: "UC-1" }] },
+        { step: 7, title: "Roadmap", data: [{ "Recommended Phase": "Q1" }] },
+      ],
+    };
+    const result = evaluateReportStaleness(analysis);
+    expect(result.stale).toBe(false);
+    expect(result.reasons).toEqual(["imported-from-json:preserve-inputs"]);
+  });
+
   it("returns stale=false with reason 'no-steps' when analysis has no steps array", () => {
     const result = evaluateReportStaleness({});
     expect(result.stale).toBe(false);

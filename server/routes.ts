@@ -480,6 +480,39 @@ export async function registerRoutes(
             content = file.buffer.toString("utf-8");
           }
 
+          // ============================================================
+          // PRIOR-ASSESSMENT DETECTION (.json imports)
+          // ------------------------------------------------------------
+          // If the uploaded JSON is a previously-exported BlueAlly
+          // assessment (has `analysis.steps[]` with use cases), surface
+          // it as an importable assessment instead of stuffing the raw
+          // text into Claude as source material. The client routes
+          // these into `/api/import-analysis`, which saves the JSON
+          // verbatim — preserving every input the user provided.
+          // ============================================================
+          let priorAssessment: any = null;
+          if (ext === ".json") {
+            try {
+              const parsed = JSON.parse(content);
+              const steps = parsed?.analysis?.steps;
+              if (
+                parsed &&
+                typeof parsed === "object" &&
+                Array.isArray(steps) &&
+                steps.some((s: any) => s?.step === 5 && Array.isArray(s?.data) && s.data.length > 0)
+              ) {
+                priorAssessment = {
+                  companyName: typeof parsed.companyName === "string" ? parsed.companyName : null,
+                  analysis: parsed.analysis,
+                  generatedAt: typeof parsed.generatedAt === "string" ? parsed.generatedAt : null,
+                };
+              }
+            } catch {
+              // Not valid JSON or not an assessment — fall through to
+              // the regular text-document path below.
+            }
+          }
+
           // Enforce character limit per document
           const MAX_CHARS = 50000;
           if (content.length > MAX_CHARS) {
@@ -491,6 +524,7 @@ export async function registerRoutes(
             content,
             size: file.size,
             type: file.mimetype || "text/plain",
+            ...(priorAssessment ? { priorAssessment } : {}),
           });
         } catch (fileError: any) {
           console.error(`Error processing file ${file.originalname}:`, fileError);
@@ -511,6 +545,82 @@ export async function registerRoutes(
       res.status(500).json({
         error: error.message || "Failed to process uploaded files",
       });
+    }
+  });
+
+  // ============================================================
+  // POST /api/import-analysis
+  // ------------------------------------------------------------
+  // Accept a previously-exported assessment JSON and persist it
+  // VERBATIM as a new (or upserted) report. Critically, this path:
+  //   1. Does NOT call Claude / the LLM pipeline.
+  //   2. Does NOT call `postProcessAnalysis` — that function would
+  //      overwrite the per-UC benefit values, formula strings,
+  //      scenario / headline figures, and run the CFO reality
+  //      rescale. Imports must preserve every input the user
+  //      explicitly provided.
+  //   3. Stamps `importedFromJson: true` on the analysis payload so
+  //      `evaluateReportStaleness` short-circuits and subsequent
+  //      loads through /api/reports/:id and /api/analyze/check
+  //      never reprocess the report either.
+  // ============================================================
+  app.post("/api/import-analysis", async (req, res) => {
+    try {
+      const { analysis, companyName: explicitCompanyName } = req.body ?? {};
+      if (!analysis || typeof analysis !== "object" || !Array.isArray(analysis?.steps)) {
+        return res.status(400).json({
+          error: "Invalid import payload — `analysis` must be an object with a `steps` array (a previously-exported BlueAlly assessment).",
+        });
+      }
+      const companyName: string =
+        (typeof explicitCompanyName === "string" && explicitCompanyName.trim()) ||
+        (typeof analysis?.companyOverview?.companyName === "string" && analysis.companyOverview.companyName.trim()) ||
+        (typeof req.body?.parsedCompanyName === "string" && req.body.parsedCompanyName.trim()) ||
+        "";
+      if (!companyName) {
+        return res.status(400).json({
+          error: "Could not determine a company name for the imported assessment. Provide `companyName` in the request body.",
+        });
+      }
+
+      const preservedAnalysis = {
+        ...analysis,
+        importedFromJson: true,
+        importedAt: new Date().toISOString(),
+      };
+
+      // Upsert: if a report already exists for this company, replace
+      // its analysisData with the imported payload so the user sees
+      // exactly what they imported (no merge, no reconciliation).
+      const existing = await storage.getReportByCompany(companyName);
+      let report: any;
+      if (existing) {
+        report = await storage.updateReport(existing.id, { analysisData: preservedAnalysis });
+        if (!report) report = { ...existing, analysisData: preservedAnalysis, updatedAt: new Date() };
+        console.log(`[import-analysis] Replaced report ${existing.id} for ${companyName}`);
+      } else {
+        report = await storage.createReport({
+          companyName,
+          analysisData: preservedAnalysis,
+        } as any);
+        console.log(`[import-analysis] Created report ${report?.id} for ${companyName}`);
+      }
+      if (!report?.id) {
+        return res.status(500).json({ error: "Storage layer did not return a report row." });
+      }
+
+      res.json({
+        success: true,
+        report: {
+          id: report.id,
+          data: preservedAnalysis,
+          createdAt: report.createdAt,
+          updatedAt: report.updatedAt,
+        },
+      });
+    } catch (err: any) {
+      console.error("[import-analysis] Error:", err);
+      res.status(500).json({ error: err?.message || "Failed to import assessment" });
     }
   });
 

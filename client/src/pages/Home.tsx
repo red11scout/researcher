@@ -14,6 +14,11 @@ interface UploadedDocument {
   content: string;
   size: number;
   type: string;
+  priorAssessment?: {
+    companyName: string | null;
+    analysis: any;
+    generatedAt: string | null;
+  };
 }
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB per file (for PDFs)
@@ -94,6 +99,46 @@ export default function Home() {
           description: "Extracted text exceeds storage limit. Try uploading fewer or smaller documents.",
           variant: "destructive",
         });
+        return;
+      }
+
+      // PRIOR-ASSESSMENT IMPORT FAST PATH
+      // ---------------------------------------------------------
+      // If any uploaded JSON is a previously-exported BlueAlly
+      // assessment, route directly into the import flow instead of
+      // letting Claude re-analyze it. This is the explicit
+      // "preserve all inputs from the loaded JSON" contract — no
+      // Claude call, no postProcessAnalysis recompute.
+      const priorDoc = (result.documents as UploadedDocument[]).find(
+        (d) => !!d.priorAssessment,
+      );
+      if (priorDoc?.priorAssessment) {
+        const importedCompany =
+          priorDoc.priorAssessment.companyName?.trim() ||
+          priorDoc.name.replace(/\.json$/i, "");
+        try {
+          sessionStorage.setItem(
+            "priorAssessment",
+            JSON.stringify({
+              analysis: priorDoc.priorAssessment.analysis,
+              companyName: importedCompany,
+              fileName: priorDoc.name,
+            }),
+          );
+          sessionStorage.removeItem("uploadedDocuments");
+        } catch (storageError) {
+          toast({
+            title: "Import failed",
+            description: "Could not stage the imported assessment for the report page.",
+            variant: "destructive",
+          });
+          return;
+        }
+        toast({
+          title: "Assessment imported",
+          description: `Loading ${importedCompany} from the uploaded JSON. No values will be recalculated.`,
+        });
+        setLocation(`/report?company=${encodeURIComponent(importedCompany)}`);
         return;
       }
 

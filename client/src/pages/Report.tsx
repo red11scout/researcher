@@ -607,6 +607,54 @@ export default function Report() {
       setFailedStep(null);
       accumulatedResultsRef.current = {};
 
+      // ============================================================
+      // PRIOR-ASSESSMENT IMPORT FAST PATH
+      // ------------------------------------------------------------
+      // Home.tsx stages an uploaded JSON assessment in
+      // sessionStorage.priorAssessment when it detects a
+      // previously-exported BlueAlly file. We hit /api/import-analysis
+      // (which preserves the payload verbatim) and short-circuit the
+      // rest of the analyze pipeline — no Claude, no recompute.
+      // ============================================================
+      try {
+        const stagedImport = sessionStorage.getItem("priorAssessment");
+        if (stagedImport) {
+          sessionStorage.removeItem("priorAssessment");
+          const parsed = JSON.parse(stagedImport);
+          const importResp = await fetch("/api/import-analysis", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              analysis: parsed.analysis,
+              companyName: parsed.companyName || companyName,
+            }),
+          });
+          if (importResp.ok) {
+            const imported = await importResp.json();
+            if (imported?.report?.id) {
+              setReportId(imported.report.id);
+              setData(normalizeReportData(imported.report.data));
+              setStatus("complete");
+              setCompletedSteps([0, 1, 2, 3, 4, 5, 6, 7, 8]);
+              toast({
+                title: "Assessment imported",
+                description: "Showing the uploaded JSON exactly as provided — no values recalculated.",
+              });
+              return;
+            }
+          } else {
+            const errBody = await importResp.json().catch(() => ({}));
+            throw new Error(errBody?.error || "Import endpoint rejected the uploaded assessment.");
+          }
+        }
+      } catch (importErr: any) {
+        toast({
+          variant: "destructive",
+          title: "Import failed",
+          description: importErr?.message || "Could not load the uploaded assessment.",
+        });
+      }
+
       let documents: Array<{ name: string; content: string }> = [];
       try {
         const storedDocs = sessionStorage.getItem("uploadedDocuments");

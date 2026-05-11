@@ -28,6 +28,32 @@ export interface StalenessResult {
 export function evaluateReportStaleness(analysis: any): StalenessResult {
   const reasons: string[] = [];
 
+  // ============================================================
+  // PRESERVE-INPUTS GUARD (Imported assessments)
+  // ------------------------------------------------------------
+  // When a user imports a previously-exported assessment JSON via
+  // POST /api/import-analysis, we stamp `importedFromJson: true` on
+  // the top-level analysisData. Loading such a report MUST NOT
+  // re-run postProcessAnalysis — that would overwrite the per-UC
+  // benefit values, formula strings, scenario figures, and headline
+  // the user explicitly chose to import. Returning stale=false here
+  // short-circuits every staleness-driven reprocess in
+  // /api/reports/:id, /api/analyze/check, and the admin backfill.
+  // ============================================================
+  if (analysis?.importedFromJson === true) {
+    return {
+      stale: false,
+      reasons: ["imported-from-json:preserve-inputs"],
+      hasStep6: Array.isArray(analysis?.steps)
+        ? analysis.steps.some((s: any) => s?.step === 6 && Array.isArray(s?.data) && s.data.length > 0)
+        : false,
+      vrmSchemaVersion: analysis?.vrm?.schemaVersion ?? null,
+      hasV21Diagnostic: !!analysis?.vrm?.diagnostic,
+      hasFlatFields: true,
+      hasStep6KOFields: true,
+    };
+  }
+
   if (!analysis?.steps || !Array.isArray(analysis.steps)) {
     return {
       stale: false,
