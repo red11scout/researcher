@@ -566,7 +566,7 @@ export async function registerRoutes(
   // ============================================================
   app.post("/api/import-analysis", async (req, res) => {
     try {
-      const { analysis, companyName: explicitCompanyName } = req.body ?? {};
+      const { analysis, companyName: explicitCompanyName, displayName: explicitDisplayName } = req.body ?? {};
       if (!analysis || typeof analysis !== "object" || !Array.isArray(analysis?.steps)) {
         return res.status(400).json({
           error: "Invalid import payload — `analysis` must be an object with a `steps` array (a previously-exported BlueAlly assessment).",
@@ -583,8 +583,21 @@ export async function registerRoutes(
         });
       }
 
+      // Display-name override: prefer the explicit request body field, then
+      // a top-level `displayName` baked into the exported JSON. Trim and
+      // collapse empty strings to null so the UI falls back to companyName.
+      const candidateDisplayName: unknown =
+        explicitDisplayName ?? (analysis as any)?.displayName ?? null;
+      const displayName: string | null =
+        typeof candidateDisplayName === "string" && candidateDisplayName.trim()
+          ? candidateDisplayName.trim().slice(0, 200)
+          : null;
+
       const preservedAnalysis = {
         ...analysis,
+        // Stamp displayName into the analysis envelope so client renderers
+        // (which read from `analysisData`) see it without an extra fetch.
+        displayName,
         importedFromJson: true,
         importedAt: new Date().toISOString(),
       };
@@ -595,15 +608,16 @@ export async function registerRoutes(
       const existing = await storage.getReportByCompany(companyName);
       let report: any;
       if (existing) {
-        report = await storage.updateReport(existing.id, { analysisData: preservedAnalysis });
-        if (!report) report = { ...existing, analysisData: preservedAnalysis, updatedAt: new Date() };
-        console.log(`[import-analysis] Replaced report ${existing.id} for ${companyName}`);
+        report = await storage.updateReport(existing.id, { analysisData: preservedAnalysis, displayName } as any);
+        if (!report) report = { ...existing, analysisData: preservedAnalysis, displayName, updatedAt: new Date() };
+        console.log(`[import-analysis] Replaced report ${existing.id} for ${companyName}${displayName ? ` (display: ${displayName})` : ""}`);
       } else {
         report = await storage.createReport({
           companyName,
+          displayName,
           analysisData: preservedAnalysis,
         } as any);
-        console.log(`[import-analysis] Created report ${report?.id} for ${companyName}`);
+        console.log(`[import-analysis] Created report ${report?.id} for ${companyName}${displayName ? ` (display: ${displayName})` : ""}`);
       }
       if (!report?.id) {
         return res.status(500).json({ error: "Storage layer did not return a report row." });
@@ -654,11 +668,73 @@ export async function registerRoutes(
         }
       }
 
+      // Splice displayName onto the analysisData envelope so client renderers
+      // (which read primarily from analysisData) see the override without
+      // needing a second fetch. The row's `displayName` column is the source
+      // of truth — this is just a convenience mirror.
+      if (report.analysisData && typeof report.analysisData === "object") {
+        (report.analysisData as any).displayName = report.displayName ?? null;
+      }
+
       // Return the full report data
       res.json(report);
     } catch (error) {
       console.error("Error fetching report:", error);
       res.status(500).json({ message: "Failed to load report" });
+    }
+  });
+
+  // Update the presentation-only display name for a report.
+  // Auth-gated. The research/canonical companyName is left untouched so AI
+  // lookups, slugs, and export filenames keep working.
+  //   PATCH body: { "displayName": "A+E Networks, LLC" }   → set
+  //   PATCH body: { "displayName": null } | "" | omitted   → clear (revert)
+  app.patch("/api/reports/:id/display-name", async (req, res) => {
+    try {
+      if (!req.session?.authenticated) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+      const { id } = req.params;
+      const { updateReportDisplayNameSchema } = await import("@shared/schema");
+      const parsed = updateReportDisplayNameSchema.safeParse(req.body ?? {});
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: "Invalid display name",
+          details: parsed.error.flatten(),
+        });
+      }
+      const existing = await storage.getReportById(id);
+      if (!existing) {
+        return res.status(404).json({ error: "Report not found" });
+      }
+      const newDisplayName = parsed.data.displayName ?? null;
+      const updated = await storage.updateReportDisplayName(id, newDisplayName);
+      if (!updated) {
+        return res.status(500).json({ error: "Failed to update display name" });
+      }
+      // Mirror onto analysisData so future loads see the new override.
+      try {
+        const analysis = updated.analysisData as any;
+        if (analysis && typeof analysis === "object") {
+          analysis.displayName = updated.displayName ?? null;
+          await storage.updateReport(id, { analysisData: analysis });
+        }
+      } catch (mirrorErr) {
+        console.warn(`[display-name] Could not mirror onto analysisData for ${id}:`, mirrorErr);
+      }
+      console.log(`[display-name] ${id} → ${updated.displayName ? `"${updated.displayName}"` : "(cleared)"} (research name remains "${updated.companyName}")`);
+      return res.json({
+        success: true,
+        report: {
+          id: updated.id,
+          companyName: updated.companyName,
+          displayName: updated.displayName,
+          updatedAt: updated.updatedAt,
+        },
+      });
+    } catch (err: any) {
+      console.error("[display-name] Error:", err);
+      return res.status(500).json({ error: err?.message || "Failed to update display name" });
     }
   });
 
@@ -1004,11 +1080,16 @@ Return ONLY valid JSON with this structure:
             }
           }
         }
+        // Splice displayName onto analysis so client renderers see it.
+        if (analysis && typeof analysis === "object") {
+          analysis.displayName = existing.displayName ?? null;
+        }
         return res.json({
           exists: true,
           report: {
             id: existing.id,
             data: analysis,
+            displayName: existing.displayName ?? null,
             createdAt: existing.createdAt,
             updatedAt: existing.updatedAt,
           },
@@ -3407,7 +3488,35 @@ Return ONLY valid JSON with this structure:
       if (!reportData) {
         return res.status(400).json({ error: "Report data required" });
       }
-      
+
+      // Bake the resolved displayName into the snapshot at share-creation
+      // time. Future edits to the source report's displayName will NOT
+      // mutate already-shared links — that's a feature, not a bug.
+      // We accept displayName from either the top level or a nested
+      // analysisData.displayName, since older clients only mirror inside
+      // the analysis envelope.
+      try {
+        const topDn = typeof reportData.displayName === "string" ? reportData.displayName.trim() : "";
+        const nestedDn =
+          reportData.analysisData &&
+          typeof reportData.analysisData === "object" &&
+          typeof (reportData.analysisData as any).displayName === "string"
+            ? ((reportData.analysisData as any).displayName as string).trim()
+            : "";
+        const dn = topDn || nestedDn;
+        if (dn) {
+          reportData.displayName = dn;
+          if (reportData.analysisData && typeof reportData.analysisData === "object") {
+            (reportData.analysisData as any).displayName = dn;
+          }
+        } else {
+          reportData.displayName = null;
+          if (reportData.analysisData && typeof reportData.analysisData === "object") {
+            (reportData.analysisData as any).displayName = null;
+          }
+        }
+      } catch { /* best-effort */ }
+
       const shareId = nanoid(12);
       const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
       

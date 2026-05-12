@@ -43,7 +43,9 @@ export default function SharedDashboard() {
     if (!data?.data) return;
 
     const reportData = data.data;
-    const companyName = reportData.companyName || reportData.company?.name || 'Company';
+    const companyName =
+      (typeof reportData.displayName === 'string' && reportData.displayName.trim()) ||
+      reportData.companyName || reportData.company?.name || 'Company';
 
     const htmlContent = generateProfessionalHTMLReport(reportData, companyName);
     const blob = new Blob([htmlContent], { type: 'text/html' });
@@ -60,7 +62,9 @@ export default function SharedDashboard() {
     if (!data?.data) return;
 
     const reportData = data.data;
-    const companyName = reportData.companyName || reportData.company?.name || 'Company';
+    const companyName =
+      (typeof reportData.displayName === 'string' && reportData.displayName.trim()) ||
+      reportData.companyName || reportData.company?.name || 'Company';
 
     const htmlContent = generateEditorialHTMLReport(reportData, companyName);
     const blob = new Blob([htmlContent], { type: 'text/html' });
@@ -139,7 +143,12 @@ export default function SharedDashboard() {
   }
 
   const reportData = data.data;
-  const companyName = reportData.companyName || reportData.company?.name || 'Company';
+  // Resolved presentation name (override → research name → fallback). The
+  // share blob is a snapshot baked at share-creation time, so editing the
+  // display name later does NOT mutate already-shared links.
+  const companyName =
+    (typeof reportData.displayName === 'string' && reportData.displayName.trim()) ||
+    reportData.companyName || reportData.company?.name || 'Company';
   
   // The stored data has structure: {companyName, analysisData: {...}}
   // We need to extract the analysisData property for the mapper

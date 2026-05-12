@@ -48,9 +48,17 @@ import { useToast } from "@/hooks/use-toast";
 interface SavedReport {
   id: string;
   companyName: string;
+  // Optional presentation-only override. Search and links keep using
+  // companyName so existing slugs and lookups are stable.
+  displayName?: string | null;
   createdAt: string;
   updatedAt: string;
   analysisData: any;
+}
+
+function reportRenderName(r: { displayName?: string | null; companyName: string }): string {
+  const dn = typeof r.displayName === "string" ? r.displayName.trim() : "";
+  return dn || r.companyName;
 }
 
 interface BulkUpdateJob {
@@ -237,8 +245,10 @@ export default function SavedReports() {
   };
 
   const handleSelectAll = useCallback(() => {
+    const q = searchTerm.toLowerCase();
     const filtered = reports.filter(report =>
-      report.companyName.toLowerCase().includes(searchTerm.toLowerCase())
+      report.companyName.toLowerCase().includes(q) ||
+      reportRenderName(report).toLowerCase().includes(q)
     );
     if (selectedReports.size === filtered.length) {
       setSelectedReports(new Set());
@@ -521,9 +531,13 @@ export default function SavedReports() {
     }
   };
 
-  const filteredReports = reports.filter(report =>
-    report.companyName.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredReports = reports.filter(report => {
+    const q = searchTerm.toLowerCase();
+    return (
+      report.companyName.toLowerCase().includes(q) ||
+      reportRenderName(report).toLowerCase().includes(q)
+    );
+  });
 
   const isJobActive = bulkUpdateJob && (bulkUpdateJob.status === 'pending' || bulkUpdateJob.status === 'in_progress');
   const isExportJobActive = bulkExportJob && (bulkExportJob.status === 'pending' || bulkExportJob.status === 'generating');
@@ -599,10 +613,13 @@ export default function SavedReports() {
                       <div className="flex items-start justify-between gap-3 flex-1 min-w-0">
                         <Link href={`/report?company=${encodeURIComponent(report.companyName)}`} className="flex items-center gap-3 hover:text-primary transition-colors flex-1 min-w-0">
                           <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm flex-shrink-0">
-                            {report.companyName.substring(0, 2).toUpperCase()}
+                            {reportRenderName(report).substring(0, 2).toUpperCase()}
                           </div>
                           <div className="min-w-0">
-                            <div className="font-semibold truncate">{report.companyName}</div>
+                            <div className="font-semibold truncate" data-testid={`text-report-display-name-${report.id}`}>{reportRenderName(report)}</div>
+                            {report.displayName && report.displayName.trim() && report.displayName.trim() !== report.companyName && (
+                              <div className="text-[10px] text-muted-foreground truncate">Research: {report.companyName}</div>
+                            )}
                             <div className="text-xs text-muted-foreground">AI Strategic Assessment</div>
                           </div>
                         </Link>
@@ -704,10 +721,13 @@ export default function SavedReports() {
                         <TableCell className="font-medium">
                           <Link href={`/report?company=${encodeURIComponent(report.companyName)}`} className="flex items-center gap-3 hover:text-primary transition-colors">
                             <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">
-                              {report.companyName.substring(0, 2).toUpperCase()}
+                              {reportRenderName(report).substring(0, 2).toUpperCase()}
                             </div>
                             <div>
-                              <div className="font-semibold">{report.companyName}</div>
+                              <div className="font-semibold" data-testid={`text-report-display-name-row-${report.id}`}>{reportRenderName(report)}</div>
+                              {report.displayName && report.displayName.trim() && report.displayName.trim() !== report.companyName && (
+                                <div className="text-[10px] text-muted-foreground">Research: {report.companyName}</div>
+                              )}
                               <div className="text-xs text-muted-foreground">AI Strategic Assessment</div>
                             </div>
                           </Link>

@@ -6,6 +6,11 @@ import { z } from "zod";
 export const reports = pgTable("reports", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   companyName: text("company_name").notNull(),
+  // Optional presentation-only override for how the company name is shown
+  // on rendered reports, share pages, and exports. The research/canonical
+  // name (`companyName`) is preserved unchanged for AI lookups, slugs,
+  // export filenames, and `getReportByCompany` indexing.
+  displayName: text("display_name"),
   analysisData: jsonb("analysis_data").notNull(),
   isWhatIf: boolean("is_what_if").default(false).notNull(),
   parentReportId: varchar("parent_report_id"),
@@ -13,6 +18,33 @@ export const reports = pgTable("reports", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+/**
+ * Resolve the user-facing name for a report or analysis envelope.
+ * Returns the trimmed `displayName` when set, otherwise falls back to
+ * the canonical research name. Use this everywhere the name is shown
+ * to a human (titles, headers, exports, share pages). Do NOT use it
+ * for filenames, URL params, or storage lookups — those must keep
+ * pointing at the immutable `companyName`.
+ */
+export function resolveDisplayName(input: {
+  displayName?: string | null;
+  companyName?: string | null;
+} | null | undefined): string {
+  if (!input) return "";
+  const dn = typeof input.displayName === "string" ? input.displayName.trim() : "";
+  if (dn) return dn;
+  return (input.companyName ?? "").toString();
+}
+
+export const updateReportDisplayNameSchema = z.object({
+  displayName: z.union([z.string().max(200), z.null()]).optional().transform((v) => {
+    if (v === null || v === undefined) return null;
+    const trimmed = v.trim();
+    return trimmed === "" ? null : trimmed;
+  }),
+});
+export type UpdateReportDisplayName = z.infer<typeof updateReportDisplayNameSchema>;
 
 export const insertReportSchema = createInsertSchema(reports).omit({
   id: true,

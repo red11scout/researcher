@@ -19,8 +19,22 @@
 export interface ExportableReport {
   id: string;
   companyName: string;
+  /**
+   * Optional presentation-only override; absent or null means "use
+   * companyName". Filenames and identifiers must always use companyName.
+   */
+  displayName?: string | null;
   createdAt?: Date | string | null;
   analysisData: unknown;
+}
+
+/**
+ * Resolve the user-facing name for a report. Returns the trimmed
+ * `displayName` when set, otherwise the canonical `companyName`.
+ */
+function resolveReportName(report: ExportableReport): string {
+  const dn = typeof report.displayName === "string" ? report.displayName.trim() : "";
+  return dn || report.companyName;
 }
 
 export interface ExportContext {
@@ -40,12 +54,16 @@ export function formatReportAsJson(
   ctx: ExportContext,
 ): {
   company: string;
+  displayName: string | null;
   reportType: string;
   exportedAt: string;
   data: unknown;
 } {
   return {
     company: report.companyName,
+    // Top-level displayName lets a downstream import re-establish the
+    // override without having to crack the analysisData blob.
+    displayName: report.displayName ?? null,
     reportType: ctx.reportType,
     exportedAt: ctx.exportedAt,
     data: report.analysisData,
@@ -72,7 +90,7 @@ export function formatReportAsMarkdown(
     | null
     | undefined;
 
-  let content = `# ${report.companyName} - ${ctx.reportType} Report\n\n`;
+  let content = `# ${resolveReportName(report)} - ${ctx.reportType} Report\n\n`;
   content += `**Generated:** ${ctx.exportedAt}\n\n`;
   content += `## Summary\n\n${analysisData?.summary ?? "No summary available"}\n\n`;
   if (analysisData?.steps) {
