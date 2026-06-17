@@ -1,0 +1,1 @@
+- [Report.tsx column pipeline + import-bypass sanitization](report-column-pipeline.md) — hidden row fields a cell renderer reads must be in CARRY_THROUGH_COLUMNS or reorderAndFilterColumns strips them; sanitize URLs client-side too because imported/legacy reports bypass the post-processor.

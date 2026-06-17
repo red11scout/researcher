@@ -50,7 +50,7 @@ import {
   validateRiskAnchoring,
   readRiskAnchorFromRecord,
 } from '../src/calc/riskAnchoring';
-import { validateBenchmarkCitations } from '../src/calc/benchmarksRegistry';
+import { validateBenchmarkCitations, normalizeBenchmarkSources } from '../src/calc/benchmarksRegistry';
 
 import {
   normalizeFunctionName,
@@ -1195,6 +1195,19 @@ export function postProcessAnalysis(analysisResult: any): any {
     for (const w of benchVal.warnings) {
       // Buffer for the integrity warning push (declared further down).
       pendingBenchmarkWarnings.push(w);
+    }
+
+    // Verifiable benchmark citations — sanitize the per-row `Benchmark Sources`
+    // object so the UI renders only safe, well-formed http(s) links. Skipped for
+    // imported reports (imports are immutable; their citations pass through as-is).
+    if (!analysisResult?.importedFromJson) {
+      const srcResult = normalizeBenchmarkSources(step2.data as any[]);
+      for (const w of srcResult.warnings) pendingBenchmarkWarnings.push(w);
+      console.log(
+        `[postProcessAnalysis] Benchmark citations: ${srcResult.rowsWithLinks} KPI(s) with verifiable links` +
+          (srcResult.droppedUrlCount > 0 ? `, ${srcResult.droppedUrlCount} unsafe URL(s) dropped` : "") +
+          (srcResult.rowsWithBenchmarksButNoLinks > 0 ? `, ${srcResult.rowsWithBenchmarksButNoLinks} unlinked` : ""),
+      );
     }
   }
 

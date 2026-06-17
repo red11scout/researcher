@@ -540,9 +540,40 @@ export function generateProfessionalHTMLReport(
 
     if (!data || data.length === 0) return '';
 
+    // Only render http(s) links; never emit a javascript:/data: href.
+    const isSafeHttpUrl = (u: unknown): u is string => {
+      if (typeof u !== 'string' || !u.trim()) return false;
+      try {
+        const p = new URL(u.trim());
+        return p.protocol === 'http:' || p.protocol === 'https:';
+      } catch {
+        return false;
+      }
+    };
+
+    // Render a benchmark cell: the value plus a clickable, verifiable citation
+    // (or a muted attribution when no URL is available).
+    const benchmarkCell = (value: unknown, source: any): string => {
+      const valHtml = escapeHtml(String(value ?? ''));
+      if (!source || typeof source !== 'object') return valHtml || '—';
+      const chip = [source.publisher, source.year].filter(Boolean).join(' · ');
+      if (isSafeHttpUrl(source.url)) {
+        const title = escapeHtml(
+          [source.publisher, source.title, source.year].filter(Boolean).join(' · ') || 'View source',
+        );
+        const label = escapeHtml(chip || 'Source');
+        return `${valHtml}<br><a href="${escapeHtml(source.url.trim())}" target="_blank" rel="noopener noreferrer" title="${title}" style="font-size:10px;color:#0339AF;text-decoration:underline;white-space:nowrap;">&#8599; ${label}</a>`;
+      }
+      if (chip) {
+        return `${valHtml}<br><span style="font-size:10px;color:#64748b;font-style:italic;">${escapeHtml(chip)}</span>`;
+      }
+      return valHtml || '—';
+    };
+
     return `
       <div class="section" id="business-function">
         <h2 class="section-heading">Business Function Inventory & KPI Baselines</h2>
+        <p class="muted" style="font-size:12px;margin:0 0 8px;">Benchmark figures are cited to public sources — click a source link to verify.</p>
         <div class="table-wrap scrollable">
           <table class="data-table compact">
             <thead>
@@ -554,6 +585,7 @@ export function generateProfessionalHTMLReport(
                 <th>Baseline</th>
                 <th class="text-center">Direction</th>
                 <th>Target</th>
+                <th>Industry Avg</th>
                 <th>Industry Best</th>
                 <th>Overall Best</th>
                 <th>Timeframe</th>
@@ -562,7 +594,11 @@ export function generateProfessionalHTMLReport(
             <tbody>
               ${data
                 .map(
-                  (row: any) => `
+                  (row: any) => {
+                    const sources = (row['Benchmark Sources'] && typeof row['Benchmark Sources'] === 'object')
+                      ? row['Benchmark Sources']
+                      : {};
+                    return `
               <tr>
                 <td>${escapeHtml(row['Strategic Theme'] || '')}</td>
                 <td class="font-medium">${escapeHtml(row['KPI Name'] || '')}</td>
@@ -571,11 +607,13 @@ export function generateProfessionalHTMLReport(
                 <td>${escapeHtml(row['Baseline Value'] || '')}</td>
                 <td class="text-center font-semibold">${escapeHtml(row['Direction'] || '')}</td>
                 <td>${escapeHtml(row['Target Value'] || '')}</td>
-                <td class="muted">${escapeHtml(row['Benchmark (Industry Best)'] || '')}</td>
-                <td class="muted">${escapeHtml(row['Benchmark (Overall Best)'] || '')}</td>
+                <td class="muted">${benchmarkCell(row['Benchmark (Avg)'] || row['Industry Benchmark'] || '', sources.avg)}</td>
+                <td class="muted">${benchmarkCell(row['Benchmark (Industry Best)'] || '', sources.industryBest)}</td>
+                <td class="muted">${benchmarkCell(row['Benchmark (Overall Best)'] || '', sources.overallBest)}</td>
                 <td>${escapeHtml(row['Timeframe'] || '')}</td>
               </tr>
-            `
+            `;
+                  }
                 )
                 .join('')}
             </tbody>

@@ -55,7 +55,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { resolveReportDisplayName } from "@/lib/displayName";
-import { Pencil, Check as CheckIcon } from "lucide-react";
+import { Pencil, Check as CheckIcon, ExternalLink } from "lucide-react";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import ExcelJS from 'exceljs';
@@ -78,6 +78,14 @@ const HIDDEN_COLUMNS = new Set([
   "Annual Hours", "Hourly Rate", "Measurement Method",
   "Friction Point", // Only hidden when it's a "Target Friction" alias scenario
   "Annual Token Cost", "Annual Token Cost ($)",
+  "Benchmark Sources", // Structured citations — rendered inline as links inside benchmark cells
+]);
+
+// Hidden fields that must still be carried on the row object (not as their own
+// column) because a cell renderer reads them. "Benchmark Sources" backs the
+// inline benchmark citations in Step 2.
+const CARRY_THROUGH_COLUMNS = new Set([
+  "Benchmark Sources",
 ]);
 
 function reorderAndFilterColumns(data: any[], stepNum: number): any[] {
@@ -115,9 +123,10 @@ function reorderAndFilterColumns(data: any[], stepNum: number): any[] {
         reorderedRow[col] = normalizedRow[col];
       }
     }
-    // Add remaining non-hidden columns
+    // Add remaining non-hidden columns (plus carry-through fields that back a
+    // cell renderer but must not become their own column).
     for (const [key, value] of Object.entries(normalizedRow)) {
-      if (!(key in reorderedRow) && !HIDDEN_COLUMNS.has(key)) {
+      if (!(key in reorderedRow) && (!HIDDEN_COLUMNS.has(key) || CARRY_THROUGH_COLUMNS.has(key))) {
         reorderedRow[key] = value;
       }
     }
@@ -156,6 +165,86 @@ function getBenchmarkCellClass(columnName: string): string {
     return "bg-green-50 text-green-800";
   }
   return "";
+}
+
+// Map a benchmark column to its citation tier in the row's "Benchmark Sources".
+function getBenchmarkTier(columnName: string): "avg" | "industryBest" | "overallBest" | null {
+  if (columnName === "Benchmark (Avg)" || columnName === "Industry Benchmark") return "avg";
+  if (columnName === "Benchmark (Industry Best)") return "industryBest";
+  if (columnName === "Benchmark (Overall Best)") return "overallBest";
+  return null;
+}
+
+// Defense-in-depth: only ever render an http(s) anchor. Post-processing
+// sanitizes URLs server-side, but imported/legacy reports skip that pass, so
+// the client must never trust a stored `url` (e.g. a "javascript:" payload).
+function isSafeHttpUrl(raw: unknown): raw is string {
+  if (typeof raw !== "string" || !raw.trim()) return false;
+  try {
+    const p = new URL(raw.trim());
+    return p.protocol === "http:" || p.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+// Compact, verifiable citation rendered beneath a benchmark value. When a
+// sanitized http(s) URL exists it is a clickable link (new tab, tooltip with
+// publisher/title/year); otherwise it degrades to a muted, non-clickable
+// attribution so the figure is never left looking unsourced.
+function BenchmarkSourceLink({ source }: { source: any }) {
+  if (!source || typeof source !== "object") return null;
+  const url = isSafeHttpUrl(source.url) ? source.url.trim() : undefined;
+  const chipLabel = [source.publisher, source.year].filter(Boolean).join(" · ");
+  const tooltipText = [source.publisher, source.title, source.year].filter(Boolean).join(" · ");
+
+  if (url) {
+    return (
+      <TooltipProvider delayDuration={150}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="mt-0.5 inline-flex w-fit items-center gap-0.5 text-[10px] font-medium text-current underline decoration-dotted underline-offset-2 opacity-80 hover:opacity-100"
+              data-testid="link-benchmark-source"
+            >
+              <ExternalLink className="h-2.5 w-2.5 shrink-0" />
+              <span className="max-w-[140px] truncate">{chipLabel || "Source"}</span>
+            </a>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-[280px] text-xs">
+            <p className="font-medium">{tooltipText || "View source"}</p>
+            <p className="mt-0.5 break-all text-muted-foreground">{url}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+
+  if (chipLabel) {
+    return <span className="mt-0.5 block text-[10px] italic text-current opacity-60">{chipLabel}</span>;
+  }
+  return null;
+}
+
+// Render a Step-2 benchmark cell: the value plus its inline citation (if any).
+function renderBenchmarkCell(key: string, row: any): React.ReactNode {
+  const base = renderCellValue(key, row[key]);
+  const tier = getBenchmarkTier(key);
+  const source = tier ? row?.["Benchmark Sources"]?.[tier] : undefined;
+  const hasSource =
+    source && typeof source === "object" &&
+    (source.url || source.publisher || source.year || source.title);
+  if (!hasSource) return base;
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span>{base}</span>
+      <BenchmarkSourceLink source={source} />
+    </div>
+  );
 }
 
 // Strategic theme colors (5 distinct colors for 5 themes)
@@ -4503,7 +4592,7 @@ function StepCard({ step }: { step: any }) {
                         key={j}
                         className={`text-xs md:text-sm px-2 md:px-4 py-1.5 md:py-2 ${j === 0 ? "font-medium" : ""} ${key.toLowerCase() === "description" ? "min-w-[200px] md:min-w-[300px] max-w-[300px] md:max-w-[400px] whitespace-normal" : ""} ${getBenchmarkCellClass(key)}`}
                       >
-                        {renderCellValue(key, row[key])}
+                        {renderBenchmarkCell(key, row)}
                       </TableCell>
                     ))}
                   </TableRow>

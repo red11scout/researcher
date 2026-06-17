@@ -1263,7 +1263,13 @@ STEP 2: BUSINESS FUNCTION INVENTORY & KPI BASELINES
   * "Benchmark (Industry Best)" — Top quartile / best-in-class within the specific industry
   * "Benchmark (Overall Best)" — Best-of-breed across ALL industries for this business function
   Include the numeric value and a brief source/context label (e.g., "82% (top quartile retail)")
-- Mark extrapolated data as [ESTIMATED]
+- VERIFIABLE CITATIONS (MANDATORY): For EVERY benchmark tier you report, you MUST also populate a "Benchmark Sources" object on the row with one entry per tier you provided ("avg", "industryBest", "overallBest"). Each entry MUST contain:
+  * "publisher" — the issuing organization (e.g., "MGMA", "Federal Reserve", "U.S. Bureau of Labor Statistics", "McKinsey & Company", "Gartner", "CAQH")
+  * "title" — the report or dataset title
+  * "year" — the publication year (integer)
+  * "url" — a REAL, publicly accessible https link to that source. Cite only reputable, verifiable sources (government statistics, regulatory filings, recognized industry associations, peer-reviewed research, or major analyst/consulting firms). Prefer the stable report/landing page over a fragile deep link. NEVER fabricate a URL — if you cannot cite a real public source for a tier, omit that tier's "url" (keep "label"/"publisher") rather than inventing one.
+  * "label" — the short context label matching the value (e.g., "top quartile health systems")
+- Mark extrapolated data as [ESTIMATED] — and when a tier is [ESTIMATED], reflect that in its source "label" (e.g., "[ESTIMATED] analyst extrapolation") and omit a fabricated "url".
 - FUNCTION/SUB-FUNCTION CONSTRAINT: You MUST use Function and Sub-Function values from the standardized taxonomy provided. Map company-specific terminology to the nearest canonical function. Standard functions include: Sales, Marketing, Finance, Operations, Human Resources, Information Technology, Customer Service, Legal & Compliance, Supply Chain, Product Management, Digital Commerce, Merchandising, Logistics. Each has defined Sub-Functions — use only those sub-function labels.
 Table columns: KPI Name, Function, Sub-Function, Baseline Value, Direction (↑/↓), Target Value, Benchmark (Avg), Benchmark (Industry Best), Benchmark (Overall Best), Timeframe, Strategic Theme
 </output_methodology>
@@ -1294,7 +1300,7 @@ OUTPUT FORMAT:
   "steps": [
     {"step": 0, "title": "Company Overview", "content": "...", "data": null},
     {"step": 1, "title": "Strategic Anchoring & Business Drivers", "content": "brief intro", "data": [{"Strategic Theme": "...", "Primary Driver Impact": "...", "Secondary Driver": "...", "Current State": "...", "Target State": "..."}]},
-    {"step": 2, "title": "Business Function Inventory & KPI Baselines", "content": "...", "data": [{"Function": "...", "Sub-Function": "...", "KPI Name": "...", "Baseline Value": "...", "Industry Benchmark": "...", "Target Value": "...", "Direction": "↑/↓", "Timeframe": "...", "Measurement Method": "...", "Benchmark (Avg)": "...", "Benchmark (Industry Best)": "...", "Benchmark (Overall Best)": "...", "Strategic Theme": "..."}]}
+    {"step": 2, "title": "Business Function Inventory & KPI Baselines", "content": "...", "data": [{"Function": "...", "Sub-Function": "...", "KPI Name": "...", "Baseline Value": "...", "Industry Benchmark": "...", "Target Value": "...", "Direction": "↑/↓", "Timeframe": "...", "Measurement Method": "...", "Benchmark (Avg)": "...", "Benchmark (Industry Best)": "...", "Benchmark (Overall Best)": "...", "Benchmark Sources": {"avg": {"publisher": "MGMA", "title": "Provider Compensation & Productivity Report", "year": 2025, "url": "https://www.mgma.com/data", "label": "national average"}, "industryBest": {"publisher": "...", "title": "...", "year": 2025, "url": "https://...", "label": "top quartile health systems"}, "overallBest": {"publisher": "...", "title": "...", "year": 2024, "url": "https://...", "label": "cross-industry best-in-class"}}, "Strategic Theme": "..."}]}
   ]
 }`;
 }

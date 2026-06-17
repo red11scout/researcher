@@ -1041,6 +1041,25 @@ export interface BenchmarkData {
   overallBestInClass: string;
 }
 
+// A single verifiable citation backing one benchmark tier (Step 2).
+// `url` is the clickable, reader-verifiable link to the published source.
+// All fields are optional so partial / legacy citations degrade gracefully.
+export interface BenchmarkSource {
+  label?: string;      // short context shown in the table, e.g. "MGMA 2025 national average"
+  publisher?: string;  // issuing organization, e.g. "MGMA", "Federal Reserve", "McKinsey"
+  title?: string;      // report / dataset title
+  year?: number;       // publication year
+  url?: string;        // verified http(s) link to the public source (sanitized server-side)
+}
+
+// One citation per benchmark tier, attached to a Step 2 KPI row under the
+// hidden "Benchmark Sources" field. Tiers mirror the three benchmark columns.
+export interface BenchmarkSources {
+  avg?: BenchmarkSource;
+  industryBest?: BenchmarkSource;
+  overallBest?: BenchmarkSource;
+}
+
 // Strategic theme linkage
 export interface StrategicThemeLink {
   themeNumber: number;
