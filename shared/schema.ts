@@ -1050,6 +1050,15 @@ export interface BenchmarkSource {
   title?: string;      // report / dataset title
   year?: number;       // publication year
   url?: string;        // verified http(s) link to the public source (sanitized server-side)
+  // How strongly this citation backs the specific benchmark figure. Used to be
+  // honest in the UI: a named publisher links to its authoritative data page
+  // ("publisherLanding"); a generic domain match links to the relevant industry
+  // body as a general reference ("authorityReference", NOT the exact figure's
+  // source). "exact" is reserved for registry/metric-level matches.
+  verificationStatus?: "exact" | "publisherLanding" | "authorityReference" | "missing";
+  // The raw in-text context the source was derived from (e.g. "hospital industry
+  // average"). Kept for transparency/audit; never rendered as a fabricated claim.
+  evidenceText?: string;
 }
 
 // One citation per benchmark tier, attached to a Step 2 KPI row under the

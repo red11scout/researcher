@@ -1,4 +1,5 @@
 import { RUBRIC, COMPONENT_NAMES, type ComponentKey } from "@shared/vrm-v2";
+import { augmentAnalysisBenchmarkSourcesForPresentation } from "@shared/benchmarkSources";
 
 const _rubricEscape = (text: any): string => {
   if (text === null || text === undefined) return "";
@@ -71,6 +72,10 @@ export function generateProfessionalHTMLReport(
     month: 'long',
     day: 'numeric',
   });
+
+  // Fill in verifiable benchmark citations for any Step-2 figures that lack a
+  // stored source (legacy/imported reports). Returns a clone — never mutates.
+  reportData = augmentAnalysisBenchmarkSourcesForPresentation(reportData);
 
   const {
     analysisData = {
@@ -2355,6 +2360,12 @@ export function generateEditorialHTMLReport(
 ): string {
   const now = new Date();
   const formattedMonth = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+  // NOTE: the Editorial format is a narrative executive briefing that currently
+  // renders NO Step-2 benchmark inventory, so this augmentation is a no-op for
+  // today's output. It is kept as defensive insurance so citations are present
+  // if benchmark rendering is ever added here. Returns a clone — never mutates.
+  reportData = augmentAnalysisBenchmarkSourcesForPresentation(reportData);
 
   const { analysisData = {} } = reportData;
   const {

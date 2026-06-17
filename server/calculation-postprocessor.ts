@@ -63,6 +63,7 @@ import {
 
 import { verifyAndNormalizeRoles, STANDARDIZED_BENEFITS_LOADING } from '../shared/standardizedRoles';
 import { resolvePatternName } from '../shared/schema';
+import { resolveBenchmarkSourcesForRecord } from '../shared/benchmarkSources';
 import { getPatternById } from '../shared/agenticPatterns';
 import {
   VRM_SCHEMA_VERSION,
@@ -1207,6 +1208,23 @@ export function postProcessAnalysis(analysisResult: any): any {
         `[postProcessAnalysis] Benchmark citations: ${srcResult.rowsWithLinks} KPI(s) with verifiable links` +
           (srcResult.droppedUrlCount > 0 ? `, ${srcResult.droppedUrlCount} unsafe URL(s) dropped` : "") +
           (srcResult.rowsWithBenchmarksButNoLinks > 0 ? `, ${srcResult.rowsWithBenchmarksButNoLinks} unlinked` : ""),
+      );
+      // Fill any tier still missing a citation with a deterministic, honest
+      // source (named-publisher token first, then industry/domain authority).
+      // Existing valid structured sources are preferred and kept as-is.
+      let resolvedTierCount = 0;
+      for (const record of step2.data as any[]) {
+        if (!record || typeof record !== "object") continue;
+        const sources = resolveBenchmarkSourcesForRecord(record, {
+          industry: String(industry || ""),
+        });
+        if (Object.keys(sources).length > 0) {
+          record["Benchmark Sources"] = sources;
+          resolvedTierCount += Object.keys(sources).length;
+        }
+      }
+      console.log(
+        `[postProcessAnalysis] Benchmark sources resolved across ${resolvedTierCount} tier(s)`,
       );
     }
   }

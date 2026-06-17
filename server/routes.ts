@@ -5,6 +5,7 @@ import { generateCompanyAnalysis, generateWhatIfSuggestion, checkProductionConfi
 import * as formulaService from "./formula-service";
 import { dubService } from "./dub-service";
 import { insertReportSchema, adminSettingsUpdateSchema } from "@shared/schema";
+import { augmentAnalysisBenchmarkSourcesForPresentation } from "@shared/benchmarkSources";
 import {
   resolveRetentionDays as resolveAuditRetentionDays,
   CLEANUP_INTERVAL_MS as ADMIN_AUDIT_CLEANUP_INTERVAL_MS,
@@ -4292,14 +4293,26 @@ Return ONLY valid JSON with this structure:
           // round numbers — they emit the canonical analysisData verbatim.
           const exportCtx = { reportType, exportedAt: new Date().toISOString() };
           switch (format) {
-            case "json":
+            case "json": {
               filename = `${safeCompanyName}_${reportType}.json`;
+              // Enrich a CLONE so legacy AND imported reports carry verifiable
+              // benchmark citations in the downloaded JSON. augment() never
+              // mutates and is never persisted, so the stored (imported) record
+              // stays immutable — this only augments the exported view. The
+              // formatter remains a pure pass-through of what it receives.
+              const jsonReport = {
+                ...report,
+                analysisData: augmentAnalysisBenchmarkSourcesForPresentation(
+                  report.analysisData,
+                ),
+              };
               content = JSON.stringify(
-                formatReportAsJson(report, exportCtx),
+                formatReportAsJson(jsonReport, exportCtx),
                 null,
                 2,
               );
               break;
+            }
             case "md":
               filename = `${safeCompanyName}_${reportType}.md`;
               content = formatReportAsMarkdown(report, exportCtx);

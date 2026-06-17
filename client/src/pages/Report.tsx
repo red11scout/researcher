@@ -67,6 +67,7 @@ import { WorkflowExportPanel } from "@/components/report/WorkflowExportPanel";
 import { generateBoardPresentationPDF } from "@/lib/pdfGenerator";
 import { parseEpochFlags, getEpochBadge as epochGetBadge } from "@/lib/epoch-utils";
 import { STEP_COLUMN_ORDER, COLUMN_NAME_ALIASES } from "@shared/taxonomy";
+import { resolveBenchmarkSource, augmentAnalysisBenchmarkSourcesForPresentation, isMeaningfulBenchmarkValue } from "@shared/benchmarkSources";
 
 // ===== COLUMN ORDERING & TAXONOMY =====
 // Imported from shared/taxonomy.ts for consistency across all report pages
@@ -234,7 +235,21 @@ function BenchmarkSourceLink({ source }: { source: any }) {
 function renderBenchmarkCell(key: string, row: any): React.ReactNode {
   const base = renderCellValue(key, row[key]);
   const tier = getBenchmarkTier(key);
-  const source = tier ? row?.["Benchmark Sources"]?.[tier] : undefined;
+  if (!tier) return base;
+  const stored = row?.["Benchmark Sources"]?.[tier];
+  const storedUsable =
+    stored && typeof stored === "object" &&
+    (isSafeHttpUrl(stored.url) || stored.publisher || stored.title);
+  const rawValue = row?.[key];
+  const hasValue = isMeaningfulBenchmarkValue(rawValue);
+  // Legacy/imported reports lack a stored citation; resolve one deterministically
+  // from the benchmark value text so the figure is never left unsourced. Only
+  // resolve when the cell actually shows a benchmark value to cite.
+  const source = storedUsable
+    ? stored
+    : hasValue
+      ? resolveBenchmarkSource({ existing: stored, valueText: rawValue })
+      : undefined;
   const hasSource =
     source && typeof source === "object" &&
     (source.url || source.publisher || source.year || source.title);
@@ -2747,6 +2762,10 @@ export default function Report() {
       }
     }
 
+    // Fill in verifiable benchmark citations for any Step-2 figures that lack a
+    // stored source so the downloaded JSON carries the same links shown in-app.
+    const enrichedData = augmentAnalysisBenchmarkSourcesForPresentation(cleanedData);
+
     const exportData = {
       // Research/canonical name — keep stable so re-imports reuse the same row.
       companyName,
@@ -2755,7 +2774,7 @@ export default function Report() {
       // round-trips cleanly.
       displayName: displayNameOverride,
       generatedAt: new Date().toISOString(),
-      analysis: { ...cleanedData, displayName: displayNameOverride },
+      analysis: { ...enrichedData, displayName: displayNameOverride },
     };
     
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
