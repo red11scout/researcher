@@ -16,10 +16,24 @@ export function serveStatic(app: Express) {
     app.use("/attached_assets", express.static(attachedAssetsPath));
   }
 
-  app.use(express.static(distPath));
+  app.use(
+    express.static(distPath, {
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith(".html")) {
+          // index.html must always be revalidated so new deploys are picked up
+          res.setHeader("Cache-Control", "no-cache");
+        } else if (/[\\/]assets[\\/]/.test(filePath)) {
+          // Vite emits content-hashed filenames under /assets — safe to cache
+          // forever; a new build produces new hashes so this never goes stale.
+          res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+        }
+      },
+    }),
+  );
 
   // fall through to index.html if the file doesn't exist
   app.use("*", (_req, res) => {
+    res.setHeader("Cache-Control", "no-cache");
     res.sendFile(path.resolve(distPath, "index.html"));
   });
 }

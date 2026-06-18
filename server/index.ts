@@ -3,6 +3,7 @@
 
 import express, { type Request, Response, NextFunction } from "express";
 import cookieParser from 'cookie-parser';
+import compression from "compression";
 import { registerRoutes } from "./routes";
 import { setupAuth, securityHeaders } from "./auth";
 import { serveStatic } from "./static";
@@ -40,6 +41,10 @@ const httpServer = createServer(app);
 // but Express short-circuits on the first matching middleware for static
 // responses, so the early mount below would otherwise bypass them.)
 app.use(securityHeaders);
+
+// Gzip/deflate all responses (large report JSON payloads + static JS/CSS).
+// Registered early so it covers attached_assets, the API, and the built client.
+app.use(compression());
 
 // Serve attached_assets folder for PDF downloads (before other routes)
 const attachedAssetsPath = path.resolve(process.cwd(), "attached_assets");

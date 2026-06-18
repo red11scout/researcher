@@ -1,1 +1,1 @@
-- [Step 2 benchmark citations](benchmark-citations.md) — shared honest resolver + web-search-grounded Call-1 URLs (registry fallback); Editorial HTML shows no benchmark table; imports augment-for-view only.
+- [Gzip compression vs streaming](compression-streaming.md) — global compression() is on; real-time streams must set Cache-Control: no-transform or they get buffered.
