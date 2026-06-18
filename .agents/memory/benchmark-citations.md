@@ -51,3 +51,32 @@ stored record.
 gated on `!analysis.importedFromJson`; view/export augmentation on a clone is
 fine for everyone. Keep `server/export-formatters.ts` a pure pass-through —
 enrich the clone UPSTREAM of `formatReportAsJson`, never inside it.
+
+## Benchmark URLs are web-search-grounded (Call 1 only)
+Step-2 benchmark source URLs are grounded by LIVE Anthropic web search, enabled
+ONLY on Call 1 (Steps 0-2 — the only call that emits Step-2 rows). The curated
+registry in `shared/benchmarkSources.ts` stays the FALLBACK ("option 3"): the
+resolver keeps an LLM-provided search URL when present, else backfills a registry
+reference. The 5 enforced rules live in `buildCall1SystemPrompt`'s VERIFIABLE
+CITATIONS block: (1) zero URL hallucination, (2) search-grounded only, (3) ≤2
+searches/KPI with a `max_uses` backstop (env `BENCHMARK_WEB_SEARCH_MAX_USES`,
+default 15), (4) explicit fallback string "Source found via search, but direct
+URL unavailable.", (5) reputable-domain filtering (specific report page, not a
+homepage).
+
+**Why:** the model otherwise recalls plausible-but-fake benchmark URLs from
+memory; live search makes every cited URL verifiable, while the registry keeps
+coverage when a search returns nothing usable.
+
+**How to apply:**
+- Web search is opt-in per call via `opts.webSearch` on
+  `callAnthropicAPIStreaming` / `callPipelineStep`. Keep it scoped to Call 1 —
+  Calls 2-4 must pass NO tools (they emit no benchmark URLs and shouldn't pay the
+  search latency/cost).
+- With web search on, the final message INTERLEAVES `server_tool_use` /
+  `web_search_tool_result` blocks with one or more text blocks and may emit a
+  short preamble before the JSON. Always (a) join ALL text blocks (never assume
+  `content[0]` is the JSON) and (b) slice first `{` … last `}` before
+  `extractJSON` — `callPipelineStep` already does the slice.
+- Cost/latency: each Call 1 adds up to `max_uses` searches (~$0.15/report at the
+  default 15) and runs slower; lower `BENCHMARK_WEB_SEARCH_MAX_USES` to throttle.

@@ -108,12 +108,31 @@ interface StreamingResult {
   outputTokens: number;
 }
 
+// ── Benchmark URL sourcing via live web search ──────────────────────
+// Web search is enabled ONLY for Call 1 (Step 2 KPI benchmark source URLs) so
+// every cited URL is search-grounded rather than recalled from model memory.
+// `max_uses` is the hard backstop for the per-KPI search budget; override with
+// BENCHMARK_WEB_SEARCH_MAX_USES.
+export function getBenchmarkWebSearchMaxUses(): number {
+  const raw = Number(process.env.BENCHMARK_WEB_SEARCH_MAX_USES);
+  return Number.isFinite(raw) && raw > 0 ? Math.floor(raw) : 15;
+}
+
+export function buildBenchmarkWebSearchTool() {
+  return {
+    type: "web_search_20250305" as const,
+    name: "web_search" as const,
+    max_uses: getBenchmarkWebSearchMaxUses(),
+  };
+}
+
 // Streaming API call that detects step boundaries and fires progress callbacks
 async function callAnthropicAPIStreaming(
   systemPrompt: string,
   userPrompt: string,
   maxTokens: number = 64000,
-  onProgress?: ProgressCallback
+  onProgress?: ProgressCallback,
+  opts?: { webSearch?: boolean }
 ): Promise<StreamingResult> {
   const config = getConfig();
 
@@ -140,12 +159,19 @@ async function callAnthropicAPIStreaming(
       7: "Priority Roadmap",
     };
 
-    const stream = client.messages.stream({
+    const streamParams: any = {
       model: "claude-sonnet-4-5-20250929",
       max_tokens: maxTokens,
       system: systemPrompt,
       messages: [{ role: "user", content: userPrompt }],
-    });
+    };
+    if (opts?.webSearch) {
+      const tool = buildBenchmarkWebSearchTool();
+      streamParams.tools = [tool];
+      console.log(`[callAnthropicAPIStreaming] Web search ENABLED (max_uses=${tool.max_uses})`);
+    }
+
+    const stream = client.messages.stream(streamParams);
 
     stream.on("text", (text) => {
       fullText += text;
@@ -188,10 +214,20 @@ async function callAnthropicAPIStreaming(
       throw new Error("Invalid response format from Anthropic API");
     }
 
-    const finalText = (finalMessage.content?.[0] as any)?.text as string | undefined;
-    const resultText = fullText || finalText || '';
+    // With web search enabled the final message interleaves server_tool_use /
+    // web_search_tool_result blocks with one or more text blocks, so join ALL
+    // text blocks rather than assuming content[0] is text.
+    const finalText = (finalMessage.content || [])
+      .filter((b: any) => b?.type === "text")
+      .map((b: any) => b.text)
+      .join("");
+    const resultText = (finalText.length > fullText.length ? finalText : fullText) || '';
     if (fullText && finalText && fullText.length !== finalText.length) {
       console.warn(`[callAnthropicAPIStreaming] Stream text (${fullText.length} chars) differs from finalMessage text (${finalText.length} chars) — using longer one`);
+    }
+    const searchRequests = (finalMessage.usage as any)?.server_tool_use?.web_search_requests;
+    if (searchRequests != null) {
+      console.log(`[callAnthropicAPIStreaming] Web searches performed: ${searchRequests}`);
     }
 
     return {
@@ -987,14 +1023,15 @@ async function callPipelineStep(
   systemPrompt: string,
   userPrompt: string,
   maxTokens: number,
-  label: string
+  label: string,
+  opts?: { webSearch?: boolean }
 ): Promise<any> {
   const startTime = Date.now();
 
   const result = await pRetry(
     async () => {
       try {
-        return await callAnthropicAPIStreaming(systemPrompt, userPrompt, maxTokens);
+        return await callAnthropicAPIStreaming(systemPrompt, userPrompt, maxTokens, undefined, opts);
       } catch (error: any) {
         if (error?.status === 429 || error?.message?.includes("429") || error?.message?.toLowerCase().includes("rate limit")) {
           console.log(`[${label}] Rate limit hit - waiting 60 seconds...`);
@@ -1195,7 +1232,7 @@ function synthesizeMissingSteps(analysis: any): void {
 // PIPELINE PROMPT BUILDERS — per-call system prompts
 // ═══════════════════════════════════════════════════════════════════
 
-function buildCall1SystemPrompt(): string {
+export function buildCall1SystemPrompt(): string {
   return `${SHARED_SYSTEM_IDENTITY}
 
 ${EPOCH_FRAMEWORK_DEFINITION}
@@ -1267,9 +1304,17 @@ STEP 2: BUSINESS FUNCTION INVENTORY & KPI BASELINES
   * "publisher" — the issuing organization (e.g., "MGMA", "Federal Reserve", "U.S. Bureau of Labor Statistics", "McKinsey & Company", "Gartner", "CAQH")
   * "title" — the report or dataset title
   * "year" — the publication year (integer)
-  * "url" — a REAL, publicly accessible https link to that source. Cite only reputable, verifiable sources (government statistics, regulatory filings, recognized industry associations, peer-reviewed research, or major analyst/consulting firms). Prefer the stable report/landing page over a fragile deep link. NEVER fabricate a URL — if you cannot cite a real public source for a tier, omit that tier's "url" (keep "label"/"publisher") rather than inventing one.
+  * "url" — the source link, governed by the STRICT URL SOURCING RULES below
   * "label" — the short context label matching the value (e.g., "top quartile health systems")
-- Mark extrapolated data as [ESTIMATED] — and when a tier is [ESTIMATED], reflect that in its source "label" (e.g., "[ESTIMATED] analyst extrapolation") and omit a fabricated "url".
+  * "evidenceText" — (optional) a short note on where the figure came from
+- STRICT URL SOURCING RULES — web search is ENABLED for this step. Follow these EXACTLY for every "url":
+  1. ZERO URL HALLUCINATION: Under no circumstances generate, guess, construct, or recall a URL from your training data or memory. Do not assemble a URL from a publisher's name or brand.
+  2. SEARCH-GROUNDED ONLY: Include a "url" ONLY if you retrieved it directly from a live web search result during THIS session. Copy the URL EXACTLY as it appears in the search result — character for character.
+  3. SPEED & LIMITS (TIME-BOXING): Use at most TWO web searches per KPI. When a source you already found applies to another KPI or tier, reuse it instead of searching again. Do not go down a rabbit hole.
+  4. EXPLICIT FALLBACK: If you find the benchmark data but cannot retrieve a clear, direct, complete URL within two searches, DO NOT guess. Omit the "url" field for that tier and set "evidenceText": "Source found via search, but direct URL unavailable." (still provide "publisher", "title", and "label").
+  5. DOMAIN FILTERING: Prioritize highly reputable domains — government statistics, regulatory filings, recognized industry associations, peer-reviewed research, and major analyst/consulting firms (e.g., Gartner, McKinsey, Forrester, Harvard Business Review) or official company press rooms. The link MUST point to the specific report, article, or dataset page — NEVER a generic homepage.
+- Mark extrapolated data as [ESTIMATED] — and when a tier is [ESTIMATED], reflect that in its source "label" (e.g., "[ESTIMATED] analyst extrapolation"), omit the "url", and set "evidenceText" accordingly.
+- After you have completed all web searches, output ONLY the JSON object specified below — no preamble, commentary, reasoning, or markdown fences.
 - FUNCTION/SUB-FUNCTION CONSTRAINT: You MUST use Function and Sub-Function values from the standardized taxonomy provided. Map company-specific terminology to the nearest canonical function. Standard functions include: Sales, Marketing, Finance, Operations, Human Resources, Information Technology, Customer Service, Legal & Compliance, Supply Chain, Product Management, Digital Commerce, Merchandising, Logistics. Each has defined Sub-Functions — use only those sub-function labels.
 Table columns: KPI Name, Function, Sub-Function, Baseline Value, Direction (↑/↓), Target Value, Benchmark (Avg), Benchmark (Industry Best), Benchmark (Overall Best), Timeframe, Strategic Theme
 </output_methodology>
@@ -1661,7 +1706,7 @@ OUTPUT FORMAT:
 // PIPELINE CONTEXT BUILDERS — user prompts for each call
 // ═══════════════════════════════════════════════════════════════════
 
-function buildCall1UserPrompt(companyName: string, documentSection: string): string {
+export function buildCall1UserPrompt(companyName: string, documentSection: string): string {
   return `Generate Steps 0-2 of the BlueAlly AI Strategic Assessment for: **${companyName}**
 
 Today's Date: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
@@ -1935,7 +1980,8 @@ export async function executePipelineCall(
       buildCall1SystemPrompt(),
       buildCall1UserPrompt(companyName, documentSection),
       32000,
-      "Call 1 (Steps 0-2)"
+      "Call 1 (Steps 0-2)",
+      { webSearch: true }
     );
 
     const companyOverview = call1Result.companyOverview || {};
@@ -2096,7 +2142,8 @@ export async function generateCompanyAnalysis(companyName: string, documentConte
       buildCall1SystemPrompt(),
       buildCall1UserPrompt(companyName, documentSection),
       32000,
-      "Call 1 (Steps 0-2)"
+      "Call 1 (Steps 0-2)",
+      { webSearch: true }
     );
 
     const companyOverview = call1Result.companyOverview || {};

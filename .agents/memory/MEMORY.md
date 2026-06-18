@@ -1,1 +1,1 @@
-- [Step 2 benchmark citations](benchmark-citations.md) — shared honest resolver; Editorial HTML shows no benchmark table; imports augment-for-view only.
+- [Step 2 benchmark citations](benchmark-citations.md) — shared honest resolver + web-search-grounded Call-1 URLs (registry fallback); Editorial HTML shows no benchmark table; imports augment-for-view only.

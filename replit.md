@@ -8,7 +8,7 @@ An enterprise research and analysis platform that generates comprehensive AI opp
 - **Typecheck:** `npm run typecheck`
 - **Codegen:** `npm run codegen` (for Drizzle ORM)
 - **DB Push:** `npm run db:push` (for Drizzle migrations)
-- **Environment Variables:** `ANTHROPIC_API_KEY`, `DATABASE_URL`, `SESSION_SECRET`, `ADMIN_AUDIT_RETENTION_DAYS` (optional, defaults to 90), `SHARE_SESSION_SECRET` (for public dashboards).
+- **Environment Variables:** `ANTHROPIC_API_KEY`, `DATABASE_URL`, `SESSION_SECRET`, `ADMIN_AUDIT_RETENTION_DAYS` (optional, defaults to 90), `SHARE_SESSION_SECRET` (for public dashboards), `BENCHMARK_WEB_SEARCH_MAX_USES` (optional, defaults to 15 — caps live web searches on Call 1 for benchmark-URL grounding).
 
 ## Stack
 - **Frontend:** React 18, TypeScript, Wouter, TanStack Query, Shadcn/ui, Tailwind CSS v4, Framer Motion, Recharts
