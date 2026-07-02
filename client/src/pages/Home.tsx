@@ -14,6 +14,11 @@ interface UploadedDocument {
   content: string;
   size: number;
   type: string;
+  priorAssessment?: {
+    companyName: string | null;
+    analysis: any;
+    generatedAt: string | null;
+  };
 }
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB per file (for PDFs)
@@ -94,6 +99,46 @@ export default function Home() {
           description: "Extracted text exceeds storage limit. Try uploading fewer or smaller documents.",
           variant: "destructive",
         });
+        return;
+      }
+
+      // PRIOR-ASSESSMENT IMPORT FAST PATH
+      // ---------------------------------------------------------
+      // If any uploaded JSON is a previously-exported BlueAlly
+      // assessment, route directly into the import flow instead of
+      // letting Claude re-analyze it. This is the explicit
+      // "preserve all inputs from the loaded JSON" contract — no
+      // Claude call, no postProcessAnalysis recompute.
+      const priorDoc = (result.documents as UploadedDocument[]).find(
+        (d) => !!d.priorAssessment,
+      );
+      if (priorDoc?.priorAssessment) {
+        const importedCompany =
+          priorDoc.priorAssessment.companyName?.trim() ||
+          priorDoc.name.replace(/\.json$/i, "");
+        try {
+          sessionStorage.setItem(
+            "priorAssessment",
+            JSON.stringify({
+              analysis: priorDoc.priorAssessment.analysis,
+              companyName: importedCompany,
+              fileName: priorDoc.name,
+            }),
+          );
+          sessionStorage.removeItem("uploadedDocuments");
+        } catch (storageError) {
+          toast({
+            title: "Import failed",
+            description: "Could not stage the imported assessment for the report page.",
+            variant: "destructive",
+          });
+          return;
+        }
+        toast({
+          title: "Assessment imported",
+          description: `Loading ${importedCompany} from the uploaded JSON. No values will be recalculated.`,
+        });
+        setLocation(`/report?company=${encodeURIComponent(importedCompany)}`);
         return;
       }
 
@@ -231,18 +276,18 @@ export default function Home() {
                     data-testid="input-company-name"
                   />
                 </div>
-                <Button size="lg" type="submit" className="h-11 md:h-12 px-6 md:px-8 rounded-lg text-sm md:text-base font-medium shadow-none w-full sm:w-auto" data-testid="button-research">
+                <Button size="lg" type="submit" className="h-11 md:h-12 min-h-[44px] px-6 md:px-8 rounded-lg text-sm md:text-base font-medium shadow-none w-full sm:w-auto" data-testid="button-research">
                   Research
                 </Button>
               </div>
             </form>
 
             {/* Document Upload Section */}
-            <div className="mt-4 w-full">
+            <div className="mt-3 md:mt-4 w-full">
               <button
                 type="button"
                 onClick={() => setShowDocuments(!showDocuments)}
-                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mx-auto"
+                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mx-auto min-h-[44px] px-3"
                 data-testid="button-toggle-documents"
               >
                 <FileText className="h-4 w-4" />
@@ -268,7 +313,7 @@ export default function Home() {
                       onDragOver={handleDragOver}
                       onDragLeave={handleDragLeave}
                       onDrop={handleDrop}
-                      className={`border-2 border-dashed rounded-lg p-6 transition-colors ${
+                      className={`border-2 border-dashed rounded-lg p-4 md:p-6 transition-colors ${
                         isDragging 
                           ? "border-primary bg-primary/5" 
                           : "border-muted-foreground/25 hover:border-muted-foreground/50"
@@ -285,15 +330,15 @@ export default function Home() {
                         data-testid="input-file-upload"
                       />
                       
-                      <div className="flex flex-col items-center gap-3">
+                      <div className="flex flex-col items-center gap-2 md:gap-3">
                         {isUploading ? (
                           <>
-                            <Loader2 className="h-8 w-8 text-primary animate-spin" />
+                            <Loader2 className="h-6 w-6 md:h-8 md:w-8 text-primary animate-spin" />
                             <p className="text-sm text-muted-foreground">Processing files...</p>
                           </>
                         ) : (
                           <>
-                            <Upload className="h-8 w-8 text-muted-foreground" />
+                            <Upload className="h-6 w-6 md:h-8 md:w-8 text-muted-foreground" />
                             <div className="text-center">
                               <p className="text-sm text-muted-foreground">
                                 Drag & drop files here or{" "}
@@ -306,8 +351,8 @@ export default function Home() {
                                   browse
                                 </button>
                               </p>
-                              <p className="text-xs text-muted-foreground/70 mt-1">
-                                Supports PDF, TXT, MD, CSV, JSON (max 10MB each)
+                              <p className="text-[10px] md:text-xs text-muted-foreground/70 mt-1">
+                                PDF, TXT, MD, CSV, JSON (max 10MB)
                               </p>
                             </div>
                           </>
@@ -315,24 +360,24 @@ export default function Home() {
                       </div>
 
                       {documents.length > 0 && (
-                        <div className="mt-4 space-y-2">
+                        <div className="mt-3 md:mt-4 space-y-1.5 md:space-y-2">
                           {documents.map((doc, index) => (
                             <div
                               key={`${doc.name}-${index}`}
-                              className="flex items-center justify-between bg-muted/50 rounded-lg px-3 py-2"
+                              className="flex items-center justify-between bg-muted/50 rounded-lg px-2 py-1.5 md:px-3 md:py-2 gap-2"
                               data-testid={`document-item-${index}`}
                             >
-                              <div className="flex items-center gap-2 min-w-0">
-                                <FileText className="h-4 w-4 text-primary flex-shrink-0" />
-                                <span className="text-sm truncate">{doc.name}</span>
-                                <span className="text-xs text-muted-foreground flex-shrink-0">
+                              <div className="flex items-center gap-1.5 md:gap-2 min-w-0 flex-1">
+                                <FileText className="h-3.5 w-3.5 md:h-4 md:w-4 text-primary flex-shrink-0" />
+                                <span className="text-xs md:text-sm truncate">{doc.name}</span>
+                                <span className="text-[10px] md:text-xs text-muted-foreground flex-shrink-0 hidden sm:inline">
                                   ({(doc.size / 1024).toFixed(1)} KB)
                                 </span>
                               </div>
                               <button
                                 type="button"
                                 onClick={() => removeDocument(index)}
-                                className="p-1 hover:bg-destructive/10 rounded transition-colors flex-shrink-0"
+                                className="p-2 md:p-1 hover:bg-destructive/10 rounded transition-colors flex-shrink-0 min-w-[44px] min-h-[44px] md:min-w-0 md:min-h-0 flex items-center justify-center"
                                 data-testid={`button-remove-document-${index}`}
                               >
                                 <X className="h-4 w-4 text-destructive" />
@@ -343,7 +388,7 @@ export default function Home() {
                       )}
                     </div>
 
-                    <p className="text-xs text-muted-foreground/70 text-center mt-3">
+                    <p className="text-xs text-muted-foreground/70 text-center mt-2 md:mt-3 px-2">
                       Upload company reports, use case descriptions, or any relevant documents to enhance the AI analysis
                     </p>
                   </motion.div>
@@ -356,7 +401,7 @@ export default function Home() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.4 }}
-            className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 md:gap-8 mt-10 md:mt-20 w-full"
+            className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 md:gap-8 mt-8 md:mt-20 w-full"
           >
             <FeatureCard 
               icon={<Building2 className="h-5 w-5 md:h-6 md:w-6 text-primary" />}

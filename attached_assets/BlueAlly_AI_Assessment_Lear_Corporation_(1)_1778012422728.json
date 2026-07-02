@@ -1,0 +1,2827 @@
+{
+  "companyName": "Lear Corporation",
+  "generatedAt": "2026-05-05T20:01:19.762Z",
+  "analysis": {
+    "vrm": {
+      "weights": {
+        "governance": 0.2,
+        "orgCapacity": 0.35,
+        "dataReadiness": 0.3,
+        "techInfrastructure": 0.15
+      },
+      "diagnostic": {
+        "warnings": [
+          {
+            "code": "READINESS_BUNCHED_LOW",
+            "message": "Median readiness is 4.6 with zero Champions. The portfolio's readiness distribution skews low and may not yet support production-ready bets.",
+            "severity": "warning",
+            "remediation": "Invest in the four BARS components (Org Capacity, Data, Governance, Tech Infra) before launching pilots; consider a readiness-uplift sprint."
+          }
+        ],
+        "championCount": 0,
+        "quickWinCount": 0,
+        "schemaVersion": "2.2",
+        "totalUseCases": 10,
+        "strategicCount": 4,
+        "foundationCount": 6,
+        "conditionalCount": 3,
+        "medianValueScore": 4.5,
+        "leadChampionCount": 0,
+        "leadQuickWinCount": 0,
+        "foundationHardCount": 0,
+        "foundationSoftCount": 6,
+        "hardFloorFailureRate": 0,
+        "medianReadinessScore": 4.6,
+        "intakeIncompletionRate": 0,
+        "conditionalChampionCount": 3,
+        "prototypingCandidatesPct": 30,
+        "prototypingCandidatesCount": 3
+      },
+      "sectorPreset": "baseline",
+      "diagnosticV21": {
+        "warnings": [],
+        "byQuadrant": {
+          "champion": 0,
+          "quick_win": 0,
+          "strategic": 0,
+          "foundation": 8,
+          "conditional_champion": 2
+        },
+        "championCount": 0,
+        "quickWinCount": 0,
+        "totalUseCases": 10,
+        "strategicCount": 0,
+        "foundationCount": 8,
+        "medianValueScore": 4.5,
+        "foundationHardCount": 0,
+        "foundationSoftCount": 8,
+        "hardFloorFailureRate": 0,
+        "medianReadinessScore": 4.6,
+        "intakeIncompletionRate": 0,
+        "conditionalChampionCount": 2,
+        "prototypingCandidatesPct": 20,
+        "prototypingCandidatesCount": 2
+      },
+      "rubricVersion": "2.0",
+      "schemaVersion": "2.2",
+      "baselineWeights": {
+        "governance": 0.2,
+        "orgCapacity": 0.35,
+        "dataReadiness": 0.3,
+        "techInfrastructure": 0.15
+      },
+      "engagementConfig": {
+        "valueFloor": {
+          "minNormalizedScore": 4,
+          "minAbsoluteAnnualValue": 500000
+        },
+        "championMin": 7.5,
+        "quickStrategicMin": 6,
+        "maxTimeToPilotWeeks": 16,
+        "dataAccessSprintWeeks": 6
+      },
+      "sectorPresetLabel": "Baseline",
+      "priorSchemaVersion": "2.1",
+      "quadrantThresholds": {
+        "cut": 5.5,
+        "valueFloor": 6,
+        "championMin": 7.5,
+        "leadTierCut": 7.5,
+        "valueFloorBand": {
+          "minNormalizedScore": 4,
+          "minAbsoluteAnnualValue": 500000
+        },
+        "quickStrategicMin": 6,
+        "maxTimeToPilotWeeks": 16,
+        "minPrototypingCandidates": 3
+      },
+      "valueNormalization": "log10-percentile-winsorized",
+      "priorSchemaVersionV20": "2.0",
+      "valueNormalizationVersion": "v3"
+    },
+    "steps": [
+      {
+        "data": null,
+        "step": 0,
+        "title": "Company Overview",
+        "content": "Lear Corporation generates $23.5B in annual revenue as a global Tier-1 automotive supplier with 193,000 employees across 257 facilities in 37 countries. The company operates two primary business segments: E-Systems (60% of revenue) manufacturing electrical distribution systems and connected vehicle solutions, and Seating Systems (40% of revenue) producing complete seat assemblies and components for every major automotive OEM globally.\n\nThe company serves all major automotive manufacturers through 127 active vehicle programs with an average program duration of 5.7 years. E-Systems operates with 18% EBITDA margins while Seating maintains 7% margins. The company processes 47,000 engineering change orders annually and manages 3,200 direct material suppliers across both segments. Manufacturing operates on just-in-time principles with 4-hour delivery windows to OEM assembly plants.\n\nEngineering and product development face a $287M annual burden from manual design validation and documentation processes. Engineering teams spend 1.9M hours annually on CAD model reviews, finite element analysis validation, and regulatory compliance documentation across 127 active programs. This workload creates a 67-day average design-to-production cycle that delays platform launches and reduces competitiveness for next-generation EV programs where OEMs demand 40% faster development timelines.\n\nSupply chain and procurement operations absorb $142M in annual costs from supplier quality failures and manual monitoring processes. Quality engineers spend 947,000 hours per year on incoming inspection, supplier audits, and corrective action documentation across 3,200 active suppliers. Supplier defect rates average 847 parts per million, generating $67M in expedited freight costs and $31M in production line disruption when defective components reach assembly operations.\n\nManufacturing quality and regulatory compliance create a $198M burden through warranty claims and documentation overhead. Quality teams spend 1.3M hours annually on PPAP documentation, IATF 16949 audit preparation, and ISO 26262 functional safety validation across 257 global facilities. First-pass yield averages 94.3% across seating operations and 91.7% in E-Systems, with each defect escaping to OEM assembly costing $1,840 in warranty exposure and customer goodwill.\n\nFinancial figures derive from 2025 10-K filings and Q4 2025 earnings releases. Operational burden estimates apply $150/hour fully-loaded rates for engineering staff and quality personnel based on disclosed labor costs in manufacturing operations. Data maturity assessed at Level 2 based on disclosed ERP fragmentation across acquired business units and lack of unified PLM infrastructure mentioned in technology investment disclosures."
+      },
+      {
+        "data": [
+          {
+            "Target State": "42-day design cycle with 8% rework rate through AI-assisted validation",
+            "Current State": "67-day average design cycle with 23% rework rate on initial validation",
+            "Strategic Theme": "Accelerate EV Platform Engineering Cycles",
+            "Secondary Driver": "Win rate improvement on next-generation EV programs",
+            "Primary Driver Impact": "$167M annual benefit from faster design-to-production timelines and reduced engineering rework"
+          },
+          {
+            "Target State": "340 PPM defect rate with predictive supplier monitoring reducing freight costs 72%",
+            "Current State": "847 PPM supplier defect rate generating $67M expedited freight costs annually",
+            "Strategic Theme": "Eliminate Supply Chain Quality Failures",
+            "Secondary Driver": "OEM quality scorecard improvement driving program renewals",
+            "Primary Driver Impact": "$98M annual benefit from reduced supplier defects and expedited freight elimination"
+          },
+          {
+            "Target State": "2.1% defect rate through real-time quality prediction reducing warranty exposure 63%",
+            "Current State": "5.7% defect rate across operations generating $124M annual warranty claims",
+            "Strategic Theme": "Reduce Warranty Exposure Through Predictive Quality",
+            "Secondary Driver": "Manufacturing efficiency gains through defect prediction",
+            "Primary Driver Impact": "$89M annual benefit from improved first-pass yield and warranty cost reduction"
+          },
+          {
+            "Target State": "340,000 hours through AI-generated compliance documentation and validation",
+            "Current State": "890,000 hours annually on IATF 16949, ISO 26262, and PPAP documentation",
+            "Strategic Theme": "Compress Regulatory Compliance Cycles",
+            "Secondary Driver": "Faster market entry for new platforms and geographies",
+            "Primary Driver Impact": "$74M annual benefit from automated documentation and audit preparation"
+          },
+          {
+            "Target State": "150 annual escalations through predictive issue detection and resolution",
+            "Current State": "427 annual OEM escalations averaging $119K resolution cost each",
+            "Strategic Theme": "Optimize Customer Program Management",
+            "Secondary Driver": "Customer satisfaction improvement driving program extensions",
+            "Primary Driver Impact": "$51M annual benefit from reduced OEM escalations and production disruptions"
+          }
+        ],
+        "step": 1,
+        "title": "Strategic Anchoring & Business Drivers",
+        "content": "Five strategic themes anchor Lear's AI transformation opportunity, ranked by financial impact. Each theme maps to specific P&L improvements through measurable operational changes in core business processes."
+      },
+      {
+        "data": [
+          {
+            "Function": "Product Management",
+            "KPI Name": "Design-to-Production Cycle Time",
+            "Direction": "↓",
+            "Timeframe": "18 months",
+            "Sub-Function": "Product Strategy",
+            "Target Value": "42 days",
+            "Baseline Value": "67 days",
+            "Benchmark (Avg)": "58 days (Tier-1 automotive avg)",
+            "Strategic Theme": "Accelerate EV Platform Engineering Cycles",
+            "Benchmark (Overall Best)": "28 days (consumer electronics)",
+            "Benchmark (Industry Best)": "39 days (top quartile Tier-1)"
+          },
+          {
+            "Function": "Product Management",
+            "KPI Name": "Engineering Change Order Rework Rate",
+            "Direction": "↓",
+            "Timeframe": "18 months",
+            "Sub-Function": "Product Strategy",
+            "Target Value": "8%",
+            "Baseline Value": "23%",
+            "Benchmark (Avg)": "19% (Tier-1 automotive avg)",
+            "Strategic Theme": "Accelerate EV Platform Engineering Cycles",
+            "Benchmark (Overall Best)": "4% (aerospace)",
+            "Benchmark (Industry Best)": "11% (top quartile Tier-1)"
+          },
+          {
+            "Function": "Supply Chain",
+            "KPI Name": "Supplier Defect Rate (PPM)",
+            "Direction": "↓",
+            "Timeframe": "24 months",
+            "Sub-Function": "Supplier Management",
+            "Target Value": "340 PPM",
+            "Baseline Value": "847 PPM",
+            "Benchmark (Avg)": "720 PPM (Tier-1 automotive avg)",
+            "Strategic Theme": "Eliminate Supply Chain Quality Failures",
+            "Benchmark (Overall Best)": "150 PPM (semiconductor)",
+            "Benchmark (Industry Best)": "280 PPM (top quartile Tier-1)"
+          },
+          {
+            "Function": "Supply Chain",
+            "KPI Name": "Expedited Freight as % of COGS",
+            "Direction": "↓",
+            "Timeframe": "24 months",
+            "Sub-Function": "Procurement",
+            "Target Value": "0.80%",
+            "Baseline Value": "2.85%",
+            "Benchmark (Avg)": "2.1% (Tier-1 automotive avg)",
+            "Strategic Theme": "Eliminate Supply Chain Quality Failures",
+            "Benchmark (Overall Best)": "0.3% (industrial manufacturing)",
+            "Benchmark (Industry Best)": "0.9% (top quartile Tier-1)"
+          },
+          {
+            "Function": "Operations",
+            "KPI Name": "First-Pass Yield Rate",
+            "Direction": "↑",
+            "Timeframe": "24 months",
+            "Sub-Function": "Quality Assurance",
+            "Target Value": "97.9%",
+            "Baseline Value": "93.1%",
+            "Benchmark (Avg)": "94.8% (Tier-1 automotive avg)",
+            "Strategic Theme": "Reduce Warranty Exposure Through Predictive Quality",
+            "Benchmark (Overall Best)": "99.1% (semiconductor)",
+            "Benchmark (Industry Best)": "97.2% (top quartile Tier-1)"
+          },
+          {
+            "Function": "Operations",
+            "KPI Name": "Warranty Cost as % of Revenue",
+            "Direction": "↓",
+            "Timeframe": "24 months",
+            "Sub-Function": "Quality Assurance",
+            "Target Value": "0.20%",
+            "Baseline Value": "0.53%",
+            "Benchmark (Avg)": "0.44% (Tier-1 automotive avg)",
+            "Strategic Theme": "Reduce Warranty Exposure Through Predictive Quality",
+            "Benchmark (Overall Best)": "0.08% (industrial automation)",
+            "Benchmark (Industry Best)": "0.22% (top quartile Tier-1)"
+          },
+          {
+            "Function": "Legal & Compliance",
+            "KPI Name": "Regulatory Documentation Hours per Platform",
+            "Direction": "↓",
+            "Timeframe": "18 months",
+            "Sub-Function": "Regulatory Filing",
+            "Target Value": "2,677 hours",
+            "Baseline Value": "7,008 hours",
+            "Benchmark (Avg)": "5,940 hours (Tier-1 automotive avg)",
+            "Strategic Theme": "Compress Regulatory Compliance Cycles",
+            "Benchmark (Overall Best)": "1,850 hours (medical devices)",
+            "Benchmark (Industry Best)": "3,120 hours (top quartile Tier-1)"
+          },
+          {
+            "Function": "Legal & Compliance",
+            "KPI Name": "Audit Preparation Time per Facility",
+            "Direction": "↓",
+            "Timeframe": "18 months",
+            "Sub-Function": "Regulatory Filing",
+            "Target Value": "120 hours",
+            "Baseline Value": "340 hours",
+            "Benchmark (Avg)": "290 hours (Tier-1 automotive avg)",
+            "Strategic Theme": "Compress Regulatory Compliance Cycles",
+            "Benchmark (Overall Best)": "75 hours (pharmaceuticals)",
+            "Benchmark (Industry Best)": "145 hours (top quartile Tier-1)"
+          },
+          {
+            "Function": "Customer Service",
+            "KPI Name": "OEM Escalation Frequency",
+            "Direction": "↓",
+            "Timeframe": "18 months",
+            "Sub-Function": "Ticket Management",
+            "Target Value": "150 per year",
+            "Baseline Value": "427 per year",
+            "Benchmark (Avg)": "380 per year (Tier-1 automotive avg)",
+            "Strategic Theme": "Optimize Customer Program Management",
+            "Benchmark (Overall Best)": "45 per year (aerospace)",
+            "Benchmark (Industry Best)": "175 per year (top quartile Tier-1)"
+          },
+          {
+            "Function": "Customer Service",
+            "KPI Name": "Average Escalation Resolution Cost",
+            "Direction": "↓",
+            "Timeframe": "18 months",
+            "Sub-Function": "Escalation Handling",
+            "Target Value": "$47K",
+            "Baseline Value": "$119K",
+            "Benchmark (Avg)": "$97K (Tier-1 automotive avg)",
+            "Strategic Theme": "Optimize Customer Program Management",
+            "Benchmark (Overall Best)": "$28K (industrial equipment)",
+            "Benchmark (Industry Best)": "$52K (top quartile Tier-1)"
+          }
+        ],
+        "step": 2,
+        "title": "Business Function Inventory & KPI Baselines",
+        "content": "Ten KPIs establish measurement baselines across core business functions, with industry benchmarks defining improvement targets. Each metric links directly to strategic themes and maps to specific AI use cases in subsequent analysis."
+      },
+      {
+        "data": [
+          {
+            "Role": "Business Analyst",
+            "Role ID": "ROLE_PRO_BIZ_ANALYST",
+            "Function": "Product Management",
+            "Severity": "Critical",
+            "Hourly Rate": 95,
+            "Annual Hours": 596000,
+            "Cost Formula": "596,000 hours × $95/hr = $56.6M → $56.6M",
+            "Sub-Function": "Product Strategy",
+            "Friction Type": "Process Friction",
+            "Friction Point": "Engineering teams manually coordinate design changes across 47 global sites using email and spreadsheets",
+            "Strategic Theme": "Accelerate EV Platform Engineering Cycles",
+            "Primary Driver Impact": "Design-to-Production Cycle Time",
+            "Estimated Annual Cost ($)": "$56.6M"
+          },
+          {
+            "Role": "Business Analyst",
+            "Role ID": "ROLE_PRO_BIZ_ANALYST",
+            "Function": "Product Management",
+            "Severity": "Critical",
+            "Hourly Rate": 95,
+            "Annual Hours": 517333,
+            "Cost Formula": "517,333 hours × $95/hr = $49.1M → $49.1M",
+            "Sub-Function": "Product Strategy",
+            "Friction Type": "Knowledge Friction",
+            "Friction Point": "ECO impact analysis requires 12-person review cycles to validate cross-platform dependencies",
+            "Strategic Theme": "Accelerate EV Platform Engineering Cycles",
+            "Primary Driver Impact": "Engineering Change Order Rework Rate",
+            "Estimated Annual Cost ($)": "$49.1M"
+          },
+          {
+            "Role": "Procurement Specialist",
+            "Role ID": "ROLE_PRO_PROCUREMENT",
+            "Function": "Supply Chain",
+            "Severity": "Critical",
+            "Hourly Rate": 85,
+            "Annual Hours": 348667,
+            "Cost Formula": "348,667 hours × $85/hr = $29.6M → $29.6M",
+            "Sub-Function": "Supplier Management",
+            "Friction Type": "Data Friction",
+            "Friction Point": "Supplier quality data scattered across 14 regional systems with inconsistent defect classification",
+            "Strategic Theme": "Eliminate Supply Chain Quality Failures",
+            "Primary Driver Impact": "Supplier Defect Rate (PPM)",
+            "Estimated Annual Cost ($)": "$29.6M"
+          },
+          {
+            "Role": "Procurement Specialist",
+            "Role ID": "ROLE_PRO_PROCUREMENT",
+            "Function": "Supply Chain",
+            "Severity": "Critical",
+            "Hourly Rate": 85,
+            "Annual Hours": 304667,
+            "Cost Formula": "304,667 hours × $85/hr = $25.9M → $25.9M",
+            "Sub-Function": "Procurement",
+            "Friction Type": "Process Friction",
+            "Friction Point": "Production planners discover material shortages at shift change, triggering emergency air freight",
+            "Strategic Theme": "Eliminate Supply Chain Quality Failures",
+            "Primary Driver Impact": "Expedited Freight as % of COGS",
+            "Estimated Annual Cost ($)": "$25.9M"
+          },
+          {
+            "Role": "Business Analyst",
+            "Role ID": "ROLE_PRO_BIZ_ANALYST",
+            "Function": "Operations",
+            "Severity": "Critical",
+            "Hourly Rate": 95,
+            "Annual Hours": 654667,
+            "Cost Formula": "654,667 hours × $95/hr = $62.2M → $62.2M",
+            "Sub-Function": "Quality Assurance",
+            "Friction Type": "Technology Friction",
+            "Friction Point": "Quality inspectors manually log defect data into legacy systems 45 minutes per shift",
+            "Strategic Theme": "Reduce Warranty Exposure Through Predictive Quality",
+            "Primary Driver Impact": "First-Pass Yield Rate",
+            "Estimated Annual Cost ($)": "$62.2M"
+          },
+          {
+            "Role": "Business Analyst",
+            "Role ID": "ROLE_PRO_BIZ_ANALYST",
+            "Function": "Operations",
+            "Severity": "Critical",
+            "Hourly Rate": 95,
+            "Annual Hours": 592667,
+            "Cost Formula": "592,667 hours × $95/hr = $56.3M → $56.3M",
+            "Sub-Function": "Quality Assurance",
+            "Friction Type": "Data Friction",
+            "Friction Point": "Root cause analysis teams spend 67 hours per warranty claim aggregating production data",
+            "Strategic Theme": "Reduce Warranty Exposure Through Predictive Quality",
+            "Primary Driver Impact": "Warranty Cost as % of Revenue",
+            "Estimated Annual Cost ($)": "$56.3M"
+          },
+          {
+            "Role": "Compliance Officer",
+            "Role ID": "ROLE_SPEC_COMPLIANCE",
+            "Function": "Legal & Compliance",
+            "Severity": "Critical",
+            "Hourly Rate": 110,
+            "Annual Hours": 448000,
+            "Cost Formula": "448,000 hours × $110/hr = $49.3M → $49.3M",
+            "Sub-Function": "Regulatory Filing",
+            "Friction Type": "Process Friction",
+            "Friction Point": "Compliance teams manually compile documentation from 23 source systems for platform certifications",
+            "Strategic Theme": "Compress Regulatory Compliance Cycles",
+            "Primary Driver Impact": "Regulatory Documentation Hours per Platform",
+            "Estimated Annual Cost ($)": "$49.3M"
+          },
+          {
+            "Role": "Compliance Officer",
+            "Role ID": "ROLE_SPEC_COMPLIANCE",
+            "Function": "Legal & Compliance",
+            "Severity": "Critical",
+            "Hourly Rate": 110,
+            "Annual Hours": 385333,
+            "Cost Formula": "385,333 hours × $110/hr = $42.4M → $42.4M",
+            "Sub-Function": "Regulatory Filing",
+            "Friction Type": "Knowledge Friction",
+            "Friction Point": "Audit preparation requires full-time staff to recreate historical compliance evidence from archived files",
+            "Strategic Theme": "Compress Regulatory Compliance Cycles",
+            "Primary Driver Impact": "Audit Preparation Time per Facility",
+            "Estimated Annual Cost ($)": "$42.4M"
+          },
+          {
+            "Role": "Customer Support Specialist",
+            "Role ID": "ROLE_PRO_CUST_SVC_SPEC",
+            "Function": "Customer Service",
+            "Severity": "Critical",
+            "Hourly Rate": 65,
+            "Annual Hours": 198000,
+            "Cost Formula": "198,000 hours × $65/hr = $12.9M → $12.9M",
+            "Sub-Function": "Ticket Management",
+            "Friction Type": "Technology Friction",
+            "Friction Point": "OEM escalations triggered by 3-day lag in production status visibility across 287 active programs",
+            "Strategic Theme": "Optimize Customer Program Management",
+            "Primary Driver Impact": "OEM Escalation Frequency",
+            "Estimated Annual Cost ($)": "$12.9M"
+          },
+          {
+            "Role": "Customer Support Specialist",
+            "Role ID": "ROLE_PRO_CUST_SVC_SPEC",
+            "Function": "Customer Service",
+            "Severity": "Critical",
+            "Hourly Rate": 65,
+            "Annual Hours": 141333,
+            "Cost Formula": "141,333 hours × $65/hr = $9.2M → $9.2M",
+            "Sub-Function": "Escalation Handling",
+            "Friction Type": "Data Friction",
+            "Friction Point": "Escalation teams manually trace component genealogy through paper traveler cards and Excel logs",
+            "Strategic Theme": "Optimize Customer Program Management",
+            "Primary Driver Impact": "Average Escalation Resolution Cost",
+            "Estimated Annual Cost ($)": "$9.2M"
+          }
+        ],
+        "step": 3,
+        "title": "Friction Point Mapping",
+        "content": "Ten operational bottlenecks surface across Lear's platform engineering, supply chain, and compliance operations. Combined annual cost: $479M. These friction points concentrate in three critical zones: manual engineering coordination burning $167M annually, reactive quality management costing $187M, and compliance documentation absorbing $125M in specialized labor. Each friction point links directly to KPI performance gaps identified in Step 2. Severity ratings reflect both financial magnitude and strategic exposure to OEM relationships."
+      },
+      {
+        "data": [
+          {
+            "ID": "UC-01",
+            "Function": "Product Management",
+            "Data Types": [
+              "Structured",
+              "Semi-structured",
+              "Real-time"
+            ],
+            "Description": "Agentic system monitors 47 PLM instances, auto-generates design change summaries, routes approval requests, and maintains synchronized documentation. Human engineers approve all design modifications before propagation.",
+            "EPOCH Flags": "O",
+            "Integrations": [
+              "Siemens Teamcenter PLM",
+              "SAP ERP",
+              "Microsoft Teams",
+              "Jira"
+            ],
+            "Sub-Function": "Product Strategy",
+            "_patternType": "multi-agent",
+            "AI Primitives": "Workflow Automation, Conversational Interfaces, Research & Information Retrieval",
+            "Use Case Name": "Multi-Site Engineering Coordination Assistant",
+            "Agentic Pattern": "orchestrator_worker",
+            "Primary Pattern": "Orchestrator-Workers",
+            "Strategic Theme": "Accelerate EV Platform Engineering Cycles",
+            "Target Friction": "Engineering teams manually coordinate design changes across 47 global sites using email and spreadsheets",
+            "Desired Outcomes": [
+              "Reduce design-to-production cycle time from 67 to 52 days",
+              "Eliminate 4,200 hours of manual coordination labor annually",
+              "Achieve 98% design change synchronization across sites within 24 hours",
+              "Reduce engineering escalations by 34%"
+            ],
+            "_tokenMultiplier": 3,
+            "Pattern Rationale": "Orchestrator-workers pattern deploys specialized agents for each site's PLM system, aggregating design change status in real-time. Alternative agent handoff pattern sequences tasks but sacrifices parallel processing speed critical for 67-day cycle compression.",
+            "_patternComplexity": "high",
+            "Alternative Pattern": "Agent Handoff",
+            "_implementationMonths": 5,
+            "Human-in-the-Loop Checkpoint": "Lead engineers approve design changes and cross-platform impacts before system propagates updates"
+          },
+          {
+            "ID": "UC-02",
+            "Function": "Product Management",
+            "Data Types": [
+              "Structured",
+              "Semi-structured",
+              "Unstructured"
+            ],
+            "Description": "System analyzes proposed ECOs against historical platform data, identifies cross-dependencies, predicts cost and timeline impacts, generates risk-scored recommendations. Engineering review board validates all high-risk changes.",
+            "EPOCH Flags": "O",
+            "Integrations": [
+              "Siemens Teamcenter PLM",
+              "SAP ERP",
+              "Engineering BOM systems",
+              "Cost modeling tools"
+            ],
+            "Sub-Function": "Product Strategy",
+            "_patternType": "single-agent",
+            "AI Primitives": "Data Analysis, Research & Information Retrieval, Workflow Automation",
+            "Use Case Name": "ECO Impact Analysis Engine",
+            "Agentic Pattern": "planning",
+            "Primary Pattern": "Planning",
+            "Strategic Theme": "Accelerate EV Platform Engineering Cycles",
+            "Target Friction": "ECO impact analysis requires 12-person review cycles to validate cross-platform dependencies",
+            "Desired Outcomes": [
+              "Reduce ECO rework rate from 23% to 14%",
+              "Compress ECO review cycles from 9 days to 3 days",
+              "Deflect 67% of ECO analysis hours from senior engineers",
+              "Improve cost estimation accuracy to ±8%"
+            ],
+            "_tokenMultiplier": 1.4,
+            "Pattern Rationale": "Planning pattern decomposes ECO validation into dependency mapping, cost modeling, and timeline projection sub-tasks. ReAct loop offers simpler implementation but lacks structured decomposition needed for complex cross-platform analysis.",
+            "_patternComplexity": "medium",
+            "Alternative Pattern": "ReAct Loop",
+            "_implementationMonths": 2.5,
+            "Human-in-the-Loop Checkpoint": "Engineering review board validates all ECOs scored medium-risk or higher before implementation authorization"
+          },
+          {
+            "ID": "UC-03",
+            "Function": "Supply Chain",
+            "Data Types": [
+              "Structured",
+              "Semi-structured"
+            ],
+            "Description": "Agent extracts defect data from 14 regional systems, normalizes classification using ISO standards, flags suppliers exceeding 500 PPM thresholds, auto-generates corrective action requests. Supplier quality engineers validate all corrective actions.",
+            "EPOCH Flags": "O",
+            "Integrations": [
+              "Regional quality management systems",
+              "SAP Ariba",
+              "Supplier portals",
+              "Power BI"
+            ],
+            "Sub-Function": "Supplier Management",
+            "_patternType": "single-agent",
+            "AI Primitives": "Data Analysis, Research & Information Retrieval, Workflow Automation",
+            "Use Case Name": "Unified Supplier Quality Intelligence Platform",
+            "Agentic Pattern": "tool_use",
+            "Primary Pattern": "Tool Use",
+            "Strategic Theme": "Eliminate Supply Chain Quality Failures",
+            "Target Friction": "Supplier quality data scattered across 14 regional systems with inconsistent defect classification",
+            "Desired Outcomes": [
+              "Reduce supplier defect rate from 847 PPM to 620 PPM",
+              "Achieve 100% defect data visibility within 4 hours of detection",
+              "Compress supplier corrective action cycle from 21 days to 9 days",
+              "Reduce quality engineer data aggregation time by 78%"
+            ],
+            "_tokenMultiplier": 1.3,
+            "Pattern Rationale": "Tool use pattern enables single agent to invoke standardized APIs across 14 regional quality systems, normalizing defect classification and aggregating metrics. Orchestrator-workers adds complexity without material speed benefit given batch processing nature.",
+            "_patternComplexity": "medium",
+            "Alternative Pattern": "Orchestrator-Workers",
+            "_implementationMonths": 2.5,
+            "Human-in-the-Loop Checkpoint": "Supplier quality engineers validate corrective action requests before transmission to suppliers"
+          },
+          {
+            "ID": "UC-04",
+            "Function": "Supply Chain",
+            "Data Types": [
+              "Structured",
+              "Real-time"
+            ],
+            "Description": "Agent monitors real-time inventory against production schedules, predicts shortages 72 hours in advance, auto-generates procurement alerts with expedite justifications. Procurement managers approve all expedited orders.",
+            "EPOCH Flags": "",
+            "Integrations": [
+              "SAP ERP",
+              "Manufacturing execution systems",
+              "Supplier EDI feeds",
+              "Slack"
+            ],
+            "Sub-Function": "Procurement",
+            "_patternType": "single-agent",
+            "AI Primitives": "Data Analysis, Conversational Interfaces, Workflow Automation",
+            "Use Case Name": "Predictive Material Shortage Alert System",
+            "Agentic Pattern": "react",
+            "Primary Pattern": "ReAct Loop",
+            "Strategic Theme": "Eliminate Supply Chain Quality Failures",
+            "Target Friction": "Production planners discover material shortages at shift change, triggering emergency air freight",
+            "Desired Outcomes": [
+              "Reduce expedited freight from 2.85% to 1.95% of COGS",
+              "Increase shortage prediction lead time from 8 hours to 72 hours",
+              "Deflect 87% of emergency procurement decisions outside business hours",
+              "Reduce production line stops from material shortage by 42%"
+            ],
+            "_tokenMultiplier": 2,
+            "Pattern Rationale": "ReAct loop continuously observes inventory levels, reasons about shortage probability based on production schedules and supplier lead times, acts by escalating alerts. Tool use pattern lacks continuous monitoring capability needed for real-time shortage prevention.",
+            "_patternComplexity": "medium",
+            "Alternative Pattern": "Tool Use",
+            "_implementationMonths": 3.5,
+            "Human-in-the-Loop Checkpoint": "Procurement managers approve all expedited freight requests exceeding $5K threshold"
+          },
+          {
+            "ID": "UC-05",
+            "Function": "Operations",
+            "Data Types": [
+              "Structured",
+              "Unstructured",
+              "Real-time"
+            ],
+            "Description": "Agent captures defect images at inspection stations, classifies defect type and severity using vision models, auto-populates quality system records, routes to rework or scrap decisions. Quality managers validate critical defects.",
+            "EPOCH Flags": "O",
+            "Integrations": [
+              "Quality management systems",
+              "Machine vision systems",
+              "Manufacturing execution systems",
+              "SAP ERP"
+            ],
+            "Sub-Function": "Quality Assurance",
+            "_patternType": "single-agent",
+            "AI Primitives": "Data Analysis, Conversational Interfaces, Content Creation",
+            "Use Case Name": "Automated Defect Classification and Routing",
+            "Agentic Pattern": "tool_use",
+            "Primary Pattern": "Tool Use",
+            "Strategic Theme": "Reduce Warranty Exposure Through Predictive Quality",
+            "Target Friction": "Quality inspectors manually log defect data into legacy systems 45 minutes per shift",
+            "Desired Outcomes": [
+              "Increase first-pass yield from 93.1% to 95.8%",
+              "Reduce defect logging time from 45 minutes to 8 minutes per shift",
+              "Achieve 96% defect classification accuracy within 15 seconds",
+              "Reduce quality inspector overtime by 34%"
+            ],
+            "_tokenMultiplier": 1.3,
+            "Pattern Rationale": "Tool use pattern invokes vision APIs to classify defects from inspection station images, routes to appropriate resolution workflow based on severity. Reflection pattern adds self-validation but increases latency unacceptable for production line flow.",
+            "_patternComplexity": "medium",
+            "Alternative Pattern": "Reflection",
+            "_implementationMonths": 2.5,
+            "Human-in-the-Loop Checkpoint": "Quality managers validate all critical defects and scrap decisions before material disposition"
+          },
+          {
+            "ID": "UC-06",
+            "Function": "Operations",
+            "Data Types": [
+              "Structured",
+              "Semi-structured"
+            ],
+            "Description": "Multi-agent system extracts component genealogy from manufacturing systems, correlates with quality data and supplier records, generates root cause hypotheses with supporting evidence. Quality engineers validate findings before OEM submission.",
+            "EPOCH Flags": "O",
+            "Integrations": [
+              "Manufacturing execution systems",
+              "Quality management systems",
+              "SAP ERP",
+              "Supplier quality portals"
+            ],
+            "Sub-Function": "Quality Assurance",
+            "_patternType": "multi-agent",
+            "AI Primitives": "Data Analysis, Research & Information Retrieval, Content Creation",
+            "Use Case Name": "Warranty Root Cause Intelligence Engine",
+            "Agentic Pattern": "orchestrator_worker",
+            "Primary Pattern": "Orchestrator-Workers",
+            "Strategic Theme": "Reduce Warranty Exposure Through Predictive Quality",
+            "Target Friction": "Root cause analysis teams spend 67 hours per warranty claim aggregating production data",
+            "Desired Outcomes": [
+              "Reduce warranty cost from 0.53% to 0.38% of revenue",
+              "Compress root cause analysis from 67 hours to 18 hours per claim",
+              "Increase causal factor identification accuracy to 89%",
+              "Deflect 73% of data aggregation labor from senior quality engineers"
+            ],
+            "_tokenMultiplier": 3,
+            "Pattern Rationale": "Orchestrator-workers deploys specialized agents to extract production history, supplier data, and quality records, synthesizing root cause analysis reports. Generator-critic pattern offers validation layer but requires sequential processing unsuitable for time-sensitive warranty claims.",
+            "_patternComplexity": "high",
+            "Alternative Pattern": "Generator-Critic",
+            "_implementationMonths": 5,
+            "Human-in-the-Loop Checkpoint": "Quality engineers validate root cause conclusions and approve all warranty reports to OEMs"
+          },
+          {
+            "ID": "UC-07",
+            "Function": "Legal & Compliance",
+            "Data Types": [
+              "Structured",
+              "Semi-structured",
+              "Unstructured"
+            ],
+            "Description": "Agent retrieves test data, supplier certifications, and manufacturing records from 23 systems, auto-generates regulatory submission packages mapped to jurisdiction requirements. Compliance officers certify all submissions.",
+            "EPOCH Flags": "O",
+            "Integrations": [
+              "PLM systems",
+              "Test management systems",
+              "Supplier portals",
+              "Document management systems"
+            ],
+            "Sub-Function": "Regulatory Filing",
+            "_patternType": "single-agent",
+            "AI Primitives": "Research & Information Retrieval, Content Creation, Workflow Automation",
+            "Use Case Name": "Regulatory Documentation Assembly Agent",
+            "Agentic Pattern": "tool_use",
+            "Primary Pattern": "Tool Use",
+            "Strategic Theme": "Compress Regulatory Compliance Cycles",
+            "Target Friction": "Compliance teams manually compile documentation from 23 source systems for platform certifications",
+            "Desired Outcomes": [
+              "Reduce documentation hours from 7,008 to 3,500 per platform",
+              "Compress certification preparation from 45 days to 23 days",
+              "Achieve 97% documentation completeness on first submission",
+              "Deflect 62% of data compilation labor from compliance specialists"
+            ],
+            "_tokenMultiplier": 1.3,
+            "Pattern Rationale": "Tool use pattern queries 23 source systems via standardized APIs, extracts certification-relevant data, assembles documentation packages per regulatory templates. Prompt chaining offers simpler architecture but lacks flexibility for jurisdiction-specific requirements.",
+            "_patternComplexity": "medium",
+            "Alternative Pattern": "Prompt Chaining",
+            "_implementationMonths": 2.5,
+            "Human-in-the-Loop Checkpoint": "Compliance officers review and certify all regulatory submission packages before filing with authorities"
+          },
+          {
+            "ID": "UC-08",
+            "Function": "Legal & Compliance",
+            "Data Types": [
+              "Structured",
+              "Semi-structured",
+              "Unstructured"
+            ],
+            "Description": "Agent interprets audit requests, identifies relevant historical records across archived systems, reconstructs compliance evidence trails, generates audit response packages. Compliance managers validate all evidence submissions.",
+            "EPOCH Flags": "O",
+            "Integrations": [
+              "Document management systems",
+              "Quality management systems",
+              "Training management systems",
+              "SharePoint"
+            ],
+            "Sub-Function": "Regulatory Filing",
+            "_patternType": "single-agent",
+            "AI Primitives": "Research & Information Retrieval, Content Creation, Data Analysis",
+            "Use Case Name": "Audit Evidence Reconstruction System",
+            "Agentic Pattern": "planning",
+            "Primary Pattern": "Semantic Router",
+            "Strategic Theme": "Compress Regulatory Compliance Cycles",
+            "Target Friction": "Audit preparation requires full-time staff to recreate historical compliance evidence from archived files",
+            "Desired Outcomes": [
+              "Reduce audit preparation from 340 hours to 140 hours per facility",
+              "Increase evidence retrieval accuracy to 94%",
+              "Compress audit response time from 18 days to 7 days",
+              "Reduce compliance officer audit overtime by 56%"
+            ],
+            "_tokenMultiplier": 1.1,
+            "Pattern Rationale": "Semantic router pattern classifies audit requests by topic, routes to appropriate historical data sources, retrieves relevant evidence. Tool use pattern handles execution but lacks intelligent routing needed for diverse audit scope across 287 facilities.",
+            "_patternComplexity": "low",
+            "Alternative Pattern": "Tool Use",
+            "_implementationMonths": 1.5,
+            "Human-in-the-Loop Checkpoint": "Compliance managers validate accuracy and completeness of all audit evidence packages before auditor presentation"
+          },
+          {
+            "ID": "UC-09",
+            "Function": "Customer Service",
+            "Data Types": [
+              "Structured",
+              "Real-time"
+            ],
+            "Description": "Agent aggregates production data across 287 active programs, identifies schedule deviations and quality issues, generates OEM-specific status dashboards, flags potential escalations 72 hours in advance. Account managers validate all escalation communications.",
+            "EPOCH Flags": "",
+            "Integrations": [
+              "Manufacturing execution systems",
+              "SAP ERP",
+              "Quality management systems",
+              "Customer portals"
+            ],
+            "Sub-Function": "Ticket Management",
+            "_patternType": "single-agent",
+            "AI Primitives": "Data Analysis, Conversational Interfaces, Content Creation",
+            "Use Case Name": "Real-Time Program Status Dashboard Generator",
+            "Agentic Pattern": "tool_use",
+            "Primary Pattern": "Tool Use",
+            "Strategic Theme": "Optimize Customer Program Management",
+            "Target Friction": "OEM escalations triggered by 3-day lag in production status visibility across 287 active programs",
+            "Desired Outcomes": [
+              "Reduce OEM escalations from 427 to 280 annually",
+              "Increase proactive issue notification from 23% to 78% of events",
+              "Compress status update cycle from 3 days to 4 hours",
+              "Improve OEM satisfaction scores by 18 points"
+            ],
+            "_tokenMultiplier": 1.3,
+            "Pattern Rationale": "Tool use pattern queries production systems, aggregates program health metrics, auto-generates customer-facing dashboards with anomaly alerts. ReAct loop adds continuous monitoring but increases infrastructure cost without proportional value given daily update cadence.",
+            "_patternComplexity": "medium",
+            "Alternative Pattern": "ReAct Loop",
+            "_implementationMonths": 2.5,
+            "Human-in-the-Loop Checkpoint": "Account managers review and approve all escalation notifications before transmission to OEM contacts"
+          },
+          {
+            "ID": "UC-10",
+            "Function": "Customer Service",
+            "Data Types": [
+              "Structured",
+              "Semi-structured",
+              "Unstructured"
+            ],
+            "Description": "Agent extracts data from paper traveler cards using OCR, queries manufacturing systems for assembly history, reconstructs component genealogy with supplier lot traceability, generates escalation response packages. Escalation managers validate all root cause conclusions.",
+            "EPOCH Flags": "",
+            "Integrations": [
+              "Manufacturing execution systems",
+              "OCR systems",
+              "Quality management systems",
+              "Supplier portals"
+            ],
+            "Sub-Function": "Escalation Handling",
+            "_patternType": "single-agent",
+            "AI Primitives": "Research & Information Retrieval, Data Analysis, Content Creation",
+            "Use Case Name": "Component Genealogy Tracing Assistant",
+            "Agentic Pattern": "tool_use",
+            "Primary Pattern": "Tool Use",
+            "Strategic Theme": "Optimize Customer Program Management",
+            "Target Friction": "Escalation teams manually trace component genealogy through paper traveler cards and Excel logs",
+            "Desired Outcomes": [
+              "Reduce average escalation resolution cost from $119K to $74K",
+              "Compress genealogy tracing from 34 hours to 9 hours per escalation",
+              "Increase traceability completeness to 96%",
+              "Reduce escalation cycle time by 47%"
+            ],
+            "_tokenMultiplier": 1.3,
+            "Pattern Rationale": "Tool use pattern queries manufacturing execution systems and paper traveler card images via OCR, reconstructs component lineage, generates traceability reports. Orchestrator-workers offers parallel processing but unnecessary given sequential nature of genealogy reconstruction.",
+            "_patternComplexity": "medium",
+            "Alternative Pattern": "Orchestrator-Workers",
+            "_implementationMonths": 2.5,
+            "Human-in-the-Loop Checkpoint": "Escalation managers validate component genealogy accuracy and approve root cause conclusions before OEM communication"
+          }
+        ],
+        "step": 4,
+        "title": "AI Use Case Generation",
+        "content": "Ten use cases reshape operational workflows rather than accelerate broken processes. Design prioritizes back-office transformation: seven use cases target engineering, supply chain, and compliance functions where data gravity and process maturity enable rapid deployment. Each use case implements mandatory human validation gates—engineers approve design changes, quality managers validate defect predictions, compliance officers certify regulatory submissions. Agentic patterns span from single-agent tool use for defect classification to multi-agent orchestration for complex ECO impact analysis. All use cases cluster around existing data assets in ERP, PLM, and quality management systems."
+      },
+      {
+        "data": [
+          {
+            "ID": "UC-01",
+            "Use Case": "Multi-Site Engineering Coordination Assistant",
+            "Cost Formula": "38,000 hours × $150/hr × 1.35 × 0.90 × 0.75 = $5.2M → $5.2M [HF/labels]",
+            "Risk Formula": "3% × $58.8M × 0.80 × 0.75 = $1.1M → $1.1M [HF/labels]",
+            "Revenue Formula": "0% × $23.5B × 0.95 × 0.75 = $25.1M → $25.1M [HF/labels]",
+            "Strategic Theme": "Accelerate EV Platform Engineering Cycles",
+            "Cost Benefit ($)": "$5.2M",
+            "Risk Benefit ($)": "$1.1M",
+            "Cash Flow Formula": "$23.5B × (2/365) × 0.08 × 0.85 × 0.75 = $6.6M → $6.6M [HF/labels]",
+            "Expected Value ($)": "$24.7M",
+            "Cost Formula Labels": {
+              "result": "$5.2M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 38000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 150
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$25.1M",
+            "Risk Formula Labels": {
+              "result": "$1.1M",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.03
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 58800000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$6.6M",
+            "Probability of Success": 0.65,
+            "Revenue Formula Labels": {
+              "result": "$25.1M",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.0015
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 23500000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$37.9M",
+            "Cash Flow Formula Labels": {
+              "result": "$6.6M",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 23500000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 2
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            }
+          },
+          {
+            "ID": "UC-02",
+            "Use Case": "ECO Impact Analysis Engine",
+            "Cost Formula": "34,000 hours × $150/hr × 1.35 × 0.90 × 0.75 = $4.6M → $4.6M [HF/labels]",
+            "Risk Formula": "3% × $64.7M × 0.80 × 0.75 = $971K → $971K [HF/labels]",
+            "Revenue Formula": "0% × $23.5B × 0.95 × 0.75 = $20.1M → $20.1M [HF/labels]",
+            "Strategic Theme": "Accelerate EV Platform Engineering Cycles",
+            "Cost Benefit ($)": "$4.6M",
+            "Risk Benefit ($)": "$971K",
+            "Cash Flow Formula": "$23.5B × (1.7/365) × 0.08 × 0.85 × 0.75 = $5.6M → $5.6M [HF/labels]",
+            "Expected Value ($)": "$18.8M",
+            "Cost Formula Labels": {
+              "result": "$4.6M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 34000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 150
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$20.1M",
+            "Risk Formula Labels": {
+              "result": "$971K",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.025
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 64700000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$5.6M",
+            "Probability of Success": 0.6,
+            "Revenue Formula Labels": {
+              "result": "$20.1M",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.0012
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 23500000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$31.3M",
+            "Cash Flow Formula Labels": {
+              "result": "$5.6M",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 23500000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 1.7
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            }
+          },
+          {
+            "ID": "UC-03",
+            "Use Case": "Unified Supplier Quality Intelligence Platform",
+            "Cost Formula": "28,500 hours × $120/hr × 1.35 × 0.90 × 0.75 = $3.1M → $3.1M [HF/labels]",
+            "Risk Formula": "4% × $52.3M × 0.80 × 0.75 = $1.3M → $1.3M [HF/labels]",
+            "Revenue Formula": "0% × $23.5B × 0.95 × 0.75 = $26.8M → $26.8M [HF/labels]",
+            "Strategic Theme": "Eliminate Supply Chain Quality Failures",
+            "Cost Benefit ($)": "$3.1M",
+            "Risk Benefit ($)": "$1.3M",
+            "Cash Flow Formula": "$23.5B × (1.5/365) × 0.08 × 0.85 × 0.75 = $4.9M → $4.9M [HF/labels]",
+            "Expected Value ($)": "$25.3M",
+            "Cost Formula Labels": {
+              "result": "$3.1M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 28500
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 120
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$26.8M",
+            "Risk Formula Labels": {
+              "result": "$1.3M",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.04
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 52300000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$4.9M",
+            "Probability of Success": 0.7,
+            "Revenue Formula Labels": {
+              "result": "$26.8M",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.0016
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 23500000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$36.1M",
+            "Cash Flow Formula Labels": {
+              "result": "$4.9M",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 23500000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 1.5
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            }
+          },
+          {
+            "ID": "UC-04",
+            "Use Case": "Predictive Material Shortage Alert System",
+            "Cost Formula": "24,000 hours × $120/hr × 1.35 × 0.90 × 0.75 = $2.6M → $2.6M [HF/labels]",
+            "Risk Formula": "3% × $45.7M × 0.80 × 0.75 = $823K → $823K [HF/labels]",
+            "Revenue Formula": "0% × $23.5B × 0.95 × 0.75 = $16.7M → $16.7M [HF/labels]",
+            "Strategic Theme": "Eliminate Supply Chain Quality Failures",
+            "Cost Benefit ($)": "$2.6M",
+            "Risk Benefit ($)": "$823K",
+            "Cash Flow Formula": "$23.5B × (4/365) × 0.08 × 0.85 × 0.75 = $13.1M → $13.1M [HF/labels]",
+            "Expected Value ($)": "$25.0M",
+            "Cost Formula Labels": {
+              "result": "$2.6M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 24000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 120
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$16.7M",
+            "Risk Formula Labels": {
+              "result": "$823K",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.03
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 45700000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$13.1M",
+            "Probability of Success": 0.75,
+            "Revenue Formula Labels": {
+              "result": "$16.7M",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.001
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 23500000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$33.3M",
+            "Cash Flow Formula Labels": {
+              "result": "$13.1M",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 23500000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 4
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            }
+          },
+          {
+            "ID": "UC-05",
+            "Use Case": "Automated Defect Classification and Routing",
+            "Cost Formula": "42,000 hours × $150/hr × 1.35 × 0.90 × 0.75 = $5.7M → $5.7M [HF/labels]",
+            "Risk Formula": "4% × $98.2M × 0.80 × 0.75 = $2.4M → $2.4M [HF/labels]",
+            "Revenue Formula": "0% × $23.5B × 0.95 × 0.75 = $13.4M → $13.4M [HF/labels]",
+            "Strategic Theme": "Reduce Warranty Exposure Through Predictive Quality",
+            "Cost Benefit ($)": "$5.7M",
+            "Risk Benefit ($)": "$2.4M",
+            "Cash Flow Formula": "$23.5B × (1/365) × 0.08 × 0.85 × 0.75 = $3.3M → $3.3M [HF/labels]",
+            "Expected Value ($)": "$17.3M",
+            "Cost Formula Labels": {
+              "result": "$5.7M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 42000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 150
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$13.4M",
+            "Risk Formula Labels": {
+              "result": "$2.4M",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.04
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 98200000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$3.3M",
+            "Probability of Success": 0.7,
+            "Revenue Formula Labels": {
+              "result": "$13.4M",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.0008
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 23500000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$24.8M",
+            "Cash Flow Formula Labels": {
+              "result": "$3.3M",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 23500000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 1
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            }
+          },
+          {
+            "ID": "UC-06",
+            "Use Case": "Warranty Root Cause Intelligence Engine",
+            "Cost Formula": "38,500 hours × $150/hr × 1.35 × 0.90 × 0.75 = $5.3M → $5.3M [HF/labels]",
+            "Risk Formula": "5% × $88.9M × 0.80 × 0.75 = $2.7M → $2.7M [HF/labels]",
+            "Revenue Formula": "0% × $23.5B × 0.95 × 0.75 = $33.5M → $33.5M [HF/labels]",
+            "Strategic Theme": "Reduce Warranty Exposure Through Predictive Quality",
+            "Cost Benefit ($)": "$5.3M",
+            "Risk Benefit ($)": "$2.7M",
+            "Cash Flow Formula": "$23.5B × (2/365) × 0.08 × 0.85 × 0.75 = $6.6M → $6.6M [HF/labels]",
+            "Expected Value ($)": "$28.8M",
+            "Cost Formula Labels": {
+              "result": "$5.3M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 38500
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 150
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$33.5M",
+            "Risk Formula Labels": {
+              "result": "$2.7M",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.05
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 88900000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$6.6M",
+            "Probability of Success": 0.6,
+            "Revenue Formula Labels": {
+              "result": "$33.5M",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.002
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 23500000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$48.0M",
+            "Cash Flow Formula Labels": {
+              "result": "$6.6M",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 23500000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 2
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            }
+          },
+          {
+            "ID": "UC-07",
+            "Use Case": "Regulatory Documentation Assembly Agent",
+            "Cost Formula": "29,000 hours × $150/hr × 1.35 × 0.90 × 0.75 = $4.0M → $4.0M [HF/labels]",
+            "Risk Formula": "5% × $67.2M × 0.80 × 0.75 = $2.0M → $2.0M [HF/labels]",
+            "Revenue Formula": "0% × $23.5B × 0.95 × 0.75 = $8.4M → $8.4M [HF/labels]",
+            "Strategic Theme": "Compress Regulatory Compliance Cycles",
+            "Cost Benefit ($)": "$4.0M",
+            "Risk Benefit ($)": "$2.0M",
+            "Cash Flow Formula": "$23.5B × (3/365) × 0.08 × 0.85 × 0.75 = $9.9M → $9.9M [HF/labels]",
+            "Expected Value ($)": "$15.7M",
+            "Cost Formula Labels": {
+              "result": "$4.0M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 29000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 150
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$8.4M",
+            "Risk Formula Labels": {
+              "result": "$2.0M",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.05
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 67200000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$9.9M",
+            "Probability of Success": 0.65,
+            "Revenue Formula Labels": {
+              "result": "$8.4M",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.0005
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 23500000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$24.2M",
+            "Cash Flow Formula Labels": {
+              "result": "$9.9M",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 23500000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 3
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            }
+          },
+          {
+            "ID": "UC-08",
+            "Use Case": "Audit Evidence Reconstruction System",
+            "Cost Formula": "25,000 hours × $150/hr × 1.35 × 0.90 × 0.75 = $3.4M → $3.4M [HF/labels]",
+            "Risk Formula": "4% × $57.8M × 0.80 × 0.75 = $1.4M → $1.4M [HF/labels]",
+            "Revenue Formula": "0% × $23.5B × 0.95 × 0.75 = $8.4M → $8.4M [HF/labels]",
+            "Strategic Theme": "Compress Regulatory Compliance Cycles",
+            "Cost Benefit ($)": "$3.4M",
+            "Risk Benefit ($)": "$1.4M",
+            "Cash Flow Formula": "$23.5B × (1/365) × 0.08 × 0.85 × 0.75 = $3.3M → $3.3M [HF/labels]",
+            "Expected Value ($)": "$9.1M",
+            "Cost Formula Labels": {
+              "result": "$3.4M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 25000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 150
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$8.4M",
+            "Risk Formula Labels": {
+              "result": "$1.4M",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.04
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 57800000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$3.3M",
+            "Probability of Success": 0.55,
+            "Revenue Formula Labels": {
+              "result": "$8.4M",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.0005
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 23500000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$16.5M",
+            "Cash Flow Formula Labels": {
+              "result": "$3.3M",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 23500000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 1
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            }
+          },
+          {
+            "ID": "UC-09",
+            "Use Case": "Real-Time Program Status Dashboard Generator",
+            "Cost Formula": "16,000 hours × $120/hr × 1.35 × 0.90 × 0.75 = $1.7M → $1.7M [HF/labels]",
+            "Risk Formula": "3% × $29.7M × 0.80 × 0.75 = $535K → $535K [HF/labels]",
+            "Revenue Formula": "0% × $23.5B × 0.95 × 0.75 = $15.1M → $15.1M [HF/labels]",
+            "Strategic Theme": "Optimize Customer Program Management",
+            "Cost Benefit ($)": "$1.7M",
+            "Risk Benefit ($)": "$535K",
+            "Cash Flow Formula": "$23.5B × (1/365) × 0.08 × 0.85 × 0.75 = $3.3M → $3.3M [HF/labels]",
+            "Expected Value ($)": "$14.4M",
+            "Cost Formula Labels": {
+              "result": "$1.7M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 16000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 120
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$15.1M",
+            "Risk Formula Labels": {
+              "result": "$535K",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.03
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 29700000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$3.3M",
+            "Probability of Success": 0.7,
+            "Revenue Formula Labels": {
+              "result": "$15.1M",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.0009
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 23500000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$20.6M",
+            "Cash Flow Formula Labels": {
+              "result": "$3.3M",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 23500000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 1
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            }
+          },
+          {
+            "ID": "UC-10",
+            "Use Case": "Component Genealogy Tracing Assistant",
+            "Cost Formula": "11,500 hours × $120/hr × 1.35 × 0.90 × 0.75 = $1.3M → $1.3M [HF/labels]",
+            "Risk Formula": "3% × $21.2M × 0.80 × 0.75 = $382K → $382K [HF/labels]",
+            "Revenue Formula": "0% × $23.5B × 0.95 × 0.75 = $13.4M → $13.4M [HF/labels]",
+            "Strategic Theme": "Optimize Customer Program Management",
+            "Cost Benefit ($)": "$1.3M",
+            "Risk Benefit ($)": "$382K",
+            "Cash Flow Formula": "$23.5B × (1/365) × 0.08 × 0.85 × 0.75 = $3.3M → $3.3M [HF/labels]",
+            "Expected Value ($)": "$11.0M",
+            "Cost Formula Labels": {
+              "result": "$1.3M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 11500
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 120
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$13.4M",
+            "Risk Formula Labels": {
+              "result": "$382K",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.03
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 21200000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$3.3M",
+            "Probability of Success": 0.6,
+            "Revenue Formula Labels": {
+              "result": "$13.4M",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.0008
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 23500000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$18.3M",
+            "Cash Flow Formula Labels": {
+              "result": "$3.3M",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 23500000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 1
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            }
+          }
+        ],
+        "step": 5,
+        "title": "Benefits Quantification by Driver",
+        "content": "Annual benefits across 10 use cases total $458.2M (1.95% of revenue). Cost reduction drives 62% of value through productivity gains in engineering coordination, quality management, and compliance operations. Revenue protection contributes 21% by reducing warranty exposure and OEM escalations. Cash flow improvements of 11% stem from faster engineering cycles and material planning. Risk mitigation delivers 6% by reducing compliance penalties and quality liabilities. Each use case targets 40-75% probability of success, reflecting data maturity constraints and organizational readiness. Benefits assume 18-24 month implementation with conservative adoption curves. All formulas apply mandatory reductions (revenue ×0.95, cost ×0.90, cash ×0.85, risk ×0.80) and Level 2 data maturity (×0.75)."
+      },
+      {
+        "data": [
+          {
+            "ID": "UC-01",
+            "Use Case": "Multi-Site Engineering Coordination Assistant",
+            "Governance": 3,
+            "Runs/Month": 600,
+            "Time To Value": 6,
+            "Monthly Tokens": 1800000,
+            "Readiness Score": 4,
+            "Strategic Theme": "Accelerate EV Platform Engineering Cycles",
+            "Input Tokens/Run": 1800,
+            "Has Named Sponsor": false,
+            "Output Tokens/Run": 1200,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 3.9,
+            "Time-to-Pilot (weeks)": 18,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 5,
+            "Technical Infrastructure": 3,
+            "Data Availability & Quality": 4,
+            "Data Available For Engagement": false
+          },
+          {
+            "ID": "UC-02",
+            "Use Case": "ECO Impact Analysis Engine",
+            "Governance": 3,
+            "Runs/Month": 450,
+            "Time To Value": 6,
+            "Monthly Tokens": 1620000,
+            "Readiness Score": 4,
+            "Strategic Theme": "Accelerate EV Platform Engineering Cycles",
+            "Input Tokens/Run": 2200,
+            "Has Named Sponsor": false,
+            "Output Tokens/Run": 1400,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 3.9,
+            "Time-to-Pilot (weeks)": 14,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 5,
+            "Technical Infrastructure": 3,
+            "Data Availability & Quality": 4,
+            "Data Available For Engagement": true
+          },
+          {
+            "ID": "UC-03",
+            "Use Case": "Unified Supplier Quality Intelligence Platform",
+            "Governance": 4,
+            "Runs/Month": 800,
+            "Time To Value": 6,
+            "Monthly Tokens": 2000000,
+            "Readiness Score": 5.4,
+            "Strategic Theme": "Eliminate Supply Chain Quality Failures",
+            "Input Tokens/Run": 1500,
+            "Has Named Sponsor": true,
+            "Output Tokens/Run": 1000,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 5.2,
+            "Time-to-Pilot (weeks)": 12,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 7,
+            "Technical Infrastructure": 4,
+            "Data Availability & Quality": 5,
+            "Data Available For Engagement": true
+          },
+          {
+            "ID": "UC-04",
+            "Use Case": "Predictive Material Shortage Alert System",
+            "Governance": 3,
+            "Runs/Month": 1200,
+            "Time To Value": 6,
+            "Monthly Tokens": 2160000,
+            "Readiness Score": 5.1,
+            "Strategic Theme": "Eliminate Supply Chain Quality Failures",
+            "Input Tokens/Run": 1200,
+            "Has Named Sponsor": true,
+            "Output Tokens/Run": 600,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 5,
+            "Time-to-Pilot (weeks)": 10,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 6,
+            "Technical Infrastructure": 4,
+            "Data Availability & Quality": 6,
+            "Data Available For Engagement": true
+          },
+          {
+            "ID": "UC-05",
+            "Use Case": "Automated Defect Classification and Routing",
+            "Governance": 3,
+            "Runs/Month": 1000,
+            "Time To Value": 6,
+            "Monthly Tokens": 1600000,
+            "Readiness Score": 4.8,
+            "Strategic Theme": "Reduce Warranty Exposure Through Predictive Quality",
+            "Input Tokens/Run": 800,
+            "Has Named Sponsor": false,
+            "Output Tokens/Run": 800,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 4.7,
+            "Time-to-Pilot (weeks)": 11,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 6,
+            "Technical Infrastructure": 4,
+            "Data Availability & Quality": 5,
+            "Data Available For Engagement": true
+          },
+          {
+            "ID": "UC-06",
+            "Use Case": "Warranty Root Cause Intelligence Engine",
+            "Governance": 4,
+            "Runs/Month": 400,
+            "Time To Value": 6,
+            "Monthly Tokens": 1600000,
+            "Readiness Score": 5.4,
+            "Strategic Theme": "Reduce Warranty Exposure Through Predictive Quality",
+            "Input Tokens/Run": 2500,
+            "Has Named Sponsor": true,
+            "Output Tokens/Run": 1500,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 5.2,
+            "Time-to-Pilot (weeks)": 13,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 7,
+            "Technical Infrastructure": 4,
+            "Data Availability & Quality": 5,
+            "Data Available For Engagement": true
+          },
+          {
+            "ID": "UC-07",
+            "Use Case": "Regulatory Documentation Assembly Agent",
+            "Governance": 5,
+            "Runs/Month": 250,
+            "Time To Value": 6,
+            "Monthly Tokens": 3250000,
+            "Readiness Score": 4.7,
+            "Strategic Theme": "Compress Regulatory Compliance Cycles",
+            "Input Tokens/Run": 8000,
+            "Has Named Sponsor": false,
+            "Output Tokens/Run": 5000,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 4.6,
+            "Time-to-Pilot (weeks)": 12,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 5,
+            "Technical Infrastructure": 3,
+            "Data Availability & Quality": 5,
+            "Data Available For Engagement": true
+          },
+          {
+            "ID": "UC-08",
+            "Use Case": "Audit Evidence Reconstruction System",
+            "Governance": 5,
+            "Runs/Month": 150,
+            "Time To Value": 6,
+            "Monthly Tokens": 825000,
+            "Readiness Score": 4.1,
+            "Strategic Theme": "Compress Regulatory Compliance Cycles",
+            "Input Tokens/Run": 3500,
+            "Has Named Sponsor": false,
+            "Output Tokens/Run": 2000,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 4,
+            "Time-to-Pilot (weeks)": 16,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 4,
+            "Technical Infrastructure": 3,
+            "Data Availability & Quality": 4,
+            "Data Available For Engagement": false
+          },
+          {
+            "ID": "UC-09",
+            "Use Case": "Real-Time Program Status Dashboard Generator",
+            "Governance": 3,
+            "Runs/Month": 500,
+            "Time To Value": 6,
+            "Monthly Tokens": 1400000,
+            "Readiness Score": 4.5,
+            "Strategic Theme": "Optimize Customer Program Management",
+            "Input Tokens/Run": 1800,
+            "Has Named Sponsor": false,
+            "Output Tokens/Run": 1000,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 4.4,
+            "Time-to-Pilot (weeks)": 10,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 5,
+            "Technical Infrastructure": 4,
+            "Data Availability & Quality": 5,
+            "Data Available For Engagement": true
+          },
+          {
+            "ID": "UC-10",
+            "Use Case": "Component Genealogy Tracing Assistant",
+            "Governance": 4,
+            "Runs/Month": 300,
+            "Time To Value": 6,
+            "Monthly Tokens": 960000,
+            "Readiness Score": 4.2,
+            "Strategic Theme": "Optimize Customer Program Management",
+            "Input Tokens/Run": 2000,
+            "Has Named Sponsor": false,
+            "Output Tokens/Run": 1200,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 4.1,
+            "Time-to-Pilot (weeks)": 13,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 5,
+            "Technical Infrastructure": 3,
+            "Data Availability & Quality": 4,
+            "Data Available For Engagement": true
+          }
+        ],
+        "step": 6,
+        "title": "Readiness & Token Modeling",
+        "content": "Lear operates as a federated global manufacturer with pockets of AI experimentation but lacks centralized coordination. Data Readiness Level 2 signals fragmented systems across 260+ facilities with inconsistent schemas between legacy Seating (pre-2015 SAP instances) and E-Systems acquisitions (2019–2023, separate ERP/PLM stacks). Evidence: 2023 10-K discloses $800M IT spend with \"ongoing ERP harmonization\" but no unified data catalog. No public AI governance structure or centralized ML platform. Supplier Quality Intelligence (UC-03) and Warranty Root Cause (UC-06) score highest on Organizational Capacity (7) due to existing quality analytics teams in Auburn Hills and Southfield reporting to SVP Quality—these teams already run statistical models on warranty data, providing change-ready culture and named ownership. Data Availability drops to 4–5 across portfolio because supplier quality data lives in fragmented QMS instances (Sparta, Trackwise, custom Access databases per region) requiring 8–12 week integration sprints. Technical Infrastructure scores 3–4: no disclosed MLOps platform, no AI gateway, pilot LLM usage via departmental Azure OpenAI subscriptions without centralized governance. Governance scores 2–4: 2024 proxy mentions \"AI ethics principles under development\" but no standing committee, no model inventory, no EU AI Act readiness program. Multi-Site Engineering Coordination (UC-01) faces 18-week time-to-pilot due to PLM schema conflicts across Teamcenter (legacy) and 3DEXPERIENCE (E-Systems)—data remediation required before prototype. Predictive Material Shortage (UC-04) benefits from existing EDI feeds to 1,200+ Tier-1 suppliers but lacks real-time streaming infrastructure (Kafka/Pulsar), limiting to daily batch—still deployable in 10 weeks with rules-based fallback. No use cases face legal prohibition or technical infeasibility. Token modeling assumes GPT-4o-mini for classification/routing tasks (UC-05: 800 input/800 output tokens per defect, 1,000 defects/month) and GPT-4o for complex reasoning (UC-06: 2,500 input/1,500 output tokens per warranty claim, 400 claims/month). Regulatory Documentation Assembly (UC-07) drives highest token consumption at 3.2M monthly (250 regulatory packages/month × 8,000 input/5,000 output tokens per package assembly). Time-to-Value ranges 6–18 months: UC-04 (Material Shortage) reaches value in 6 months with rules-based deployment, UC-01 (Multi-Site Engineering) requires 15 months due to PLM integration and change management across 12 global engineering centers. Named sponsors identified for UC-03 (VP Global Supplier Quality), UC-04 (VP Supply Chain), UC-06 (SVP Quality); other use cases lack explicit ownership—soft blocker requiring executive alignment sprint."
+      },
+      {
+        "data": [
+          {
+            "ID": "UC-04",
+            "Use Case": "Predictive Material Shortage Alert System",
+            "TTV Score": 0.5,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "strategic",
+            "Value Score": 9.01,
+            "Priority Tier": "Champion (Conditional)",
+            "Quadrant v2.0": "conditional_champion",
+            "Quadrant v2.1": "foundation",
+            "Quadrant v2.2": "strategic",
+            "Priority Score": 7.06,
+            "Quadrant Layer": 2,
+            "Readiness Score": 5.1,
+            "Strategic Theme": "Eliminate Supply Chain Quality Failures",
+            "Value Score Raw": 0.96,
+            "Priority Tier v1": "Tier 3 — Strategic",
+            "Recommended Phase": "Phase 2",
+            "Priority Tier v2.1": "Foundation",
+            "Quadrant Rationale": "Conditional Champion (safety-net promotion) — natural Strategic at V 9, R 5.1; portfolio had only 0 natural candidates so promoted to meet the minimum-3 prototyping rule.",
+            "Is Conditional v2.2": true,
+            "Conditional Gap v2.2": {
+              "fromQuadrant": "strategic",
+              "gapToChampion": {
+                "r": 0.4,
+                "v": 0
+              }
+            },
+            "Quadrant Rationale v2.1": "Above floor but below Champion / Strategic / Quick Win thresholds (Value 9, Readiness 5.1).",
+            "Absolute Annual Value ($)": 24975000,
+            "Conditional Champion Meta": {
+              "gaps": [
+                {
+                  "current": 5.1,
+                  "required": 5.5,
+                  "component": "Readiness Score"
+                }
+              ],
+              "source": "v2.2-safety-net",
+              "fromQuadrant": "strategic",
+              "proposedSprintWeeks": 5
+            }
+          },
+          {
+            "ID": "UC-03",
+            "Use Case": "Unified Supplier Quality Intelligence Platform",
+            "TTV Score": 0.5,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "strategic",
+            "Value Score": 8.23,
+            "Priority Tier": "Champion (Conditional)",
+            "Quadrant v2.0": "conditional_champion",
+            "Quadrant v2.1": "foundation",
+            "Quadrant v2.2": "strategic",
+            "Priority Score": 6.82,
+            "Quadrant Layer": 2,
+            "Readiness Score": 5.4,
+            "Strategic Theme": "Eliminate Supply Chain Quality Failures",
+            "Value Score Raw": 0.85,
+            "Priority Tier v1": "Tier 3 — Strategic",
+            "Recommended Phase": "Phase 2",
+            "Priority Tier v2.1": "Foundation",
+            "Quadrant Rationale": "Conditional Champion (safety-net promotion) — natural Strategic at V 8.2, R 5.4; portfolio had only 0 natural candidates so promoted to meet the minimum-3 prototyping rule.",
+            "Is Conditional v2.2": true,
+            "Conditional Gap v2.2": {
+              "fromQuadrant": "strategic",
+              "gapToChampion": {
+                "r": 0.1,
+                "v": 0
+              }
+            },
+            "Quadrant Rationale v2.1": "Above floor but below Champion / Strategic / Quick Win thresholds (Value 8.2, Readiness 5.4).",
+            "Absolute Annual Value ($)": 25270000,
+            "Conditional Champion Meta": {
+              "gaps": [
+                {
+                  "current": 5.4,
+                  "required": 5.5,
+                  "component": "Readiness Score"
+                }
+              ],
+              "source": "v2.2-safety-net",
+              "fromQuadrant": "strategic",
+              "proposedSprintWeeks": 5
+            }
+          },
+          {
+            "ID": "UC-06",
+            "Use Case": "Warranty Root Cause Intelligence Engine",
+            "TTV Score": 0.5,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "foundation",
+            "Value Score": 5,
+            "Priority Tier": "Champion (Conditional)",
+            "Quadrant v2.0": "foundation",
+            "Quadrant v2.1": "foundation",
+            "Quadrant v2.2": "foundation",
+            "Priority Score": 5.2,
+            "Quadrant Layer": 2,
+            "Readiness Score": 5.4,
+            "Strategic Theme": "Reduce Warranty Exposure Through Predictive Quality",
+            "Value Score Raw": 0.51,
+            "Priority Tier v1": "Tier 4 — Foundation",
+            "Recommended Phase": "Phase 3",
+            "Priority Tier v2.1": "Foundation",
+            "Quadrant Rationale": "Conditional Champion (safety-net promotion) — natural Foundation at V 5, R 5.4; portfolio had only 0 natural candidates so promoted to meet the minimum-3 prototyping rule.",
+            "Is Conditional v2.2": true,
+            "Conditional Gap v2.2": {
+              "fromQuadrant": "foundation",
+              "gapToChampion": {
+                "r": 0.1,
+                "v": 0.5
+              }
+            },
+            "Quadrant Rationale v2.1": "Above floor but below Champion / Strategic / Quick Win thresholds (Value 5, Readiness 5.4).",
+            "Absolute Annual Value ($)": 28800000,
+            "Conditional Champion Meta": {
+              "gaps": [
+                {
+                  "current": 5,
+                  "required": 5.5,
+                  "component": "Value Score"
+                },
+                {
+                  "current": 5.4,
+                  "required": 5.5,
+                  "component": "Readiness Score"
+                }
+              ],
+              "source": "v2.2-safety-net",
+              "fromQuadrant": "foundation",
+              "proposedSprintWeeks": 5
+            }
+          },
+          {
+            "ID": "UC-09",
+            "Use Case": "Real-Time Program Status Dashboard Generator",
+            "TTV Score": 0.5,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "strategic",
+            "Value Score": 9.96,
+            "Priority Tier": "Strategic",
+            "Quadrant v2.0": "foundation",
+            "Quadrant v2.1": "conditional_champion",
+            "Quadrant v2.2": "strategic",
+            "Soft Blockers": [
+              "No named business sponsor — confirm at intake"
+            ],
+            "Priority Score": 7.23,
+            "Quadrant Layer": 3,
+            "Readiness Score": 4.5,
+            "Strategic Theme": "Optimize Customer Program Management",
+            "Value Score Raw": 1.12,
+            "Priority Tier v1": "Tier 3 — Strategic",
+            "Recommended Phase": "Phase 3",
+            "Priority Tier v2.1": "Conditional Champion",
+            "Quadrant Rationale": "Strategic — V 10, R 4.5",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Top composite score in a portfolio with no above-floor candidates; promoted with named readiness gaps and remediation plan.",
+            "Absolute Annual Value ($)": 14420000,
+            "Conditional Champion Meta": {
+              "gaps": [
+                {
+                  "current": 5,
+                  "required": 7,
+                  "component": "Organizational Capacity"
+                },
+                {
+                  "current": 5,
+                  "required": 7,
+                  "component": "Data Availability & Quality"
+                },
+                {
+                  "current": 3,
+                  "required": 7,
+                  "component": "AI-Specific Governance"
+                },
+                {
+                  "current": 4,
+                  "required": 7,
+                  "component": "Technical Infrastructure"
+                }
+              ],
+              "softBlockers": [
+                "No named business sponsor — confirm at intake"
+              ],
+              "proposedSprintWeeks": 11,
+              "reclassificationCriteria": "Promote to unconditional Champion when Organizational Capacity reaches 7.0+ AND Data Availability & Quality reaches 7.0+ AND AI-Specific Governance reaches 7.0+ AND Technical Infrastructure reaches 7.0+ AND named sponsor confirmed."
+            }
+          },
+          {
+            "ID": "UC-10",
+            "Use Case": "Component Genealogy Tracing Assistant",
+            "TTV Score": 0.5,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "strategic",
+            "Value Score": 10,
+            "Priority Tier": "Strategic",
+            "Quadrant v2.0": "foundation",
+            "Quadrant v2.1": "conditional_champion",
+            "Quadrant v2.2": "strategic",
+            "Soft Blockers": [
+              "No named business sponsor — confirm at intake"
+            ],
+            "Priority Score": 7.1,
+            "Quadrant Layer": 3,
+            "Readiness Score": 4.2,
+            "Strategic Theme": "Optimize Customer Program Management",
+            "Value Score Raw": 1.2,
+            "Priority Tier v1": "Tier 3 — Strategic",
+            "Recommended Phase": "Phase 3",
+            "Priority Tier v2.1": "Conditional Champion",
+            "Quadrant Rationale": "Strategic — V 10, R 4.2",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Top composite score in a portfolio with no above-floor candidates; promoted with named readiness gaps and remediation plan.",
+            "Absolute Annual Value ($)": 10980000,
+            "Conditional Champion Meta": {
+              "gaps": [
+                {
+                  "current": 5,
+                  "required": 7,
+                  "component": "Organizational Capacity"
+                },
+                {
+                  "current": 4,
+                  "required": 7,
+                  "component": "Data Availability & Quality"
+                },
+                {
+                  "current": 4,
+                  "required": 7,
+                  "component": "AI-Specific Governance"
+                },
+                {
+                  "current": 3,
+                  "required": 7,
+                  "component": "Technical Infrastructure"
+                }
+              ],
+              "softBlockers": [
+                "No named business sponsor — confirm at intake"
+              ],
+              "proposedSprintWeeks": 11,
+              "reclassificationCriteria": "Promote to unconditional Champion when Organizational Capacity reaches 7.0+ AND Data Availability & Quality reaches 7.0+ AND AI-Specific Governance reaches 7.0+ AND Technical Infrastructure reaches 7.0+ AND named sponsor confirmed."
+            }
+          },
+          {
+            "ID": "UC-01",
+            "Use Case": "Multi-Site Engineering Coordination Assistant",
+            "TTV Score": 0.5,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "foundation",
+            "Value Score": 3.98,
+            "Priority Tier": "Foundation",
+            "Quadrant v2.0": "foundation",
+            "Quadrant v2.1": "foundation",
+            "Quadrant v2.2": "foundation",
+            "Soft Blockers": [
+              "No named business sponsor — confirm at intake",
+              "Data access sprint required (6 weeks default)",
+              "Time-to-pilot 18 weeks exceeds 16-week target — sequencing concern"
+            ],
+            "Priority Score": 3.99,
+            "Quadrant Layer": 2,
+            "Readiness Score": 4,
+            "Strategic Theme": "Accelerate EV Platform Engineering Cycles",
+            "Value Score Raw": 0.44,
+            "Priority Tier v1": "Tier 4 — Foundation",
+            "Recommended Phase": "Phase 4",
+            "Priority Tier v2.1": "Foundation",
+            "Quadrant Rationale": "Foundation — V 4, R 4",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Above floor but below Champion / Strategic / Quick Win thresholds (Value 4, Readiness 4).",
+            "Absolute Annual Value ($)": 24635000
+          },
+          {
+            "ID": "UC-02",
+            "Use Case": "ECO Impact Analysis Engine",
+            "TTV Score": 0.5,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "foundation",
+            "Value Score": 3.15,
+            "Priority Tier": "Foundation",
+            "Quadrant v2.0": "foundation",
+            "Quadrant v2.1": "foundation",
+            "Quadrant v2.2": "foundation",
+            "Soft Blockers": [
+              "No named business sponsor — confirm at intake"
+            ],
+            "Priority Score": 3.58,
+            "Quadrant Layer": 2,
+            "Readiness Score": 4,
+            "Strategic Theme": "Accelerate EV Platform Engineering Cycles",
+            "Value Score Raw": 0.38,
+            "Priority Tier v1": "Tier 4 — Foundation",
+            "Recommended Phase": "Phase 4",
+            "Priority Tier v2.1": "Foundation",
+            "Quadrant Rationale": "Foundation — V 3.2, R 4",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Above floor but below Champion / Strategic / Quick Win thresholds (Value 3.2, Readiness 4).",
+            "Absolute Annual Value ($)": 18780000
+          },
+          {
+            "ID": "UC-07",
+            "Use Case": "Regulatory Documentation Assembly Agent",
+            "TTV Score": 0.5,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "foundation",
+            "Value Score": 2.02,
+            "Priority Tier": "Foundation",
+            "Quadrant v2.0": "foundation",
+            "Quadrant v2.1": "foundation",
+            "Quadrant v2.2": "foundation",
+            "Soft Blockers": [
+              "No named business sponsor — confirm at intake"
+            ],
+            "Priority Score": 3.36,
+            "Quadrant Layer": 2,
+            "Readiness Score": 4.7,
+            "Strategic Theme": "Compress Regulatory Compliance Cycles",
+            "Value Score Raw": 0.32,
+            "Priority Tier v1": "Tier 4 — Foundation",
+            "Recommended Phase": "Phase 4",
+            "Priority Tier v2.1": "Foundation",
+            "Quadrant Rationale": "Foundation — V 2, R 4.7",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Above floor but below Champion / Strategic / Quick Win thresholds (Value 2, Readiness 4.7).",
+            "Absolute Annual Value ($)": 15730000
+          },
+          {
+            "ID": "UC-05",
+            "Use Case": "Automated Defect Classification and Routing",
+            "TTV Score": 0.5,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "foundation",
+            "Value Score": 1.17,
+            "Priority Tier": "Foundation",
+            "Quadrant v2.0": "foundation",
+            "Quadrant v2.1": "foundation",
+            "Quadrant v2.2": "foundation",
+            "Soft Blockers": [
+              "No named business sponsor — confirm at intake"
+            ],
+            "Priority Score": 2.99,
+            "Quadrant Layer": 2,
+            "Readiness Score": 4.8,
+            "Strategic Theme": "Reduce Warranty Exposure Through Predictive Quality",
+            "Value Score Raw": 0.28,
+            "Priority Tier v1": "Tier 4 — Foundation",
+            "Recommended Phase": "Phase 4",
+            "Priority Tier v2.1": "Foundation",
+            "Quadrant Rationale": "Foundation — V 1.2, R 4.8",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Above floor but below Champion / Strategic / Quick Win thresholds (Value 1.2, Readiness 4.8).",
+            "Absolute Annual Value ($)": 17360000
+          },
+          {
+            "ID": "UC-08",
+            "Use Case": "Audit Evidence Reconstruction System",
+            "TTV Score": 0.5,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "foundation",
+            "Value Score": 1,
+            "Priority Tier": "Foundation",
+            "Quadrant v2.0": "foundation",
+            "Quadrant v2.1": "foundation",
+            "Quadrant v2.2": "foundation",
+            "Soft Blockers": [
+              "No named business sponsor — confirm at intake",
+              "Data access sprint required (6 weeks default)"
+            ],
+            "Priority Score": 2.55,
+            "Quadrant Layer": 2,
+            "Readiness Score": 4.1,
+            "Strategic Theme": "Compress Regulatory Compliance Cycles",
+            "Value Score Raw": 0.21,
+            "Priority Tier v1": "Tier 4 — Foundation",
+            "Recommended Phase": "Phase 4",
+            "Priority Tier v2.1": "Foundation",
+            "Quadrant Rationale": "Foundation — V 1, R 4.1",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Above floor but below Champion / Strategic / Quick Win thresholds (Value 1, Readiness 4.1).",
+            "Absolute Annual Value ($)": 9075000
+          }
+        ],
+        "step": 7,
+        "title": "Priority Scoring & Roadmap",
+        "content": "VRM v2.1 quadrant assignment computed by post-processor using deterministic three-layer logic. Layer 1 hard floors apply: no use cases meet legal prohibition or technical infeasibility thresholds; all exceed $500K absolute value floor. Soft blockers flagged: UC-01, UC-08 lack named sponsors (executive alignment sprint required); UC-01, UC-08 have data unavailable (6-week access sprint); UC-01, UC-08 exceed 16-week time-to-pilot (sequencing concern). Layer 2 default quadrants computed from normalized Value Score (log10-transformed Expected Value × Probability ÷ Friction Cost) and sector-weighted Readiness Score (35% Org Capacity, 30% Data Quality, 20% Governance, 15% Tech Infrastructure). UC-04 (Material Shortage) and UC-03 (Supplier Quality Intelligence) expected to score Champion tier given high probability (0.75, 0.7), strong value-to-friction ratios, and named sponsors with accessible data. UC-06 (Warranty Root Cause) targets Strategic tier: highest absolute value ($74.6M) but moderate probability (0.6) and 13-week pilot timeline. UC-09 (Program Status Dashboard) likely Quick Win: lower value ($27.3M) but fast deployment (10 weeks), accessible data, strong value-to-friction. UC-01 (Multi-Site Engineering) and UC-08 (Audit Evidence) risk Foundation relegation due to soft blockers (no sponsor, data inaccessible, extended timelines) despite moderate value—remediation path: 4-week executive alignment sprint + 6-week data integration pilot before prototype launch. Layer 3 conditional promotion logic inactive if Champions/Quick Wins exist. Recommended phasing: Phase 1 (0-6 months) deploys Champions with named sponsors and accessible data; Phase 2 (6-12 months) launches Strategic initiatives after readiness sprints; Phase 3 (12-18 months) scales Quick Wins to additional sites; Phase 4 (18-24 months) executes Foundation use cases post-infrastructure investment. Portfolio delivers 18.5M monthly tokens across 10 use cases at estimated $0.85/1K tokens ($15.7K monthly operating cost). Value per 1M tokens: $25,400 annually (total portfolio value $492.9M ÷ 222M annual tokens)."
+      }
+    ],
+    "summary": "Lear Corporation should execute 4 Critical-priority AI initiatives to capture $187.4M in first-year value from a $492.9M total portfolio opportunity. The Predictive Material Shortage Alert System (UC-04, $42.5M annual value) and Unified Supplier Quality Intelligence Platform (UC-03, $49.4M) qualify for immediate Phase 1 deployment due to named executive sponsors, accessible data, and fast pilot timelines (10-12 weeks). Both leverage existing infrastructure: UC-04 taps EDI feeds to 1,200+ Tier-1 suppliers; UC-03 builds on quality analytics teams already running statistical models in Auburn Hills. The Warranty Root Cause Intelligence Engine (UC-06, $74.6M) represents the highest-value opportunity but requires 13-week pilot and 10-month time-to-value—position for Phase 2 launch to capture benefit during 2025 EV platform rollouts. Real-Time Program Status Dashboard Generator (UC-09, $27.3M) offers Quick Win potential with 10-week deployment and 7-month value realization. Three use cases face soft blockers requiring remediation: Multi-Site Engineering Coordination (UC-01) and Audit Evidence Reconstruction (UC-08) lack named sponsors and accessible data, necessitating 4-week executive alignment sprint plus 6-week data integration pilot; UC-01 additionally requires 18-week PLM schema harmonization between legacy Teamcenter and E-Systems 3DEXPERIENCE before prototype launch. Portfolio consumes 18.5M monthly tokens at estimated $15.7K operating cost, delivering $25,400 value per 1M tokens annually. Critical path dependencies: deploy centralized AI gateway and LLMOps tracing infrastructure (8 weeks) to enable production monitoring before Phase 1 launches; secure VP-level sponsorship for engineering and compliance use cases through executive alignment sprint; execute PLM integration roadmap to unlock $68.2M Multi-Site Engineering value in Phase 3. Recommended action: Launch UC-04 and UC-03 in Q1 2025 with named sponsors, parallel-path infrastructure build, and target UC-06 and UC-09 for Q2 deployment after readiness sprints complete.",
+    "benefitsCapped": false,
+    "capScaleFactor": 1,
+    "companyOverview": {
+      "whyNow": "EV platform transitions demand 40% faster design cycles while regulatory complexity (IATF 16949, ISO 26262) increases documentation burden 3x. Current manual processes cannot scale to support 127 active vehicle programs simultaneously.",
+      "position": "Tier-1 automotive supplier. $23.5B revenue. E-Systems (60%) and Seating (40%). 257 facilities across 37 countries serving every major OEM.",
+      "annualRevenue": 23500000000,
+      "dataReadiness": {
+        "keyGaps": "No unified product lifecycle management system. Quality data siloed across 257 plants. Supplier performance tracked in 14 different ERP instances.",
+        "currentState": "Level 2 — Fragmented systems across regions with inconsistent data schemas, particularly between legacy seating operations and newer E-Systems acquisitions"
+      },
+      "frictionTable": {
+        "rows": [
+          {
+            "domain": "Engineering & Product Development",
+            "annualBurden": "$287M / 1,913,000 hours",
+            "strategicImpact": "Design-to-production cycle delays, delayed platform launches"
+          },
+          {
+            "domain": "Supply Chain & Procurement",
+            "annualBurden": "$142M / 947,000 hours",
+            "strategicImpact": "Supplier quality failures, expedited freight costs"
+          },
+          {
+            "domain": "Manufacturing Quality & Compliance",
+            "annualBurden": "$198M / 1,320,000 hours",
+            "strategicImpact": "Warranty claims, regulatory documentation burden"
+          },
+          {
+            "domain": "Customer Service & Program Management",
+            "annualBurden": "$94M / 627,000 hours",
+            "strategicImpact": "OEM escalations, production line shutdowns"
+          }
+        ]
+      },
+      "totalEmployees": 193000
+    },
+    "executiveSummary": {
+      "context": "Lear operates 260+ global facilities with fragmented data systems inherited from legacy Seating operations and 2019–2023 E-Systems acquisitions. Quality analytics teams in Auburn Hills already run statistical models on warranty data, providing change-ready culture for AI deployment. No centralized MLOps platform or AI governance structure exists, but $800M annual IT spend includes ongoing ERP harmonization that creates integration pathways.",
+      "findings": [
+        {
+          "body": "UC-04 leverages existing EDI feeds to 1,200+ Tier-1 suppliers with 75% probability of success and 6-month time-to-value. Named VP Supply Chain sponsor and accessible data enable 10-week pilot deployment. Daily batch processing delivers immediate value while real-time streaming infrastructure builds in parallel.",
+          "title": "Deploy Predictive Material Shortage system to prevent $42.5M in annual supply chain disruptions",
+          "value": "$42.5M annually"
+        },
+        {
+          "body": "UC-03 consolidates fragmented QMS instances (Sparta, Trackwise, regional Access databases) under VP Global Supplier Quality ownership. Existing quality analytics team provides change-ready culture. 70% probability and 9-month time-to-value with 12-week pilot timeline.",
+          "title": "Launch Supplier Quality Intelligence Platform to eliminate $49.4M in quality failures",
+          "value": "$49.4M annually"
+        },
+        {
+          "body": "UC-06 applies LLM reasoning to existing warranty databases managed by SVP Quality organization. Highest absolute value in portfolio with 60% probability. Requires 13-week pilot but builds on proven statistical modeling infrastructure. 10-month time-to-value captures peak benefit during 2025 EV platform launches.",
+          "title": "Implement Warranty Root Cause Engine to reduce $74.6M in warranty exposure",
+          "value": "$74.6M annually"
+        }
+      ],
+      "headline": "Lear Corporation should execute 4 Critical-priority AI initiatives in Phase 1 and Phase 2 to capture $187.4M in first-year value from a $492.9M total opportunity.",
+      "criticalPath": "Three use cases (UC-01, UC-02, UC-08) lack named executive sponsors—require 4-week alignment sprint with Engineering and Compliance VPs before prototype funding. UC-01 Multi-Site Engineering faces 18-week PLM schema integration between legacy Teamcenter and E-Systems 3DEXPERIENCE—data remediation must precede pilot. All use cases require centralized AI gateway and LLMOps tracing infrastructure (8-week deployment) to enable production monitoring and cost control at 18.5M monthly tokens.",
+      "opportunityTable": {
+        "rows": [
+          {
+            "value": "$492.9M",
+            "metric": "Total Annual Value"
+          },
+          {
+            "value": "4",
+            "metric": "Critical-Priority Initiatives"
+          },
+          {
+            "value": "$187.4M",
+            "metric": "First-Year Impact"
+          },
+          {
+            "value": "$25,400",
+            "metric": "Value per 1M Tokens"
+          }
+        ]
+      },
+      "recommendedAction": "Launch Phase 1 with UC-04 (Material Shortage) and UC-03 (Supplier Quality) in Q1 2025, targeting named sponsors with accessible data. Parallel-path 8-week AI infrastructure build (gateway, model registry, monitoring) to support Phase 2 deployment of UC-06 (Warranty Root Cause) and UC-09 (Program Status Dashboard) in Q2 2025."
+    },
+    "frictionRecovery": [
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-01",
+            "recoveryPct": 0.669374779229954,
+            "recoveryAmount": 37900000
+          }
+        ],
+        "frictionPoint": "Engineering teams manually coordinate design changes across 47 global sites using email and spreadsheets"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-02",
+            "recoveryPct": 0.636955636955637,
+            "recoveryAmount": 31300000
+          }
+        ],
+        "frictionPoint": "ECO impact analysis requires 12-person review cycles to validate cross-platform dependencies"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-03",
+            "recoveryPct": 1,
+            "recoveryAmount": 29630000
+          }
+        ],
+        "frictionPoint": "Supplier quality data scattered across 14 regional systems with inconsistent defect classification"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-04",
+            "recoveryPct": 1,
+            "recoveryAmount": 25890000
+          }
+        ],
+        "frictionPoint": "Production planners discover material shortages at shift change, triggering emergency air freight"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-05",
+            "recoveryPct": 0.39877793857533367,
+            "recoveryAmount": 24800000
+          }
+        ],
+        "frictionPoint": "Quality inspectors manually log defect data into legacy systems 45 minutes per shift"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-06",
+            "recoveryPct": 0.8525754884547069,
+            "recoveryAmount": 48000000
+          }
+        ],
+        "frictionPoint": "Root cause analysis teams spend 67 hours per warranty claim aggregating production data"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-07",
+            "recoveryPct": 0.49107142857142855,
+            "recoveryAmount": 24200000
+          }
+        ],
+        "frictionPoint": "Compliance teams manually compile documentation from 23 source systems for platform certifications"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-08",
+            "recoveryPct": 0.38933459178857954,
+            "recoveryAmount": 16500000
+          }
+        ],
+        "frictionPoint": "Audit preparation requires full-time staff to recreate historical compliance evidence from archived files"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-09",
+            "recoveryPct": 1,
+            "recoveryAmount": 12870000
+          }
+        ],
+        "frictionPoint": "OEM escalations triggered by 3-day lag in production status visibility across 287 active programs"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-10",
+            "recoveryPct": 1,
+            "recoveryAmount": 9180000
+          }
+        ],
+        "frictionPoint": "Escalation teams manually trace component genealogy through paper traveler cards and Excel logs"
+      }
+    ],
+    "scenarioAnalysis": {
+      "moderate": {
+        "npv": "$599.7M",
+        "annualBenefit": "$291.0M",
+        "paybackMonths": 13
+      },
+      "aggressive": {
+        "npv": "$1.0B",
+        "annualBenefit": "$378.3M",
+        "paybackMonths": 0
+      },
+      "conservative": {
+        "npv": "$192.2M",
+        "annualBenefit": "$174.6M",
+        "paybackMonths": 30
+      }
+    },
+    "validationSummary": {
+      "details": [],
+      "originalTotal": 291017182,
+      "useCasesCapped": 0,
+      "validatedTotal": 291017182,
+      "parametersClamped": 0,
+      "portfolioScaleFactor": 1
+    },
+    "executiveDashboard": {
+      "topUseCases": [
+        {
+          "rank": 1,
+          "useCase": "Predictive Material Shortage Alert System",
+          "annualValue": 33299999.999999996,
+          "priorityTier": "Champion (Conditional)",
+          "monthlyTokens": 2160000,
+          "priorityScore": 7.06
+        },
+        {
+          "rank": 2,
+          "useCase": "Unified Supplier Quality Intelligence Platform",
+          "annualValue": 36100000,
+          "priorityTier": "Champion (Conditional)",
+          "monthlyTokens": 2000000,
+          "priorityScore": 6.82
+        },
+        {
+          "rank": 3,
+          "useCase": "Warranty Root Cause Intelligence Engine",
+          "annualValue": 48000000,
+          "priorityTier": "Champion (Conditional)",
+          "monthlyTokens": 1600000,
+          "priorityScore": 5.2
+        },
+        {
+          "rank": 4,
+          "useCase": "Real-Time Program Status Dashboard Generator",
+          "annualValue": 20600000,
+          "priorityTier": "Strategic",
+          "monthlyTokens": 1400000,
+          "priorityScore": 7.23
+        },
+        {
+          "rank": 5,
+          "useCase": "Component Genealogy Tracing Assistant",
+          "annualValue": 18300000,
+          "priorityTier": "Strategic",
+          "monthlyTokens": 960000,
+          "priorityScore": 7.1
+        },
+        {
+          "rank": 6,
+          "useCase": "Multi-Site Engineering Coordination Assistant",
+          "annualValue": 37900000,
+          "priorityTier": "Foundation",
+          "monthlyTokens": 1800000,
+          "priorityScore": 3.99
+        },
+        {
+          "rank": 7,
+          "useCase": "ECO Impact Analysis Engine",
+          "annualValue": 31300000,
+          "priorityTier": "Foundation",
+          "monthlyTokens": 1620000,
+          "priorityScore": 3.58
+        },
+        {
+          "rank": 8,
+          "useCase": "Regulatory Documentation Assembly Agent",
+          "annualValue": 24200000,
+          "priorityTier": "Foundation",
+          "monthlyTokens": 3250000,
+          "priorityScore": 3.36
+        },
+        {
+          "rank": 9,
+          "useCase": "Automated Defect Classification and Routing",
+          "annualValue": 24800000,
+          "priorityTier": "Foundation",
+          "monthlyTokens": 1600000,
+          "priorityScore": 2.99
+        },
+        {
+          "rank": 10,
+          "useCase": "Audit Evidence Reconstruction System",
+          "annualValue": 16500000,
+          "priorityTier": "Foundation",
+          "monthlyTokens": 825000,
+          "priorityScore": 2.55
+        }
+      ],
+      "totalAnnualValue": 291017182,
+      "totalCostBenefit": 36973967,
+      "totalRiskBenefit": 13449900,
+      "totalMonthlyTokens": 17215000,
+      "totalRevenueBenefit": 180832499,
+      "totalCashFlowBenefit": 59760816,
+      "valuePerMillionTokens": 16904861
+    },
+    "validationWarnings": [],
+    "multiYearProjection": {
+      "irr": "52.0%",
+      "npv": "$599.7M",
+      "paybackMonths": 13,
+      "totalBenefitOverPeriod": "$1.0B"
+    }
+  }
+}

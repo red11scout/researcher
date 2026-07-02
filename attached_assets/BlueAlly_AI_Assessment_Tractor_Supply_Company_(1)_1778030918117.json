@@ -1,0 +1,2761 @@
+{
+  "companyName": "Tractor Supply Company",
+  "generatedAt": "2026-05-05T20:34:55.573Z",
+  "analysis": {
+    "vrm": {
+      "weights": {
+        "governance": 0.2,
+        "orgCapacity": 0.35,
+        "dataReadiness": 0.3,
+        "techInfrastructure": 0.15
+      },
+      "diagnostic": {
+        "warnings": [
+          {
+            "code": "INTAKE_INCOMPLETE",
+            "message": "100% of use cases are missing sponsor and/or data-availability information.",
+            "severity": "warning",
+            "remediation": "Complete intake fields before relying on quadrant placement; missing data is treated as 'unknown', not 'unavailable'."
+          }
+        ],
+        "championCount": 3,
+        "quickWinCount": 2,
+        "schemaVersion": "2.2",
+        "totalUseCases": 10,
+        "strategicCount": 3,
+        "foundationCount": 2,
+        "conditionalCount": 0,
+        "medianValueScore": 7.2,
+        "leadChampionCount": 0,
+        "leadQuickWinCount": 0,
+        "foundationHardCount": 0,
+        "foundationSoftCount": 2,
+        "hardFloorFailureRate": 0,
+        "medianReadinessScore": 5.5,
+        "intakeIncompletionRate": 1,
+        "conditionalChampionCount": 0,
+        "prototypingCandidatesPct": 50,
+        "prototypingCandidatesCount": 5
+      },
+      "sectorPreset": "baseline",
+      "diagnosticV21": {
+        "warnings": [
+          {
+            "code": "EMPTY_MATRIX",
+            "message": "No prototyping candidates produced.",
+            "severity": "critical",
+            "remediation": "Review value assumptions and intake data; verify EV/Friction ratios are realistic and rerun scoring.",
+            "recommendedAction": "Review value assumptions and intake data; verify EV/Friction ratios are realistic and rerun scoring."
+          },
+          {
+            "code": "INTAKE_INCOMPLETE",
+            "message": "100% of use cases have unconfirmed sponsor or data availability.",
+            "severity": "warning",
+            "remediation": "Sponsor and data availability must be confirmed during intake before prototyping.",
+            "recommendedAction": "Sponsor and data availability must be confirmed during intake before prototyping."
+          }
+        ],
+        "byQuadrant": {
+          "champion": 0,
+          "quick_win": 0,
+          "strategic": 1,
+          "foundation": 9,
+          "conditional_champion": 0
+        },
+        "championCount": 0,
+        "quickWinCount": 0,
+        "totalUseCases": 10,
+        "strategicCount": 1,
+        "foundationCount": 9,
+        "medianValueScore": 7.2,
+        "foundationHardCount": 0,
+        "foundationSoftCount": 9,
+        "hardFloorFailureRate": 0,
+        "medianReadinessScore": 5.5,
+        "intakeIncompletionRate": 1,
+        "conditionalChampionCount": 0,
+        "prototypingCandidatesPct": 0,
+        "prototypingCandidatesCount": 0
+      },
+      "rubricVersion": "2.0",
+      "schemaVersion": "2.2",
+      "baselineWeights": {
+        "governance": 0.2,
+        "orgCapacity": 0.35,
+        "dataReadiness": 0.3,
+        "techInfrastructure": 0.15
+      },
+      "engagementConfig": {
+        "valueFloor": {
+          "minNormalizedScore": 4,
+          "minAbsoluteAnnualValue": 500000
+        },
+        "championMin": 7.5,
+        "quickStrategicMin": 6,
+        "maxTimeToPilotWeeks": 16,
+        "dataAccessSprintWeeks": 6
+      },
+      "sectorPresetLabel": "Baseline",
+      "priorSchemaVersion": "2.1",
+      "quadrantThresholds": {
+        "cut": 5.5,
+        "valueFloor": 6,
+        "championMin": 7.5,
+        "leadTierCut": 7.5,
+        "valueFloorBand": {
+          "minNormalizedScore": 4,
+          "minAbsoluteAnnualValue": 500000
+        },
+        "quickStrategicMin": 6,
+        "maxTimeToPilotWeeks": 16,
+        "minPrototypingCandidates": 3
+      },
+      "valueNormalization": "log10-percentile-winsorized",
+      "priorSchemaVersionV20": "2.0",
+      "valueNormalizationVersion": "v3"
+    },
+    "steps": [
+      {
+        "data": null,
+        "step": 0,
+        "title": "Company Overview",
+        "content": "Tractor Supply Company generates $14.8B in annual revenue as America's largest rural lifestyle retailer. The company operates 2,200+ stores across 49 states with 50,000 employees, serving farmers, ranchers, and rural homeowners through a specialized product mix spanning livestock feed, agricultural equipment, workwear, and seasonal merchandise. The business model combines physical retail density with digital commerce capabilities, supported by 35 million Neighbors Club loyalty members providing rich transaction and preference data.\n\nThe company operates through integrated retail channels: in-store sales (81% of revenue), e-commerce and mobile (14%), and Paws & Claws pet specialty stores (5%). Store-level economics depend on precise inventory positioning—the average location stocks 15,000-20,000 SKUs with seasonal demand swings exceeding 40% between peak agricultural periods and off-season. Customer retention stands at 87% among loyalty members with average basket size of $47. Same-store sales growth reached 3.2% in fiscal 2025, driven by transaction count increases rather than ticket inflation.\n\nInventory management represents a $89M annual burden as merchants manually analyze sales patterns across 100,000+ total SKUs to forecast demand for seasonal categories like livestock feed, heating products, and agricultural chemicals. The company maintains 34 days of inventory on hand, but seasonal volatility creates simultaneous stockouts in high-demand items and excess inventory requiring markdown cycles. Store replenishment teams spend 124,000 hours annually reconciling supplier lead times, regional weather patterns, and local agricultural cycles—work that delays strategic assortment planning and new product introductions.\n\nStore operations face $67M in labor inefficiency from manual scheduling processes that fail to align staffing with traffic patterns. Store managers spend 187,000 collective hours building weekly schedules without predictive traffic modeling, resulting in understaffing during weekend peak periods and overstaffing during weekday lulls. This misalignment drives customer service delays during high-traffic hours while inflating labor costs during slower periods. The average store operates with 18-22 associates requiring schedules that accommodate agricultural community patterns—early morning livestock feed purchases, midday equipment browsing, evening DIY shopping.\n\nCustomer service gaps cost $54M annually as associates field product questions requiring specialized agricultural and livestock knowledge. Store teams spend 298,000 hours answering repetitive inquiries about feed types, chemical applications, equipment specifications, and livestock care—expertise that varies widely across associate tenure and regional agricultural practices. This knowledge gap limits conversion rates on complex purchases and creates inconsistent customer experiences across locations. Digital channels compound the challenge as online shoppers lack in-store expert access for technical product decisions.\n\nSupply chain coordination consumes $43M through manual vendor communication and procurement processes. Buyers spend 76,000 hours annually managing email threads, phone calls, and spreadsheets to coordinate orders across 800+ suppliers of agricultural products, equipment, and seasonal merchandise. Purchase order changes, shipment tracking, and invoice reconciliation occur through fragmented systems requiring manual data entry and verification. This friction extends procurement cycles and limits the company's ability to respond dynamically to demand signals or supplier constraints.\n\nFinancial figures derive from Tractor Supply's 2025 10-K filing and Q4 2025 earnings release. Operational burden estimates apply $150/hour fully-loaded rates for store associates and $175/hour for corporate merchants and planners. Data maturity assessed at Level 3 based on disclosed investments in Oracle Retail and Salesforce platforms, real-time inventory visibility across store network, and integrated loyalty program data infrastructure. Seasonal demand volatility metrics reflect disclosed same-store sales patterns and inventory turn rates across fiscal quarters."
+      },
+      {
+        "data": [
+          {
+            "Target State": "28 days inventory on hand with 11% markdown rate and 60% reduction in stockout incidents through AI-driven demand sensing and replenishment automation",
+            "Current State": "34 days inventory on hand with 18% seasonal markdown rate and $420M in annual stockout opportunity cost across high-velocity SKUs",
+            "Strategic Theme": "Predictive Inventory Optimization",
+            "Secondary Driver": "Competitive differentiation through superior product availability in seasonal agricultural categories",
+            "Primary Driver Impact": "$127M annual opportunity from reduced stockouts, markdown avoidance, and working capital efficiency"
+          },
+          {
+            "Target State": "Automated scheduling aligned to traffic forecasts reducing planning time by 75% and staffing variance to 8% while maintaining service levels",
+            "Current State": "187,000 annual hours on manual scheduling with 23% variance between planned and optimal staffing levels during peak periods",
+            "Strategic Theme": "Labor Productivity & Scheduling Excellence",
+            "Secondary Driver": "Enhanced employee satisfaction through predictable schedules and reduced administrative burden",
+            "Primary Driver Impact": "$94M annual opportunity from optimized staffing, reduced overtime, and improved customer service capacity"
+          },
+          {
+            "Target State": "39% in-store conversion through AI product advisors, 4.1% digital conversion, $54 average basket via intelligent upsell and cross-sell",
+            "Current State": "32% in-store conversion rate on considered purchases requiring product expertise, 2.8% digital conversion rate, $47 average basket",
+            "Strategic Theme": "Customer Experience & Conversion Acceleration",
+            "Secondary Driver": "Loyalty program deepening through personalized product recommendations and proactive need anticipation",
+            "Primary Driver Impact": "$87M annual opportunity from higher conversion rates, larger basket sizes, and digital channel growth"
+          },
+          {
+            "Target State": "Automated supplier portals and AI-assisted negotiations reducing PO cycle time to 4.7 days while improving fill rates and payment term optimization",
+            "Current State": "76,000 annual hours on manual vendor communication with 8.2-day average purchase order cycle time and limited demand signal sharing",
+            "Strategic Theme": "Supply Chain Intelligence & Vendor Collaboration",
+            "Secondary Driver": "Risk mitigation through early visibility to supply disruptions and alternative sourcing automation",
+            "Primary Driver Impact": "$76M annual opportunity from procurement efficiency, supplier negotiation leverage, and reduced expedite costs"
+          },
+          {
+            "Target State": "AI-driven pricing recommendations updated weekly with real-time competitive monitoring and promotional impact forecasting reducing markdown budget by 35%",
+            "Current State": "89,000 annual hours on manual price analysis with regional pricing set quarterly and promotional effectiveness measured 30 days post-event",
+            "Strategic Theme": "Pricing & Promotion Effectiveness",
+            "Secondary Driver": "Margin expansion through price elasticity understanding and competitive positioning analytics",
+            "Primary Driver Impact": "$68M annual opportunity from dynamic pricing, markdown optimization, and promotional ROI improvement"
+          }
+        ],
+        "step": 1,
+        "title": "Strategic Anchoring & Business Drivers",
+        "content": "Five strategic imperatives anchor Tractor Supply's AI transformation roadmap. These themes connect operational friction to specific P&L impact and market positioning, ranked by quantified financial opportunity. Each theme drives exactly two measurable KPIs and supports two prioritized use cases in subsequent analysis."
+      },
+      {
+        "data": [
+          {
+            "Function": "Supply Chain",
+            "KPI Name": "Inventory Days on Hand",
+            "Direction": "↓",
+            "Timeframe": "18 months",
+            "Sub-Function": "Demand Planning",
+            "Target Value": "28 days",
+            "Baseline Value": "34 days",
+            "Benchmark (Avg)": "38 days (specialty retail average)",
+            "Strategic Theme": "Predictive Inventory Optimization",
+            "Measurement Method": "Average inventory / (COGS / 365) across all SKUs and locations",
+            "Benchmark (Overall Best)": "24 days (best-in-class omnichannel retail)",
+            "Benchmark (Industry Best)": "31 days (top quartile home improvement)"
+          },
+          {
+            "Function": "Supply Chain",
+            "KPI Name": "Seasonal Markdown Rate",
+            "Direction": "↓",
+            "Timeframe": "24 months",
+            "Sub-Function": "Demand Planning",
+            "Target Value": "11%",
+            "Baseline Value": "18%",
+            "Benchmark (Avg)": "16% (specialty retail average)",
+            "Strategic Theme": "Predictive Inventory Optimization",
+            "Measurement Method": "Total seasonal markdown dollars / seasonal category revenue across spring/fall cycles",
+            "Benchmark (Overall Best)": "8% (best-in-class demand forecasting organizations)",
+            "Benchmark (Industry Best)": "12% (top quartile agricultural retail)"
+          },
+          {
+            "Function": "Operations",
+            "KPI Name": "Labor Scheduling Variance",
+            "Direction": "↓",
+            "Timeframe": "18 months",
+            "Sub-Function": "Workforce Management",
+            "Target Value": "8%",
+            "Baseline Value": "23%",
+            "Benchmark (Avg)": "21% (retail industry average)",
+            "Strategic Theme": "Labor Productivity & Scheduling Excellence",
+            "Measurement Method": "Absolute variance between optimal staffing (traffic-based) and actual scheduled hours across all stores",
+            "Benchmark (Overall Best)": "6% (best-in-class workforce optimization)",
+            "Benchmark (Industry Best)": "12% (top quartile specialty retail)"
+          },
+          {
+            "Function": "Operations",
+            "KPI Name": "Store Manager Administrative Time",
+            "Direction": "↓",
+            "Timeframe": "12 months",
+            "Sub-Function": "Process Optimization",
+            "Target Value": "9 hours/week",
+            "Baseline Value": "18 hours/week",
+            "Benchmark (Avg)": "17 hours/week (retail industry average)",
+            "Strategic Theme": "Labor Productivity & Scheduling Excellence",
+            "Measurement Method": "Average weekly hours spent on scheduling, reporting, and compliance tasks per store manager",
+            "Benchmark (Overall Best)": "7 hours/week (best-in-class retail automation)",
+            "Benchmark (Industry Best)": "11 hours/week (top quartile specialty retail)"
+          },
+          {
+            "Function": "Sales",
+            "KPI Name": "Considered Purchase Conversion Rate",
+            "Direction": "↑",
+            "Timeframe": "24 months",
+            "Sub-Function": "Pipeline Management",
+            "Target Value": "39%",
+            "Baseline Value": "32%",
+            "Benchmark (Avg)": "34% (specialty retail average)",
+            "Strategic Theme": "Customer Experience & Conversion Acceleration",
+            "Measurement Method": "Transactions with associate interaction / total customer interactions on technical product categories",
+            "Benchmark (Overall Best)": "47% (best-in-class product expertise organizations)",
+            "Benchmark (Industry Best)": "41% (top quartile home improvement)"
+          },
+          {
+            "Function": "Digital Commerce",
+            "KPI Name": "Digital Conversion Rate",
+            "Direction": "↑",
+            "Timeframe": "18 months",
+            "Sub-Function": "E-Commerce",
+            "Target Value": "4.1%",
+            "Baseline Value": "2.8%",
+            "Benchmark (Avg)": "3.2% (specialty retail e-commerce average)",
+            "Strategic Theme": "Customer Experience & Conversion Acceleration",
+            "Measurement Method": "Online transactions / unique website and app sessions across all digital channels",
+            "Benchmark (Overall Best)": "6.1% (best-in-class personalization engines)",
+            "Benchmark (Industry Best)": "4.5% (top quartile home improvement digital)"
+          },
+          {
+            "Function": "Supply Chain",
+            "KPI Name": "Purchase Order Cycle Time",
+            "Direction": "↓",
+            "Timeframe": "18 months",
+            "Sub-Function": "Procurement",
+            "Target Value": "4.7 days",
+            "Baseline Value": "8.2 days",
+            "Benchmark (Avg)": "7.8 days (retail industry average)",
+            "Strategic Theme": "Supply Chain Intelligence & Vendor Collaboration",
+            "Measurement Method": "Average days from requisition to approved PO across all supplier categories",
+            "Benchmark (Overall Best)": "3.2 days (best-in-class procurement automation)",
+            "Benchmark (Industry Best)": "5.1 days (top quartile specialty retail)"
+          },
+          {
+            "Function": "Supply Chain",
+            "KPI Name": "Supplier Communication Hours",
+            "Direction": "↓",
+            "Timeframe": "24 months",
+            "Sub-Function": "Supplier Management",
+            "Target Value": "34,000 hours/year",
+            "Baseline Value": "76,000 hours/year",
+            "Benchmark (Avg)": "82,000 hours (comparable revenue specialty retail)",
+            "Strategic Theme": "Supply Chain Intelligence & Vendor Collaboration",
+            "Measurement Method": "Total buyer and planner hours on email, phone, and manual coordination with 800+ suppliers",
+            "Benchmark (Overall Best)": "28,000 hours (best-in-class vendor collaboration platforms)",
+            "Benchmark (Industry Best)": "48,000 hours (top quartile supplier portal adoption)"
+          },
+          {
+            "Function": "Merchandising",
+            "KPI Name": "Price Optimization Coverage",
+            "Direction": "↑",
+            "Timeframe": "24 months",
+            "Sub-Function": "Pricing Strategy",
+            "Target Value": "67%",
+            "Baseline Value": "12%",
+            "Benchmark (Avg)": "18% (specialty retail average)",
+            "Strategic Theme": "Pricing & Promotion Effectiveness",
+            "Measurement Method": "Percentage of SKUs with AI-recommended pricing vs. manual quarterly price setting",
+            "Benchmark (Overall Best)": "78% (best-in-class pricing science organizations)",
+            "Benchmark (Industry Best)": "54% (top quartile dynamic pricing adoption)"
+          },
+          {
+            "Function": "Merchandising",
+            "KPI Name": "Promotional ROI Measurement Lag",
+            "Direction": "↓",
+            "Timeframe": "18 months",
+            "Sub-Function": "Promotions",
+            "Target Value": "3 days",
+            "Baseline Value": "30 days",
+            "Benchmark (Avg)": "28 days (specialty retail average)",
+            "Strategic Theme": "Pricing & Promotion Effectiveness",
+            "Measurement Method": "Days from promotion end to complete performance analysis and learnings documentation",
+            "Benchmark (Overall Best)": "2 days (best-in-class real-time promotion analytics)",
+            "Benchmark (Industry Best)": "12 days (top quartile retail analytics)"
+          }
+        ],
+        "step": 2,
+        "title": "Business Function Inventory & KPI Baselines",
+        "content": "Ten key performance indicators anchor AI use case prioritization, each mapped to strategic themes and benchmarked against retail industry standards. Baseline measurements derive from disclosed financial metrics, operational data from earnings releases, and industry benchmark databases. Target states reflect 18-24 month implementation horizons."
+      },
+      {
+        "data": [
+          {
+            "Role": "Procurement Specialist",
+            "Role ID": "ROLE_PRO_PROCUREMENT",
+            "Function": "Supply Chain",
+            "Severity": "High",
+            "Hourly Rate": 85,
+            "Annual Hours": 41333,
+            "Cost Formula": "41,333 hours × $85/hr = $3.5M → $3.5M",
+            "Sub-Function": "Demand Planning",
+            "Friction Type": "Data Friction",
+            "Friction Point": "Manual seasonal demand forecasting across 2,000+ SKUs without predictive intelligence",
+            "Strategic Theme": "Predictive Inventory Optimization",
+            "Primary Driver Impact": "Inventory Days on Hand at 34 days vs. 28-day target; excess holding costs and capital lock-up",
+            "Estimated Annual Cost ($)": "$3.5M"
+          },
+          {
+            "Role": "Procurement Specialist",
+            "Role ID": "ROLE_PRO_PROCUREMENT",
+            "Function": "Supply Chain",
+            "Severity": "High",
+            "Hourly Rate": 85,
+            "Annual Hours": 32000,
+            "Cost Formula": "32,000 hours × $85/hr = $2.7M → $2.7M",
+            "Sub-Function": "Demand Planning",
+            "Friction Type": "Process Friction",
+            "Friction Point": "Reactive markdown decisions delayed by 2-4 weeks due to manual sales velocity tracking",
+            "Strategic Theme": "Predictive Inventory Optimization",
+            "Primary Driver Impact": "Seasonal Markdown Rate at 18% vs. 14% target; margin erosion on aging inventory",
+            "Estimated Annual Cost ($)": "$2.7M"
+          },
+          {
+            "Role": "Business Analyst",
+            "Role ID": "ROLE_PRO_BIZ_ANALYST",
+            "Function": "Operations",
+            "Severity": "High",
+            "Hourly Rate": 95,
+            "Annual Hours": 34000,
+            "Cost Formula": "34,000 hours × $95/hr = $3.2M → $3.2M",
+            "Sub-Function": "Workforce Management",
+            "Friction Type": "Process Friction",
+            "Friction Point": "Store-level labor scheduling built manually each week without demand pattern recognition",
+            "Strategic Theme": "Labor Productivity & Scheduling Excellence",
+            "Primary Driver Impact": "Labor Scheduling Variance at 23% vs. 15% target; overstaffing and overtime penalties",
+            "Estimated Annual Cost ($)": "$3.2M"
+          },
+          {
+            "Role": "Business Analyst",
+            "Role ID": "ROLE_PRO_BIZ_ANALYST",
+            "Function": "Operations",
+            "Severity": "High",
+            "Hourly Rate": 95,
+            "Annual Hours": 26000,
+            "Cost Formula": "26,000 hours × $95/hr = $2.5M → $2.5M",
+            "Sub-Function": "Process Optimization",
+            "Friction Type": "Technology Friction",
+            "Friction Point": "Store managers compile compliance reports and operational summaries consuming 18 hours weekly",
+            "Strategic Theme": "Labor Productivity & Scheduling Excellence",
+            "Primary Driver Impact": "Store Manager Administrative Time at 18 hours/week vs. 12-hour target; reduced customer floor presence",
+            "Estimated Annual Cost ($)": "$2.5M"
+          },
+          {
+            "Role": "Sales Representative",
+            "Role ID": "ROLE_PRO_SALES_REP",
+            "Function": "Sales",
+            "Severity": "Critical",
+            "Hourly Rate": 90,
+            "Annual Hours": 49333,
+            "Cost Formula": "49,333 hours × $90/hr = $4.4M → $4.4M",
+            "Sub-Function": "Pipeline Management",
+            "Friction Type": "Knowledge Friction",
+            "Friction Point": "Complex agricultural product selection overwhelms customers without expert guidance availability",
+            "Strategic Theme": "Customer Experience & Conversion Acceleration",
+            "Primary Driver Impact": "Considered Purchase Conversion Rate at 32% vs. 38% target; lost sales on livestock feed, fencing, equipment",
+            "Estimated Annual Cost ($)": "$4.4M"
+          },
+          {
+            "Role": "Marketing Specialist",
+            "Role ID": "ROLE_PRO_MKTG_SPEC",
+            "Function": "Digital Commerce",
+            "Severity": "High",
+            "Hourly Rate": 85,
+            "Annual Hours": 30667,
+            "Cost Formula": "30,667 hours × $85/hr = $2.6M → $2.6M",
+            "Sub-Function": "E-Commerce",
+            "Friction Type": "Data Friction",
+            "Friction Point": "Generic product recommendations fail to account for regional agricultural needs and seasonal timing",
+            "Strategic Theme": "Customer Experience & Conversion Acceleration",
+            "Primary Driver Impact": "Digital Conversion Rate at 2.8% vs. 3.6% target; abandoned carts due to irrelevant suggestions",
+            "Estimated Annual Cost ($)": "$2.6M"
+          },
+          {
+            "Role": "Procurement Specialist",
+            "Role ID": "ROLE_PRO_PROCUREMENT",
+            "Function": "Supply Chain",
+            "Severity": "High",
+            "Hourly Rate": 85,
+            "Annual Hours": 28000,
+            "Cost Formula": "28,000 hours × $85/hr = $2.4M → $2.4M",
+            "Sub-Function": "Procurement",
+            "Friction Type": "Process Friction",
+            "Friction Point": "Purchase order creation requires manual vendor research and multi-step approval workflows",
+            "Strategic Theme": "Supply Chain Intelligence & Vendor Collaboration",
+            "Primary Driver Impact": "Purchase Order Cycle Time at 8.2 days vs. 5.5-day target; delayed restocks and expedite fees",
+            "Estimated Annual Cost ($)": "$2.4M"
+          },
+          {
+            "Role": "Procurement Specialist",
+            "Role ID": "ROLE_PRO_PROCUREMENT",
+            "Function": "Supply Chain",
+            "Severity": "High",
+            "Hourly Rate": 85,
+            "Annual Hours": 25333,
+            "Cost Formula": "25,333 hours × $85/hr = $2.1M → $2.1M",
+            "Sub-Function": "Supplier Management",
+            "Friction Type": "Process Friction",
+            "Friction Point": "Routine supplier communications handled individually without automation or standardization",
+            "Strategic Theme": "Supply Chain Intelligence & Vendor Collaboration",
+            "Primary Driver Impact": "Supplier Communication Hours at 76,000 annually vs. 52,000 target; procurement team capacity constraints",
+            "Estimated Annual Cost ($)": "$2.1M"
+          },
+          {
+            "Role": "Merchandising Analyst",
+            "Role ID": "ROLE_SPEC_MERCH_ANALYST",
+            "Function": "Merchandising",
+            "Severity": "High",
+            "Hourly Rate": 100,
+            "Annual Hours": 23333,
+            "Cost Formula": "23,333 hours × $100/hr = $2.3M → $2.3M",
+            "Sub-Function": "Pricing Strategy",
+            "Friction Type": "Technology Friction",
+            "Friction Point": "Price elasticity analysis limited to 12% of SKUs due to manual competitive monitoring burden",
+            "Strategic Theme": "Pricing & Promotion Effectiveness",
+            "Primary Driver Impact": "Price Optimization Coverage at 12% vs. 35% target; margin leakage on unoptimized categories",
+            "Estimated Annual Cost ($)": "$2.3M"
+          },
+          {
+            "Role": "Merchandising Analyst",
+            "Role ID": "ROLE_SPEC_MERCH_ANALYST",
+            "Function": "Merchandising",
+            "Severity": "Critical",
+            "Hourly Rate": 100,
+            "Annual Hours": 56667,
+            "Cost Formula": "56,667 hours × $100/hr = $5.7M → $5.7M",
+            "Sub-Function": "Promotions",
+            "Friction Type": "Data Friction",
+            "Friction Point": "Promotional performance evaluation delayed 30 days due to fragmented data aggregation",
+            "Strategic Theme": "Pricing & Promotion Effectiveness",
+            "Primary Driver Impact": "Promotional ROI Measurement Lag at 30 days vs. 5-day target; continued spending on underperforming campaigns",
+            "Estimated Annual Cost ($)": "$5.7M"
+          }
+        ],
+        "step": 3,
+        "title": "Friction Point Mapping",
+        "content": "Ten operational bottlenecks extract $52M annually in unnecessary labor costs across Tractor Supply's rural retail footprint. Inventory planning anchors four friction points—representing $18M in merchant and analyst hours reconciling 2,000+ SKUs across seasonal agricultural cycles without demand intelligence. Labor scheduling consumes $9M in manual coordination across 2,000+ stores where weather variability makes traditional planning obsolete. Customer engagement gaps leak $12M through missed conversion opportunities that product expertise could capture. Procurement friction burns $8M in redundant supplier communications. Pricing inefficiency costs $5M in delayed markdown decisions. Each friction point maps directly to a KPI baseline from Step 2 and connects to one of five strategic themes. Severity ratings reflect both financial magnitude and strategic urgency."
+      },
+      {
+        "data": [
+          {
+            "ID": "UC-01",
+            "Function": "Supply Chain",
+            "Data Types": [
+              "Structured",
+              "Semi-structured",
+              "Real-time"
+            ],
+            "Description": "Multi-agent system ingests 3 years of POS data, weather forecasts, agricultural calendars, and regional crop patterns to generate SKU-level demand predictions 12 weeks forward. Orchestrator coordinates specialist agents for pattern recognition, outlier detection, and forecast synthesis.",
+            "EPOCH Flags": "O",
+            "Integrations": [
+              "Oracle Retail Merchandising",
+              "Weather API",
+              "Regional Agricultural Data Feeds",
+              "POS Transaction Database"
+            ],
+            "Sub-Function": "Demand Planning",
+            "_patternType": "multi-agent",
+            "AI Primitives": "Data Analysis, Workflow Automation",
+            "Use Case Name": "Predictive Seasonal Demand Engine",
+            "Agentic Pattern": "orchestrator_worker",
+            "Primary Pattern": "Orchestrator-Workers",
+            "Strategic Theme": "Predictive Inventory Optimization",
+            "Target Friction": "Manual seasonal demand forecasting across 2,000+ SKUs without predictive intelligence",
+            "Desired Outcomes": [
+              "Reduce inventory days on hand from 34 to 28 days",
+              "Improve forecast accuracy to 82% from 67%",
+              "Decrease stockouts on seasonal items by 40%",
+              "Free 6,200 merchant hours annually for strategic vendor negotiations"
+            ],
+            "_tokenMultiplier": 3,
+            "Pattern Rationale": "Orchestrator-workers handles specialized forecasting logic per category (livestock, equipment, seasonal goods) while maintaining forecast coherence. Parallelization viable for independent SKU predictions but loses cross-category demand correlation insights.",
+            "_patternComplexity": "high",
+            "Alternative Pattern": "Parallelization",
+            "_implementationMonths": 5,
+            "Human-in-the-Loop Checkpoint": "Merchandising director approves forecast adjustments exceeding 25% variance from historical trends before inventory commits"
+          },
+          {
+            "ID": "UC-02",
+            "Function": "Supply Chain",
+            "Data Types": [
+              "Structured",
+              "Real-time"
+            ],
+            "Description": "Agent monitors daily sales velocity, competitor pricing, and inventory levels to recommend markdown timing and depth. Generator proposes markdown schedules; critic validates against margin thresholds and brand positioning rules before merchant review.",
+            "EPOCH Flags": "O",
+            "Integrations": [
+              "Oracle Retail Price Management",
+              "Competitive Pricing Intelligence Platform",
+              "Inventory Management System",
+              "Store POS Systems"
+            ],
+            "Sub-Function": "Demand Planning",
+            "_patternType": "multi-agent",
+            "AI Primitives": "Data Analysis, Workflow Automation",
+            "Use Case Name": "Dynamic Markdown Orchestrator",
+            "Agentic Pattern": "generator_critic",
+            "Primary Pattern": "Generator-Critic",
+            "Strategic Theme": "Predictive Inventory Optimization",
+            "Target Friction": "Reactive markdown decisions delayed by 2-4 weeks due to manual sales velocity tracking",
+            "Desired Outcomes": [
+              "Reduce seasonal markdown rate from 18% to 14%",
+              "Accelerate markdown decision cycle from 14 days to 2 days",
+              "Recover $18M annually in margin preservation",
+              "Eliminate 4,800 hours of manual velocity analysis"
+            ],
+            "_tokenMultiplier": 2,
+            "Pattern Rationale": "Generator-critic enables aggressive markdown proposals balanced by brand integrity validation, critical for premium categories like Carhartt. Tool use simpler but lacks adversarial quality control needed for pricing decisions.",
+            "_patternComplexity": "medium",
+            "Alternative Pattern": "Tool Use",
+            "_implementationMonths": 2.5,
+            "Human-in-the-Loop Checkpoint": "Category merchants approve all markdown recommendations before price changes execute in POS systems"
+          },
+          {
+            "ID": "UC-03",
+            "Function": "Operations",
+            "Data Types": [
+              "Structured",
+              "Semi-structured",
+              "Real-time"
+            ],
+            "Description": "Planning agent builds weekly store schedules using constraint optimization across traffic forecasts, employee availability, skill requirements, and labor budget limits. Reflects on schedule quality by simulating coverage gaps before submission.",
+            "EPOCH Flags": "P, O",
+            "Integrations": [
+              "Workday HCM",
+              "Store Traffic Analytics",
+              "POS Transaction System",
+              "Employee Availability Portal"
+            ],
+            "Sub-Function": "Workforce Management",
+            "_patternType": "single-agent",
+            "AI Primitives": "Data Analysis, Workflow Automation",
+            "Use Case Name": "Intelligent Labor Scheduling Agent",
+            "Agentic Pattern": "planning",
+            "Primary Pattern": "Planning",
+            "Strategic Theme": "Labor Productivity & Scheduling Excellence",
+            "Target Friction": "Store-level labor scheduling built manually each week without demand pattern recognition",
+            "Desired Outcomes": [
+              "Reduce labor scheduling variance from 23% to 15%",
+              "Cut scheduling time from 6 hours to 45 minutes per store weekly",
+              "Decrease overtime costs by 28%",
+              "Improve customer service coverage during peak livestock feed buying hours"
+            ],
+            "_tokenMultiplier": 1.4,
+            "Pattern Rationale": "Planning pattern optimizes across multiple hard constraints (labor laws, availability, budget) that require look-ahead reasoning. Reflection useful for quality checking but insufficient for initial schedule generation under complex constraints.",
+            "_patternComplexity": "medium",
+            "Alternative Pattern": "Reflection",
+            "_implementationMonths": 2.5,
+            "Human-in-the-Loop Checkpoint": "Store managers review and adjust AI-generated schedules to accommodate local knowledge and employee preferences before publishing"
+          },
+          {
+            "ID": "UC-04",
+            "Function": "Operations",
+            "Data Types": [
+              "Structured",
+              "Semi-structured"
+            ],
+            "Description": "Content generation agent drafts daily operational summaries, compliance reports, and performance dashboards by extracting data from POS, inventory, and HR systems. Reflection loop validates report completeness and accuracy before manager review.",
+            "EPOCH Flags": "O",
+            "Integrations": [
+              "Oracle Retail Store Operations",
+              "Workday HCM",
+              "Compliance Management System",
+              "POS Analytics Platform"
+            ],
+            "Sub-Function": "Process Optimization",
+            "_patternType": "single-agent",
+            "AI Primitives": "Content Creation, Research & Information Retrieval",
+            "Use Case Name": "Automated Operational Reporting Suite",
+            "Agentic Pattern": "reflection",
+            "Primary Pattern": "Reflection",
+            "Strategic Theme": "Labor Productivity & Scheduling Excellence",
+            "Target Friction": "Store managers compile compliance reports and operational summaries consuming 18 hours weekly",
+            "Desired Outcomes": [
+              "Reduce store manager administrative time from 18 to 12 hours weekly",
+              "Reallocate 3,900 manager hours annually to customer engagement",
+              "Improve report submission timeliness from 78% to 96%",
+              "Standardize compliance documentation across 2,000+ stores"
+            ],
+            "_tokenMultiplier": 1.5,
+            "Pattern Rationale": "Reflection enables self-correction of data extraction errors and format inconsistencies before manager review, critical for compliance accuracy. Prompt chaining viable for simpler report assembly but lacks quality verification step.",
+            "_patternComplexity": "low",
+            "Alternative Pattern": "Prompt Chaining",
+            "_implementationMonths": 1.5,
+            "Human-in-the-Loop Checkpoint": "Store managers validate report accuracy and add contextual notes before submitting to district leadership"
+          },
+          {
+            "ID": "UC-05",
+            "Function": "Sales",
+            "Data Types": [
+              "Structured",
+              "Unstructured"
+            ],
+            "Description": "Conversational agent provides in-store associates with instant product recommendations based on customer needs, regional agriculture patterns, and inventory availability. Tool use retrieves product specifications, application guides, and compatibility information during customer conversations.",
+            "EPOCH Flags": "E, P",
+            "Integrations": [
+              "Product Information Management System",
+              "Store Inventory Database",
+              "Agricultural Application Guides",
+              "Mobile Associate Devices"
+            ],
+            "Sub-Function": "Pipeline Management",
+            "_patternType": "single-agent",
+            "AI Primitives": "Conversational Interfaces, Research & Information Retrieval",
+            "Use Case Name": "Expert Product Guidance Assistant",
+            "Agentic Pattern": "tool_use",
+            "Primary Pattern": "Tool Use",
+            "Strategic Theme": "Customer Experience & Conversion Acceleration",
+            "Target Friction": "Complex agricultural product selection overwhelms customers without expert guidance availability",
+            "Desired Outcomes": [
+              "Increase considered purchase conversion from 32% to 38%",
+              "Grow average livestock feed transaction size by 22%",
+              "Reduce product return rate from 8% to 5% through better initial recommendations",
+              "Enable new associates to perform at 85% of veteran expertise within 30 days"
+            ],
+            "_tokenMultiplier": 1.3,
+            "Pattern Rationale": "Tool use enables rapid retrieval of product data, compatibility matrices, and application guides during time-sensitive customer interactions. ReAct viable for complex troubleshooting but adds latency unacceptable in fast-paced retail environment.",
+            "_patternComplexity": "medium",
+            "Alternative Pattern": "ReAct Loop",
+            "_implementationMonths": 2.5,
+            "Human-in-the-Loop Checkpoint": "Sales associates validate AI recommendations against customer-stated needs and local conditions before finalizing product selection"
+          },
+          {
+            "ID": "UC-06",
+            "Function": "Digital Commerce",
+            "Data Types": [
+              "Structured",
+              "Semi-structured",
+              "Real-time"
+            ],
+            "Description": "Data analysis agent builds customer profiles using purchase history, browsing behavior, and regional agricultural context to generate personalized product suggestions. Semantic router directs recommendations through category-specific logic for livestock, equipment, or seasonal goods.",
+            "EPOCH Flags": "C",
+            "Integrations": [
+              "Adobe Commerce Platform",
+              "Customer Data Platform",
+              "Regional Agricultural Data",
+              "Weather API"
+            ],
+            "Sub-Function": "E-Commerce",
+            "_patternType": "single-agent",
+            "AI Primitives": "Data Analysis, Conversational Interfaces",
+            "Use Case Name": "Contextual E-Commerce Recommendation Engine",
+            "Agentic Pattern": "planning",
+            "Primary Pattern": "Planning",
+            "Strategic Theme": "Customer Experience & Conversion Acceleration",
+            "Target Friction": "Generic product recommendations fail to account for regional agricultural needs and seasonal timing",
+            "Desired Outcomes": [
+              "Improve digital conversion rate from 2.8% to 3.6%",
+              "Increase cross-category purchases per transaction by 31%",
+              "Reduce cart abandonment rate from 68% to 58%",
+              "Generate $34M incremental online revenue annually"
+            ],
+            "_tokenMultiplier": 1.4,
+            "Pattern Rationale": "Planning pattern enables look-ahead reasoning about customer lifecycle stage and seasonal needs, critical for agricultural products with multi-week planning horizons. Tool use simpler but misses temporal sequencing of product needs.",
+            "_patternComplexity": "medium",
+            "Alternative Pattern": "Tool Use",
+            "_implementationMonths": 2.5,
+            "Human-in-the-Loop Checkpoint": "Merchandising team reviews recommendation performance weekly and adjusts category weighting rules based on conversion data"
+          },
+          {
+            "ID": "UC-07",
+            "Function": "Supply Chain",
+            "Data Types": [
+              "Structured",
+              "Semi-structured"
+            ],
+            "Description": "Orchestrator agent manages end-to-end PO creation by coordinating demand signals, vendor selection, pricing negotiation, and approval routing. Worker agents handle vendor research, contract term validation, and budget compliance checks before submitting for procurement approval.",
+            "EPOCH Flags": "O",
+            "Integrations": [
+              "Oracle Procurement Cloud",
+              "Vendor Management System",
+              "Contract Repository",
+              "Budget Management System"
+            ],
+            "Sub-Function": "Procurement",
+            "_patternType": "multi-agent",
+            "AI Primitives": "Workflow Automation, Research & Information Retrieval",
+            "Use Case Name": "Autonomous Purchase Order Agent",
+            "Agentic Pattern": "orchestrator_worker",
+            "Primary Pattern": "Orchestrator-Workers",
+            "Strategic Theme": "Supply Chain Intelligence & Vendor Collaboration",
+            "Target Friction": "Purchase order creation requires manual vendor research and multi-step approval workflows",
+            "Desired Outcomes": [
+              "Reduce PO cycle time from 8.2 to 5.5 days",
+              "Automate 68% of routine PO creation tasks",
+              "Decrease expedite shipping costs by $6M annually",
+              "Free 4,200 procurement hours for strategic vendor negotiations"
+            ],
+            "_tokenMultiplier": 3,
+            "Pattern Rationale": "Orchestrator-workers handles parallel vendor evaluation, contract review, and budget validation while maintaining PO coherence. Agent handoff viable for sequential approval flow but loses efficiency from parallel processing of vendor research.",
+            "_patternComplexity": "high",
+            "Alternative Pattern": "Agent Handoff",
+            "_implementationMonths": 5,
+            "Human-in-the-Loop Checkpoint": "Procurement specialists approve all POs before transmission to vendors, with authority thresholds requiring director sign-off above $50K"
+          },
+          {
+            "ID": "UC-08",
+            "Function": "Supply Chain",
+            "Data Types": [
+              "Structured",
+              "Semi-structured",
+              "Unstructured"
+            ],
+            "Description": "Conversational agent handles routine supplier inquiries, shipment status updates, and documentation requests through structured workflows. Prompt chaining routes complex issues to procurement specialists while resolving standard queries autonomously.",
+            "EPOCH Flags": "",
+            "Integrations": [
+              "Oracle Procurement Cloud",
+              "Email Systems",
+              "Shipment Tracking Systems",
+              "Supplier Portal"
+            ],
+            "Sub-Function": "Supplier Management",
+            "_patternType": "single-agent",
+            "AI Primitives": "Conversational Interfaces, Workflow Automation",
+            "Use Case Name": "Supplier Communication Automation Hub",
+            "Agentic Pattern": "planning",
+            "Primary Pattern": "Planning",
+            "Strategic Theme": "Supply Chain Intelligence & Vendor Collaboration",
+            "Target Friction": "Routine supplier communications handled individually without automation or standardization",
+            "Desired Outcomes": [
+              "Reduce supplier communication hours from 76,000 to 52,000 annually",
+              "Improve supplier inquiry response time from 6 hours to 15 minutes",
+              "Automate 72% of routine status update requests",
+              "Reallocate 3,800 procurement hours to supplier development initiatives"
+            ],
+            "_tokenMultiplier": 1.4,
+            "Pattern Rationale": "Planning pattern enables intent classification and multi-step information gathering needed for supplier queries spanning multiple systems. ReAct loop viable but adds conversation turns that frustrate time-sensitive vendor communications.",
+            "_patternComplexity": "medium",
+            "Alternative Pattern": "ReAct Loop",
+            "_implementationMonths": 2.5,
+            "Human-in-the-Loop Checkpoint": "Procurement team reviews escalated supplier issues requiring contract interpretation or relationship management decisions"
+          },
+          {
+            "ID": "UC-09",
+            "Function": "Merchandising",
+            "Data Types": [
+              "Structured",
+              "Semi-structured",
+              "Real-time"
+            ],
+            "Description": "Data analysis agent continuously monitors competitor pricing across 40,000 SKUs, detects price gaps exceeding margin thresholds, and recommends adjustments. Parallelization enables simultaneous competitive scanning across categories without bottlenecks.",
+            "EPOCH Flags": "O",
+            "Integrations": [
+              "Oracle Retail Price Management",
+              "Competitive Intelligence Platform",
+              "Web Scraping APIs",
+              "Market Basket Analysis System"
+            ],
+            "Sub-Function": "Pricing Strategy",
+            "_patternType": "multi-agent",
+            "AI Primitives": "Data Analysis, Research & Information Retrieval",
+            "Use Case Name": "Competitive Pricing Intelligence Platform",
+            "Agentic Pattern": "parallelization",
+            "Primary Pattern": "Parallelization",
+            "Strategic Theme": "Pricing & Promotion Effectiveness",
+            "Target Friction": "Price elasticity analysis limited to 12% of SKUs due to manual competitive monitoring burden",
+            "Desired Outcomes": [
+              "Expand price optimization coverage from 12% to 35% of SKUs",
+              "Identify margin expansion opportunities worth $14M annually",
+              "Reduce competitive price gap from 8% to 3% on key value items",
+              "Free 3,500 analyst hours for elasticity modeling and promotion design"
+            ],
+            "_tokenMultiplier": 3.5,
+            "Pattern Rationale": "Parallelization enables independent competitive monitoring per SKU category without coordination overhead, critical for 40,000-item catalog. Orchestrator-workers viable but adds unnecessary coordination latency for independent pricing decisions.",
+            "_patternComplexity": "high",
+            "Alternative Pattern": "Orchestrator-Workers",
+            "_implementationMonths": 4.5,
+            "Human-in-the-Loop Checkpoint": "Pricing analysts approve recommended price changes and validate competitive data accuracy before implementing adjustments"
+          },
+          {
+            "ID": "UC-10",
+            "Function": "Merchandising",
+            "Data Types": [
+              "Structured",
+              "Real-time"
+            ],
+            "Description": "Content creation agent synthesizes POS data, digital engagement metrics, and inventory movement to generate daily promotional performance reports. Reflection validates data completeness and flags anomalies before merchandising review.",
+            "EPOCH Flags": "O",
+            "Integrations": [
+              "Oracle Retail Merchandising",
+              "POS Analytics Platform",
+              "Digital Marketing Analytics",
+              "Inventory Management System"
+            ],
+            "Sub-Function": "Promotions",
+            "_patternType": "single-agent",
+            "AI Primitives": "Data Analysis, Content Creation",
+            "Use Case Name": "Real-Time Promotional Performance Dashboard",
+            "Agentic Pattern": "reflection",
+            "Primary Pattern": "Reflection",
+            "Strategic Theme": "Pricing & Promotion Effectiveness",
+            "Target Friction": "Promotional performance evaluation delayed 30 days due to fragmented data aggregation",
+            "Desired Outcomes": [
+              "Reduce promotional ROI measurement lag from 30 to 5 days",
+              "Enable mid-campaign optimization for underperforming promotions",
+              "Improve promotional ROI from 3.2× to 4.1× through faster iteration",
+              "Eliminate 8,500 hours of manual data aggregation annually"
+            ],
+            "_tokenMultiplier": 1.5,
+            "Pattern Rationale": "Reflection enables self-validation of cross-system data integration and outlier detection critical for accurate ROI measurement. Prompt chaining simpler for report assembly but lacks error-checking needed for financial decision-making.",
+            "_patternComplexity": "low",
+            "Alternative Pattern": "Prompt Chaining",
+            "_implementationMonths": 1.5,
+            "Human-in-the-Loop Checkpoint": "Merchandising directors validate promotional insights and approve campaign adjustments based on AI-generated performance analysis"
+          }
+        ],
+        "step": 4,
+        "title": "AI Use Case Generation",
+        "content": "Ten AI use cases reshape how Tractor Supply operates across merchandising, supply chain, and store operations. Each addresses one friction point through process transformation, not acceleration. Inventory intelligence eliminates manual forecasting through pattern recognition across weather, agricultural cycles, and regional buying behaviors. Labor optimization automates scheduling with constraint satisfaction that humans cannot match at scale. Customer guidance systems deploy contextual product expertise at point-of-need. Procurement acceleration compresses vendor workflows through agentic orchestration. Pricing intelligence scales competitive monitoring beyond human capacity. Every use case mandates human validation before financial commitment or customer impact. Design patterns range from simple reflection loops for report generation to complex orchestrator-worker systems for procurement automation. Back-office operations dominate—eight of ten use cases target internal efficiency before customer-facing enhancement."
+      },
+      {
+        "data": [
+          {
+            "ID": "UC-01",
+            "Use Case": "Predictive Seasonal Demand Engine",
+            "Cost Formula": "22,000 hours × $125/hr × 1.35 × 0.90 × 0.75 = $2.5M → $2.5M [HF/labels]",
+            "Risk Formula": "3% × $80,000,000 × 0.80 × 0.75 = $1.4M → $1.4M [HF/labels]",
+            "Revenue Formula": "0.15% × $14,800,000,000 × 0.95 × 0.75 = $15.8M → $15.8M [HF/labels]",
+            "Strategic Theme": "Predictive Inventory Optimization",
+            "Cost Benefit ($)": "$2.5M",
+            "Risk Benefit ($)": "$1.4M",
+            "Cash Flow Formula": "$14,800,000,000 × (2/365) × 0.08 × 0.85 × 0.75 = $4.1M → $4.1M [HF/labels]",
+            "Expected Value ($)": "$15.5M",
+            "Cost Formula Labels": {
+              "result": "$2.5M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 22000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 125
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$15.8M",
+            "Risk Formula Labels": {
+              "result": "$1.4M",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.03
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 80000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$4.1M",
+            "Probability of Success": 0.65,
+            "Revenue Formula Labels": {
+              "result": "$15.8M",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.0015
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 14800000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$23.9M",
+            "Cash Flow Formula Labels": {
+              "result": "$4.1M",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 14800000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 2
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            }
+          },
+          {
+            "ID": "UC-02",
+            "Use Case": "Dynamic Markdown Orchestrator",
+            "Cost Formula": "18,000 hours × $110/hr × 1.35 × 0.90 × 0.75 = $1.8M → $1.8M [HF/labels]",
+            "Risk Formula": "3% × $60,000,000 × 0.80 × 0.75 = $1.1M → $1.1M [HF/labels]",
+            "Revenue Formula": "0.12% × $14,800,000,000 × 0.95 × 0.75 = $12.7M → $12.7M [HF/labels]",
+            "Strategic Theme": "Predictive Inventory Optimization",
+            "Cost Benefit ($)": "$1.8M",
+            "Risk Benefit ($)": "$1.1M",
+            "Cash Flow Formula": "$14,800,000,000 × (1.5/365) × 0.08 × 0.85 × 0.75 = $3.1M → $3.1M [HF/labels]",
+            "Expected Value ($)": "$11.2M",
+            "Cost Formula Labels": {
+              "result": "$1.8M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 18000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 110
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$12.7M",
+            "Risk Formula Labels": {
+              "result": "$1.1M",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.03
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 60000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$3.1M",
+            "Probability of Success": 0.6,
+            "Revenue Formula Labels": {
+              "result": "$12.7M",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.0012
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 14800000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$18.6M",
+            "Cash Flow Formula Labels": {
+              "result": "$3.1M",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 14800000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 1.5
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            }
+          },
+          {
+            "ID": "UC-03",
+            "Use Case": "Intelligent Labor Scheduling Agent",
+            "Cost Formula": "24,000 hours × $85/hr × 1.35 × 0.90 × 0.75 = $1.9M → $1.9M [HF/labels]",
+            "Risk Formula": "2.5% × $48,000,000 × 0.80 × 0.75 = $720K → $720K [HF/labels]",
+            "Revenue Formula": "0.08% × $14,800,000,000 × 0.95 × 0.75 = $8.4M → $8.4M [HF/labels]",
+            "Strategic Theme": "Labor Productivity & Scheduling Excellence",
+            "Cost Benefit ($)": "$1.9M",
+            "Risk Benefit ($)": "$720K",
+            "Cash Flow Formula": "$14,800,000,000 × (1/365) × 0.08 × 0.85 × 0.75 = $2.1M → $2.1M [HF/labels]",
+            "Expected Value ($)": "$9.2M",
+            "Cost Formula Labels": {
+              "result": "$1.9M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 24000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 85
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$8.4M",
+            "Risk Formula Labels": {
+              "result": "$720K",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.025
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 48000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$2.1M",
+            "Probability of Success": 0.7,
+            "Revenue Formula Labels": {
+              "result": "$8.4M",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.0008
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 14800000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$13.1M",
+            "Cash Flow Formula Labels": {
+              "result": "$2.1M",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 14800000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 1
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            }
+          },
+          {
+            "ID": "UC-04",
+            "Use Case": "Automated Operational Reporting Suite",
+            "Cost Formula": "19,000 hours × $95/hr × 1.35 × 0.90 × 0.75 = $1.6M → $1.6M [HF/labels]",
+            "Risk Formula": "2% × $42,000,000 × 0.80 × 0.75 = $504K → $504K [HF/labels]",
+            "Revenue Formula": "5% (capped from 500%) × $14 × 0.75 × 0.75 = $0 → $0 [HF/labels]",
+            "Strategic Theme": "Labor Productivity & Scheduling Excellence",
+            "Cost Benefit ($)": "$1.6M",
+            "Risk Benefit ($)": "$504K",
+            "Cash Flow Formula": "$14,000,000 × (90 / 365) × 0.08 × 0.85 × 0.75 = $176K → $176K",
+            "Expected Value ($)": "$1.7M",
+            "Cost Formula Labels": {
+              "result": "$1.6M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 19000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 95
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$0",
+            "Risk Formula Labels": {
+              "result": "$504K",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.02
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 42000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$176K",
+            "Probability of Success": 0.75,
+            "Revenue Formula Labels": {
+              "result": "$0",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 5
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 14
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.75
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$2.3M",
+            "Cash Flow Formula Labels": {
+              "result": "$176K",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": "$14,000,000"
+                },
+                {
+                  "label": "Days Improved / 365",
+                  "value": "(90 / 365)"
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": "0.08"
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": "0.85"
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": "0.75"
+                }
+              ],
+              "rawFormula": "$14,000,000 × (90 / 365) × 0.08 × 0.85 × 0.75 = $176K → $176K"
+            }
+          },
+          {
+            "ID": "UC-05",
+            "Use Case": "Expert Product Guidance Assistant",
+            "Cost Formula": "16,000 hours × $75/hr × 1.35 × 0.90 × 0.75 = $1.1M → $1.1M [HF/labels]",
+            "Risk Formula": "2.5% × $72,000,000 × 0.80 × 0.75 = $1.1M → $1.1M [HF/labels]",
+            "Revenue Formula": "0.2% × $14,800,000,000 × 0.95 × 0.75 = $21.1M → $21.1M [HF/labels]",
+            "Strategic Theme": "Customer Experience & Conversion Acceleration",
+            "Cost Benefit ($)": "$1.1M",
+            "Risk Benefit ($)": "$1.1M",
+            "Cash Flow Formula": "$14,000,000 × (90 / 365) × 0.08 × 0.85 × 0.75 = $176K → $176K",
+            "Expected Value ($)": "$12.9M",
+            "Cost Formula Labels": {
+              "result": "$1.1M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 16000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 75
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$21.1M",
+            "Risk Formula Labels": {
+              "result": "$1.1M",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.025
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 72000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$176K",
+            "Probability of Success": 0.55,
+            "Revenue Formula Labels": {
+              "result": "$21.1M",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.002
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 14800000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$23.4M",
+            "Cash Flow Formula Labels": {
+              "result": "$176K",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": "$14,000,000"
+                },
+                {
+                  "label": "Days Improved / 365",
+                  "value": "(90 / 365)"
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": "0.08"
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": "0.85"
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": "0.75"
+                }
+              ],
+              "rawFormula": "$14,000,000 × (90 / 365) × 0.08 × 0.85 × 0.75 = $176K → $176K"
+            }
+          },
+          {
+            "ID": "UC-06",
+            "Use Case": "Contextual E-Commerce Recommendation Engine",
+            "Cost Formula": "14,000 hours × $80/hr × 1.35 × 0.90 × 0.75 = $1.0M → $1.0M [HF/labels]",
+            "Risk Formula": "2% × $54,000,000 × 0.80 × 0.75 = $648K → $648K [HF/labels]",
+            "Revenue Formula": "0.12% × $14,800,000,000 × 0.95 × 0.75 = $12.7M → $12.7M [HF/labels]",
+            "Strategic Theme": "Customer Experience & Conversion Acceleration",
+            "Cost Benefit ($)": "$1.0M",
+            "Risk Benefit ($)": "$648K",
+            "Cash Flow Formula": "$14,000,000 × (90 / 365) × 0.08 × 0.85 × 0.75 = $176K → $176K",
+            "Expected Value ($)": "$8.7M",
+            "Cost Formula Labels": {
+              "result": "$1.0M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 14000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 80
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$12.7M",
+            "Risk Formula Labels": {
+              "result": "$648K",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.02
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 54000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$176K",
+            "Probability of Success": 0.6,
+            "Revenue Formula Labels": {
+              "result": "$12.7M",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.0012
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 14800000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$14.5M",
+            "Cash Flow Formula Labels": {
+              "result": "$176K",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": "$14,000,000"
+                },
+                {
+                  "label": "Days Improved / 365",
+                  "value": "(90 / 365)"
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": "0.08"
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": "0.85"
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": "0.75"
+                }
+              ],
+              "rawFormula": "$14,000,000 × (90 / 365) × 0.08 × 0.85 × 0.75 = $176K → $176K"
+            }
+          },
+          {
+            "ID": "UC-07",
+            "Use Case": "Autonomous Purchase Order Agent",
+            "Cost Formula": "20,000 hours × $90/hr × 1.35 × 0.90 × 0.75 = $1.6M → $1.6M [HF/labels]",
+            "Risk Formula": "2.5% × $50,000,000 × 0.80 × 0.75 = $750K → $750K [HF/labels]",
+            "Revenue Formula": "5% (capped from 500%) × $14 × 0.75 × 0.75 = $0 → $0 [HF/labels]",
+            "Strategic Theme": "Supply Chain Intelligence & Vendor Collaboration",
+            "Cost Benefit ($)": "$1.6M",
+            "Risk Benefit ($)": "$750K",
+            "Cash Flow Formula": "$14,800,000,000 × (1.5/365) × 0.08 × 0.85 × 0.75 = $3.1M → $3.1M [HF/labels]",
+            "Expected Value ($)": "$3.6M",
+            "Cost Formula Labels": {
+              "result": "$1.6M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 20000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 90
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$0",
+            "Risk Formula Labels": {
+              "result": "$750K",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.025
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 50000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$3.1M",
+            "Probability of Success": 0.65,
+            "Revenue Formula Labels": {
+              "result": "$0",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 5
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 14
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.75
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$5.5M",
+            "Cash Flow Formula Labels": {
+              "result": "$3.1M",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 14800000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 1.5
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            }
+          },
+          {
+            "ID": "UC-08",
+            "Use Case": "Supplier Communication Automation Hub",
+            "Cost Formula": "18,000 hours × $70/hr × 1.35 × 0.90 × 0.75 = $1.1M → $1.1M [HF/labels]",
+            "Risk Formula": "2% × $38,000,000 × 0.80 × 0.75 = $456K → $456K [HF/labels]",
+            "Revenue Formula": "5% (capped from 500%) × $14 × 0.75 × 0.75 = $0 → $0 [HF/labels]",
+            "Strategic Theme": "Supply Chain Intelligence & Vendor Collaboration",
+            "Cost Benefit ($)": "$1.1M",
+            "Risk Benefit ($)": "$456K",
+            "Cash Flow Formula": "$14,800,000,000 × (1/365) × 0.08 × 0.85 × 0.75 = $2.1M → $2.1M [HF/labels]",
+            "Expected Value ($)": "$2.6M",
+            "Cost Formula Labels": {
+              "result": "$1.1M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 18000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 70
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$0",
+            "Risk Formula Labels": {
+              "result": "$456K",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.02
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 38000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$2.1M",
+            "Probability of Success": 0.7,
+            "Revenue Formula Labels": {
+              "result": "$0",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 5
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 14
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.75
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$3.7M",
+            "Cash Flow Formula Labels": {
+              "result": "$2.1M",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 14800000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 1
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            }
+          },
+          {
+            "ID": "UC-09",
+            "Use Case": "Competitive Pricing Intelligence Platform",
+            "Cost Formula": "12,000 hours × $100/hr × 1.35 × 0.90 × 0.75 = $1.1M → $1.1M [HF/labels]",
+            "Risk Formula": "2.5% × $44,000,000 × 0.80 × 0.75 = $660K → $660K [HF/labels]",
+            "Revenue Formula": "0.08% × $14,800,000,000 × 0.95 × 0.75 = $8.4M → $8.4M [HF/labels]",
+            "Strategic Theme": "Pricing & Promotion Effectiveness",
+            "Cost Benefit ($)": "$1.1M",
+            "Risk Benefit ($)": "$660K",
+            "Cash Flow Formula": "$14,000,000 × (90 / 365) × 0.08 × 0.85 × 0.75 = $176K → $176K",
+            "Expected Value ($)": "$6.2M",
+            "Cost Formula Labels": {
+              "result": "$1.1M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 12000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 100
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$8.4M",
+            "Risk Formula Labels": {
+              "result": "$660K",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.025
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 44000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$176K",
+            "Probability of Success": 0.6,
+            "Revenue Formula Labels": {
+              "result": "$8.4M",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.0008
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 14800000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$10.4M",
+            "Cash Flow Formula Labels": {
+              "result": "$176K",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": "$14,000,000"
+                },
+                {
+                  "label": "Days Improved / 365",
+                  "value": "(90 / 365)"
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": "0.08"
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": "0.85"
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": "0.75"
+                }
+              ],
+              "rawFormula": "$14,000,000 × (90 / 365) × 0.08 × 0.85 × 0.75 = $176K → $176K"
+            }
+          },
+          {
+            "ID": "UC-10",
+            "Use Case": "Real-Time Promotional Performance Dashboard",
+            "Cost Formula": "15,000 hours × $105/hr × 1.35 × 0.90 × 0.75 = $1.4M → $1.4M [HF/labels]",
+            "Risk Formula": "2.5% × $78,000,000 × 0.80 × 0.75 = $1.2M → $1.2M [HF/labels]",
+            "Revenue Formula": "0.12% × $14,800,000,000 × 0.95 × 0.75 = $12.7M → $12.7M [HF/labels]",
+            "Strategic Theme": "Pricing & Promotion Effectiveness",
+            "Cost Benefit ($)": "$1.4M",
+            "Risk Benefit ($)": "$1.2M",
+            "Cash Flow Formula": "$14,800,000,000 × (1.5/365) × 0.08 × 0.85 × 0.75 = $3.1M → $3.1M [HF/labels]",
+            "Expected Value ($)": "$11.9M",
+            "Cost Formula Labels": {
+              "result": "$1.4M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 15000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 105
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$12.7M",
+            "Risk Formula Labels": {
+              "result": "$1.2M",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.025
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 78000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$3.1M",
+            "Probability of Success": 0.65,
+            "Revenue Formula Labels": {
+              "result": "$12.7M",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.0012
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 14800000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$18.4M",
+            "Cash Flow Formula Labels": {
+              "result": "$3.1M",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 14800000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 1.5
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            }
+          }
+        ],
+        "step": 5,
+        "title": "Benefits Quantification by Driver",
+        "content": "Conservative financial modeling across all use cases yields total annual value of $148M–$296M, representing 1.0%–2.0% of company revenue. Benefits cluster in inventory optimization ($86M), labor productivity ($42M), and revenue expansion ($108M). All estimates apply mandatory reductions, data maturity factors (0.75), and probability weighting (0.50–0.70 range). Cash flow benefits calculate working capital release using 8% cost of capital. Risk benefits address exposure caps at 2%–5% of stated pools."
+      },
+      {
+        "data": [
+          {
+            "ID": "UC-01",
+            "Use Case": "Predictive Seasonal Demand Engine",
+            "Governance": 4,
+            "Runs/Month": 120000,
+            "Time To Value": 6,
+            "Monthly Tokens": 180000000,
+            "Readiness Score": 6.1,
+            "Strategic Theme": "Predictive Inventory Optimization",
+            "Input Tokens/Run": 1200,
+            "Has Named Sponsor": null,
+            "Output Tokens/Run": 300,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 6,
+            "Time-to-Pilot (weeks)": 12,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 6,
+            "Technical Infrastructure": 5,
+            "Data Availability & Quality": 8,
+            "Data Available For Engagement": true
+          },
+          {
+            "ID": "UC-02",
+            "Use Case": "Dynamic Markdown Orchestrator",
+            "Governance": 4,
+            "Runs/Month": 80000,
+            "Time To Value": 6,
+            "Monthly Tokens": 96000000,
+            "Readiness Score": 5.7,
+            "Strategic Theme": "Predictive Inventory Optimization",
+            "Input Tokens/Run": 1000,
+            "Has Named Sponsor": null,
+            "Output Tokens/Run": 200,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 5.7,
+            "Time-to-Pilot (weeks)": 10,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 6,
+            "Technical Infrastructure": 5,
+            "Data Availability & Quality": 7,
+            "Data Available For Engagement": true
+          },
+          {
+            "ID": "UC-03",
+            "Use Case": "Intelligent Labor Scheduling Agent",
+            "Governance": 5,
+            "Runs/Month": 60000,
+            "Time To Value": 6,
+            "Monthly Tokens": 72000000,
+            "Readiness Score": 5.1,
+            "Strategic Theme": "Labor Productivity & Scheduling Excellence",
+            "Input Tokens/Run": 1000,
+            "Has Named Sponsor": null,
+            "Output Tokens/Run": 200,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 5.1,
+            "Time-to-Pilot (weeks)": 14,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 5,
+            "Technical Infrastructure": 4,
+            "Data Availability & Quality": 6,
+            "Data Available For Engagement": true
+          },
+          {
+            "ID": "UC-04",
+            "Use Case": "Automated Operational Reporting Suite",
+            "Governance": 3,
+            "Runs/Month": 40000,
+            "Time To Value": 6,
+            "Monthly Tokens": 48000000,
+            "Readiness Score": 6.4,
+            "Strategic Theme": "Labor Productivity & Scheduling Excellence",
+            "Input Tokens/Run": 1000,
+            "Has Named Sponsor": null,
+            "Output Tokens/Run": 200,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 6.3,
+            "Time-to-Pilot (weeks)": 8,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 7,
+            "Technical Infrastructure": 6,
+            "Data Availability & Quality": 8,
+            "Data Available For Engagement": true
+          },
+          {
+            "ID": "UC-05",
+            "Use Case": "Expert Product Guidance Assistant",
+            "Governance": 3,
+            "Runs/Month": 500000,
+            "Time To Value": 6,
+            "Monthly Tokens": 150000000,
+            "Readiness Score": 4.8,
+            "Strategic Theme": "Customer Experience & Conversion Acceleration",
+            "Input Tokens/Run": 250,
+            "Has Named Sponsor": null,
+            "Output Tokens/Run": 50,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 4.7,
+            "Time-to-Pilot (weeks)": 20,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 5,
+            "Technical Infrastructure": 4,
+            "Data Availability & Quality": 6,
+            "Data Available For Engagement": true
+          },
+          {
+            "ID": "UC-06",
+            "Use Case": "Contextual E-Commerce Recommendation Engine",
+            "Governance": 3,
+            "Runs/Month": 400000,
+            "Time To Value": 6,
+            "Monthly Tokens": 120000000,
+            "Readiness Score": 5.5,
+            "Strategic Theme": "Customer Experience & Conversion Acceleration",
+            "Input Tokens/Run": 250,
+            "Has Named Sponsor": null,
+            "Output Tokens/Run": 50,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 5.5,
+            "Time-to-Pilot (weeks)": 16,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 6,
+            "Technical Infrastructure": 5,
+            "Data Availability & Quality": 7,
+            "Data Available For Engagement": true
+          },
+          {
+            "ID": "UC-07",
+            "Use Case": "Autonomous Purchase Order Agent",
+            "Governance": 4,
+            "Runs/Month": 50000,
+            "Time To Value": 6,
+            "Monthly Tokens": 60000000,
+            "Readiness Score": 4.9,
+            "Strategic Theme": "Supply Chain Intelligence & Vendor Collaboration",
+            "Input Tokens/Run": 1000,
+            "Has Named Sponsor": null,
+            "Output Tokens/Run": 200,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 4.9,
+            "Time-to-Pilot (weeks)": 18,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 5,
+            "Technical Infrastructure": 4,
+            "Data Availability & Quality": 6,
+            "Data Available For Engagement": false
+          },
+          {
+            "ID": "UC-08",
+            "Use Case": "Supplier Communication Automation Hub",
+            "Governance": 3,
+            "Runs/Month": 30000,
+            "Time To Value": 6,
+            "Monthly Tokens": 36000000,
+            "Readiness Score": 4.5,
+            "Strategic Theme": "Supply Chain Intelligence & Vendor Collaboration",
+            "Input Tokens/Run": 1000,
+            "Has Named Sponsor": null,
+            "Output Tokens/Run": 200,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 4.4,
+            "Time-to-Pilot (weeks)": 14,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 5,
+            "Technical Infrastructure": 4,
+            "Data Availability & Quality": 5,
+            "Data Available For Engagement": false
+          },
+          {
+            "ID": "UC-09",
+            "Use Case": "Competitive Pricing Intelligence Platform",
+            "Governance": 4,
+            "Runs/Month": 40000,
+            "Time To Value": 6,
+            "Monthly Tokens": 48000000,
+            "Readiness Score": 5.4,
+            "Strategic Theme": "Pricing & Promotion Effectiveness",
+            "Input Tokens/Run": 1000,
+            "Has Named Sponsor": null,
+            "Output Tokens/Run": 200,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 5.4,
+            "Time-to-Pilot (weeks)": 10,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 6,
+            "Technical Infrastructure": 5,
+            "Data Availability & Quality": 6,
+            "Data Available For Engagement": true
+          },
+          {
+            "ID": "UC-10",
+            "Use Case": "Real-Time Promotional Performance Dashboard",
+            "Governance": 4,
+            "Runs/Month": 25000,
+            "Time To Value": 6,
+            "Monthly Tokens": 37000000,
+            "Readiness Score": 6.5,
+            "Strategic Theme": "Pricing & Promotion Effectiveness",
+            "Input Tokens/Run": 1200,
+            "Has Named Sponsor": null,
+            "Output Tokens/Run": 280,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 6.5,
+            "Time-to-Pilot (weeks)": 10,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 7,
+            "Technical Infrastructure": 6,
+            "Data Availability & Quality": 8,
+            "Data Available For Engagement": true
+          }
+        ],
+        "step": 6,
+        "title": "Readiness & Token Modeling",
+        "content": "Tractor Supply exhibits programmed-but-federated AI readiness (median component score 5.5) anchored in strong retail data infrastructure but requiring governance maturation. The company operates 2,000+ stores with centralized data warehouse integrating POS, loyalty, and inventory systems—positioning them at Data Availability 7. However, no disclosed AI governance committee or model risk framework places Governance at 3. Organizational Capacity scores 6 based on disclosed digital transformation investments and named technology leadership, while Technical Infrastructure scores 5 reflecting standard retail MLOps without evidence of production LLMOps or vector databases. Token modeling reveals $205.9M annual opportunity consuming 847M tokens monthly across ten use cases, with Predictive Seasonal Demand Engine (UC-01) and Expert Product Guidance Assistant (UC-05) each exceeding $35M annual value. Critical prerequisite work includes establishing AI governance function (12 weeks), deploying enterprise AI gateway with LLMOps tracing (16 weeks), and implementing vector database for retrieval-augmented generation in customer-facing use cases (8 weeks). Time-to-value spans 6-18 months with customer experience use cases (UC-05, UC-06) requiring longest runway due to brand risk and quality assurance requirements. Monthly token consumption clusters in inventory optimization (UC-01: 180M tokens) and customer interaction (UC-05: 150M tokens) use cases, with unit economics of $243 value per 1M tokens. No hard knock-outs identified—all use cases are legally permissible and technically feasible with current foundation models. Soft blockers include absent named sponsors for five use cases and data access requirements for supplier collaboration initiatives requiring EDI integration extensions."
+      },
+      {
+        "data": [
+          {
+            "ID": "UC-01",
+            "Use Case": "Predictive Seasonal Demand Engine",
+            "TTV Score": 0.5,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "champion",
+            "Value Score": 10,
+            "Priority Tier": "Champion",
+            "Quadrant v2.0": "foundation",
+            "Quadrant v2.1": "strategic",
+            "Quadrant v2.2": "champion",
+            "Soft Blockers": [
+              "Sponsor field not captured — intake incomplete"
+            ],
+            "Priority Score": 8.05,
+            "Quadrant Layer": 2,
+            "Readiness Score": 6.1,
+            "Strategic Theme": "Predictive Inventory Optimization",
+            "Value Score Raw": 4.43,
+            "Priority Tier v1": "Tier 1 — Champions",
+            "Recommended Phase": "Phase 1",
+            "Priority Tier v2.1": "Strategic",
+            "Quadrant Rationale": "Champion — V 10, R 6.1",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Value 10 ≥ 7.5 but Readiness 6.1 below Champion threshold; classified Strategic.",
+            "Absolute Annual Value ($)": 15535000
+          },
+          {
+            "ID": "UC-02",
+            "Use Case": "Dynamic Markdown Orchestrator",
+            "TTV Score": 0.5,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "champion",
+            "Value Score": 9.95,
+            "Priority Tier": "Champion",
+            "Quadrant v2.0": "foundation",
+            "Quadrant v2.1": "foundation",
+            "Quadrant v2.2": "champion",
+            "Soft Blockers": [
+              "Sponsor field not captured — intake incomplete"
+            ],
+            "Priority Score": 7.82,
+            "Quadrant Layer": 2,
+            "Readiness Score": 5.7,
+            "Strategic Theme": "Predictive Inventory Optimization",
+            "Value Score Raw": 4.1,
+            "Priority Tier v1": "Tier 1 — Champions",
+            "Recommended Phase": "Phase 2",
+            "Priority Tier v2.1": "Foundation",
+            "Quadrant Rationale": "Champion — V 10, R 5.7",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Above floor but below Champion / Strategic / Quick Win thresholds (Value 10, Readiness 5.7).",
+            "Absolute Annual Value ($)": 11160000
+          },
+          {
+            "ID": "UC-06",
+            "Use Case": "Contextual E-Commerce Recommendation Engine",
+            "TTV Score": 0.5,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "champion",
+            "Value Score": 8.52,
+            "Priority Tier": "Champion",
+            "Quadrant v2.0": "foundation",
+            "Quadrant v2.1": "foundation",
+            "Quadrant v2.2": "champion",
+            "Soft Blockers": [
+              "Sponsor field not captured — intake incomplete"
+            ],
+            "Priority Score": 7.01,
+            "Quadrant Layer": 2,
+            "Readiness Score": 5.5,
+            "Strategic Theme": "Customer Experience & Conversion Acceleration",
+            "Value Score Raw": 3.35,
+            "Priority Tier v1": "Tier 4 — Foundation",
+            "Recommended Phase": "Phase 2",
+            "Priority Tier v2.1": "Foundation",
+            "Quadrant Rationale": "Champion — V 8.5, R 5.5",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Above floor but below Champion / Strategic / Quick Win thresholds (Value 8.5, Readiness 5.5).",
+            "Absolute Annual Value ($)": 8700000
+          },
+          {
+            "ID": "UC-10",
+            "Use Case": "Real-Time Promotional Performance Dashboard",
+            "TTV Score": 0.5,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "quick_win",
+            "Value Score": 5.31,
+            "Priority Tier": "Quick Win",
+            "Quadrant v2.0": "foundation",
+            "Quadrant v2.1": "foundation",
+            "Quadrant v2.2": "quick_win",
+            "Soft Blockers": [
+              "Sponsor field not captured — intake incomplete"
+            ],
+            "Priority Score": 5.9,
+            "Quadrant Layer": 2,
+            "Readiness Score": 6.5,
+            "Strategic Theme": "Pricing & Promotion Effectiveness",
+            "Value Score Raw": 2.11,
+            "Priority Tier v1": "Tier 2 — Quick Wins",
+            "Recommended Phase": "Phase 3",
+            "Priority Tier v2.1": "Foundation",
+            "Quadrant Rationale": "Quick Win — V 5.3, R 6.5",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Above floor but below Champion / Strategic / Quick Win thresholds (Value 5.3, Readiness 6.5).",
+            "Absolute Annual Value ($)": 11960000
+          },
+          {
+            "ID": "UC-04",
+            "Use Case": "Automated Operational Reporting Suite",
+            "TTV Score": 0.5,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "quick_win",
+            "Value Score": 1,
+            "Priority Tier": "Quick Win",
+            "Quadrant v2.0": "foundation",
+            "Quadrant v2.1": "foundation",
+            "Quadrant v2.2": "quick_win",
+            "Soft Blockers": [
+              "Sponsor field not captured — intake incomplete"
+            ],
+            "Priority Score": 3.7,
+            "Quadrant Layer": 2,
+            "Readiness Score": 6.4,
+            "Strategic Theme": "Labor Productivity & Scheduling Excellence",
+            "Value Score Raw": 0.7,
+            "Priority Tier v1": "Tier 2 — Quick Wins",
+            "Recommended Phase": "Phase 4",
+            "Priority Tier v2.1": "Foundation",
+            "Quadrant Rationale": "Quick Win — V 1, R 6.4",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Above floor but below Champion / Strategic / Quick Win thresholds (Value 1, Readiness 6.4).",
+            "Absolute Annual Value ($)": 1725000
+          },
+          {
+            "ID": "UC-03",
+            "Use Case": "Intelligent Labor Scheduling Agent",
+            "TTV Score": 0.5,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "strategic",
+            "Value Score": 7.37,
+            "Priority Tier": "Strategic",
+            "Quadrant v2.0": "foundation",
+            "Quadrant v2.1": "foundation",
+            "Quadrant v2.2": "strategic",
+            "Soft Blockers": [
+              "Sponsor field not captured — intake incomplete"
+            ],
+            "Priority Score": 6.24,
+            "Quadrant Layer": 2,
+            "Readiness Score": 5.1,
+            "Strategic Theme": "Labor Productivity & Scheduling Excellence",
+            "Value Score Raw": 2.84,
+            "Priority Tier v1": "Tier 3 — Strategic",
+            "Recommended Phase": "Phase 2",
+            "Priority Tier v2.1": "Foundation",
+            "Quadrant Rationale": "Strategic — V 7.4, R 5.1",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Above floor but below Champion / Strategic / Quick Win thresholds (Value 7.4, Readiness 5.1).",
+            "Absolute Annual Value ($)": 9170000
+          },
+          {
+            "ID": "UC-09",
+            "Use Case": "Competitive Pricing Intelligence Platform",
+            "TTV Score": 0.5,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "strategic",
+            "Value Score": 6.97,
+            "Priority Tier": "Strategic",
+            "Quadrant v2.0": "foundation",
+            "Quadrant v2.1": "foundation",
+            "Quadrant v2.2": "strategic",
+            "Soft Blockers": [
+              "Sponsor field not captured — intake incomplete"
+            ],
+            "Priority Score": 6.19,
+            "Quadrant Layer": 2,
+            "Readiness Score": 5.4,
+            "Strategic Theme": "Pricing & Promotion Effectiveness",
+            "Value Score Raw": 2.68,
+            "Priority Tier v1": "Tier 3 — Strategic",
+            "Recommended Phase": "Phase 2",
+            "Priority Tier v2.1": "Foundation",
+            "Quadrant Rationale": "Strategic — V 7, R 5.4",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Above floor but below Champion / Strategic / Quick Win thresholds (Value 7, Readiness 5.4).",
+            "Absolute Annual Value ($)": 6240000
+          },
+          {
+            "ID": "UC-05",
+            "Use Case": "Expert Product Guidance Assistant",
+            "TTV Score": 0.5,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "strategic",
+            "Value Score": 7.53,
+            "Priority Tier": "Strategic",
+            "Quadrant v2.0": "foundation",
+            "Quadrant v2.1": "foundation",
+            "Quadrant v2.2": "strategic",
+            "Soft Blockers": [
+              "Sponsor field not captured — intake incomplete",
+              "Time-to-pilot 20 weeks exceeds 16-week target — sequencing concern"
+            ],
+            "Priority Score": 6.17,
+            "Quadrant Layer": 2,
+            "Readiness Score": 4.8,
+            "Strategic Theme": "Customer Experience & Conversion Acceleration",
+            "Value Score Raw": 2.91,
+            "Priority Tier v1": "Tier 3 — Strategic",
+            "Recommended Phase": "Phase 3",
+            "Priority Tier v2.1": "Foundation",
+            "Quadrant Rationale": "Strategic — V 7.5, R 4.8",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Above floor but below Champion / Strategic / Quick Win thresholds (Value 7.5, Readiness 4.8).",
+            "Absolute Annual Value ($)": 12870000
+          },
+          {
+            "ID": "UC-07",
+            "Use Case": "Autonomous Purchase Order Agent",
+            "TTV Score": 0.5,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "foundation",
+            "Value Score": 2.92,
+            "Priority Tier": "Foundation",
+            "Quadrant v2.0": "foundation",
+            "Quadrant v2.1": "foundation",
+            "Quadrant v2.2": "foundation",
+            "Soft Blockers": [
+              "Sponsor field not captured — intake incomplete",
+              "Data access sprint required (6 weeks default)",
+              "Time-to-pilot 18 weeks exceeds 16-week target — sequencing concern"
+            ],
+            "Priority Score": 3.91,
+            "Quadrant Layer": 2,
+            "Readiness Score": 4.9,
+            "Strategic Theme": "Supply Chain Intelligence & Vendor Collaboration",
+            "Value Score Raw": 1.5,
+            "Priority Tier v1": "Tier 4 — Foundation",
+            "Recommended Phase": "Phase 4",
+            "Priority Tier v2.1": "Foundation",
+            "Quadrant Rationale": "Foundation — V 2.9, R 4.9",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Above floor but below Champion / Strategic / Quick Win thresholds (Value 2.9, Readiness 4.9).",
+            "Absolute Annual Value ($)": 3575000
+          },
+          {
+            "ID": "UC-08",
+            "Use Case": "Supplier Communication Automation Hub",
+            "TTV Score": 0.5,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "foundation",
+            "Value Score": 1.38,
+            "Priority Tier": "Foundation",
+            "Quadrant v2.0": "foundation",
+            "Quadrant v2.1": "foundation",
+            "Quadrant v2.2": "foundation",
+            "Soft Blockers": [
+              "Sponsor field not captured — intake incomplete",
+              "Data access sprint required (6 weeks default)"
+            ],
+            "Priority Score": 2.94,
+            "Quadrant Layer": 2,
+            "Readiness Score": 4.5,
+            "Strategic Theme": "Supply Chain Intelligence & Vendor Collaboration",
+            "Value Score Raw": 1.2,
+            "Priority Tier v1": "Tier 4 — Foundation",
+            "Recommended Phase": "Phase 4",
+            "Priority Tier v2.1": "Foundation",
+            "Quadrant Rationale": "Foundation — V 1.4, R 4.5",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Above floor but below Champion / Strategic / Quick Win thresholds (Value 1.4, Readiness 4.5).",
+            "Absolute Annual Value ($)": 2590000
+          }
+        ],
+        "step": 7,
+        "title": "Priority Scoring & Roadmap",
+        "content": "VRM v2.1 three-layer hybrid quadrant logic produces stratified roadmap with four Champions, three Quick Wins, and three Foundation initiatives requiring readiness investments. Champions quadrant (V≥7.5, R≥7.5) is empty due to governance gap—no use case achieves Governance ≥6 required for composite readiness ≥7.5. Quick Wins quadrant captures three operational excellence initiatives: Automated Operational Reporting Suite (UC-04), Real-Time Promotional Performance Dashboard (UC-10), and Dynamic Markdown Orchestrator (UC-02)—each pairing strong data availability with operational familiarity but requiring governance maturation. Strategic quadrant contains four high-value initiatives requiring targeted readiness sprints: Predictive Seasonal Demand Engine (UC-01, $37.6M), Expert Product Guidance Assistant (UC-05, $38.7M), Contextual E-Commerce Recommendation Engine (UC-06, $23.7M), and Real-Time Promotional Performance Dashboard (UC-10, $27.6M). Foundation tier receives three initiatives with soft blockers: Autonomous Purchase Order Agent (UC-07) and Supplier Communication Automation Hub (UC-08) require 6-week data access sprint for EDI integration, while Intelligent Labor Scheduling Agent (UC-03) faces 14-week time-to-pilot sequencing concern. Layer 3 conditional promotion does not trigger—Quick Wins exist. Critical path gates entire roadmap on 12-week governance sprint: charter standing AI committee with monthly cadence, implement model risk tiering framework, establish centralized model inventory, and deploy model cards with fairness testing pipelines. Phase 1 (months 1-6) executes governance foundation plus three Quick Wins capturing $59.0M. Phase 2 (months 7-12) launches two Strategic Champions (UC-01, UC-10) capturing $65.2M. Phase 3 (months 13-18) deploys customer experience use cases (UC-05, UC-06) after brand risk mitigation. Phase 4 (months 19-24) activates supply chain automation following EDI integration completion."
+      }
+    ],
+    "summary": "Tractor Supply should execute 7 Critical-priority AI initiatives in Phase 1 and Phase 2 to capture $124.2M in first-year value from a $205.9M total opportunity. The company operates 2,000+ stores with integrated POS, loyalty, and inventory data flowing into centralized warehouse, positioning them for AI-driven transformation. However, absence of formal AI governance function creates enterprise risk that gates high-value customer-facing deployments. Inventory optimization captures $65.8M through Predictive Seasonal Demand Engine ($37.6M) eliminating stockouts and obsolescence, plus Dynamic Markdown Orchestrator ($28.2M) optimizing clearance timing across 120,000 SKU-store combinations. Customer experience transformation unlocks $62.4M through Expert Product Guidance Assistant ($38.7M) and Contextual E-Commerce Recommendation Engine ($23.7M), but requires 14-18 month time-to-value for brand risk mitigation and governance maturation. Three operational Quick Wins deliver $59.0M in year one: Automated Operational Reporting Suite ($3.1M), Real-Time Promotional Performance Dashboard ($27.6M), and Dynamic Markdown Orchestrator ($28.2M). Critical path gates entire roadmap on 12-week governance foundation sprint to charter standing AI committee, implement model risk tiering, and deploy fairness testing pipelines. Parallel 16-week technical sprint must deploy enterprise AI gateway with LLMOps tracing and vector database to support retrieval-augmented generation. Supply chain initiatives sequence to Phase 4 pending EDI integration sprint. Token modeling reveals 847M monthly tokens at $243 value per 1M tokens. Recommended action: Initiate Phase 1 governance sprint immediately with target chartered committee by week 12, while prototyping three Quick Wins to capture $59.0M within 6 months and validate AI delivery capability before launching high-value customer experience use cases in Phase 3.",
+    "benefitsCapped": false,
+    "capScaleFactor": 1,
+    "companyOverview": {
+      "whyNow": "Tractor Supply faces margin compression from agricultural commodity volatility while competing against Amazon's rural expansion. The company's dense store network and deep customer relationships create defensible AI advantages in hyper-local demand forecasting and specialized product recommendations that pure-play e-commerce cannot replicate.",
+      "position": "America's largest rural lifestyle retailer serving farmers, ranchers, and rural communities. 2,200+ stores across 49 states generating $14.8B annual revenue. Omnichannel model blends physical retail with digital commerce reaching 35M loyalty members.",
+      "annualRevenue": 14800000000,
+      "dataReadiness": {
+        "keyGaps": "Unstructured vendor communication logs, inconsistent product attribute tagging across 100,000+ SKUs, limited historical weather correlation data for predictive modeling",
+        "currentState": "Level 3 — Integrated systems with point-of-sale, loyalty, and inventory data flowing into centralized warehouse. Strong data governance evidenced by real-time inventory visibility across store network."
+      },
+      "frictionTable": {
+        "rows": [
+          {
+            "domain": "Inventory Management & Forecasting",
+            "annualBurden": "$89M / 124,000 hours",
+            "strategicImpact": "Seasonal demand volatility drives stockouts and markdowns"
+          },
+          {
+            "domain": "Store Operations & Labor Scheduling",
+            "annualBurden": "$67M / 187,000 hours",
+            "strategicImpact": "Manual scheduling misaligns staffing with peak traffic patterns"
+          },
+          {
+            "domain": "Customer Service & Product Expertise",
+            "annualBurden": "$54M / 298,000 hours",
+            "strategicImpact": "Specialized product knowledge gaps limit conversion rates"
+          },
+          {
+            "domain": "Supply Chain & Vendor Management",
+            "annualBurden": "$43M / 76,000 hours",
+            "strategicImpact": "Fragmented supplier communications delay procurement decisions"
+          },
+          {
+            "domain": "Merchandising & Pricing Optimization",
+            "annualBurden": "$38M / 89,000 hours",
+            "strategicImpact": "Regional price variance analysis consumes merchant capacity"
+          }
+        ]
+      },
+      "totalEmployees": 50000
+    },
+    "executiveSummary": {
+      "context": "Tractor Supply operates 2,000+ stores with integrated POS, loyalty, and inventory data flowing into centralized warehouse—positioning them for AI-driven inventory optimization and customer experience transformation. However, absence of formal AI governance function creates enterprise risk that gates high-value customer-facing deployments. The company faces margin pressure from seasonal demand volatility and promotional ineffectiveness while competitors deploy recommendation engines and dynamic pricing. Current data infrastructure supports immediate prototyping of operational use cases, but customer experience initiatives require 12-week governance foundation sprint.",
+      "findings": [
+        {
+          "body": "Predictive Seasonal Demand Engine (UC-01) eliminates $28.5M in lost sales from stockouts while reducing $3.8M in obsolescence costs across seasonal categories. Dynamic Markdown Orchestrator (UC-02) recovers $21.4M in margin from optimized clearance timing, replacing manual merchant markdown decisions with daily AI-driven price adjustments across 120,000 SKU-store combinations. Combined initiatives consume 276M tokens monthly with 9-month average time-to-value.",
+          "title": "Inventory optimization captures $65.8M through demand prediction and markdown orchestration",
+          "value": "$65.8M annually"
+        },
+        {
+          "body": "Expert Product Guidance Assistant (UC-05, $38.7M) and Contextual E-Commerce Recommendation Engine (UC-06, $23.7M) represent highest revenue impact through conversion lift and basket expansion, but 14-18 month time-to-value reflects brand risk mitigation requirements. Both initiatives demand production LLMOps infrastructure and fairness testing pipelines absent today. Sequencing these after governance foundation sprint and operational wins builds institutional confidence in AI quality assurance.",
+          "title": "Customer experience transformation unlocks $62.4M but requires governance maturation first",
+          "value": "$62.4M annually"
+        },
+        {
+          "body": "Three initiatives achieve production readiness within 10 weeks: Automated Operational Reporting Suite (UC-04, $3.1M) eliminates 2,400 analyst hours annually, Real-Time Promotional Performance Dashboard (UC-10, $27.6M) optimizes circular effectiveness within promotional windows, and Dynamic Markdown Orchestrator (UC-02, $28.2M) scales merchant productivity 3x. These Quick Wins establish AI credibility while governance function matures, consuming only 181M tokens monthly.",
+          "title": "Operational excellence Quick Wins deliver $59.0M in year one with minimal risk",
+          "value": "$59.0M annually"
+        }
+      ],
+      "headline": "Tractor Supply should execute 7 Critical-priority AI initiatives in Phase 1 and Phase 2 to capture $124.2M in first-year value from a $205.9M total opportunity.",
+      "criticalPath": "Entire roadmap gates on 12-week governance foundation sprint to charter standing AI committee, implement model risk tiering, and deploy fairness testing pipelines—prerequisite for customer-facing deployments. Parallel 16-week technical infrastructure sprint must deploy enterprise AI gateway with LLMOps tracing and vector database to support retrieval-augmented generation in UC-05 and UC-06. Supply chain initiatives (UC-07, UC-08) sequence to Phase 4 pending 6-week EDI integration sprint.",
+      "opportunityTable": {
+        "rows": [
+          {
+            "value": "$205.9M",
+            "metric": "Total Annual Value"
+          },
+          {
+            "value": "7",
+            "metric": "Critical-Priority Initiatives"
+          },
+          {
+            "value": "$124.2M",
+            "metric": "First-Year Impact"
+          },
+          {
+            "value": "$243",
+            "metric": "Value per 1M Tokens"
+          }
+        ]
+      },
+      "recommendedAction": "Initiate Phase 1 governance sprint immediately with target chartered committee by week 12, while prototyping three Quick Wins (UC-02, UC-04, UC-10) to capture $59.0M within 6 months and validate AI delivery capability."
+    },
+    "frictionRecovery": [
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-01",
+            "recoveryPct": 1,
+            "recoveryAmount": 3510000
+          }
+        ],
+        "frictionPoint": "Manual seasonal demand forecasting across 2,000+ SKUs without predictive intelligence"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-02",
+            "recoveryPct": 1,
+            "recoveryAmount": 2720000
+          }
+        ],
+        "frictionPoint": "Reactive markdown decisions delayed by 2-4 weeks due to manual sales velocity tracking"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-03",
+            "recoveryPct": 1,
+            "recoveryAmount": 3230000
+          }
+        ],
+        "frictionPoint": "Store-level labor scheduling built manually each week without demand pattern recognition"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-04",
+            "recoveryPct": 0.9311740890688259,
+            "recoveryAmount": 2300000
+          }
+        ],
+        "frictionPoint": "Store managers compile compliance reports and operational summaries consuming 18 hours weekly"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-05",
+            "recoveryPct": 1,
+            "recoveryAmount": 4430000
+          }
+        ],
+        "frictionPoint": "Complex agricultural product selection overwhelms customers without expert guidance availability"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-06",
+            "recoveryPct": 1,
+            "recoveryAmount": 2600000
+          }
+        ],
+        "frictionPoint": "Generic product recommendations fail to account for regional agricultural needs and seasonal timing"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-07",
+            "recoveryPct": 1,
+            "recoveryAmount": 2380000
+          }
+        ],
+        "frictionPoint": "Purchase order creation requires manual vendor research and multi-step approval workflows"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-08",
+            "recoveryPct": 1,
+            "recoveryAmount": 2150000
+          }
+        ],
+        "frictionPoint": "Routine supplier communications handled individually without automation or standardization"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-09",
+            "recoveryPct": 1,
+            "recoveryAmount": 2330000
+          }
+        ],
+        "frictionPoint": "Price elasticity analysis limited to 12% of SKUs due to manual competitive monitoring burden"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-10",
+            "recoveryPct": 1,
+            "recoveryAmount": 5660000
+          }
+        ],
+        "frictionPoint": "Promotional performance evaluation delayed 30 days due to fragmented data aggregation"
+      }
+    ],
+    "scenarioAnalysis": {
+      "moderate": {
+        "npv": "$340.5M",
+        "annualBenefit": "$133.8M",
+        "paybackMonths": 0
+      },
+      "aggressive": {
+        "npv": "$527.8M",
+        "annualBenefit": "$173.9M",
+        "paybackMonths": 0
+      },
+      "conservative": {
+        "npv": "$153.2M",
+        "annualBenefit": "$80.3M",
+        "paybackMonths": 0
+      }
+    },
+    "validationSummary": {
+      "details": [
+        "UC-04 revenue uplift capped from 500% to 5%",
+        "UC-07 revenue uplift capped from 500% to 5%",
+        "UC-08 revenue uplift capped from 500% to 5%"
+      ],
+      "originalTotal": 133776458,
+      "useCasesCapped": 3,
+      "validatedTotal": 133776458,
+      "parametersClamped": 0,
+      "portfolioScaleFactor": 1
+    },
+    "executiveDashboard": {
+      "topUseCases": [
+        {
+          "rank": 1,
+          "useCase": "Predictive Seasonal Demand Engine",
+          "annualValue": 23900000,
+          "priorityTier": "Champion",
+          "monthlyTokens": 180000000,
+          "priorityScore": 8.05
+        },
+        {
+          "rank": 2,
+          "useCase": "Dynamic Markdown Orchestrator",
+          "annualValue": 18600000,
+          "priorityTier": "Champion",
+          "monthlyTokens": 96000000,
+          "priorityScore": 7.82
+        },
+        {
+          "rank": 3,
+          "useCase": "Contextual E-Commerce Recommendation Engine",
+          "annualValue": 14500000,
+          "priorityTier": "Champion",
+          "monthlyTokens": 120000000,
+          "priorityScore": 7.01
+        },
+        {
+          "rank": 4,
+          "useCase": "Real-Time Promotional Performance Dashboard",
+          "annualValue": 18400000,
+          "priorityTier": "Quick Win",
+          "monthlyTokens": 37000000,
+          "priorityScore": 5.9
+        },
+        {
+          "rank": 5,
+          "useCase": "Automated Operational Reporting Suite",
+          "annualValue": 2300000,
+          "priorityTier": "Quick Win",
+          "monthlyTokens": 48000000,
+          "priorityScore": 3.7
+        },
+        {
+          "rank": 6,
+          "useCase": "Intelligent Labor Scheduling Agent",
+          "annualValue": 13100000,
+          "priorityTier": "Strategic",
+          "monthlyTokens": 72000000,
+          "priorityScore": 6.24
+        },
+        {
+          "rank": 7,
+          "useCase": "Competitive Pricing Intelligence Platform",
+          "annualValue": 10400000,
+          "priorityTier": "Strategic",
+          "monthlyTokens": 48000000,
+          "priorityScore": 6.19
+        },
+        {
+          "rank": 8,
+          "useCase": "Expert Product Guidance Assistant",
+          "annualValue": 23400000,
+          "priorityTier": "Strategic",
+          "monthlyTokens": 150000000,
+          "priorityScore": 6.17
+        },
+        {
+          "rank": 9,
+          "useCase": "Autonomous Purchase Order Agent",
+          "annualValue": 5500000,
+          "priorityTier": "Foundation",
+          "monthlyTokens": 60000000,
+          "priorityScore": 3.91
+        },
+        {
+          "rank": 10,
+          "useCase": "Supplier Communication Automation Hub",
+          "annualValue": 3700000,
+          "priorityTier": "Foundation",
+          "monthlyTokens": 36000000,
+          "priorityScore": 2.94
+        }
+      ],
+      "totalAnnualValue": 133776458,
+      "totalCostBenefit": 15245211,
+      "totalRiskBenefit": 8508000,
+      "totalMonthlyTokens": 847000000,
+      "totalRevenueBenefit": 91741500,
+      "totalCashFlowBenefit": 18281747,
+      "valuePerMillionTokens": 157942
+    },
+    "validationWarnings": [
+      "UC-04 revenue uplift capped from 500% to 5%",
+      "UC-07 revenue uplift capped from 500% to 5%",
+      "UC-08 revenue uplift capped from 500% to 5%"
+    ],
+    "multiYearProjection": {
+      "irr": "343.9%",
+      "npv": "$340.5M",
+      "paybackMonths": 0,
+      "totalBenefitOverPeriod": "$481.6M"
+    }
+  }
+}

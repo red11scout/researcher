@@ -5,6 +5,7 @@ import { useState } from "react";
 import { type Report } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { format, parseFormattedValue } from '@/lib/formatters';
+import { reorderColumns } from "@shared/taxonomy";
 
 const BLUEALLY_LOGO_WHITE = 'data:image/png;base64,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';
 
@@ -36,7 +37,7 @@ const formatTableValue = (value: any, columnName?: string): string => {
   // Columns that should always be formatted as integers with commas
   const integerColumns = [
     'Runs/Month', 'Monthly Tokens', 'Input Tokens/Run', 'Output Tokens/Run',
-    'Annual Token Cost ($)', 'Annual Token Cost', 'Token Cost'
+    'Token Cost'
   ];
   const shouldFormatAsInteger = columnName && integerColumns.some(col => 
     columnName.toLowerCase().includes(col.toLowerCase()) || col.toLowerCase().includes(columnName.toLowerCase())
@@ -943,12 +944,83 @@ export default function HTMLReportViewer() {
         {/* Analysis Steps */}
         {analysis.steps?.map((step: any, stepIdx: number) => {
           const isBenefitsStep = step.step === 5;
-          const columns = step.data && step.data.length > 0
-            ? Object.keys(step.data[0]).filter(k => !k.includes('Formula')).slice(0, 6)
+          const reorderedStepData = step.data && step.data.length > 0
+            ? reorderColumns(step.data, step.step)
+            : [];
+          const columns = reorderedStepData.length > 0
+            ? Object.keys(reorderedStepData[0]).filter(k => !k.includes('Formula') && !k.includes('Labels') && k !== 'Benefit Formula' && k !== 'Strategic Theme').slice(0, isBenefitsStep ? 9 : 6)
             : [];
 
+          const vrm = (analysis as any).vrm;
+          const showVrmHeader = step.step === 7 && vrm;
           return (
             <div key={stepIdx} style={styles.card}>
+              {showVrmHeader && (
+                <div style={{
+                  margin: 16,
+                  padding: '10px 14px',
+                  borderRadius: 8,
+                  background: '#eff6ff',
+                  border: '1px solid #bfdbfe',
+                  fontSize: 12,
+                  color: '#1e293b',
+                }} data-testid="text-vrm-methodology-htmlviewer">
+                  <strong>Value-Readiness Matrix v{vrm.schemaVersion}</strong>
+                  &nbsp;·&nbsp; Sector preset: <strong>{vrm.sectorPresetLabel}</strong>
+                  &nbsp;·&nbsp; Weights — Org {Math.round((vrm.weights?.orgCapacity ?? 0.35) * 100)}% /
+                  Data {Math.round((vrm.weights?.dataReadiness ?? 0.30) * 100)}% /
+                  Gov {Math.round((vrm.weights?.governance ?? 0.20) * 100)}% /
+                  Tech {Math.round((vrm.weights?.techInfrastructure ?? 0.15) * 100)}%
+                  &nbsp;·&nbsp; <span style={{ color: '#475569' }}>
+                    {vrm.quadrantThresholds?.valueFloorBand
+                      ? `Champion ≥ ${vrm.quadrantThresholds.championMin}, Hard floor: legally prohibited OR technically infeasible OR (V<${vrm.quadrantThresholds.valueFloorBand.minNormalizedScore ?? vrm.quadrantThresholds.valueFloorBand.minNormalized ?? 4.0} AND abs<$${(((vrm.quadrantThresholds.valueFloorBand.minAbsoluteAnnualValue ?? vrm.quadrantThresholds.valueFloorBand.minAbsoluteAnnual ?? 500_000)/1000)).toFixed(0)}K), TTP ≤ ${vrm.quadrantThresholds.maxTimeToPilotWeeks ?? 16} wks.`
+                      : `Champion ≥ ${vrm.quadrantThresholds?.championMin ?? 7.5}, Value floor ${vrm.quadrantThresholds?.valueFloor ?? 6.0}, TTP ≤ ${vrm.quadrantThresholds?.maxTimeToPilotWeeks ?? 12} wks.`}
+                    {' '}Soft blockers (no sponsor / data unavailable / TTP exceeded) flag remediation but do not relegate to Foundation.
+                    Conditional Champion activates only when zero Champions, Quick Wins, AND Strategic exist.
+                  </span>
+                </div>
+              )}
+              {showVrmHeader && vrm?.diagnostic && (
+                <div style={{
+                  margin: '0 16px 16px',
+                  padding: '10px 14px',
+                  borderRadius: 8,
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  fontSize: 11,
+                  color: '#1e293b',
+                }} data-testid="text-vrm-diagnostic-htmlviewer">
+                  <strong style={{ fontSize: 12 }}>Methodology Integrity</strong> ·
+                  {' '}Prototyping Candidates: <strong>{vrm.diagnostic.prototypingCandidatesCount}</strong> / {vrm.diagnostic.totalUseCases} ({vrm.diagnostic.prototypingCandidatesPct}%) ·
+                  {' '}Champ {vrm.diagnostic.championCount} / CC {vrm.diagnostic.conditionalChampionCount} / QW {vrm.diagnostic.quickWinCount} / Strat {vrm.diagnostic.strategicCount} / Found {vrm.diagnostic.foundationCount} ({vrm.diagnostic.foundationHardCount}h+{vrm.diagnostic.foundationSoftCount}s)
+                  {(vrm.diagnostic.warnings || []).length > 0 && (
+                    <div style={{ marginTop: 8 }}>
+                      {vrm.diagnostic.warnings.map((wn: any, wi: number) => {
+                        const palette = wn.severity === 'critical'
+                          ? { bg: '#fef2f2', border: '#fca5a5', color: '#7f1d1d' }
+                          : wn.severity === 'warning'
+                            ? { bg: '#fffbeb', border: '#fcd34d', color: '#78350f' }
+                            : { bg: '#eff6ff', border: '#93c5fd', color: '#1e3a8a' };
+                        return (
+                          <div key={wi} style={{
+                            background: palette.bg,
+                            border: `1px solid ${palette.border}`,
+                            color: palette.color,
+                            borderRadius: 6,
+                            padding: '6px 8px',
+                            marginTop: 4,
+                          }}>
+                            <strong style={{ textTransform: 'uppercase', fontSize: 10 }}>{wn.severity}</strong>
+                            <span style={{ fontFamily: 'monospace', fontSize: 10, marginLeft: 6, opacity: 0.7 }}>{wn.code}</span>
+                            <div style={{ marginTop: 2 }}>{wn.message}</div>
+                            {wn.remediation && <div style={{ marginTop: 2, fontSize: 10 }}><strong>Recommendation:</strong> {wn.remediation}</div>}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
               <div style={styles.cardHeader}>
                 <h2 style={styles.cardHeaderTitle}>
                   <span style={styles.stepBadge}>{step.step}</span>
@@ -962,7 +1034,7 @@ export default function HTMLReportViewer() {
                   <p style={styles.stepContent}>{step.content}</p>
                 )}
 
-                {step.data && step.data.length > 0 && (
+                {reorderedStepData.length > 0 && (
                   <table style={styles.table}>
                     <thead>
                       <tr>
@@ -972,14 +1044,24 @@ export default function HTMLReportViewer() {
                       </tr>
                     </thead>
                     <tbody>
-                      {step.data.map((row: any, rowIdx: number) => (
+                      {reorderedStepData.map((row: any, rowIdx: number) => (
                         <>
                           <tr key={rowIdx} style={styles.tr}>
-                            {columns.map((col, colIdx) => (
-                              <td key={colIdx} style={styles.td}>
-                                {formatTableValue(row[col], col).substring(0, 60)}
-                              </td>
-                            ))}
+                            {columns.map((col, colIdx) => {
+                              let cellValue: string;
+                              if (col === 'Probability of Success') {
+                                const prob = row[col] || 0;
+                                const probNum = typeof prob === 'number' ? prob : parseFloat(String(prob)) || 0;
+                                cellValue = `${((probNum > 1 ? probNum / 100 : probNum) * 100).toFixed(0)}%`;
+                              } else {
+                                cellValue = formatTableValue(row[col], col).substring(0, 60);
+                              }
+                              return (
+                                <td key={colIdx} style={styles.td}>
+                                  {cellValue}
+                                </td>
+                              );
+                            })}
                           </tr>
                           {isBenefitsStep && (
                             <tr key={`benefit-${rowIdx}`}>

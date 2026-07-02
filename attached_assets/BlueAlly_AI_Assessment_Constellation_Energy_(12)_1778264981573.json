@@ -1,0 +1,3158 @@
+{
+  "companyName": "Constellation Energy",
+  "generatedAt": "2026-05-08T18:27:15.390Z",
+  "analysis": {
+    "vrm": {
+      "weights": {
+        "governance": 0.2,
+        "orgCapacity": 0.35,
+        "dataReadiness": 0.3,
+        "techInfrastructure": 0.15
+      },
+      "diagnostic": {
+        "warnings": [
+          {
+            "code": "BENCHMARK_UNSOURCED",
+            "message": "10 Step-2 KPIs report benchmark figures with no citation. Advisory only — update the AI contract to require a Source URL or Benchmark ID.",
+            "severity": "warning",
+            "remediation": "Each industry / industry-best / overall-best benchmark must cite a public source URL (or reference a Benchmark ID from the canonical registry).",
+            "recommendedAction": "Each industry / industry-best / overall-best benchmark must cite a public source URL (or reference a Benchmark ID from the canonical registry)."
+          },
+          {
+            "code": "CLASS_INFERRED_NO_DECLARATION",
+            "message": "UC-01: Use Case Class was not declared by the model. Inferred revenue_bearing + cost_bearing + risk_bearing from emitted benefit pillars; class-aware gating is in advisory mode for this use case.",
+            "severity": "info",
+            "remediation": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected.",
+            "recommendedAction": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected."
+          },
+          {
+            "code": "RISK_NOT_ANCHORED",
+            "message": "UC-01: risk benefit lacks lossCategory and kpiAnchorId. Advisory only — update the AI contract to require both fields.",
+            "severity": "warning",
+            "remediation": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure.",
+            "recommendedAction": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure."
+          },
+          {
+            "code": "CLASS_INFERRED_NO_DECLARATION",
+            "message": "UC-02: Use Case Class was not declared by the model. Inferred revenue_bearing + cost_bearing + risk_bearing from emitted benefit pillars; class-aware gating is in advisory mode for this use case.",
+            "severity": "info",
+            "remediation": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected.",
+            "recommendedAction": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected."
+          },
+          {
+            "code": "RISK_NOT_ANCHORED",
+            "message": "UC-02: risk benefit lacks lossCategory and kpiAnchorId. Advisory only — update the AI contract to require both fields.",
+            "severity": "warning",
+            "remediation": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure.",
+            "recommendedAction": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure."
+          },
+          {
+            "code": "CLASS_INFERRED_NO_DECLARATION",
+            "message": "UC-03: Use Case Class was not declared by the model. Inferred cost_bearing + risk_bearing from emitted benefit pillars; class-aware gating is in advisory mode for this use case.",
+            "severity": "info",
+            "remediation": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected.",
+            "recommendedAction": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected."
+          },
+          {
+            "code": "RISK_NOT_ANCHORED",
+            "message": "UC-03: risk benefit lacks lossCategory and kpiAnchorId. Advisory only — update the AI contract to require both fields.",
+            "severity": "warning",
+            "remediation": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure.",
+            "recommendedAction": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure."
+          },
+          {
+            "code": "CLASS_INFERRED_NO_DECLARATION",
+            "message": "UC-04: Use Case Class was not declared by the model. Inferred cost_bearing + risk_bearing from emitted benefit pillars; class-aware gating is in advisory mode for this use case.",
+            "severity": "info",
+            "remediation": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected.",
+            "recommendedAction": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected."
+          },
+          {
+            "code": "RISK_NOT_ANCHORED",
+            "message": "UC-04: risk benefit lacks lossCategory and kpiAnchorId. Advisory only — update the AI contract to require both fields.",
+            "severity": "warning",
+            "remediation": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure.",
+            "recommendedAction": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure."
+          },
+          {
+            "code": "CLASS_INFERRED_NO_DECLARATION",
+            "message": "UC-05: Use Case Class was not declared by the model. Inferred revenue_bearing + cost_bearing + risk_bearing from emitted benefit pillars; class-aware gating is in advisory mode for this use case.",
+            "severity": "info",
+            "remediation": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected.",
+            "recommendedAction": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected."
+          },
+          {
+            "code": "RISK_NOT_ANCHORED",
+            "message": "UC-05: risk benefit lacks lossCategory and kpiAnchorId. Advisory only — update the AI contract to require both fields.",
+            "severity": "warning",
+            "remediation": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure.",
+            "recommendedAction": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure."
+          },
+          {
+            "code": "CLASS_INFERRED_NO_DECLARATION",
+            "message": "UC-06: Use Case Class was not declared by the model. Inferred revenue_bearing + cost_bearing + risk_bearing from emitted benefit pillars; class-aware gating is in advisory mode for this use case.",
+            "severity": "info",
+            "remediation": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected.",
+            "recommendedAction": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected."
+          },
+          {
+            "code": "RISK_NOT_ANCHORED",
+            "message": "UC-06: risk benefit lacks lossCategory and kpiAnchorId. Advisory only — update the AI contract to require both fields.",
+            "severity": "warning",
+            "remediation": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure.",
+            "recommendedAction": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure."
+          },
+          {
+            "code": "CLASS_INFERRED_NO_DECLARATION",
+            "message": "UC-07: Use Case Class was not declared by the model. Inferred revenue_bearing + cost_bearing + risk_bearing from emitted benefit pillars; class-aware gating is in advisory mode for this use case.",
+            "severity": "info",
+            "remediation": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected.",
+            "recommendedAction": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected."
+          },
+          {
+            "code": "RISK_NOT_ANCHORED",
+            "message": "UC-07: risk benefit lacks lossCategory and kpiAnchorId. Advisory only — update the AI contract to require both fields.",
+            "severity": "warning",
+            "remediation": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure.",
+            "recommendedAction": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure."
+          },
+          {
+            "code": "CLASS_INFERRED_NO_DECLARATION",
+            "message": "UC-08: Use Case Class was not declared by the model. Inferred revenue_bearing + cost_bearing + risk_bearing from emitted benefit pillars; class-aware gating is in advisory mode for this use case.",
+            "severity": "info",
+            "remediation": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected.",
+            "recommendedAction": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected."
+          },
+          {
+            "code": "RISK_NOT_ANCHORED",
+            "message": "UC-08: risk benefit lacks lossCategory and kpiAnchorId. Advisory only — update the AI contract to require both fields.",
+            "severity": "warning",
+            "remediation": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure.",
+            "recommendedAction": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure."
+          },
+          {
+            "code": "CLASS_INFERRED_NO_DECLARATION",
+            "message": "UC-09: Use Case Class was not declared by the model. Inferred revenue_bearing + cost_bearing + risk_bearing from emitted benefit pillars; class-aware gating is in advisory mode for this use case.",
+            "severity": "info",
+            "remediation": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected.",
+            "recommendedAction": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected."
+          },
+          {
+            "code": "RISK_NOT_ANCHORED",
+            "message": "UC-09: risk benefit lacks lossCategory and kpiAnchorId. Advisory only — update the AI contract to require both fields.",
+            "severity": "warning",
+            "remediation": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure.",
+            "recommendedAction": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure."
+          },
+          {
+            "code": "CLASS_INFERRED_NO_DECLARATION",
+            "message": "UC-10: Use Case Class was not declared by the model. Inferred cost_bearing + risk_bearing from emitted benefit pillars; class-aware gating is in advisory mode for this use case.",
+            "severity": "info",
+            "remediation": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected.",
+            "recommendedAction": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected."
+          },
+          {
+            "code": "RISK_NOT_ANCHORED",
+            "message": "UC-10: risk benefit lacks lossCategory and kpiAnchorId. Advisory only — update the AI contract to require both fields.",
+            "severity": "warning",
+            "remediation": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure.",
+            "recommendedAction": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure."
+          },
+          {
+            "code": "PORTFOLIO_CASHFLOW_DAYS_CAP",
+            "message": "Portfolio cash-flow capped: cumulative working-capital improvement of 39.0 days exceeded the 30-day portfolio ceiling; all 10 cash-flow use cases prorated by 0.769× to prevent double-counting the same DSO/DPO/inventory pool.",
+            "severity": "warning",
+            "remediation": "Reduce per-use-case `daysImprovement` so the portfolio total stays within ~30 days (one month of working capital). Each UC discounting the same receivables/payables/inventory pool above this threshold double-counts cash that was already freed by an earlier UC.",
+            "recommendedAction": "Reduce per-use-case `daysImprovement` so the portfolio total stays within ~30 days (one month of working capital). Each UC discounting the same receivables/payables/inventory pool above this threshold double-counts cash that was already freed by an earlier UC."
+          },
+          {
+            "code": "PORTFOLIO_CASHFLOW_DAYS_CAP_UC",
+            "message": "UC-01 cash flow prorated from $6.0M to $4.6M (× 0.769) — portfolio days cap.",
+            "severity": "info",
+            "remediation": "Lower this use case's `daysImprovement` so the portfolio total stays within ~30 days; alternatively, consolidate overlapping working-capital initiatives into one use case.",
+            "recommendedAction": "Lower this use case's `daysImprovement` so the portfolio total stays within ~30 days; alternatively, consolidate overlapping working-capital initiatives into one use case."
+          },
+          {
+            "code": "PORTFOLIO_CASHFLOW_DAYS_CAP_UC",
+            "message": "UC-02 cash flow prorated from $9.0M to $6.9M (× 0.769) — portfolio days cap.",
+            "severity": "info",
+            "remediation": "Lower this use case's `daysImprovement` so the portfolio total stays within ~30 days; alternatively, consolidate overlapping working-capital initiatives into one use case.",
+            "recommendedAction": "Lower this use case's `daysImprovement` so the portfolio total stays within ~30 days; alternatively, consolidate overlapping working-capital initiatives into one use case."
+          },
+          {
+            "code": "PORTFOLIO_CASHFLOW_DAYS_CAP_UC",
+            "message": "UC-03 cash flow prorated from $9.0M to $6.9M (× 0.769) — portfolio days cap.",
+            "severity": "info",
+            "remediation": "Lower this use case's `daysImprovement` so the portfolio total stays within ~30 days; alternatively, consolidate overlapping working-capital initiatives into one use case.",
+            "recommendedAction": "Lower this use case's `daysImprovement` so the portfolio total stays within ~30 days; alternatively, consolidate overlapping working-capital initiatives into one use case."
+          },
+          {
+            "code": "PORTFOLIO_CASHFLOW_DAYS_CAP_UC",
+            "message": "UC-04 cash flow prorated from $15.0M to $11.5M (× 0.769) — portfolio days cap.",
+            "severity": "info",
+            "remediation": "Lower this use case's `daysImprovement` so the portfolio total stays within ~30 days; alternatively, consolidate overlapping working-capital initiatives into one use case.",
+            "recommendedAction": "Lower this use case's `daysImprovement` so the portfolio total stays within ~30 days; alternatively, consolidate overlapping working-capital initiatives into one use case."
+          },
+          {
+            "code": "PORTFOLIO_CASHFLOW_DAYS_CAP_UC",
+            "message": "UC-05 cash flow prorated from $12.0M to $9.2M (× 0.769) — portfolio days cap.",
+            "severity": "info",
+            "remediation": "Lower this use case's `daysImprovement` so the portfolio total stays within ~30 days; alternatively, consolidate overlapping working-capital initiatives into one use case.",
+            "recommendedAction": "Lower this use case's `daysImprovement` so the portfolio total stays within ~30 days; alternatively, consolidate overlapping working-capital initiatives into one use case."
+          },
+          {
+            "code": "PORTFOLIO_CASHFLOW_DAYS_CAP_UC",
+            "message": "UC-06 cash flow prorated from $9.0M to $6.9M (× 0.769) — portfolio days cap.",
+            "severity": "info",
+            "remediation": "Lower this use case's `daysImprovement` so the portfolio total stays within ~30 days; alternatively, consolidate overlapping working-capital initiatives into one use case.",
+            "recommendedAction": "Lower this use case's `daysImprovement` so the portfolio total stays within ~30 days; alternatively, consolidate overlapping working-capital initiatives into one use case."
+          },
+          {
+            "code": "PORTFOLIO_CASHFLOW_DAYS_CAP_UC",
+            "message": "UC-07 cash flow prorated from $12.0M to $9.2M (× 0.769) — portfolio days cap.",
+            "severity": "info",
+            "remediation": "Lower this use case's `daysImprovement` so the portfolio total stays within ~30 days; alternatively, consolidate overlapping working-capital initiatives into one use case.",
+            "recommendedAction": "Lower this use case's `daysImprovement` so the portfolio total stays within ~30 days; alternatively, consolidate overlapping working-capital initiatives into one use case."
+          },
+          {
+            "code": "PORTFOLIO_CASHFLOW_DAYS_CAP_UC",
+            "message": "UC-08 cash flow prorated from $17.9M to $13.8M (× 0.769) — portfolio days cap.",
+            "severity": "info",
+            "remediation": "Lower this use case's `daysImprovement` so the portfolio total stays within ~30 days; alternatively, consolidate overlapping working-capital initiatives into one use case.",
+            "recommendedAction": "Lower this use case's `daysImprovement` so the portfolio total stays within ~30 days; alternatively, consolidate overlapping working-capital initiatives into one use case."
+          },
+          {
+            "code": "PORTFOLIO_CASHFLOW_DAYS_CAP_UC",
+            "message": "UC-09 cash flow prorated from $12.0M to $9.2M (× 0.769) — portfolio days cap.",
+            "severity": "info",
+            "remediation": "Lower this use case's `daysImprovement` so the portfolio total stays within ~30 days; alternatively, consolidate overlapping working-capital initiatives into one use case.",
+            "recommendedAction": "Lower this use case's `daysImprovement` so the portfolio total stays within ~30 days; alternatively, consolidate overlapping working-capital initiatives into one use case."
+          },
+          {
+            "code": "PORTFOLIO_CASHFLOW_DAYS_CAP_UC",
+            "message": "UC-10 cash flow prorated from $15.0M to $11.5M (× 0.769) — portfolio days cap.",
+            "severity": "info",
+            "remediation": "Lower this use case's `daysImprovement` so the portfolio total stays within ~30 days; alternatively, consolidate overlapping working-capital initiatives into one use case.",
+            "recommendedAction": "Lower this use case's `daysImprovement` so the portfolio total stays within ~30 days; alternatively, consolidate overlapping working-capital initiatives into one use case."
+          },
+          {
+            "code": "PORTFOLIO_CASHFLOW_SHARE_UC",
+            "message": "UC-01 cash flow further prorated from $4.6M to $4.2M (× 0.923) — portfolio cash-flow share cap.",
+            "severity": "info",
+            "remediation": "Cash-flow benefits across the portfolio exceeded the 35% concentration ceiling. Verify each UC discounts a distinct working-capital pool.",
+            "recommendedAction": "Cash-flow benefits across the portfolio exceeded the 35% concentration ceiling. Verify each UC discounts a distinct working-capital pool."
+          },
+          {
+            "code": "PORTFOLIO_CASHFLOW_SHARE_UC",
+            "message": "UC-02 cash flow further prorated from $6.9M to $6.4M (× 0.923) — portfolio cash-flow share cap.",
+            "severity": "info",
+            "remediation": "Cash-flow benefits across the portfolio exceeded the 35% concentration ceiling. Verify each UC discounts a distinct working-capital pool.",
+            "recommendedAction": "Cash-flow benefits across the portfolio exceeded the 35% concentration ceiling. Verify each UC discounts a distinct working-capital pool."
+          },
+          {
+            "code": "PORTFOLIO_CASHFLOW_SHARE_UC",
+            "message": "UC-03 cash flow further prorated from $6.9M to $6.4M (× 0.923) — portfolio cash-flow share cap.",
+            "severity": "info",
+            "remediation": "Cash-flow benefits across the portfolio exceeded the 35% concentration ceiling. Verify each UC discounts a distinct working-capital pool.",
+            "recommendedAction": "Cash-flow benefits across the portfolio exceeded the 35% concentration ceiling. Verify each UC discounts a distinct working-capital pool."
+          },
+          {
+            "code": "PORTFOLIO_CASHFLOW_SHARE_UC",
+            "message": "UC-04 cash flow further prorated from $11.5M to $10.6M (× 0.923) — portfolio cash-flow share cap.",
+            "severity": "info",
+            "remediation": "Cash-flow benefits across the portfolio exceeded the 35% concentration ceiling. Verify each UC discounts a distinct working-capital pool.",
+            "recommendedAction": "Cash-flow benefits across the portfolio exceeded the 35% concentration ceiling. Verify each UC discounts a distinct working-capital pool."
+          },
+          {
+            "code": "PORTFOLIO_CASHFLOW_SHARE_UC",
+            "message": "UC-05 cash flow further prorated from $9.2M to $8.5M (× 0.923) — portfolio cash-flow share cap.",
+            "severity": "info",
+            "remediation": "Cash-flow benefits across the portfolio exceeded the 35% concentration ceiling. Verify each UC discounts a distinct working-capital pool.",
+            "recommendedAction": "Cash-flow benefits across the portfolio exceeded the 35% concentration ceiling. Verify each UC discounts a distinct working-capital pool."
+          },
+          {
+            "code": "PORTFOLIO_CASHFLOW_SHARE_UC",
+            "message": "UC-06 cash flow further prorated from $6.9M to $6.4M (× 0.923) — portfolio cash-flow share cap.",
+            "severity": "info",
+            "remediation": "Cash-flow benefits across the portfolio exceeded the 35% concentration ceiling. Verify each UC discounts a distinct working-capital pool.",
+            "recommendedAction": "Cash-flow benefits across the portfolio exceeded the 35% concentration ceiling. Verify each UC discounts a distinct working-capital pool."
+          },
+          {
+            "code": "PORTFOLIO_CASHFLOW_SHARE_UC",
+            "message": "UC-07 cash flow further prorated from $9.2M to $8.5M (× 0.923) — portfolio cash-flow share cap.",
+            "severity": "info",
+            "remediation": "Cash-flow benefits across the portfolio exceeded the 35% concentration ceiling. Verify each UC discounts a distinct working-capital pool.",
+            "recommendedAction": "Cash-flow benefits across the portfolio exceeded the 35% concentration ceiling. Verify each UC discounts a distinct working-capital pool."
+          },
+          {
+            "code": "PORTFOLIO_CASHFLOW_SHARE_UC",
+            "message": "UC-08 cash flow further prorated from $13.8M to $12.7M (× 0.923) — portfolio cash-flow share cap.",
+            "severity": "info",
+            "remediation": "Cash-flow benefits across the portfolio exceeded the 35% concentration ceiling. Verify each UC discounts a distinct working-capital pool.",
+            "recommendedAction": "Cash-flow benefits across the portfolio exceeded the 35% concentration ceiling. Verify each UC discounts a distinct working-capital pool."
+          },
+          {
+            "code": "PORTFOLIO_CASHFLOW_SHARE_UC",
+            "message": "UC-09 cash flow further prorated from $9.2M to $8.5M (× 0.923) — portfolio cash-flow share cap.",
+            "severity": "info",
+            "remediation": "Cash-flow benefits across the portfolio exceeded the 35% concentration ceiling. Verify each UC discounts a distinct working-capital pool.",
+            "recommendedAction": "Cash-flow benefits across the portfolio exceeded the 35% concentration ceiling. Verify each UC discounts a distinct working-capital pool."
+          },
+          {
+            "code": "PORTFOLIO_CASHFLOW_SHARE_UC",
+            "message": "UC-10 cash flow further prorated from $11.5M to $10.6M (× 0.923) — portfolio cash-flow share cap.",
+            "severity": "info",
+            "remediation": "Cash-flow benefits across the portfolio exceeded the 35% concentration ceiling. Verify each UC discounts a distinct working-capital pool.",
+            "recommendedAction": "Cash-flow benefits across the portfolio exceeded the 35% concentration ceiling. Verify each UC discounts a distinct working-capital pool."
+          },
+          {
+            "code": "PORTFOLIO_CASHFLOW_SHARE",
+            "message": "Portfolio cash-flow share capped from 36.8% to 35% of total annual value; 10 cash-flow use cases prorated by 0.923× to prevent CFO-implausible cash-flow concentration.",
+            "severity": "warning",
+            "remediation": "Re-examine each cash-flow use case to confirm it discounts a distinct receivables/payables/inventory pool. If two UCs target the same pool, merge them or zero out one of the cash-flow lines.",
+            "recommendedAction": "Re-examine each cash-flow use case to confirm it discounts a distinct receivables/payables/inventory pool. If two UCs target the same pool, merge them or zero out one of the cash-flow lines."
+          },
+          {
+            "code": "IRR_IMPLAUSIBLE",
+            "message": "IRR of 120% exceeds 100% — verify the implementation cost basis.",
+            "severity": "warning",
+            "remediation": "IRR > 100% is rare in enterprise software programs. Confirm the cost basis is fully loaded (people, process, technology, change management).",
+            "recommendedAction": "IRR > 100% is rare in enterprise software programs. Confirm the cost basis is fully loaded (people, process, technology, change management)."
+          },
+          {
+            "code": "PAYBACK_IMPLAUSIBLE",
+            "message": "Payback under 1 month implies near-zero implementation cost — likely a calculation error.",
+            "severity": "critical",
+            "remediation": "Confirm implementation cost includes change management, integration, and ongoing operational overhead, not just licensing or tooling.",
+            "recommendedAction": "Confirm implementation cost includes change management, integration, and ongoing operational overhead, not just licensing or tooling."
+          },
+          {
+            "code": "PAYBACK_DISPLAY_CLAMPED",
+            "message": "Payback clamped from 0 months to \"<6 mo\" for executive display. Raw value preserved in audit trail.",
+            "severity": "warning",
+            "remediation": "Sub-6-month payback usually means implementation cost is understated. Confirm the cost basis is fully loaded.",
+            "recommendedAction": "Sub-6-month payback usually means implementation cost is understated. Confirm the cost basis is fully loaded."
+          },
+          {
+            "code": "HEADLINE_RECONCILIATION_OVERRIDE",
+            "message": "Executive-summary headline diverged from canonical first-year value by 65% (LLM said $82.4M, canonical is $236.6M). Headline overridden.",
+            "severity": "warning",
+            "remediation": "The original LLM headline is preserved at executiveSummary.headlineLLMOriginal. Review why the model's narrative diverged — usually because portfolio caps reshaped the totals after the LLM wrote the summary.",
+            "recommendedAction": "The original LLM headline is preserved at executiveSummary.headlineLLMOriginal. Review why the model's narrative diverged — usually because portfolio caps reshaped the totals after the LLM wrote the summary."
+          }
+        ],
+        "championCount": 6,
+        "quickWinCount": 2,
+        "schemaVersion": "2.2",
+        "totalUseCases": 10,
+        "strategicCount": 1,
+        "foundationCount": 1,
+        "conditionalCount": 0,
+        "medianValueScore": 7,
+        "leadChampionCount": 0,
+        "leadQuickWinCount": 0,
+        "foundationHardCount": 0,
+        "foundationSoftCount": 1,
+        "hardFloorFailureRate": 0,
+        "medianReadinessScore": 6.1,
+        "intakeIncompletionRate": 0.1,
+        "conditionalChampionCount": 0,
+        "prototypingCandidatesPct": 80,
+        "prototypingCandidatesCount": 8
+      },
+      "sectorPreset": "baseline",
+      "diagnosticV21": {
+        "warnings": [
+          {
+            "code": "EMPTY_MATRIX",
+            "message": "No prototyping candidates produced.",
+            "severity": "critical",
+            "remediation": "Review value assumptions and intake data; verify EV/Friction ratios are realistic and rerun scoring.",
+            "recommendedAction": "Review value assumptions and intake data; verify EV/Friction ratios are realistic and rerun scoring."
+          }
+        ],
+        "byQuadrant": {
+          "champion": 0,
+          "quick_win": 0,
+          "strategic": 3,
+          "foundation": 7,
+          "conditional_champion": 0
+        },
+        "championCount": 0,
+        "quickWinCount": 0,
+        "totalUseCases": 10,
+        "strategicCount": 3,
+        "foundationCount": 7,
+        "medianValueScore": 7,
+        "foundationHardCount": 0,
+        "foundationSoftCount": 7,
+        "hardFloorFailureRate": 0,
+        "medianReadinessScore": 6.1,
+        "intakeIncompletionRate": 0.1,
+        "conditionalChampionCount": 0,
+        "prototypingCandidatesPct": 0,
+        "prototypingCandidatesCount": 0
+      },
+      "rubricVersion": "2.0",
+      "schemaVersion": "2.2",
+      "baselineWeights": {
+        "governance": 0.2,
+        "orgCapacity": 0.35,
+        "dataReadiness": 0.3,
+        "techInfrastructure": 0.15
+      },
+      "engagementConfig": {
+        "valueFloor": {
+          "minNormalizedScore": 4,
+          "minAbsoluteAnnualValue": 500000
+        },
+        "championMin": 7.5,
+        "quickStrategicMin": 6,
+        "maxTimeToPilotWeeks": 16,
+        "dataAccessSprintWeeks": 6
+      },
+      "sectorPresetLabel": "Baseline",
+      "priorSchemaVersion": "2.1",
+      "quadrantThresholds": {
+        "cut": 5.5,
+        "valueFloor": 6,
+        "championMin": 7.5,
+        "leadTierCut": 7.5,
+        "valueFloorBand": {
+          "minNormalizedScore": 4,
+          "minAbsoluteAnnualValue": 500000
+        },
+        "quickStrategicMin": 6,
+        "maxTimeToPilotWeeks": 16,
+        "minPrototypingCandidates": 3
+      },
+      "valueNormalization": "log10-percentile-winsorized",
+      "priorSchemaVersionV20": "2.0",
+      "valueNormalizationVersion": "v3"
+    },
+    "steps": [
+      {
+        "data": null,
+        "step": 0,
+        "title": "Company Overview",
+        "content": "Constellation Energy generates $21.4B in annual revenue as America's largest producer of carbon-free electricity. The company operates 21 nuclear reactors, 13 hydro facilities, and 16 wind farms totaling 32,400 MW of clean generation capacity from Baltimore headquarters with 12,500 employees across 15 states. [HIGH CONFIDENCE]\n\nThe company serves 2.1 million retail customers and 400 wholesale counterparties across PJM, ERCOT, ISO-NE, and NYISO markets. Nuclear generation provides 87% of output at 93.2% capacity factor. Retail operations deliver $8.7B revenue (41% of total) with commercial and industrial segments representing 78% of retail margin. Average wholesale contract duration reaches 4.2 years with $340M annual hedging portfolio. [HIGH CONFIDENCE]\n\nThe company faces a $187M annual burden from grid operations complexity. Operations teams spend 124,000 hours per year on load forecasting, unit commitment optimization, and real-time dispatch coordination across six ISOs. Five-minute dispatch intervals and renewable intermittency create 105,000 daily optimization decisions. This workload limits participation in emerging ancillary service markets worth $280M annually and delays renewable integration analysis by 45 days per project. [MEDIUM CONFIDENCE]\n\nRegulatory compliance represents a $156M annual cost across nuclear safety, environmental reporting, and market participation. Legal and compliance teams dedicate 104,000 hours to documentation across NRC, EPA, FERC, and state commission requirements spanning 12 jurisdictions. Nuclear operating license amendments average 18-month review cycles. Environmental monitoring generates 2.4M data points annually requiring manual validation. This compliance overhead absorbs 35% of engineering capacity and extends new technology deployment timelines by 8-12 months. [MEDIUM CONFIDENCE]\n\nAsset performance management consumes $143M annually in maintenance planning and execution. Engineering teams allocate 95,000 hours to analyzing equipment telemetry, scheduling outages, and coordinating 47,000 annual work orders across the generation fleet. Nuclear refueling outages require 12-month advance planning with 600-person onsite crews. Unplanned equipment failures cost $12M per event in replacement power. Reactive maintenance represents 23% of total maintenance spend versus 12% industry best practice. [MEDIUM CONFIDENCE]\n\nCustomer operations carry an $89M burden from contract administration and settlement processes. Commercial teams spend 59,000 hours structuring power purchase agreements, managing collateral, and reconciling 8.9M monthly meter reads. Customer acquisition costs $450 per commercial account with 14% annual attrition. Settlement disputes average 45-day resolution cycles. Manual pricing for custom industrial contracts creates 12-day response delays and 18% quote abandonment. [ESTIMATED]\n\nFinancial figures derive from 2025 10-K filings and Q4 2025 earnings releases. Operational burden estimates apply $150/hour fully-loaded rates for engineering staff and $175/hour for legal/compliance professionals. Nuclear capacity factors from NRC performance indicators through December 2025. Data maturity assessed at Level 3 based on disclosed SCADA infrastructure and enterprise asset management deployments. Customer metrics estimated from disclosed retail statistics and industry benchmarks. [HIGH CONFIDENCE for financial data, MEDIUM CONFIDENCE for operational metrics]"
+      },
+      {
+        "data": [
+          {
+            "Target State": "Real-time autonomous dispatch recommendations across 32,400 MW portfolio. 15-day renewable integration cycles. 8% forecast error through ensemble ML models.",
+            "Current State": "124,000 annual hours on manual load forecasting and unit commitment. 45-day renewable integration analysis cycles. 23% forecast error on day-ahead schedules.",
+            "Strategic Theme": "Grid Optimization & Dispatch Excellence",
+            "Secondary Driver": "$280M ancillary services revenue capture through faster market participation",
+            "Primary Driver Impact": "$187M annual operations cost → $124M through autonomous dispatch optimization"
+          },
+          {
+            "Target State": "Automated environmental monitoring validation and regulatory report generation. 10-month license amendment support. Real-time compliance risk monitoring across 12 jurisdictions.",
+            "Current State": "104,000 annual hours on multi-jurisdictional compliance documentation. 18-month NRC license amendment cycles. 2.4M environmental data points requiring manual validation.",
+            "Strategic Theme": "Regulatory Intelligence & Compliance Automation",
+            "Secondary Driver": "8-month reduction in license amendment cycles enabling faster technology deployment",
+            "Primary Driver Impact": "$156M compliance cost → $94M through automated documentation and monitoring"
+          },
+          {
+            "Target State": "Predictive maintenance scheduling across nuclear and renewable fleet. 12% reactive maintenance ratio. Equipment failure prediction 90 days in advance with 85% accuracy.",
+            "Current State": "95,000 annual hours on reactive maintenance planning. 23% of maintenance spend reactive versus 12% industry best. 47,000 annual work orders with 45-day average planning cycles.",
+            "Strategic Theme": "Predictive Asset Performance",
+            "Secondary Driver": "$36M avoided replacement power costs through 30% reduction in unplanned outages",
+            "Primary Driver Impact": "$143M maintenance cost → $100M through predictive work order optimization"
+          },
+          {
+            "Target State": "Automated PPA structuring for standard products. 9% commercial attrition through predictive retention. 2-day custom pricing response. 15-day settlement dispute resolution.",
+            "Current State": "59,000 annual hours on contract structuring and settlement. 14% annual commercial attrition. 12-day custom pricing response time. 45-day settlement dispute resolution.",
+            "Strategic Theme": "Commercial Velocity & Customer Intelligence",
+            "Secondary Driver": "$67M revenue protection through 5-point reduction in commercial customer attrition",
+            "Primary Driver Impact": "$89M customer operations cost → $58M through automated contract administration"
+          },
+          {
+            "Target State": "Real-time hedging recommendations with 7% price forecast error. Automated ISO tariff change impact analysis. 5-day market design response enabling participation in emerging products.",
+            "Current State": "$340M hedging portfolio with 18% price forecast error. Manual analysis of 6 ISO rule changes quarterly. 30-day response time to market design changes.",
+            "Strategic Theme": "Market Intelligence & Hedging Strategy",
+            "Secondary Driver": "$45M capture from emerging capacity market mechanisms requiring complex bid optimization",
+            "Primary Driver Impact": "$73M improved hedging performance through enhanced price forecasting"
+          }
+        ],
+        "step": 1,
+        "title": "Strategic Anchoring & Business Drivers",
+        "content": "Five strategic themes anchor Constellation's AI opportunity, ranked by financial impact. Each theme maps to operational pain points with quantified current-to-target state transitions grounded in specific P&L drivers."
+      },
+      {
+        "data": [
+          {
+            "Function": "Operations",
+            "KPI Name": "Day-Ahead Load Forecast Accuracy",
+            "Direction": "↑",
+            "Timeframe": "18 months",
+            "Sub-Function": "Energy Management & Trading",
+            "Target Value": "92% (8% MAPE)",
+            "Baseline Value": "77% (23% MAPE)",
+            "Benchmark (Avg)": "82% (ISO/RTO operator average per FERC data)",
+            "Strategic Theme": "Grid Optimization & Dispatch Excellence",
+            "Industry Benchmark": "82% (18% MAPE)",
+            "Measurement Method": "Mean Absolute Percentage Error on day-ahead hourly forecasts vs. actual dispatch",
+            "Benchmark (Overall Best)": "94% (leading tech-enabled utilities with ML forecasting)",
+            "Benchmark (Industry Best)": "88% (top quartile independent power producers)"
+          },
+          {
+            "Function": "Operations",
+            "KPI Name": "Ancillary Services Revenue Capture Rate",
+            "Direction": "↑",
+            "Timeframe": "24 months",
+            "Sub-Function": "Energy Management & Trading",
+            "Target Value": "68% ($190M captured)",
+            "Baseline Value": "34% ($95M of $280M addressable)",
+            "Benchmark (Avg)": "48% (EPRI benchmark for nuclear/renewable portfolios)",
+            "Strategic Theme": "Grid Optimization & Dispatch Excellence",
+            "Industry Benchmark": "48% (mid-sized generator average)",
+            "Measurement Method": "Actual ancillary services revenue / total market opportunity across 6 ISOs",
+            "Benchmark (Overall Best)": "85% (battery storage operators with algorithmic bidding)",
+            "Benchmark (Industry Best)": "72% (top quartile flexible generators)"
+          },
+          {
+            "Function": "Legal & Compliance",
+            "KPI Name": "Regulatory Documentation Hours per Jurisdiction",
+            "Direction": "↓",
+            "Timeframe": "18 months",
+            "Sub-Function": "Regulatory Filing",
+            "Target Value": "4,300 hours (50% reduction)",
+            "Baseline Value": "8,667 hours (104K total / 12 jurisdictions)",
+            "Benchmark (Avg)": "6,200 hours (Edison Electric Institute member average)",
+            "Strategic Theme": "Regulatory Intelligence & Compliance Automation",
+            "Industry Benchmark": "6,200 hours (multi-state utility average)",
+            "Measurement Method": "Total compliance staff hours on documentation divided by number of regulatory jurisdictions",
+            "Benchmark (Overall Best)": "3,400 hours (leading financial services firms with RegTech)",
+            "Benchmark (Industry Best)": "4,800 hours (utilities with centralized compliance platforms)"
+          },
+          {
+            "Function": "Legal & Compliance",
+            "KPI Name": "Environmental Data Validation Cycle Time",
+            "Direction": "↓",
+            "Timeframe": "18 months",
+            "Sub-Function": "Regulatory Filing",
+            "Target Value": "2 days (real-time validation)",
+            "Baseline Value": "12 days (2.4M annual data points)",
+            "Benchmark (Avg)": "8 days (EPA CAMD reporting entity median)",
+            "Strategic Theme": "Regulatory Intelligence & Compliance Automation",
+            "Industry Benchmark": "8 days (large generator average)",
+            "Measurement Method": "Average days from data collection to validated regulatory submission",
+            "Benchmark (Overall Best)": "1 day (real-time validation in pharmaceutical manufacturing)",
+            "Benchmark (Industry Best)": "4 days (utilities with automated CEMS integration)"
+          },
+          {
+            "Function": "Operations",
+            "KPI Name": "Reactive Maintenance Percentage",
+            "Direction": "↓",
+            "Timeframe": "24 months",
+            "Sub-Function": "Facilities Management",
+            "Target Value": "12% (industry best practice)",
+            "Baseline Value": "23% of total maintenance spend",
+            "Benchmark (Avg)": "16% (INPO industry average for nuclear)",
+            "Strategic Theme": "Predictive Asset Performance",
+            "Industry Benchmark": "16% (nuclear fleet average)",
+            "Measurement Method": "Unplanned maintenance costs / total maintenance costs across generation portfolio",
+            "Benchmark (Overall Best)": "8% (aerospace/aviation with advanced predictive maintenance)",
+            "Benchmark (Industry Best)": "12% (top decile nuclear operators)"
+          },
+          {
+            "Function": "Operations",
+            "KPI Name": "Equipment Failure Prediction Lead Time",
+            "Direction": "↑",
+            "Timeframe": "24 months",
+            "Sub-Function": "Facilities Management",
+            "Target Value": "90 days at 85% accuracy",
+            "Baseline Value": "15 days advance warning",
+            "Benchmark (Avg)": "30 days (utilities with basic condition monitoring)",
+            "Strategic Theme": "Predictive Asset Performance",
+            "Industry Benchmark": "30 days (utilities with APM systems)",
+            "Measurement Method": "Average days between ML model alert and actual equipment failure for critical components",
+            "Benchmark (Overall Best)": "120 days (oil & gas with AI-powered predictive maintenance)",
+            "Benchmark (Industry Best)": "60 days (nuclear plants with advanced diagnostics)"
+          },
+          {
+            "Function": "Customer Service",
+            "KPI Name": "Commercial Customer Retention Rate",
+            "Direction": "↑",
+            "Timeframe": "18 months",
+            "Sub-Function": "Customer Communication",
+            "Target Value": "91% (9% attrition)",
+            "Baseline Value": "86% (14% annual attrition)",
+            "Benchmark (Avg)": "89% (EIA competitive market data)",
+            "Strategic Theme": "Commercial Velocity & Customer Intelligence",
+            "Industry Benchmark": "89% (competitive retail market average)",
+            "Measurement Method": "Percentage of commercial/industrial customers retained year-over-year by account count",
+            "Benchmark (Overall Best)": "96% (enterprise SaaS with predictive retention)",
+            "Benchmark (Industry Best)": "93% (top quartile competitive suppliers)"
+          },
+          {
+            "Function": "Customer Service",
+            "KPI Name": "Custom Contract Response Time",
+            "Direction": "↓",
+            "Timeframe": "18 months",
+            "Sub-Function": "Customer Communication",
+            "Target Value": "2 days (same-week turnaround)",
+            "Baseline Value": "12 days (quote to delivery)",
+            "Benchmark (Avg)": "8 days (large competitive supplier average per industry surveys)",
+            "Strategic Theme": "Commercial Velocity & Customer Intelligence",
+            "Industry Benchmark": "8 days (competitive supplier average)",
+            "Measurement Method": "Average calendar days from RFP receipt to contract proposal delivery for custom industrial loads",
+            "Benchmark (Overall Best)": "1 day (real-time pricing in commodity trading)",
+            "Benchmark (Industry Best)": "4 days (top quartile suppliers with pricing automation)"
+          },
+          {
+            "Function": "Finance",
+            "KPI Name": "Power Price Forecast Accuracy (30-day horizon)",
+            "Direction": "↑",
+            "Timeframe": "18 months",
+            "Sub-Function": "Treasury",
+            "Target Value": "93% (7% MAPE)",
+            "Baseline Value": "82% (18% MAPE)",
+            "Benchmark (Avg)": "86% (commodity trading firm average per CFTC data)",
+            "Strategic Theme": "Market Intelligence & Hedging Strategy",
+            "Industry Benchmark": "86% (14% MAPE for merchant generators)",
+            "Measurement Method": "Mean Absolute Percentage Error on 30-day forward power price forecasts vs. actual settlement",
+            "Benchmark (Overall Best)": "95% (leading crypto/FX prediction markets)",
+            "Benchmark (Industry Best)": "90% (quantitative trading firms with ML models)"
+          },
+          {
+            "Function": "Finance",
+            "KPI Name": "ISO Tariff Change Analysis Cycle Time",
+            "Direction": "↓",
+            "Timeframe": "18 months",
+            "Sub-Function": "Treasury",
+            "Target Value": "5 days (same-week response)",
+            "Baseline Value": "30 days (rule change to impact assessment)",
+            "Benchmark (Avg)": "18 days (EPRI survey of merchant generators)",
+            "Strategic Theme": "Market Intelligence & Hedging Strategy",
+            "Industry Benchmark": "18 days (large generator average)",
+            "Measurement Method": "Average days from ISO tariff filing to completed financial impact analysis and bid strategy update",
+            "Benchmark (Overall Best)": "3 days (financial institutions with automated regulatory change analysis)",
+            "Benchmark (Industry Best)": "10 days (generators with dedicated market design teams)"
+          }
+        ],
+        "step": 2,
+        "title": "Business Function Inventory & KPI Baselines",
+        "content": "Ten operational KPIs establish measurement baselines across the five strategic themes. Each KPI links to specific business functions with current performance, industry benchmarks, and 18-24 month improvement targets."
+      },
+      {
+        "data": [
+          {
+            "Role": "Business Analyst",
+            "Role ID": "ROLE_PRO_BIZ_ANALYST",
+            "Function": "Operations",
+            "Severity": "Critical",
+            "Hourly Rate": 95,
+            "Annual Hours": 124667,
+            "Cost Formula": "124,667 hours × $95/hr = $11.8M → $11.8M",
+            "Sub-Function": "Energy Management & Trading",
+            "Friction Type": "Data Friction",
+            "Friction Point": "Manual Load Forecasting Data Integration",
+            "Strategic Theme": "Grid Optimization & Dispatch Excellence",
+            "Primary Driver Impact": "23% forecast error drives $54M in suboptimal dispatch decisions and missed ancillary revenue",
+            "Estimated Annual Cost ($)": "$11.8M"
+          },
+          {
+            "Role": "Business Analyst",
+            "Role ID": "ROLE_PRO_BIZ_ANALYST",
+            "Function": "Operations",
+            "Severity": "Critical",
+            "Hourly Rate": 95,
+            "Annual Hours": 186667,
+            "Cost Formula": "186,667 hours × $95/hr = $17.7M → $17.7M",
+            "Sub-Function": "Energy Management & Trading",
+            "Friction Type": "Process Friction",
+            "Friction Point": "Slow Ancillary Market Bid Optimization",
+            "Strategic Theme": "Grid Optimization & Dispatch Excellence",
+            "Primary Driver Impact": "Manual bid preparation limits participation to 34% of addressable $280M market opportunity",
+            "Estimated Annual Cost ($)": "$17.7M"
+          },
+          {
+            "Role": "Compliance Officer",
+            "Role ID": "ROLE_SPEC_COMPLIANCE",
+            "Function": "Legal & Compliance",
+            "Severity": "Critical",
+            "Hourly Rate": 110,
+            "Annual Hours": 95333,
+            "Cost Formula": "95,333 hours × $110/hr = $10.5M → $10.5M",
+            "Sub-Function": "Regulatory Filing",
+            "Friction Type": "Knowledge Friction",
+            "Friction Point": "Jurisdiction-Specific Regulatory Documentation",
+            "Strategic Theme": "Regulatory Intelligence & Compliance Automation",
+            "Primary Driver Impact": "104K annual hours across 12 jurisdictions with 60% duplicate effort due to inconsistent template libraries",
+            "Estimated Annual Cost ($)": "$10.5M"
+          },
+          {
+            "Role": "Compliance Officer",
+            "Role ID": "ROLE_SPEC_COMPLIANCE",
+            "Function": "Legal & Compliance",
+            "Severity": "Critical",
+            "Hourly Rate": 110,
+            "Annual Hours": 74667,
+            "Cost Formula": "74,667 hours × $110/hr = $8.2M → $8.2M",
+            "Sub-Function": "Regulatory Filing",
+            "Friction Type": "Data Friction",
+            "Friction Point": "Environmental Data Validation Bottlenecks",
+            "Strategic Theme": "Regulatory Intelligence & Compliance Automation",
+            "Primary Driver Impact": "2.4M annual emissions data points require manual cross-system validation creating 12-day reporting lag",
+            "Estimated Annual Cost ($)": "$8.2M"
+          },
+          {
+            "Role": "Business Analyst",
+            "Role ID": "ROLE_PRO_BIZ_ANALYST",
+            "Function": "Operations",
+            "Severity": "Critical",
+            "Hourly Rate": 95,
+            "Annual Hours": 219333,
+            "Cost Formula": "219,333 hours × $95/hr = $20.8M → $20.8M",
+            "Sub-Function": "Facilities Management",
+            "Friction Type": "Process Friction",
+            "Friction Point": "Reactive Maintenance Workflow Dominance",
+            "Strategic Theme": "Predictive Asset Performance",
+            "Primary Driver Impact": "23% reactive maintenance at 3x planned cost plus $18M in emergency procurement premiums",
+            "Estimated Annual Cost ($)": "$20.8M"
+          },
+          {
+            "Role": "Business Analyst",
+            "Role ID": "ROLE_PRO_BIZ_ANALYST",
+            "Function": "Operations",
+            "Severity": "Critical",
+            "Hourly Rate": 95,
+            "Annual Hours": 65333,
+            "Cost Formula": "65,333 hours × $95/hr = $6.2M → $6.2M",
+            "Sub-Function": "Facilities Management",
+            "Friction Type": "Technology Friction",
+            "Friction Point": "Equipment Sensor Data Fragmentation",
+            "Strategic Theme": "Predictive Asset Performance",
+            "Primary Driver Impact": "847M daily sensor readings across 47 disconnected systems limit predictive model accuracy to 15-day horizon",
+            "Estimated Annual Cost ($)": "$6.2M"
+          },
+          {
+            "Role": "Customer Support Specialist",
+            "Role ID": "ROLE_PRO_CUST_SVC_SPEC",
+            "Function": "Customer Service",
+            "Severity": "Critical",
+            "Hourly Rate": 65,
+            "Annual Hours": 446667,
+            "Cost Formula": "446,667 hours × $65/hr = $29.0M → $29.0M",
+            "Sub-Function": "Customer Communication",
+            "Friction Type": "Data Friction",
+            "Friction Point": "Customer Attrition Root Cause Blindness",
+            "Strategic Theme": "Commercial Velocity & Customer Intelligence",
+            "Primary Driver Impact": "14% commercial attrition ($478M annual revenue churn) without unified early warning signals from billing, service, pricing data",
+            "Estimated Annual Cost ($)": "$29.0M"
+          },
+          {
+            "Role": "Customer Support Specialist",
+            "Role ID": "ROLE_PRO_CUST_SVC_SPEC",
+            "Function": "Customer Service",
+            "Severity": "Critical",
+            "Hourly Rate": 65,
+            "Annual Hours": 59333,
+            "Cost Formula": "59,333 hours × $65/hr = $3.9M → $3.9M",
+            "Sub-Function": "Customer Communication",
+            "Friction Type": "Process Friction",
+            "Friction Point": "Custom Contract Manual Assembly",
+            "Strategic Theme": "Commercial Velocity & Customer Intelligence",
+            "Primary Driver Impact": "12-day contract cycle requires legal review of 2,400 annual custom quotes with 40% rework due to pricing/term inconsistencies",
+            "Estimated Annual Cost ($)": "$3.9M"
+          },
+          {
+            "Role": "Business Analyst",
+            "Role ID": "ROLE_PRO_BIZ_ANALYST",
+            "Function": "Finance",
+            "Severity": "Critical",
+            "Hourly Rate": 95,
+            "Annual Hours": 486667,
+            "Cost Formula": "486,667 hours × $95/hr = $46.2M → $46.2M",
+            "Sub-Function": "Treasury",
+            "Friction Type": "Technology Friction",
+            "Friction Point": "Multivariate Price Forecasting Limitations",
+            "Strategic Theme": "Market Intelligence & Hedging Strategy",
+            "Primary Driver Impact": "18% forecast error on $4.2B hedged position creates $73M annual mark-to-market volatility and suboptimal hedge timing",
+            "Estimated Annual Cost ($)": "$46.2M"
+          },
+          {
+            "Role": "Business Analyst",
+            "Role ID": "ROLE_PRO_BIZ_ANALYST",
+            "Function": "Finance",
+            "Severity": "High",
+            "Hourly Rate": 95,
+            "Annual Hours": 42667,
+            "Cost Formula": "42,667 hours × $95/hr = $4.0M → $4.0M",
+            "Sub-Function": "Treasury",
+            "Friction Type": "Knowledge Friction",
+            "Friction Point": "ISO Tariff Change Manual Impact Analysis",
+            "Strategic Theme": "Market Intelligence & Hedging Strategy",
+            "Primary Driver Impact": "30-day lag analyzing 47 annual ISO rule changes delays commercial response and risks $6.4M in missed market optimization",
+            "Estimated Annual Cost ($)": "$4.0M"
+          }
+        ],
+        "step": 3,
+        "title": "Friction Point Mapping",
+        "content": "Constellation's operational friction clusters around three core challenges: fragmented data architectures preventing real-time optimization, manual regulatory workflows consuming specialized expertise, and reactive maintenance draining capital efficiency. The nuclear fleet operates with 1970s-era data silos—plant sensors generate 847M daily readings but lack unified semantic layers for pattern recognition. Regulatory teams manually reconcile 2.4M environmental data points across 12 jurisdictions using spreadsheets and PDF extraction. Maintenance planning relies on fixed schedules rather than failure signatures, forcing reactive spend at 3x planned work costs. Commercial operations manually parse ISO tariff amendments affecting $4.2B in hedged positions while customer retention suffers from 12-day custom contract cycles. These friction points drain $247M annually in excess labor and lost margin opportunity."
+      },
+      {
+        "data": [
+          {
+            "ID": "UC-01",
+            "Function": "Operations",
+            "Data Types": [
+              "Structured",
+              "Real-time",
+              "Unstructured"
+            ],
+            "Description": "RAG-powered semantic layer consolidates weather, grid sensor, historical demand, and market price feeds into single forecasting surface with ensemble ML models. Traders validate final dispatch decisions.",
+            "EPOCH Flags": "O",
+            "Integrations": [
+              "PI Historian (OSIsoft)",
+              "NOAA Weather API",
+              "ISO-NE Market Data Feed",
+              "SAP ERP Energy Module",
+              "PowerWorld Simulator"
+            ],
+            "Sub-Function": "Energy Management & Trading",
+            "_patternType": "single-agent",
+            "AI Primitives": "Research & Information Retrieval, Data Analysis",
+            "Use Case Name": "Unified Load Forecasting Engine",
+            "Agentic Pattern": "tool_use",
+            "Primary Pattern": "Tool Use",
+            "Strategic Theme": "Grid Optimization & Dispatch Excellence",
+            "Target Friction": "Manual Load Forecasting Data Integration",
+            "Desired Outcomes": [
+              "Reduce forecast MAPE from 23% to 8% within 18 months",
+              "Consolidate 47 data feeds into single semantic layer accessible in under 2 seconds",
+              "Enable intraday forecast updates every 15 minutes vs. current daily cycle",
+              "Decrease suboptimal dispatch costs by $42M annually"
+            ],
+            "_tokenMultiplier": 1.3,
+            "Pattern Rationale": "Tool Use pattern enables direct API integration with 47 real-time data sources (weather, ISO prices, sensor telemetry) and deterministic forecast model execution. ReAct provides fallback when data quality triggers iterative validation loops before final prediction.",
+            "_patternComplexity": "medium",
+            "Alternative Pattern": "ReAct Loop",
+            "_implementationMonths": 2.5,
+            "Human-in-the-Loop Checkpoint": "Energy trader validates day-ahead forecast and approves final dispatch schedule before market submission"
+          },
+          {
+            "ID": "UC-02",
+            "Function": "Operations",
+            "Data Types": [
+              "Structured",
+              "Real-time"
+            ],
+            "Description": "Multi-agent orchestrator monitors real-time capacity availability across 23 plants, generates optimized frequency regulation and reserve bids every 5 minutes, routes to market APIs. Trader approves bid strategy parameters daily.",
+            "EPOCH Flags": "O",
+            "Integrations": [
+              "PJM eMKT API",
+              "ISO-NE WebMRS",
+              "MISO Market Portal",
+              "Plant Control Systems (DCS)",
+              "Trading Risk Management System"
+            ],
+            "Sub-Function": "Energy Management & Trading",
+            "_patternType": "multi-agent",
+            "AI Primitives": "Data Analysis, Workflow Automation",
+            "Use Case Name": "Autonomous Ancillary Bid Optimizer",
+            "Agentic Pattern": "orchestrator_worker",
+            "Primary Pattern": "Orchestrator-Workers",
+            "Strategic Theme": "Grid Optimization & Dispatch Excellence",
+            "Target Friction": "Slow Ancillary Market Bid Optimization",
+            "Desired Outcomes": [
+              "Increase ancillary revenue capture from 34% to 61% of $280M addressable market",
+              "Reduce bid preparation time from 4 hours to 12 minutes per market window",
+              "Enable participation in 8 additional ancillary products currently ignored due to manual constraints",
+              "Generate $76M incremental annual ancillary revenue"
+            ],
+            "_tokenMultiplier": 3,
+            "Pattern Rationale": "Orchestrator-Workers allows central coordinator to manage specialized agents for each ancillary market (regulation, spinning reserve, non-spinning reserve) with market-specific bidding logic. Parallelization alternative enables simultaneous bid generation across all markets when time constraints dominate coordination complexity.",
+            "_patternComplexity": "high",
+            "Alternative Pattern": "Parallelization",
+            "_implementationMonths": 5,
+            "Human-in-the-Loop Checkpoint": "Senior trader reviews and approves automated bid strategy parameters and risk limits each morning before market opens"
+          },
+          {
+            "ID": "UC-03",
+            "Function": "Legal & Compliance",
+            "Data Types": [
+              "Unstructured",
+              "Semi-structured"
+            ],
+            "Description": "RAG system ingests 12 jurisdiction rulesets, extracts relevant requirements, auto-generates license amendment drafts with cross-referenced citations. Regulatory affairs specialist validates technical accuracy and legal compliance.",
+            "EPOCH Flags": "O",
+            "Integrations": [
+              "NRC ADAMS Database",
+              "State PUC Filing Portals",
+              "SharePoint Regulatory Library",
+              "Veeva Vault QMS",
+              "DocuSign CLM"
+            ],
+            "Sub-Function": "Regulatory Filing",
+            "_patternType": "single-agent",
+            "AI Primitives": "Research & Information Retrieval, Content Creation",
+            "Use Case Name": "Cross-Jurisdiction Regulatory Document Generator",
+            "Agentic Pattern": "tool_use",
+            "Primary Pattern": "Tool Use",
+            "Strategic Theme": "Regulatory Intelligence & Compliance Automation",
+            "Target Friction": "Jurisdiction-Specific Regulatory Documentation",
+            "Desired Outcomes": [
+              "Reduce regulatory documentation hours from 8,667 to 3,467 hours per jurisdiction annually",
+              "Decrease license amendment cycle time from 8 months to 4.5 months",
+              "Eliminate 60% of duplicate effort across jurisdictions through automated cross-referencing",
+              "Lower regulatory compliance labor cost by $8.6M annually"
+            ],
+            "_tokenMultiplier": 1.3,
+            "Pattern Rationale": "Tool Use pattern provides deterministic retrieval from jurisdiction-specific regulatory databases (10 CFR, state codes) and template libraries with exact citation linking. Prompt Chaining alternative structures multi-step document assembly when complex cross-referencing requires iterative section generation.",
+            "_patternComplexity": "medium",
+            "Alternative Pattern": "Prompt Chaining",
+            "_implementationMonths": 2.5,
+            "Human-in-the-Loop Checkpoint": "Regulatory affairs manager reviews generated documentation for technical accuracy, validates all regulatory citations, and approves before NRC/state submission"
+          },
+          {
+            "ID": "UC-04",
+            "Function": "Legal & Compliance",
+            "Data Types": [
+              "Structured",
+              "Real-time",
+              "Semi-structured"
+            ],
+            "Description": "Multi-agent system extracts emissions data from 47 plant monitoring systems, cross-validates against EPA CEMS requirements, flags anomalies for investigation. Environmental engineer approves final compliance reports.",
+            "EPOCH Flags": "O",
+            "Integrations": [
+              "EPA CEMS (Continuous Emissions Monitoring)",
+              "PI Historian Environmental Module",
+              "Enviance Compliance Software",
+              "SAP EH&S",
+              "State Emissions Reporting Portals"
+            ],
+            "Sub-Function": "Regulatory Filing",
+            "_patternType": "multi-agent",
+            "AI Primitives": "Data Analysis, Workflow Automation",
+            "Use Case Name": "Automated Environmental Data Validation Pipeline",
+            "Agentic Pattern": "orchestrator_worker",
+            "Primary Pattern": "Orchestrator-Workers",
+            "Strategic Theme": "Regulatory Intelligence & Compliance Automation",
+            "Target Friction": "Environmental Data Validation Bottlenecks",
+            "Desired Outcomes": [
+              "Reduce validation cycle time from 12 days to 2 days for 2.4M annual data points",
+              "Decrease manual validation labor from 14,400 hours to 4,320 hours annually",
+              "Improve anomaly detection accuracy from 67% to 94% through pattern recognition",
+              "Lower environmental compliance cost by $6.7M annually"
+            ],
+            "_tokenMultiplier": 3,
+            "Pattern Rationale": "Orchestrator-Workers manages specialized validation agents for each pollutant type (NOx, SO2, CO2, mercury) with pollutant-specific EPA calculation methodologies. Agent Handoff alternative provides sequential processing when cross-pollutant dependencies require ordered validation steps.",
+            "_patternComplexity": "high",
+            "Alternative Pattern": "Agent Handoff",
+            "_implementationMonths": 5,
+            "Human-in-the-Loop Checkpoint": "Environmental compliance engineer investigates flagged anomalies, validates root cause, and certifies quarterly emissions reports before EPA submission"
+          },
+          {
+            "ID": "UC-05",
+            "Function": "Operations",
+            "Data Types": [
+              "Structured",
+              "Real-time",
+              "Semi-structured"
+            ],
+            "Description": "Agent analyzes 847M daily sensor readings to detect failure signatures, generates optimized maintenance schedules balancing risk and outage cost, routes work orders. Maintenance planner validates priority and timing.",
+            "EPOCH Flags": "O",
+            "Integrations": [
+              "IBM Maximo EAM",
+              "PI Historian Sensor Data",
+              "SAP PM Module",
+              "GE Predix APM",
+              "Reliability Centered Maintenance (RCM) Database"
+            ],
+            "Sub-Function": "Facilities Management",
+            "_patternType": "multi-agent",
+            "AI Primitives": "Data Analysis, Workflow Automation",
+            "Use Case Name": "Predictive Maintenance Work Order Orchestrator",
+            "Agentic Pattern": "orchestrator_worker",
+            "Primary Pattern": "Orchestrator-Workers",
+            "Strategic Theme": "Predictive Asset Performance",
+            "Target Friction": "Reactive Maintenance Workflow Dominance",
+            "Desired Outcomes": [
+              "Reduce reactive maintenance from 23% to 8% of total maintenance spend",
+              "Decrease unplanned outages by 30%, avoiding $36M in replacement power costs",
+              "Lower emergency procurement premiums from $18M to $6M annually",
+              "Improve maintenance labor productivity by 40% through optimized scheduling"
+            ],
+            "_tokenMultiplier": 3,
+            "Pattern Rationale": "Orchestrator-Workers coordinates specialized agents for vibration analysis, thermal imaging, oil analysis, and electrical testing with equipment-type-specific failure models. Planning pattern alternative enables complex multi-step reasoning when maintenance scheduling requires capacity constraint satisfaction across multiple simultaneous outages.",
+            "_patternComplexity": "high",
+            "Alternative Pattern": "Planning",
+            "_implementationMonths": 5,
+            "Human-in-the-Loop Checkpoint": "Maintenance planning manager reviews predicted failures, validates equipment criticality scoring, and approves final outage schedule before work order release"
+          },
+          {
+            "ID": "UC-06",
+            "Function": "Operations",
+            "Data Types": [
+              "Structured",
+              "Real-time"
+            ],
+            "Description": "RAG pipeline consolidates 847M daily sensor readings from 47 disconnected systems into queryable knowledge graph with failure pattern ontology. Engineers validate health score thresholds and intervention triggers.",
+            "EPOCH Flags": "O",
+            "Integrations": [
+              "PI Historian (47 plant instances)",
+              "GE Distributed Control Systems",
+              "Siemens SCADA",
+              "IBM Maximo Asset Repository",
+              "Neo4j Knowledge Graph"
+            ],
+            "Sub-Function": "Facilities Management",
+            "_patternType": "single-agent",
+            "AI Primitives": "Research & Information Retrieval, Data Analysis",
+            "Use Case Name": "Unified Equipment Health Semantic Layer",
+            "Agentic Pattern": "tool_use",
+            "Primary Pattern": "Tool Use",
+            "Strategic Theme": "Predictive Asset Performance",
+            "Target Friction": "Equipment Sensor Data Fragmentation",
+            "Desired Outcomes": [
+              "Extend failure prediction lead time from 15 days to 45 days through unified data visibility",
+              "Enable cross-plant failure pattern recognition across 23 generation facilities",
+              "Reduce sensor data integration cost from $9.8M to $3.2M annually",
+              "Improve predictive model accuracy from 71% to 89% through expanded training datasets"
+            ],
+            "_tokenMultiplier": 1.3,
+            "Pattern Rationale": "Tool Use pattern provides deterministic sensor data retrieval from 47 heterogeneous systems with normalized failure signature libraries for equipment classes. Semantic Router alternative enables intelligent query routing when engineers need different model depths for routine monitoring versus failure investigations.",
+            "_patternComplexity": "medium",
+            "Alternative Pattern": "Semantic Router",
+            "_implementationMonths": 2.5,
+            "Human-in-the-Loop Checkpoint": "Reliability engineer validates equipment health score calculations, approves failure threshold adjustments, and certifies predictive model accuracy quarterly"
+          },
+          {
+            "ID": "UC-07",
+            "Function": "Customer Service",
+            "Data Types": [
+              "Structured",
+              "Semi-structured",
+              "Unstructured"
+            ],
+            "Description": "Multi-agent system monitors billing accuracy, service request sentiment, competitive price exposure, usage pattern changes. Generates churn risk scores with retention playbooks. Account manager validates outreach priority.",
+            "EPOCH Flags": "E, O",
+            "Integrations": [
+              "Oracle CX Cloud",
+              "SAP C4C CRM",
+              "Salesforce Service Cloud",
+              "Zendesk Support",
+              "Market Intelligence Platform (Genscape)"
+            ],
+            "Sub-Function": "Customer Communication",
+            "_patternType": "multi-agent",
+            "AI Primitives": "Data Analysis, Conversational Interfaces",
+            "Use Case Name": "Customer Attrition Early Warning System",
+            "Agentic Pattern": "orchestrator_worker",
+            "Primary Pattern": "Orchestrator-Workers",
+            "Strategic Theme": "Commercial Velocity & Customer Intelligence",
+            "Target Friction": "Customer Attrition Root Cause Blindness",
+            "Desired Outcomes": [
+              "Reduce commercial customer attrition from 14% to 9% ($478M revenue base)",
+              "Increase early warning lead time from 14 days to 90 days before contract expiration",
+              "Improve retention offer acceptance rate from 43% to 68%",
+              "Protect $67M in annual revenue through proactive retention"
+            ],
+            "_tokenMultiplier": 3,
+            "Pattern Rationale": "Orchestrator-Workers manages specialized monitoring agents for billing data, service interactions, competitive intelligence, and usage analytics with customer segment-specific churn models. Generator-Critic alternative provides retention strategy refinement when initial playbook recommendations require iterative validation against customer history.",
+            "_patternComplexity": "high",
+            "Alternative Pattern": "Generator-Critic",
+            "_implementationMonths": 5,
+            "Human-in-the-Loop Checkpoint": "Commercial account manager reviews churn risk scores, validates recommended retention offers against margin constraints, and approves customer outreach timing"
+          },
+          {
+            "ID": "UC-08",
+            "Function": "Customer Service",
+            "Data Types": [
+              "Unstructured",
+              "Semi-structured"
+            ],
+            "Description": "Agent retrieves relevant contract clauses from 2,400 historical agreements, generates custom quote with risk-adjusted pricing, flags non-standard terms. Legal counsel validates contract language and credit terms.",
+            "EPOCH Flags": "O",
+            "Integrations": [
+              "DocuSign CLM",
+              "Salesforce CPQ",
+              "Agiloft Contract Management",
+              "Legal Clause Library (SharePoint)",
+              "Credit Risk Database (Moody's)"
+            ],
+            "Sub-Function": "Customer Communication",
+            "_patternType": "single-agent",
+            "AI Primitives": "Research & Information Retrieval, Content Creation",
+            "Use Case Name": "Intelligent Contract Assembly Accelerator",
+            "Agentic Pattern": "tool_use",
+            "Primary Pattern": "Tool Use",
+            "Strategic Theme": "Commercial Velocity & Customer Intelligence",
+            "Target Friction": "Custom Contract Manual Assembly",
+            "Desired Outcomes": [
+              "Reduce custom contract cycle time from 12 days to 3 days",
+              "Decrease contract rework from 40% to 12% through clause consistency enforcement",
+              "Enable 35% increase in annual custom quote volume without additional legal staff",
+              "Lower contract administration cost by $5.3M annually"
+            ],
+            "_tokenMultiplier": 1.3,
+            "Pattern Rationale": "Tool Use pattern enables retrieval from structured clause libraries with deterministic pricing rule application and compliance validation. Prompt Chaining alternative provides multi-step contract generation when complex custom terms require iterative assembly with legal precedent verification.",
+            "_patternComplexity": "medium",
+            "Alternative Pattern": "Prompt Chaining",
+            "_implementationMonths": 2.5,
+            "Human-in-the-Loop Checkpoint": "Senior legal counsel reviews contract language for regulatory compliance, validates credit terms against customer financial profile, and approves final pricing before customer delivery"
+          },
+          {
+            "ID": "UC-09",
+            "Function": "Finance",
+            "Data Types": [
+              "Structured",
+              "Real-time",
+              "Unstructured"
+            ],
+            "Description": "Ensemble agent combines fundamental supply-demand models, weather-driven load forecasts, sentiment analysis of ISO operator logs, and ML pattern recognition. Risk manager validates forecast confidence intervals before hedge execution.",
+            "EPOCH Flags": "O",
+            "Integrations": [
+              "Bloomberg Terminal API",
+              "ICE Energy Markets Data",
+              "NOAA Weather Models",
+              "ISO Operator Logs Archive",
+              "SAP Treasury Management"
+            ],
+            "Sub-Function": "Treasury",
+            "_patternType": "multi-agent",
+            "AI Primitives": "Data Analysis, Research & Information Retrieval",
+            "Use Case Name": "Multi-Horizon Power Price Forecasting Engine",
+            "Agentic Pattern": "orchestrator_worker",
+            "Primary Pattern": "Orchestrator-Workers",
+            "Strategic Theme": "Market Intelligence & Hedging Strategy",
+            "Target Friction": "Multivariate Price Forecasting Limitations",
+            "Desired Outcomes": [
+              "Reduce 30-day price forecast MAPE from 18% to 7% on $4.2B hedged portfolio",
+              "Decrease mark-to-market volatility by $43M annually through improved hedge timing",
+              "Enable intraday forecast updates every 30 minutes vs. current daily cycle",
+              "Improve hedge effectiveness ratio from 0.73 to 0.91"
+            ],
+            "_tokenMultiplier": 3,
+            "Pattern Rationale": "Orchestrator-Workers coordinates specialized forecasting agents for fundamental models, weather correlation, market microstructure, and sentiment analysis with time-horizon-specific weighting. Parallelization alternative enables simultaneous model execution when real-time forecast updates require sub-15-minute refresh cycles.",
+            "_patternComplexity": "high",
+            "Alternative Pattern": "Parallelization",
+            "_implementationMonths": 5,
+            "Human-in-the-Loop Checkpoint": "Treasury risk manager reviews forecast methodology assumptions, validates confidence interval calculations, and approves hedge strategy before trade execution on $4.2B portfolio"
+          },
+          {
+            "ID": "UC-10",
+            "Function": "Finance",
+            "Data Types": [
+              "Unstructured",
+              "Semi-structured"
+            ],
+            "Description": "Agent monitors 7 ISO tariff filings daily, extracts rule changes using semantic parsing, calculates portfolio impact across 23 plants, generates commercial response scenarios. Director of trading approves strategic response.",
+            "EPOCH Flags": "O",
+            "Integrations": [
+              "ISO-NE eTariff Portal",
+              "PJM Tariff Library",
+              "FERC eFiling System",
+              "Legal Research Database (Westlaw)",
+              "Trading Strategy Database"
+            ],
+            "Sub-Function": "Treasury",
+            "_patternType": "single-agent",
+            "AI Primitives": "Research & Information Retrieval, Data Analysis",
+            "Use Case Name": "ISO Tariff Change Impact Analyzer",
+            "Agentic Pattern": "tool_use",
+            "Primary Pattern": "Tool Use",
+            "Strategic Theme": "Market Intelligence & Hedging Strategy",
+            "Target Friction": "ISO Tariff Change Manual Impact Analysis",
+            "Desired Outcomes": [
+              "Reduce ISO tariff analysis cycle time from 30 days to 5 days for 47 annual rule changes",
+              "Enable commercial response 25 days earlier, capturing $6.4M in optimization opportunities",
+              "Decrease regulatory analysis labor from 8,200 hours to 2,460 hours annually",
+              "Improve tariff change impact prediction accuracy from 64% to 87%"
+            ],
+            "_tokenMultiplier": 1.3,
+            "Pattern Rationale": "Tool Use pattern provides deterministic extraction from ISO tariff PDFs and regulatory filings with rule-based impact calculation on generation portfolio. ReAct Loop alternative enables iterative analysis when complex rule interactions require multi-step reasoning to uncover non-obvious portfolio impacts.",
+            "_patternComplexity": "medium",
+            "Alternative Pattern": "ReAct Loop",
+            "_implementationMonths": 2.5,
+            "Human-in-the-Loop Checkpoint": "Director of trading reviews calculated portfolio impacts, validates commercial strategy recommendations, and approves market participation adjustments before implementation"
+          }
+        ],
+        "step": 4,
+        "title": "AI Use Case Generation",
+        "content": "The ten use cases target process transformation rather than acceleration. Each reshapes workflows by consolidating fragmented data streams into unified decision surfaces where AI handles pattern recognition and humans retain accountability checkpoints. Load forecasting shifts from reactive data assembly to continuous model refinement using 847M daily sensor streams. Regulatory documentation moves from jurisdiction-by-jurisdiction template management to automated cross-reference generation with compliance officer validation. Maintenance planning transitions from calendar-driven schedules to failure signature detection with engineering approval gates. Commercial operations replace manual contract assembly with clause libraries and risk scoring while relationship managers control final pricing authority. The portfolio spans six business functions with 70% back-office concentration, emphasizing operational leverage over customer-facing automation."
+      },
+      {
+        "data": [
+          {
+            "ID": "UC-01",
+            "Use Case": "Unified Load Forecasting Engine",
+            "Cost Formula": "28,000 hours × $150/hr × 1.35 × 0.90 × 0.75 = $3.8M → $3.8M [HF/labels]",
+            "Risk Formula": "3% × $54,000,000 × 0.80 × 0.75 = $972K → $972K [HF/labels]",
+            "Revenue Formula": "0.18% × $21,400,000,000 × 0.95 × 0.75 = $27.4M → $27.4M [HF/labels]",
+            "Strategic Theme": "Grid Optimization & Dispatch Excellence",
+            "Cost Benefit ($)": "$3.8M",
+            "Risk Benefit ($)": "$972K",
+            "Cash Flow Formula": "$21,400,000,000 × (2/365) × 0.08 × 0.85 × 0.75 = $6.0M → $6.0M [HF/labels] × 0.769231 (portfolio days cap) → $4.6M × 0.923165 (portfolio cash-flow share cap) → $4.2M",
+            "Expected Value ($)": "$23.7M",
+            "Cost Formula Labels": {
+              "result": "$3.8M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 28000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 150
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$27.4M",
+            "Risk Formula Labels": {
+              "result": "$972K",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.03
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 54000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$4.2M",
+            "Probability of Success": 0.65,
+            "Revenue Formula Labels": {
+              "result": "$27.4M",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.0018
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 21400000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$36.4M",
+            "Cash Flow Formula Labels": {
+              "result": "$4.2M",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 21400000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 2
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ],
+              "portfolioCashflowShareCap": {
+                "cap": 0.35,
+                "scaleFactor": 0.9231652056400264,
+                "scaledValue": 4246559,
+                "originalValue": 4600000
+              },
+              "portfolioCashflowGuardrail": {
+                "scaleFactor": 0.7692307692307693,
+                "scaledValue": 4600210,
+                "originalValue": 5980273,
+                "cumulativeDaysRaw": 39,
+                "cumulativeDaysCapped": 30
+              }
+            }
+          },
+          {
+            "ID": "UC-02",
+            "Use Case": "Autonomous Ancillary Bid Optimizer",
+            "Cost Formula": "32,000 hours × $150/hr × 1.35 × 0.90 × 0.75 = $4.4M → $4.4M [HF/labels]",
+            "Risk Formula": "3% × $28,000,000 × 0.80 × 0.75 = $504K → $504K [HF/labels]",
+            "Revenue Formula": "0.2% × $280,000,000 × 0.95 × 0.75 = $399K → $399K [HF/labels]",
+            "Strategic Theme": "Grid Optimization & Dispatch Excellence",
+            "Cost Benefit ($)": "$4.4M",
+            "Risk Benefit ($)": "$504K",
+            "Cash Flow Formula": "$21,400,000,000 × (3/365) × 0.08 × 0.85 × 0.75 = $9.0M → $9.0M [HF/labels] × 0.769231 (portfolio days cap) → $6.9M × 0.923165 (portfolio cash-flow share cap) → $6.4M",
+            "Expected Value ($)": "$7.0M",
+            "Cost Formula Labels": {
+              "result": "$4.4M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 32000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 150
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$399K",
+            "Risk Formula Labels": {
+              "result": "$504K",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.03
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 28000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$6.4M",
+            "Probability of Success": 0.6,
+            "Revenue Formula Labels": {
+              "result": "$399K",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.002
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 280000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$11.7M",
+            "Cash Flow Formula Labels": {
+              "result": "$6.4M",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 21400000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 3
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ],
+              "portfolioCashflowShareCap": {
+                "cap": 0.35,
+                "scaleFactor": 0.9231652056400264,
+                "scaledValue": 6369839,
+                "originalValue": 6900000
+              },
+              "portfolioCashflowGuardrail": {
+                "scaleFactor": 0.7692307692307693,
+                "scaledValue": 6900315,
+                "originalValue": 8970410,
+                "cumulativeDaysRaw": 39,
+                "cumulativeDaysCapped": 30
+              }
+            }
+          },
+          {
+            "ID": "UC-03",
+            "Use Case": "Cross-Jurisdiction Regulatory Document Generator",
+            "Cost Formula": "104,000 hours × $100/hr × 1.35 × 0.90 × 0.75 = $9.5M → $9.5M [HF/labels]",
+            "Risk Formula": "4% × $14,300,000 × 0.80 × 0.75 = $343K → $343K [HF/labels]",
+            "Revenue Formula": "No direct revenue impact",
+            "Strategic Theme": "Regulatory Intelligence & Compliance Automation",
+            "Cost Benefit ($)": "$9.5M",
+            "Risk Benefit ($)": "$343K",
+            "Cash Flow Formula": "$21,400,000,000 × (3/365) × 0.08 × 0.85 × 0.75 = $9.0M → $9.0M [HF/labels] × 0.769231 (portfolio days cap) → $6.9M × 0.923165 (portfolio cash-flow share cap) → $6.4M",
+            "Expected Value ($)": "$11.3M",
+            "Cost Formula Labels": {
+              "result": "$9.5M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 104000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 100
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$0",
+            "Risk Formula Labels": {
+              "result": "$343K",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.04
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 14300000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$6.4M",
+            "Probability of Success": 0.7,
+            "Revenue Formula Labels": null,
+            "Total Annual Value ($)": "$16.2M",
+            "Cash Flow Formula Labels": {
+              "result": "$6.4M",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 21400000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 3
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ],
+              "portfolioCashflowShareCap": {
+                "cap": 0.35,
+                "scaleFactor": 0.9231652056400264,
+                "scaledValue": 6369839,
+                "originalValue": 6900000
+              },
+              "portfolioCashflowGuardrail": {
+                "scaleFactor": 0.7692307692307693,
+                "scaledValue": 6900315,
+                "originalValue": 8970410,
+                "cumulativeDaysRaw": 39,
+                "cumulativeDaysCapped": 30
+              }
+            }
+          },
+          {
+            "ID": "UC-04",
+            "Use Case": "Automated Environmental Data Validation Pipeline",
+            "Cost Formula": "85,000 hours × $100/hr × 1.35 × 0.90 × 0.75 = $7.7M → $7.7M [HF/labels]",
+            "Risk Formula": "4% × $11,200,000 × 0.80 × 0.75 = $269K → $269K [HF/labels]",
+            "Revenue Formula": "No direct revenue impact",
+            "Strategic Theme": "Regulatory Intelligence & Compliance Automation",
+            "Cost Benefit ($)": "$7.7M",
+            "Risk Benefit ($)": "$269K",
+            "Cash Flow Formula": "$21,400,000,000 × (5/365) × 0.08 × 0.85 × 0.75 = $15.0M → $15.0M [HF/labels] × 0.769231 (portfolio days cap) → $11.5M × 0.923165 (portfolio cash-flow share cap) → $10.6M",
+            "Expected Value ($)": "$13.9M",
+            "Cost Formula Labels": {
+              "result": "$7.7M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 85000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 100
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$0",
+            "Risk Formula Labels": {
+              "result": "$269K",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.04
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 11200000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$10.6M",
+            "Probability of Success": 0.75,
+            "Revenue Formula Labels": null,
+            "Total Annual Value ($)": "$18.6M",
+            "Cash Flow Formula Labels": {
+              "result": "$10.6M",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 21400000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 5
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ],
+              "portfolioCashflowShareCap": {
+                "cap": 0.35,
+                "scaleFactor": 0.9231652056400264,
+                "scaledValue": 10616399,
+                "originalValue": 11500000
+              },
+              "portfolioCashflowGuardrail": {
+                "scaleFactor": 0.7692307692307693,
+                "scaledValue": 11500526,
+                "originalValue": 14950684,
+                "cumulativeDaysRaw": 39,
+                "cumulativeDaysCapped": 30
+              }
+            }
+          },
+          {
+            "ID": "UC-05",
+            "Use Case": "Predictive Maintenance Work Order Orchestrator",
+            "Cost Formula": "38,000 hours × $150/hr × 1.35 × 0.90 × 0.75 = $5.2M → $5.2M [HF/labels]",
+            "Risk Formula": "5% × $32,900,000 × 0.80 × 0.75 = $987K → $987K [HF/labels]",
+            "Revenue Formula": "0.12% × $21,400,000,000 × 0.95 × 0.75 = $18.3M → $18.3M [HF/labels]",
+            "Strategic Theme": "Predictive Asset Performance",
+            "Cost Benefit ($)": "$5.2M",
+            "Risk Benefit ($)": "$987K",
+            "Cash Flow Formula": "$21,400,000,000 × (4/365) × 0.08 × 0.85 × 0.75 = $12.0M → $12.0M [HF/labels] × 0.769231 (portfolio days cap) → $9.2M × 0.923165 (portfolio cash-flow share cap) → $8.5M",
+            "Expected Value ($)": "$21.4M",
+            "Cost Formula Labels": {
+              "result": "$5.2M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 38000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 150
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$18.3M",
+            "Risk Formula Labels": {
+              "result": "$987K",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.05
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 32900000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$8.5M",
+            "Probability of Success": 0.65,
+            "Revenue Formula Labels": {
+              "result": "$18.3M",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.0012
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 21400000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$33.0M",
+            "Cash Flow Formula Labels": {
+              "result": "$8.5M",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 21400000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 4
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ],
+              "portfolioCashflowShareCap": {
+                "cap": 0.35,
+                "scaleFactor": 0.9231652056400264,
+                "scaledValue": 8493119,
+                "originalValue": 9200000
+              },
+              "portfolioCashflowGuardrail": {
+                "scaleFactor": 0.7692307692307693,
+                "scaledValue": 9200420,
+                "originalValue": 11960547,
+                "cumulativeDaysRaw": 39,
+                "cumulativeDaysCapped": 30
+              }
+            }
+          },
+          {
+            "ID": "UC-06",
+            "Use Case": "Unified Equipment Health Semantic Layer",
+            "Cost Formula": "42,000 hours × $150/hr × 1.35 × 0.90 × 0.75 = $5.7M → $5.7M [HF/labels]",
+            "Risk Formula": "4% × $9,800,000 × 0.80 × 0.75 = $235K → $235K [HF/labels]",
+            "Revenue Formula": "0.1% × $21,400,000,000 × 0.95 × 0.75 = $15.2M → $15.2M [HF/labels]",
+            "Strategic Theme": "Predictive Asset Performance",
+            "Cost Benefit ($)": "$5.7M",
+            "Risk Benefit ($)": "$235K",
+            "Cash Flow Formula": "$21,400,000,000 × (3/365) × 0.08 × 0.85 × 0.75 = $9.0M → $9.0M [HF/labels] × 0.769231 (portfolio days cap) → $6.9M × 0.923165 (portfolio cash-flow share cap) → $6.4M",
+            "Expected Value ($)": "$16.5M",
+            "Cost Formula Labels": {
+              "result": "$5.7M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 42000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 150
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$15.2M",
+            "Risk Formula Labels": {
+              "result": "$235K",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.04
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 9800000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$6.4M",
+            "Probability of Success": 0.6,
+            "Revenue Formula Labels": {
+              "result": "$15.2M",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.001
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 21400000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$27.5M",
+            "Cash Flow Formula Labels": {
+              "result": "$6.4M",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 21400000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 3
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ],
+              "portfolioCashflowShareCap": {
+                "cap": 0.35,
+                "scaleFactor": 0.9231652056400264,
+                "scaledValue": 6369839,
+                "originalValue": 6900000
+              },
+              "portfolioCashflowGuardrail": {
+                "scaleFactor": 0.7692307692307693,
+                "scaledValue": 6900315,
+                "originalValue": 8970410,
+                "cumulativeDaysRaw": 39,
+                "cumulativeDaysCapped": 30
+              }
+            }
+          },
+          {
+            "ID": "UC-07",
+            "Use Case": "Customer Attrition Early Warning System",
+            "Cost Formula": "48,000 hours × $100/hr × 1.35 × 0.90 × 0.75 = $4.4M → $4.4M [HF/labels]",
+            "Risk Formula": "4% × $67,000,000 × 0.80 × 0.75 = $1.6M → $1.6M [HF/labels]",
+            "Revenue Formula": "0.25% × $478,000,000 × 0.95 × 0.75 = $851K → $851K [HF/labels]",
+            "Strategic Theme": "Commercial Velocity & Customer Intelligence",
+            "Cost Benefit ($)": "$4.4M",
+            "Risk Benefit ($)": "$1.6M",
+            "Cash Flow Formula": "$21,400,000,000 × (4/365) × 0.08 × 0.85 × 0.75 = $12.0M → $12.0M [HF/labels] × 0.769231 (portfolio days cap) → $9.2M × 0.923165 (portfolio cash-flow share cap) → $8.5M",
+            "Expected Value ($)": "$8.4M",
+            "Cost Formula Labels": {
+              "result": "$4.4M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 48000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 100
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$851K",
+            "Risk Formula Labels": {
+              "result": "$1.6M",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.04
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 67000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$8.5M",
+            "Probability of Success": 0.55,
+            "Revenue Formula Labels": {
+              "result": "$851K",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.0025
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 478000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$15.3M",
+            "Cash Flow Formula Labels": {
+              "result": "$8.5M",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 21400000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 4
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ],
+              "portfolioCashflowShareCap": {
+                "cap": 0.35,
+                "scaleFactor": 0.9231652056400264,
+                "scaledValue": 8493119,
+                "originalValue": 9200000
+              },
+              "portfolioCashflowGuardrail": {
+                "scaleFactor": 0.7692307692307693,
+                "scaledValue": 9200420,
+                "originalValue": 11960547,
+                "cumulativeDaysRaw": 39,
+                "cumulativeDaysCapped": 30
+              }
+            }
+          },
+          {
+            "ID": "UC-08",
+            "Use Case": "Intelligent Contract Assembly Accelerator",
+            "Cost Formula": "36,000 hours × $150/hr × 1.35 × 0.90 × 0.75 = $4.9M → $4.9M [HF/labels]",
+            "Risk Formula": "3% × $8,900,000 × 0.80 × 0.75 = $160K → $160K [HF/labels]",
+            "Revenue Formula": "0.15% × $21,400,000,000 × 0.95 × 0.75 = $22.9M → $22.9M [HF/labels]",
+            "Strategic Theme": "Commercial Velocity & Customer Intelligence",
+            "Cost Benefit ($)": "$4.9M",
+            "Risk Benefit ($)": "$160K",
+            "Cash Flow Formula": "$21,400,000,000 × (6/365) × 0.08 × 0.85 × 0.75 = $17.9M → $17.9M [HF/labels] × 0.769231 (portfolio days cap) → $13.8M × 0.923165 (portfolio cash-flow share cap) → $12.7M",
+            "Expected Value ($)": "$28.5M",
+            "Cost Formula Labels": {
+              "result": "$4.9M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 36000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 150
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$22.9M",
+            "Risk Formula Labels": {
+              "result": "$160K",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.03
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 8900000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$12.7M",
+            "Probability of Success": 0.7,
+            "Revenue Formula Labels": {
+              "result": "$22.9M",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.0015
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 21400000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$40.7M",
+            "Cash Flow Formula Labels": {
+              "result": "$12.7M",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 21400000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 6
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ],
+              "portfolioCashflowShareCap": {
+                "cap": 0.35,
+                "scaleFactor": 0.9231652056400264,
+                "scaledValue": 12739679,
+                "originalValue": 13800000
+              },
+              "portfolioCashflowGuardrail": {
+                "scaleFactor": 0.7692307692307693,
+                "scaledValue": 13800631,
+                "originalValue": 17940821,
+                "cumulativeDaysRaw": 39,
+                "cumulativeDaysCapped": 30
+              }
+            }
+          },
+          {
+            "ID": "UC-09",
+            "Use Case": "Multi-Horizon Power Price Forecasting Engine",
+            "Cost Formula": "32,000 hours × $200/hr × 1.35 × 0.90 × 0.75 = $5.8M → $5.8M [HF/labels]",
+            "Risk Formula": "5% × $73,000,000 × 0.80 × 0.75 = $2.2M → $2.2M [HF/labels]",
+            "Revenue Formula": "0.2% × $4,200,000,000 × 0.95 × 0.75 = $6.0M → $6.0M [HF/labels]",
+            "Strategic Theme": "Market Intelligence & Hedging Strategy",
+            "Cost Benefit ($)": "$5.8M",
+            "Risk Benefit ($)": "$2.2M",
+            "Cash Flow Formula": "$21,400,000,000 × (4/365) × 0.08 × 0.85 × 0.75 = $12.0M → $12.0M [HF/labels] × 0.769231 (portfolio days cap) → $9.2M × 0.923165 (portfolio cash-flow share cap) → $8.5M",
+            "Expected Value ($)": "$13.5M",
+            "Cost Formula Labels": {
+              "result": "$5.8M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 32000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 200
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$6.0M",
+            "Risk Formula Labels": {
+              "result": "$2.2M",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.05
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 73000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$8.5M",
+            "Probability of Success": 0.6,
+            "Revenue Formula Labels": {
+              "result": "$6.0M",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.002
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 4200000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$22.5M",
+            "Cash Flow Formula Labels": {
+              "result": "$8.5M",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 21400000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 4
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ],
+              "portfolioCashflowShareCap": {
+                "cap": 0.35,
+                "scaleFactor": 0.9231652056400264,
+                "scaledValue": 8493119,
+                "originalValue": 9200000
+              },
+              "portfolioCashflowGuardrail": {
+                "scaleFactor": 0.7692307692307693,
+                "scaledValue": 9200420,
+                "originalValue": 11960547,
+                "cumulativeDaysRaw": 39,
+                "cumulativeDaysCapped": 30
+              }
+            }
+          },
+          {
+            "ID": "UC-10",
+            "Use Case": "ISO Tariff Change Impact Analyzer",
+            "Cost Formula": "28,000 hours × $150/hr × 1.35 × 0.90 × 0.75 = $3.8M → $3.8M [HF/labels]",
+            "Risk Formula": "3% × $6,400,000 × 0.80 × 0.75 = $115K → $115K [HF/labels]",
+            "Revenue Formula": "No direct revenue impact",
+            "Strategic Theme": "Market Intelligence & Hedging Strategy",
+            "Cost Benefit ($)": "$3.8M",
+            "Risk Benefit ($)": "$115K",
+            "Cash Flow Formula": "$21,400,000,000 × (5/365) × 0.08 × 0.85 × 0.75 = $15.0M → $15.0M [HF/labels] × 0.769231 (portfolio days cap) → $11.5M × 0.923165 (portfolio cash-flow share cap) → $10.6M",
+            "Expected Value ($)": "$10.9M",
+            "Cost Formula Labels": {
+              "result": "$3.8M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 28000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 150
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$0",
+            "Risk Formula Labels": {
+              "result": "$115K",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.03
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 6400000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$10.6M",
+            "Probability of Success": 0.75,
+            "Revenue Formula Labels": null,
+            "Total Annual Value ($)": "$14.5M",
+            "Cash Flow Formula Labels": {
+              "result": "$10.6M",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 21400000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 5
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ],
+              "portfolioCashflowShareCap": {
+                "cap": 0.35,
+                "scaleFactor": 0.9231652056400264,
+                "scaledValue": 10616399,
+                "originalValue": 11500000
+              },
+              "portfolioCashflowGuardrail": {
+                "scaleFactor": 0.7692307692307693,
+                "scaledValue": 11500526,
+                "originalValue": 14950684,
+                "cumulativeDaysRaw": 39,
+                "cumulativeDaysCapped": 30
+              }
+            }
+          }
+        ],
+        "step": 5,
+        "title": "Benefits Quantification by Driver",
+        "content": "Conservative benefits analysis across four financial drivers. All estimates apply mandatory reductions (Revenue ×0.95, Cost ×0.90, Cash Flow ×0.85, Risk ×0.80) plus Level 2 data maturity factor (×0.75). Hours saved sourced directly from Step 3 friction point data. Total portfolio value: $218.8M (1.02% of $21.4B revenue)."
+      },
+      {
+        "data": [
+          {
+            "ID": "UC-01",
+            "Use Case": "Unified Load Forecasting Engine",
+            "Governance": 5,
+            "Runs/Month": 720,
+            "Time To Value": 9,
+            "Monthly Tokens": 33264000,
+            "Readiness Score": 6.9,
+            "Strategic Theme": "Grid Optimization & Dispatch Excellence",
+            "Input Tokens/Run": 45000,
+            "Has Named Sponsor": true,
+            "Output Tokens/Run": 1200,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 6.9,
+            "Time-to-Pilot (weeks)": 10,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 7,
+            "Technical Infrastructure": 7,
+            "Data Availability & Quality": 8,
+            "Data Available For Engagement": true
+          },
+          {
+            "ID": "UC-02",
+            "Use Case": "Autonomous Ancillary Bid Optimizer",
+            "Governance": 4,
+            "Runs/Month": 720,
+            "Time To Value": 12,
+            "Monthly Tokens": 47160000,
+            "Readiness Score": 6.2,
+            "Strategic Theme": "Grid Optimization & Dispatch Excellence",
+            "Input Tokens/Run": 62000,
+            "Has Named Sponsor": true,
+            "Output Tokens/Run": 3500,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 6.2,
+            "Time-to-Pilot (weeks)": 18,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 6,
+            "Technical Infrastructure": 6,
+            "Data Availability & Quality": 8,
+            "Data Available For Engagement": true
+          },
+          {
+            "ID": "UC-03",
+            "Use Case": "Cross-Jurisdiction Regulatory Document Generator",
+            "Governance": 6,
+            "Runs/Month": 60,
+            "Time To Value": 10,
+            "Monthly Tokens": 1200000,
+            "Readiness Score": 4.8,
+            "Strategic Theme": "Regulatory Intelligence & Compliance Automation",
+            "Input Tokens/Run": 12000,
+            "Has Named Sponsor": true,
+            "Output Tokens/Run": 8000,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 4.7,
+            "Time-to-Pilot (weeks)": 14,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 5,
+            "Technical Infrastructure": 4,
+            "Data Availability & Quality": 4,
+            "Data Available For Engagement": false
+          },
+          {
+            "ID": "UC-04",
+            "Use Case": "Automated Environmental Data Validation Pipeline",
+            "Governance": 7,
+            "Runs/Month": 240,
+            "Time To Value": 6,
+            "Monthly Tokens": 7200000,
+            "Readiness Score": 6.5,
+            "Strategic Theme": "Regulatory Intelligence & Compliance Automation",
+            "Input Tokens/Run": 28000,
+            "Has Named Sponsor": true,
+            "Output Tokens/Run": 2000,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 6.5,
+            "Time-to-Pilot (weeks)": 8,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 6,
+            "Technical Infrastructure": 6,
+            "Data Availability & Quality": 7,
+            "Data Available For Engagement": true
+          },
+          {
+            "ID": "UC-05",
+            "Use Case": "Predictive Maintenance Work Order Orchestrator",
+            "Governance": 6,
+            "Runs/Month": 480,
+            "Time To Value": 9,
+            "Monthly Tokens": 18720000,
+            "Readiness Score": 7.3,
+            "Strategic Theme": "Predictive Asset Performance",
+            "Input Tokens/Run": 35000,
+            "Has Named Sponsor": true,
+            "Output Tokens/Run": 4000,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 7.3,
+            "Time-to-Pilot (weeks)": 12,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 7,
+            "Technical Infrastructure": 8,
+            "Data Availability & Quality": 8,
+            "Data Available For Engagement": true
+          },
+          {
+            "ID": "UC-06",
+            "Use Case": "Unified Equipment Health Semantic Layer",
+            "Governance": 5,
+            "Runs/Month": 360,
+            "Time To Value": 12,
+            "Monthly Tokens": 19800000,
+            "Readiness Score": 6.1,
+            "Strategic Theme": "Predictive Asset Performance",
+            "Input Tokens/Run": 52000,
+            "Has Named Sponsor": true,
+            "Output Tokens/Run": 3000,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 6.1,
+            "Time-to-Pilot (weeks)": 16,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 6,
+            "Technical Infrastructure": 6,
+            "Data Availability & Quality": 7,
+            "Data Available For Engagement": true
+          },
+          {
+            "ID": "UC-07",
+            "Use Case": "Customer Attrition Early Warning System",
+            "Governance": 4,
+            "Runs/Month": 1440,
+            "Time To Value": 8,
+            "Monthly Tokens": 28080000,
+            "Readiness Score": 4.8,
+            "Strategic Theme": "Commercial Velocity & Customer Intelligence",
+            "Input Tokens/Run": 18000,
+            "Has Named Sponsor": null,
+            "Output Tokens/Run": 1500,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 4.8,
+            "Time-to-Pilot (weeks)": 10,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 5,
+            "Technical Infrastructure": 5,
+            "Data Availability & Quality": 5,
+            "Data Available For Engagement": true
+          },
+          {
+            "ID": "UC-08",
+            "Use Case": "Intelligent Contract Assembly Accelerator",
+            "Governance": 5,
+            "Runs/Month": 180,
+            "Time To Value": 6,
+            "Monthly Tokens": 2700000,
+            "Readiness Score": 5.6,
+            "Strategic Theme": "Commercial Velocity & Customer Intelligence",
+            "Input Tokens/Run": 9000,
+            "Has Named Sponsor": true,
+            "Output Tokens/Run": 6000,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 5.6,
+            "Time-to-Pilot (weeks)": 8,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 6,
+            "Technical Infrastructure": 5,
+            "Data Availability & Quality": 6,
+            "Data Available For Engagement": true
+          },
+          {
+            "ID": "UC-09",
+            "Use Case": "Multi-Horizon Power Price Forecasting Engine",
+            "Governance": 5,
+            "Runs/Month": 480,
+            "Time To Value": 9,
+            "Monthly Tokens": 27360000,
+            "Readiness Score": 6.1,
+            "Strategic Theme": "Market Intelligence & Hedging Strategy",
+            "Input Tokens/Run": 55000,
+            "Has Named Sponsor": true,
+            "Output Tokens/Run": 2000,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 6.1,
+            "Time-to-Pilot (weeks)": 12,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 6,
+            "Technical Infrastructure": 6,
+            "Data Availability & Quality": 7,
+            "Data Available For Engagement": true
+          },
+          {
+            "ID": "UC-10",
+            "Use Case": "ISO Tariff Change Impact Analyzer",
+            "Governance": 6,
+            "Runs/Month": 48,
+            "Time To Value": 8,
+            "Monthly Tokens": 1296000,
+            "Readiness Score": 5.9,
+            "Strategic Theme": "Market Intelligence & Hedging Strategy",
+            "Input Tokens/Run": 22000,
+            "Has Named Sponsor": true,
+            "Output Tokens/Run": 5000,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 5.8,
+            "Time-to-Pilot (weeks)": 10,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 6,
+            "Technical Infrastructure": 5,
+            "Data Availability & Quality": 6,
+            "Data Available For Engagement": true
+          }
+        ],
+        "step": 6,
+        "title": "Readiness & Token Modeling",
+        "content": "Constellation operates a nuclear-dominant fleet with mature SCADA infrastructure, centralized enterprise historians, and regulated operational discipline. The organization demonstrates programmed-but-federated AI capacity: board-reviewed digital strategy, standing Innovation Advisory Committee, 40-person Digital Technology team, and executive sponsorship from CTO (disclosed in 10-K digital transformation initiatives). Data governance is unusually strong for the sector—nuclear NRC compliance drives metadata rigor, DQ SLAs on safety-critical SCADA, and production-grade historians covering 100% of generating assets. However, AI-specific governance remains pilot-stage: no disclosed model risk framework, informal responsible AI working group, limited LLMOps observability. Technical infrastructure is bifurcated—mature MLOps for predictive maintenance (deployed champion-challenger models per 10-K), but nascent LLMOps (pilot-phase prompt management, no enterprise vector DB). Readiness varies dramatically by use case. Grid optimization and predictive asset use cases (UC-01, UC-02, UC-05, UC-06) leverage existing SCADA/historian pipelines and benefit from production MLOps maturity—scores 6-8 across components. Regulatory and commercial use cases (UC-03, UC-07, UC-08) require new RAG infrastructure and face governance gaps around GenAI model risk—scores 4-6. Market intelligence cases (UC-09, UC-10) sit between, with strong data but limited AI governance for financial forecasting—scores 5-7. Critical intake gaps: UC-07 lacks named commercial sponsor (soft blocker), UC-03 requires 8-week legal document corpus digitization sprint (data-access blocker), UC-02 needs FERC market participation approval (12-week regulatory timeline extends time-to-pilot). Token modeling reflects operational scale: forecasting engines process 50K+ data points per run with small output summaries; document generators ingest multi-page regulatory templates producing formatted filings. UC-02 ancillary bidding runs 720x/month (hourly optimization), consuming 1.15B tokens annually—highest infrastructure load. UC-03 regulatory drafting averages 60 runs/month at 14K tokens/run, manageable with current API capacity. Time-to-value ranges 6-18 months, constrained by nuclear change-control velocity (minimum 6-month validation cycle for safety-adjacent systems) and regulatory approval timelines (FERC, NRC)."
+      },
+      {
+        "data": [
+          {
+            "ID": "UC-06",
+            "Use Case": "Unified Equipment Health Semantic Layer",
+            "TTV Score": 0,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "champion",
+            "Value Score": 9.57,
+            "Priority Tier": "Champion",
+            "Quadrant v2.0": "foundation",
+            "Quadrant v2.1": "strategic",
+            "Quadrant v2.2": "champion",
+            "Priority Score": 7.84,
+            "Quadrant Layer": 2,
+            "Readiness Score": 6.1,
+            "Value Score Raw": 2.66,
+            "Priority Tier v1": "Tier 1 — Champions",
+            "Recommended Phase": "Phase 1",
+            "Priority Tier v2.1": "Strategic",
+            "Quadrant Rationale": "Champion — V 9.6, R 6.1",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Value 9.6 ≥ 7.5 but Readiness 6.1 below Champion threshold; classified Strategic.",
+            "Absolute Annual Value ($)": 16500000
+          },
+          {
+            "ID": "UC-08",
+            "Use Case": "Intelligent Contract Assembly Accelerator",
+            "TTV Score": 0.5,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "champion",
+            "Value Score": 10,
+            "Priority Tier": "Champion",
+            "Quadrant v2.0": "conditional_champion",
+            "Quadrant v2.1": "foundation",
+            "Quadrant v2.2": "champion",
+            "Priority Score": 7.8,
+            "Quadrant Layer": 2,
+            "Readiness Score": 5.6,
+            "Value Score Raw": 7.4,
+            "Priority Tier v1": "Tier 1 — Champions",
+            "Recommended Phase": "Phase 2",
+            "Priority Tier v2.1": "Foundation",
+            "Quadrant Rationale": "Champion — V 10, R 5.6",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Above floor but below Champion / Strategic / Quick Win thresholds (Value 10, Readiness 5.6).",
+            "Absolute Annual Value ($)": 28490000
+          },
+          {
+            "ID": "UC-10",
+            "Use Case": "ISO Tariff Change Impact Analyzer",
+            "TTV Score": 0.33,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "champion",
+            "Value Score": 9.61,
+            "Priority Tier": "Champion",
+            "Quadrant v2.0": "conditional_champion",
+            "Quadrant v2.1": "foundation",
+            "Quadrant v2.2": "champion",
+            "Priority Score": 7.76,
+            "Quadrant Layer": 2,
+            "Readiness Score": 5.9,
+            "Value Score Raw": 2.69,
+            "Priority Tier v1": "Tier 1 — Champions",
+            "Recommended Phase": "Phase 2",
+            "Priority Tier v2.1": "Foundation",
+            "Quadrant Rationale": "Champion — V 9.6, R 5.9",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Above floor but below Champion / Strategic / Quick Win thresholds (Value 9.6, Readiness 5.9).",
+            "Absolute Annual Value ($)": 10875000
+          },
+          {
+            "ID": "UC-01",
+            "Use Case": "Unified Load Forecasting Engine",
+            "TTV Score": 0.25,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "champion",
+            "Value Score": 8.46,
+            "Priority Tier": "Champion",
+            "Quadrant v2.0": "strategic",
+            "Quadrant v2.1": "strategic",
+            "Quadrant v2.2": "champion",
+            "Priority Score": 7.68,
+            "Quadrant Layer": 2,
+            "Readiness Score": 6.9,
+            "Value Score Raw": 2,
+            "Priority Tier v1": "Tier 1 — Champions",
+            "Recommended Phase": "Phase 1",
+            "Priority Tier v2.1": "Strategic",
+            "Quadrant Rationale": "Champion — V 8.5, R 6.9",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Value 8.5 ≥ 7.5 but Readiness 6.9 below Champion threshold; classified Strategic.",
+            "Absolute Annual Value ($)": 23660000
+          },
+          {
+            "ID": "UC-04",
+            "Use Case": "Automated Environmental Data Validation Pipeline",
+            "TTV Score": 0.5,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "champion",
+            "Value Score": 7.83,
+            "Priority Tier": "Champion",
+            "Quadrant v2.0": "strategic",
+            "Quadrant v2.1": "strategic",
+            "Quadrant v2.2": "champion",
+            "Priority Score": 7.17,
+            "Quadrant Layer": 2,
+            "Readiness Score": 6.5,
+            "Value Score Raw": 1.7,
+            "Priority Tier v1": "Tier 4 — Foundation",
+            "Recommended Phase": "Phase 2",
+            "Priority Tier v2.1": "Strategic",
+            "Quadrant Rationale": "Champion — V 7.8, R 6.5",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Value 7.8 ≥ 7.5 but Readiness 6.5 below Champion threshold; classified Strategic.",
+            "Absolute Annual Value ($)": 13950000
+          },
+          {
+            "ID": "UC-05",
+            "Use Case": "Predictive Maintenance Work Order Orchestrator",
+            "TTV Score": 0.25,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "champion",
+            "Value Score": 5.89,
+            "Priority Tier": "Champion",
+            "Quadrant v2.0": "foundation",
+            "Quadrant v2.1": "foundation",
+            "Quadrant v2.2": "champion",
+            "Priority Score": 6.6,
+            "Quadrant Layer": 2,
+            "Readiness Score": 7.3,
+            "Value Score Raw": 1.03,
+            "Priority Tier v1": "Tier 4 — Foundation",
+            "Recommended Phase": "Phase 2",
+            "Priority Tier v2.1": "Foundation",
+            "Quadrant Rationale": "Champion — V 5.9, R 7.3",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Above floor but below Champion / Strategic / Quick Win thresholds (Value 5.9, Readiness 7.3).",
+            "Absolute Annual Value ($)": 21450000
+          },
+          {
+            "ID": "UC-02",
+            "Use Case": "Autonomous Ancillary Bid Optimizer",
+            "TTV Score": 0,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "quick_win",
+            "Value Score": 2.18,
+            "Priority Tier": "Quick Win",
+            "Quadrant v2.0": "foundation",
+            "Quadrant v2.1": "foundation",
+            "Quadrant v2.2": "quick_win",
+            "Soft Blockers": [
+              "Time-to-pilot 18 weeks exceeds 16-week target — sequencing concern"
+            ],
+            "Priority Score": 4.19,
+            "Quadrant Layer": 2,
+            "Readiness Score": 6.2,
+            "Value Score Raw": 0.4,
+            "Priority Tier v1": "Tier 2 — Quick Wins",
+            "Recommended Phase": "Phase 4",
+            "Priority Tier v2.1": "Foundation",
+            "Quadrant Rationale": "Quick Win — V 2.2, R 6.2",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Above floor but below Champion / Strategic / Quick Win thresholds (Value 2.2, Readiness 6.2).",
+            "Absolute Annual Value ($)": 7020000
+          },
+          {
+            "ID": "UC-09",
+            "Use Case": "Multi-Horizon Power Price Forecasting Engine",
+            "TTV Score": 0.25,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "quick_win",
+            "Value Score": 1,
+            "Priority Tier": "Quick Win",
+            "Quadrant v2.0": "foundation",
+            "Quadrant v2.1": "foundation",
+            "Quadrant v2.2": "quick_win",
+            "Priority Score": 3.55,
+            "Quadrant Layer": 2,
+            "Readiness Score": 6.1,
+            "Value Score Raw": 0.29,
+            "Priority Tier v1": "Tier 2 — Quick Wins",
+            "Recommended Phase": "Phase 4",
+            "Priority Tier v2.1": "Foundation",
+            "Quadrant Rationale": "Quick Win — V 1, R 6.1",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Above floor but below Champion / Strategic / Quick Win thresholds (Value 1, Readiness 6.1).",
+            "Absolute Annual Value ($)": 13500000
+          },
+          {
+            "ID": "UC-03",
+            "Use Case": "Cross-Jurisdiction Regulatory Document Generator",
+            "TTV Score": 0.17,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "strategic",
+            "Value Score": 6.08,
+            "Priority Tier": "Strategic",
+            "Quadrant v2.0": "foundation",
+            "Quadrant v2.1": "foundation",
+            "Quadrant v2.2": "strategic",
+            "Soft Blockers": [
+              "Data access sprint required (6 weeks default)"
+            ],
+            "Priority Score": 5.44,
+            "Quadrant Layer": 2,
+            "Readiness Score": 4.8,
+            "Value Score Raw": 1.08,
+            "Priority Tier v1": "Tier 3 — Strategic",
+            "Recommended Phase": "Phase 3",
+            "Priority Tier v2.1": "Foundation",
+            "Quadrant Rationale": "Strategic — V 6.1, R 4.8",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Above floor but below Champion / Strategic / Quick Win thresholds (Value 6.1, Readiness 4.8).",
+            "Absolute Annual Value ($)": 11340000
+          },
+          {
+            "ID": "UC-07",
+            "Use Case": "Customer Attrition Early Warning System",
+            "TTV Score": 0.33,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "foundation",
+            "Value Score": 1,
+            "Priority Tier": "Foundation",
+            "Quadrant v2.0": "foundation",
+            "Quadrant v2.1": "foundation",
+            "Quadrant v2.2": "foundation",
+            "Soft Blockers": [
+              "Sponsor field not captured — intake incomplete"
+            ],
+            "Priority Score": 2.9,
+            "Quadrant Layer": 2,
+            "Readiness Score": 4.8,
+            "Value Score Raw": 0.29,
+            "Priority Tier v1": "Tier 4 — Foundation",
+            "Recommended Phase": "Phase 4",
+            "Priority Tier v2.1": "Foundation",
+            "Quadrant Rationale": "Foundation — V 1, R 4.8",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Above floor but below Champion / Strategic / Quick Win thresholds (Value 1, Readiness 4.8).",
+            "Absolute Annual Value ($)": 8415000
+          }
+        ],
+        "step": 7,
+        "title": "Priority Scoring & Roadmap",
+        "content": "VRM v2.1 logic applied deterministically by post-processor. No use cases meet hard knock-out criteria (none legally prohibited or technically infeasible, all exceed $500K absolute value floor). Soft blockers identified: UC-07 lacks named commercial sponsor (remediation: assign VP Commercial Operations within 2 weeks); UC-03 requires 8-week document corpus digitization (defer to Phase 2 pending data sprint completion). Readiness-value heterogeneity is pronounced. High-readiness grid optimization cases (UC-01, UC-04) combine strong SCADA data with proven MLOps, positioning as Quick Win candidates if value scores qualify. UC-02 ancillary bidding delivers highest revenue upside ($30.0M) but faces 18-week regulatory approval timeline—Strategic tier likely. UC-07 attrition prediction offers $49.4M total value but soft sponsor blocker and moderate readiness (5-5-5-4) may relegate to Foundation pending remediation. Predictive maintenance cases (UC-05, UC-06) leverage existing champion-challenger infrastructure but 12-16 week validation cycles extend time-to-pilot. Commercial velocity cases (UC-08, UC-10) balance quick deployment (6-8 months TTV) with governance readiness gaps. Post-processor will compute normalized Value Scores via log10-transformed min-max over (Expected Value × Probability ÷ Friction Annual Cost), apply sector-preset readiness weights (35/30/20/15 baseline), and assign quadrants. Anticipated outcome: 2-3 Champions (likely UC-01, UC-04, UC-08 given balanced high scores), 2-3 Quick Wins (UC-05, UC-09 strong readiness), 2-3 Strategic (UC-02, UC-07 high value pending blockers), remainder Foundation. Roadmap sequencing prioritizes regulated operational systems (6-9 month NRC validation) in Phase 1, commercial systems (faster iteration) in Phase 2, complex multi-system integrations (UC-06 semantic layer) in Phase 3-4. Token infrastructure sizing: UC-02 requires dedicated rate-limited API tier (47M tokens/month); aggregate portfolio consumes ~200M tokens/month at full deployment, manageable within enterprise OpenAI/Anthropic contracts."
+      }
+    ],
+    "summary": "Constellation Energy should execute 6 Critical-priority AI initiatives to capture $82.4M in first-year value from a $215.4M total portfolio opportunity. The company operates the nation's largest nuclear fleet with unusually strong SCADA data governance—enterprise historians covering 100% of generating assets, production-grade DQ SLAs driven by NRC compliance, and a 40-person Digital Technology team delivering deployed champion-challenger predictive maintenance models. However, AI-specific governance remains pilot-stage, with no disclosed model risk framework and nascent LLMOps observability. Grid optimization use cases (UC-01 Unified Load Forecasting at $20.8M, UC-02 Autonomous Ancillary Bid Optimizer at $36.3M) leverage existing operational infrastructure and score 6-8 on readiness, though UC-02 faces an 18-week FERC approval timeline. Predictive maintenance cases (UC-05 Work Order Orchestrator at $20.9M, UC-06 Equipment Health Semantic Layer at $13.4M) benefit from proven MLOps maturity but require 6-9 month NRC validation cycles, positioning UC-05 as a Phase 1 Quick Win. The highest-value opportunity—UC-07 Customer Attrition Early Warning at $49.4M—lacks a named commercial sponsor (soft blocker) and scores 5-5-5-4 on readiness, requiring VP-level assignment and CRM integration before prototyping. UC-08 Intelligent Contract Assembly Accelerator delivers $14.8M with 6-month time-to-value and minimal infrastructure requirements, qualifying as an immediate Quick Win. Regulatory automation cases (UC-03 Cross-Jurisdiction Document Generator at $8.9M, UC-04 Environmental Data Validation at $8.5M) split on readiness—UC-04 benefits from existing compliance data pipelines (7-7-6-7 scores, 6-month TTV), while UC-03 requires an 8-week legal corpus digitization sprint. Market intelligence use cases (UC-09 Power Price Forecasting at $36.6M, UC-10 ISO Tariff Analyzer at $5.8M) balance strong data availability against governance gaps around financial forecasting model risk. The critical path sequences operational systems requiring nuclear change-control validation (6-9 months) in Phase 1, commercial systems with faster iteration (6-8 months) in Phase 2, and complex semantic layer integrations (UC-06) in Phase 3-4. Immediate action: launch UC-04 and UC-08 pilots within 8-10 weeks as Phase 1 Quick Wins, assign VP Commercial Operations to UC-07 within 2 weeks, and commission document digitization sprint for UC-03 to unlock $106.6M in Phase 2 value.",
+    "realismFlags": [
+      {
+        "code": "IRR_IMPLAUSIBLE",
+        "message": "IRR of 120% exceeds 100% — verify the implementation cost basis.",
+        "severity": "warn",
+        "remediation": "IRR > 100% is rare in enterprise software programs. Confirm the cost basis is fully loaded (people, process, technology, change management)."
+      },
+      {
+        "code": "PAYBACK_IMPLAUSIBLE",
+        "message": "Payback under 1 month implies near-zero implementation cost — likely a calculation error.",
+        "severity": "critical",
+        "remediation": "Confirm implementation cost includes change management, integration, and ongoing operational overhead, not just licensing or tooling."
+      }
+    ],
+    "benefitsCapped": false,
+    "capScaleFactor": 1,
+    "companyOverview": {
+      "whyNow": "Nuclear license renewals through 2054 create 30-year optimization horizon. PJM capacity market reforms increase dispatch complexity by 40%.",
+      "position": "Nation's largest carbon-free power producer. 32,400 MW nuclear/hydro/wind capacity. Serves 2M+ customers across competitive markets.",
+      "annualRevenue": 21400000000,
+      "dataReadiness": {
+        "keyGaps": "Customer contract data fragmented across legacy CRM systems. Maintenance work orders lack standardized taxonomy across 21 nuclear units.",
+        "currentState": "Level 3 — Strong SCADA and operational data governance with enterprise historians deployed across nuclear fleet"
+      },
+      "frictionTable": {
+        "rows": [
+          {
+            "domain": "Grid Operations & Dispatch",
+            "annualBurden": "$187M / 124,000 hours",
+            "strategicImpact": "Real-time load forecasting and unit commitment optimization"
+          },
+          {
+            "domain": "Regulatory Compliance",
+            "annualBurden": "$156M / 104,000 hours",
+            "strategicImpact": "Multi-jurisdictional environmental and safety documentation"
+          },
+          {
+            "domain": "Asset Performance Management",
+            "annualBurden": "$143M / 95,000 hours",
+            "strategicImpact": "Predictive maintenance across nuclear and renewable fleet"
+          },
+          {
+            "domain": "Customer Operations",
+            "annualBurden": "$89M / 59,000 hours",
+            "strategicImpact": "Commercial/industrial contract structuring and settlement"
+          }
+        ]
+      },
+      "totalEmployees": 12500
+    },
+    "executiveSummary": {
+      "context": "Constellation operates the nation's largest nuclear fleet with mature SCADA infrastructure but nascent AI governance. The company faces margin pressure from volatile ancillary markets ($30M annual opportunity in UC-02), rising customer acquisition costs ($49.4M attrition risk in UC-07), and manual regulatory compliance burden ($8.9M cost in UC-03). Ten evaluated use cases span grid optimization, predictive maintenance, and commercial intelligence, clustering around existing operational historians and recent Digital Technology team buildout.",
+      "findings": [
+        {
+          "body": "Unified Load Forecasting (UC-01, $20.8M) and Autonomous Ancillary Bid Optimizer (UC-02, $36.3M) leverage existing SCADA pipelines and production MLOps maturity scored 6-8 across readiness components. UC-02 alone captures $30M in incremental ancillary revenue through hourly ISO market optimization, though 18-week FERC approval timeline defers to Phase 2.",
+          "title": "Grid optimization delivers $57.1M with proven infrastructure",
+          "value": "$57.1M annually"
+        },
+        {
+          "body": "Work Order Orchestrator (UC-05, $20.9M) and Equipment Health Semantic Layer (UC-06, $13.4M) operate on enterprise historians covering 100% of generating assets. UC-05 benefits from deployed champion-challenger models and 6-month NRC validation path, positioning as Phase 1 Quick Win despite 9-month time-to-value.",
+          "title": "Predictive maintenance unlocks $34.3M in forced outage avoidance",
+          "value": "$34.3M annually"
+        },
+        {
+          "body": "Attrition Early Warning System (UC-07, $49.4M) and Contract Assembly Accelerator (UC-08, $14.8M) address commercial velocity gaps. UC-07 delivers highest portfolio value ($40.8M revenue retention) but lacks named sponsor (soft blocker) and scores 5-5-5-4 on readiness. UC-08 offers 6-month time-to-value with $7.1M revenue acceleration and requires minimal infrastructure.",
+          "title": "Customer intelligence captures $64.2M but requires sponsor assignment",
+          "value": "$64.2M annually"
+        }
+      ],
+      "headline": "Canonical first-year value: $236.6M (LLM-stated $82.4M differed by 65%; using post-processed canonical figure).",
+      "criticalPath": "Phase 1 execution depends on three prerequisites: assign VP Commercial Operations as UC-07 sponsor within 2 weeks, complete 8-week legal document digitization for UC-03 regulatory generator, initiate FERC market participation approval for UC-02 ancillary bidding. Nuclear change-control velocity imposes minimum 6-month validation cycle for safety-adjacent systems (UC-01, UC-05), sequencing operational use cases ahead of commercial systems.",
+      "opportunityTable": {
+        "rows": [
+          {
+            "value": "$215.4M",
+            "metric": "Total Annual Value"
+          },
+          {
+            "value": "6",
+            "metric": "Critical-Priority Initiatives"
+          },
+          {
+            "value": "$82.4M",
+            "metric": "First-Year Impact"
+          },
+          {
+            "value": "$1,078",
+            "metric": "Value per 1M Tokens"
+          }
+        ]
+      },
+      "recommendedAction": "Prioritize UC-04 Environmental Data Validation ($8.5M, 6-month TTV) and UC-08 Contract Accelerator ($14.8M, 6-month TTV) as Phase 1 Quick Wins, launching pilots within 8-10 weeks. Commission sponsor assignment and data readiness sprints for UC-07 and UC-03 to unlock Phase 2 Champions.",
+      "headlineLLMOriginal": "Constellation Energy should execute 6 Critical-priority AI initiatives in Phase 1 and Phase 2 to capture $82.4M in first-year value from a $215.4M total opportunity."
+    },
+    "frictionRecovery": [
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-01",
+            "recoveryPct": 1,
+            "recoveryAmount": 11840000
+          }
+        ],
+        "frictionPoint": "Manual Load Forecasting Data Integration"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-02",
+            "recoveryPct": 0.6598984771573604,
+            "recoveryAmount": 11700000
+          }
+        ],
+        "frictionPoint": "Slow Ancillary Market Bid Optimization"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-03",
+            "recoveryPct": 1,
+            "recoveryAmount": 10480000
+          }
+        ],
+        "frictionPoint": "Jurisdiction-Specific Regulatory Documentation"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-04",
+            "recoveryPct": 1,
+            "recoveryAmount": 8210000
+          }
+        ],
+        "frictionPoint": "Environmental Data Validation Bottlenecks"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-05",
+            "recoveryPct": 1,
+            "recoveryAmount": 20830000
+          }
+        ],
+        "frictionPoint": "Reactive Maintenance Workflow Dominance"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-06",
+            "recoveryPct": 1,
+            "recoveryAmount": 6200000
+          }
+        ],
+        "frictionPoint": "Equipment Sensor Data Fragmentation"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-07",
+            "recoveryPct": 0.5270409920771616,
+            "recoveryAmount": 15300000
+          }
+        ],
+        "frictionPoint": "Customer Attrition Root Cause Blindness"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-08",
+            "recoveryPct": 1,
+            "recoveryAmount": 3850000
+          }
+        ],
+        "frictionPoint": "Custom Contract Manual Assembly"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-09",
+            "recoveryPct": 0.48669695003244645,
+            "recoveryAmount": 22500000
+          }
+        ],
+        "frictionPoint": "Multivariate Price Forecasting Limitations"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-10",
+            "recoveryPct": 1,
+            "recoveryAmount": 4050000
+          }
+        ],
+        "frictionPoint": "ISO Tariff Change Manual Impact Analysis"
+      }
+    ],
+    "scenarioAnalysis": {
+      "moderate": {
+        "npv": "$557.7M",
+        "annualBenefit": "$236.6M",
+        "paybackMonths": 0
+      },
+      "aggressive": {
+        "npv": "$888.9M",
+        "annualBenefit": "$307.6M",
+        "paybackMonths": 0
+      },
+      "conservative": {
+        "npv": "$226.4M",
+        "annualBenefit": "$142.0M",
+        "paybackMonths": 16
+      }
+    },
+    "validationSummary": {
+      "details": [
+        "Portfolio cash-flow capped: cumulative working-capital improvement of 39.0 days exceeded the 30-day portfolio ceiling; all 10 cash-flow use cases prorated by 0.769× to prevent double-counting the same DSO/DPO/inventory pool.",
+        "UC-01 cash flow prorated from $6.0M to $4.6M (× 0.769) — portfolio days cap.",
+        "UC-02 cash flow prorated from $9.0M to $6.9M (× 0.769) — portfolio days cap.",
+        "UC-03 cash flow prorated from $9.0M to $6.9M (× 0.769) — portfolio days cap.",
+        "UC-04 cash flow prorated from $15.0M to $11.5M (× 0.769) — portfolio days cap.",
+        "UC-05 cash flow prorated from $12.0M to $9.2M (× 0.769) — portfolio days cap.",
+        "UC-06 cash flow prorated from $9.0M to $6.9M (× 0.769) — portfolio days cap.",
+        "UC-07 cash flow prorated from $12.0M to $9.2M (× 0.769) — portfolio days cap.",
+        "UC-08 cash flow prorated from $17.9M to $13.8M (× 0.769) — portfolio days cap.",
+        "UC-09 cash flow prorated from $12.0M to $9.2M (× 0.769) — portfolio days cap.",
+        "UC-10 cash flow prorated from $15.0M to $11.5M (× 0.769) — portfolio days cap.",
+        "Portfolio cash-flow share capped from 36.8% to 35% of total annual value; 10 cash-flow use cases prorated by 0.923× to prevent CFO-implausible cash-flow concentration."
+      ],
+      "originalTotal": 236601071,
+      "useCasesCapped": 20,
+      "validatedTotal": 236601071,
+      "parametersClamped": 0,
+      "portfolioScaleFactor": 1
+    },
+    "executiveDashboard": {
+      "topUseCases": [
+        {
+          "rank": 1,
+          "useCase": "Unified Equipment Health Semantic Layer",
+          "annualValue": 27500000,
+          "priorityTier": "Champion",
+          "monthlyTokens": 19800000,
+          "priorityScore": 7.84
+        },
+        {
+          "rank": 2,
+          "useCase": "Intelligent Contract Assembly Accelerator",
+          "annualValue": 40700000,
+          "priorityTier": "Champion",
+          "monthlyTokens": 2700000,
+          "priorityScore": 7.8
+        },
+        {
+          "rank": 3,
+          "useCase": "ISO Tariff Change Impact Analyzer",
+          "annualValue": 14500000,
+          "priorityTier": "Champion",
+          "monthlyTokens": 1296000,
+          "priorityScore": 7.76
+        },
+        {
+          "rank": 4,
+          "useCase": "Unified Load Forecasting Engine",
+          "annualValue": 36400000,
+          "priorityTier": "Champion",
+          "monthlyTokens": 33264000,
+          "priorityScore": 7.68
+        },
+        {
+          "rank": 5,
+          "useCase": "Automated Environmental Data Validation Pipeline",
+          "annualValue": 18600000,
+          "priorityTier": "Champion",
+          "monthlyTokens": 7200000,
+          "priorityScore": 7.17
+        },
+        {
+          "rank": 6,
+          "useCase": "Predictive Maintenance Work Order Orchestrator",
+          "annualValue": 33000000,
+          "priorityTier": "Champion",
+          "monthlyTokens": 18720000,
+          "priorityScore": 6.6
+        },
+        {
+          "rank": 7,
+          "useCase": "Autonomous Ancillary Bid Optimizer",
+          "annualValue": 11700000,
+          "priorityTier": "Quick Win",
+          "monthlyTokens": 47160000,
+          "priorityScore": 4.19
+        },
+        {
+          "rank": 8,
+          "useCase": "Multi-Horizon Power Price Forecasting Engine",
+          "annualValue": 22500000,
+          "priorityTier": "Quick Win",
+          "monthlyTokens": 27360000,
+          "priorityScore": 3.55
+        },
+        {
+          "rank": 9,
+          "useCase": "Cross-Jurisdiction Regulatory Document Generator",
+          "annualValue": 16200000,
+          "priorityTier": "Strategic",
+          "monthlyTokens": 1200000,
+          "priorityScore": 5.44
+        },
+        {
+          "rank": 10,
+          "useCase": "Customer Attrition Early Warning System",
+          "annualValue": 15300000,
+          "priorityTier": "Foundation",
+          "monthlyTokens": 28080000,
+          "priorityScore": 2.9
+        }
+      ],
+      "totalAnnualValue": 236601071,
+      "totalCostBenefit": 55312875,
+      "totalRiskBenefit": 7383600,
+      "totalMonthlyTokens": 186780000,
+      "totalRevenueBenefit": 91096686,
+      "totalCashFlowBenefit": 82807910,
+      "valuePerMillionTokens": 1266737
+    },
+    "validationWarnings": [
+      "Portfolio cash-flow capped: cumulative working-capital improvement of 39.0 days exceeded the 30-day portfolio ceiling; all 10 cash-flow use cases prorated by 0.769× to prevent double-counting the same DSO/DPO/inventory pool.",
+      "UC-01 cash flow prorated from $6.0M to $4.6M (× 0.769) — portfolio days cap.",
+      "UC-02 cash flow prorated from $9.0M to $6.9M (× 0.769) — portfolio days cap.",
+      "UC-03 cash flow prorated from $9.0M to $6.9M (× 0.769) — portfolio days cap.",
+      "UC-04 cash flow prorated from $15.0M to $11.5M (× 0.769) — portfolio days cap.",
+      "UC-05 cash flow prorated from $12.0M to $9.2M (× 0.769) — portfolio days cap.",
+      "UC-06 cash flow prorated from $9.0M to $6.9M (× 0.769) — portfolio days cap.",
+      "UC-07 cash flow prorated from $12.0M to $9.2M (× 0.769) — portfolio days cap.",
+      "UC-08 cash flow prorated from $17.9M to $13.8M (× 0.769) — portfolio days cap.",
+      "UC-09 cash flow prorated from $12.0M to $9.2M (× 0.769) — portfolio days cap.",
+      "UC-10 cash flow prorated from $15.0M to $11.5M (× 0.769) — portfolio days cap.",
+      "Portfolio cash-flow share capped from 36.8% to 35% of total annual value; 10 cash-flow use cases prorated by 0.923× to prevent CFO-implausible cash-flow concentration."
+    ],
+    "multiYearProjection": {
+      "irr": "119.6%",
+      "npv": "$557.7M",
+      "irrRaw": 1.1961917377474267,
+      "paybackMonths": "<6 mo",
+      "paybackMonthsRaw": 0,
+      "totalBenefitOverPeriod": "$851.8M"
+    }
+  }
+}

@@ -1,7 +1,9 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useLocation, Link } from "wouter";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Layout from "@/components/Layout";
+import { ValidationSummaryPanel } from "@/components/admin";
+import { HowWeScoreReadiness } from "@/components/dashboard/how-we-score-readiness";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -48,9 +50,12 @@ import {
   ArrowLeft, ArrowRight, Brain, Calculator, TrendingUp, TrendingDown, 
   DollarSign, ShieldCheck, Zap, Target, ChevronDown, ChevronRight,
   Settings2, HelpCircle, Info, Sliders, BarChart3, Building2,
-  Users, ClipboardList, Lightbulb, Scale, MapPin, Save, Layers, Share2, LayoutDashboard
+  Users, ClipboardList, Lightbulb, Scale, MapPin, Save, Layers, Share2, LayoutDashboard,
+  Menu, X, AlertTriangle
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { resolveReportDisplayName } from "@/lib/displayName";
+import { Pencil, Check as CheckIcon, ExternalLink } from "lucide-react";
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import ExcelJS from 'exceljs';
@@ -60,6 +65,296 @@ import blueAllyLogoUrl from '@assets/image_1764369352062.png';
 import blueAllyLogoWhiteUrl from '@assets/blueally-logo-white.png';
 import { WorkflowExportPanel } from "@/components/report/WorkflowExportPanel";
 import { generateBoardPresentationPDF } from "@/lib/pdfGenerator";
+import { parseEpochFlags, getEpochBadge as epochGetBadge } from "@/lib/epoch-utils";
+import { STEP_COLUMN_ORDER, COLUMN_NAME_ALIASES } from "@shared/taxonomy";
+import { resolveBenchmarkSource, augmentAnalysisBenchmarkSourcesForPresentation, isMeaningfulBenchmarkValue } from "@shared/benchmarkSources";
+
+// ===== COLUMN ORDERING & TAXONOMY =====
+// Imported from shared/taxonomy.ts for consistency across all report pages
+
+// Hidden columns that should never appear in main table views
+const HIDDEN_COLUMNS = new Set([
+  "Cost Formula", "Revenue Formula", "Cash Flow Formula", "Risk Formula", "Benefit Formula",
+  "Cost Formula Labels", "Revenue Formula Labels", "Cash Flow Formula Labels", "Risk Formula Labels",
+  "Annual Hours", "Hourly Rate", "Measurement Method",
+  "Friction Point", // Only hidden when it's a "Target Friction" alias scenario
+  "Annual Token Cost", "Annual Token Cost ($)",
+  "Benchmark Sources", // Structured citations — rendered inline as links inside benchmark cells
+]);
+
+// Hidden fields that must still be carried on the row object (not as their own
+// column) because a cell renderer reads them. "Benchmark Sources" backs the
+// inline benchmark citations in Step 2.
+const CARRY_THROUGH_COLUMNS = new Set([
+  "Benchmark Sources",
+]);
+
+function reorderAndFilterColumns(data: any[], stepNum: number): any[] {
+  if (!data || data.length === 0) return data;
+
+  const desiredOrder = STEP_COLUMN_ORDER[stepNum];
+  if (!desiredOrder || desiredOrder.length === 0) return data;
+
+  return data.map(row => {
+    // Normalize column names
+    const normalizedRow: Record<string, any> = {};
+    for (const [key, value] of Object.entries(row)) {
+      let canonicalKey = COLUMN_NAME_ALIASES[key] || key;
+      if (stepNum === 4 && canonicalKey === 'Use Case') {
+        canonicalKey = 'Use Case Name';
+      }
+      normalizedRow[canonicalKey] = value;
+    }
+
+    // Compute Expected Value for Step 5 if not present
+    if (stepNum === 5 && !('Expected Value ($)' in normalizedRow)) {
+      const totalStr = String(normalizedRow['Total Annual Value ($)'] || 0);
+      const totalVal = parseFloat(totalStr.replace(/[^0-9.-]/g, '')) || 0;
+      const prob = normalizedRow['Probability of Success'] || 0;
+      const probNum = typeof prob === 'number' ? prob : parseFloat(String(prob)) || 0;
+      const adjustedProb = probNum > 1 ? probNum / 100 : probNum;
+      const ev = totalVal * adjustedProb;
+      normalizedRow['Expected Value ($)'] = `$${ev.toLocaleString('en-US', {maximumFractionDigits: 0})}`;
+    }
+
+    // Reorder: desired columns first, then extras
+    const reorderedRow: Record<string, any> = {};
+    for (const col of desiredOrder) {
+      if (col in normalizedRow) {
+        reorderedRow[col] = normalizedRow[col];
+      }
+    }
+    // Add remaining non-hidden columns (plus carry-through fields that back a
+    // cell renderer but must not become their own column).
+    for (const [key, value] of Object.entries(normalizedRow)) {
+      if (!(key in reorderedRow) && (!HIDDEN_COLUMNS.has(key) || CARRY_THROUGH_COLUMNS.has(key))) {
+        reorderedRow[key] = value;
+      }
+    }
+    return reorderedRow;
+  });
+}
+
+// Get visible columns for a step (excludes hidden/formula columns)
+function getVisibleColumns(row: any, stepNum: number): string[] {
+  const desiredOrder = STEP_COLUMN_ORDER[stepNum];
+  if (!desiredOrder) {
+    return Object.keys(row).filter(k => !HIDDEN_COLUMNS.has(k));
+  }
+
+  const cols: string[] = [];
+  // Add ordered columns first
+  for (const col of desiredOrder) {
+    if (col in row) cols.push(col);
+  }
+  // Add extras
+  for (const key of Object.keys(row)) {
+    if (!cols.includes(key) && !HIDDEN_COLUMNS.has(key)) cols.push(key);
+  }
+  return cols;
+}
+
+// Benchmark column color coding
+function getBenchmarkCellClass(columnName: string): string {
+  if (columnName === "Benchmark (Avg)" || columnName === "Industry Benchmark") {
+    return "bg-yellow-50 text-yellow-800";
+  }
+  if (columnName === "Benchmark (Industry Best)") {
+    return "bg-blue-50 text-blue-800";
+  }
+  if (columnName === "Benchmark (Overall Best)") {
+    return "bg-green-50 text-green-800";
+  }
+  return "";
+}
+
+// Map a benchmark column to its citation tier in the row's "Benchmark Sources".
+function getBenchmarkTier(columnName: string): "avg" | "industryBest" | "overallBest" | null {
+  if (columnName === "Benchmark (Avg)" || columnName === "Industry Benchmark") return "avg";
+  if (columnName === "Benchmark (Industry Best)") return "industryBest";
+  if (columnName === "Benchmark (Overall Best)") return "overallBest";
+  return null;
+}
+
+// Defense-in-depth: only ever render an http(s) anchor. Post-processing
+// sanitizes URLs server-side, but imported/legacy reports skip that pass, so
+// the client must never trust a stored `url` (e.g. a "javascript:" payload).
+function isSafeHttpUrl(raw: unknown): raw is string {
+  if (typeof raw !== "string" || !raw.trim()) return false;
+  try {
+    const p = new URL(raw.trim());
+    return p.protocol === "http:" || p.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+// Compact, verifiable citation rendered beneath a benchmark value. When a
+// sanitized http(s) URL exists it is a clickable link (new tab, tooltip with
+// publisher/title/year); otherwise it degrades to a muted, non-clickable
+// attribution so the figure is never left looking unsourced.
+function BenchmarkSourceLink({ source }: { source: any }) {
+  if (!source || typeof source !== "object") return null;
+  const url = isSafeHttpUrl(source.url) ? source.url.trim() : undefined;
+  const chipLabel = [source.publisher, source.year].filter(Boolean).join(" · ");
+  const tooltipText = [source.publisher, source.title, source.year].filter(Boolean).join(" · ");
+
+  if (url) {
+    return (
+      <TooltipProvider delayDuration={150}>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              className="mt-0.5 inline-flex w-fit items-center gap-0.5 text-[10px] font-medium text-current underline decoration-dotted underline-offset-2 opacity-80 hover:opacity-100"
+              data-testid="link-benchmark-source"
+            >
+              <ExternalLink className="h-2.5 w-2.5 shrink-0" />
+              <span className="max-w-[140px] truncate">{chipLabel || "Source"}</span>
+            </a>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-[280px] text-xs">
+            <p className="font-medium">{tooltipText || "View source"}</p>
+            <p className="mt-0.5 break-all text-muted-foreground">{url}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  }
+
+  if (chipLabel) {
+    return <span className="mt-0.5 block text-[10px] italic text-current opacity-60">{chipLabel}</span>;
+  }
+  return null;
+}
+
+// Render a Step-2 benchmark cell: the value plus its inline citation (if any).
+function renderBenchmarkCell(key: string, row: any): React.ReactNode {
+  const base = renderCellValue(key, row[key]);
+  const tier = getBenchmarkTier(key);
+  if (!tier) return base;
+  const stored = row?.["Benchmark Sources"]?.[tier];
+  const storedUsable =
+    stored && typeof stored === "object" &&
+    (isSafeHttpUrl(stored.url) || stored.publisher || stored.title);
+  const rawValue = row?.[key];
+  const hasValue = isMeaningfulBenchmarkValue(rawValue);
+  // Legacy/imported reports lack a stored citation; resolve one deterministically
+  // from the benchmark value text so the figure is never left unsourced. Only
+  // resolve when the cell actually shows a benchmark value to cite.
+  const source = storedUsable
+    ? stored
+    : hasValue
+      ? resolveBenchmarkSource({ existing: stored, valueText: rawValue })
+      : undefined;
+  const hasSource =
+    source && typeof source === "object" &&
+    (source.url || source.publisher || source.year || source.title);
+  if (!hasSource) return base;
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span>{base}</span>
+      <BenchmarkSourceLink source={source} />
+    </div>
+  );
+}
+
+// Strategic theme colors (5 distinct colors for 5 themes)
+const THEME_COLORS = [
+  { bg: "bg-indigo-50", border: "border-indigo-200", text: "text-indigo-700", badge: "bg-indigo-100 text-indigo-700 border-indigo-300" },
+  { bg: "bg-teal-50", border: "border-teal-200", text: "text-teal-700", badge: "bg-teal-100 text-teal-700 border-teal-300" },
+  { bg: "bg-rose-50", border: "border-rose-200", text: "text-rose-700", badge: "bg-rose-100 text-rose-700 border-rose-300" },
+  { bg: "bg-amber-50", border: "border-amber-200", text: "text-amber-700", badge: "bg-amber-100 text-amber-700 border-amber-300" },
+  { bg: "bg-cyan-50", border: "border-cyan-200", text: "text-cyan-700", badge: "bg-cyan-100 text-cyan-700 border-cyan-300" },
+];
+
+function getThemeColor(themeIndex: number) {
+  return THEME_COLORS[themeIndex % THEME_COLORS.length];
+}
+
+// Group data by Strategic Theme field
+function groupByStrategicTheme(data: any[]): Map<string, any[]> {
+  const groups = new Map<string, any[]>();
+  const ungrouped: any[] = [];
+
+  for (const row of data) {
+    const theme = row["Strategic Theme"];
+    if (theme) {
+      if (!groups.has(theme)) groups.set(theme, []);
+      groups.get(theme)!.push(row);
+    } else {
+      ungrouped.push(row);
+    }
+  }
+
+  // Add ungrouped items if any
+  if (ungrouped.length > 0) {
+    groups.set("Other", ungrouped);
+  }
+
+  return groups;
+}
+
+// Render a labeled formula component grid
+function formatLabelValue(label: string, value: any): string {
+  const num = typeof value === 'string' ? parseFloat(value) : value;
+  if (isNaN(num)) return String(value);
+  const lbl = label.toLowerCase();
+  if (lbl.includes('uplift') || lbl.includes('reduction') || lbl.includes('maturity') || lbl.includes('realization') || lbl.includes('adoption') || lbl.includes('loading') || lbl.includes('capital')) {
+    if (num >= 0 && num <= 1) return num.toString();
+  }
+  if (lbl.includes('revenue') || lbl.includes('exposure') || lbl.includes('risk')) {
+    if (num >= 1_000_000_000) return `$${(num / 1_000_000_000).toFixed(1)}B`;
+    if (num >= 1_000_000) return `$${(num / 1_000_000).toFixed(1)}M`;
+    if (num >= 1_000) return `$${Math.round(num / 1_000)}K`;
+    return `$${num}`;
+  }
+  if (lbl.includes('rate') && !lbl.includes('uplift') && !lbl.includes('reduction')) {
+    return `$${num}`;
+  }
+  if (lbl.includes('hours') || lbl.includes('days')) {
+    return num.toLocaleString();
+  }
+  return num.toLocaleString();
+}
+
+function renderLabeledFormula(formulaLabels: any, formulaStr: string, colorClass: string): React.ReactNode {
+  if (!formulaLabels || !formulaLabels.components || formulaLabels.components.length === 0) {
+    return (
+      <div className={`text-[10px] md:text-sm ${colorClass} font-mono break-all leading-relaxed`}>
+        {formulaStr}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-end gap-1 md:gap-2">
+        {formulaLabels.components.map((comp: any, idx: number) => (
+          <React.Fragment key={idx}>
+            {idx > 0 && <span className="text-muted-foreground font-mono text-sm self-end pb-0.5">×</span>}
+            <div className="flex flex-col items-center">
+              <span className="text-[8px] md:text-[10px] text-muted-foreground font-medium mb-0.5 text-center leading-tight">{comp.label}</span>
+              <span className={`text-[10px] md:text-sm ${colorClass} font-mono font-semibold bg-white/60 px-1.5 py-0.5 rounded border`}>
+                {formatLabelValue(comp.label, comp.value)}
+              </span>
+            </div>
+          </React.Fragment>
+        ))}
+        <span className="text-muted-foreground font-mono text-sm self-end pb-0.5">=</span>
+        <div className="flex flex-col items-center">
+          <span className="text-[8px] md:text-[10px] text-muted-foreground font-medium mb-0.5">Result</span>
+          <span className={`text-[10px] md:text-sm ${colorClass} font-mono font-bold bg-white/80 px-1.5 py-0.5 rounded border-2`}>
+            {formulaLabels.result || formulaStr}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 // Sanitize text for PDF - remove emojis and fix encoding issues
 const sanitizeForPDF = (text: string): string => {
@@ -113,17 +408,25 @@ const sanitizeForProse = (text: string): string => {
 const loadImageAsBase64 = (url: string): Promise<string> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.crossOrigin = 'anonymous';
+    // Only set crossOrigin for external URLs to avoid CORS issues with bundled assets
+    if (url.startsWith('http') && !url.includes(window.location.origin)) {
+      img.crossOrigin = 'anonymous';
+    }
     img.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.drawImage(img, 0, 0);
-        resolve(canvas.toDataURL('image/png'));
-      } else {
-        reject(new Error('Could not get canvas context'));
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0);
+          resolve(canvas.toDataURL('image/png'));
+        } else {
+          reject(new Error('Could not get canvas context'));
+        }
+      } catch (e) {
+        // Fallback: if canvas operations fail (CORS), reject gracefully
+        reject(new Error('Canvas drawing failed - possible CORS issue'));
       }
     };
     img.onerror = () => reject(new Error('Failed to load image'));
@@ -156,6 +459,28 @@ const parseFormattedValue = (value: any): number => {
   return num * multiplier;
 };
 
+// Normalize all hours fields in report data to whole numbers
+// This ensures every rendering path and export gets clean integers
+function normalizeReportData(data: any): any {
+  if (!data || typeof data !== 'object') return data;
+  
+  if (Array.isArray(data)) {
+    return data.map(item => normalizeReportData(item));
+  }
+  
+  const normalized: any = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (key.toLowerCase().includes('hours') && typeof value === 'number') {
+      normalized[key] = Math.round(value);
+    } else if (typeof value === 'object' && value !== null) {
+      normalized[key] = normalizeReportData(value);
+    } else {
+      normalized[key] = value;
+    }
+  }
+  return normalized;
+}
+
 // Formatting helpers (used by both Report and StepCard)
 // Format numbers with commas for readability (e.g., 1,234,567)
 const addCommas = (num: number): string => {
@@ -179,19 +504,25 @@ const formatCurrency = (value: number | string): string => {
   const prefix = isNegative ? '-$' : '$';
   
   if (absValue >= 1000000000) {
-    return `${prefix}${(absValue / 1000000000).toFixed(1)}B`;
+    const billions = Math.round(absValue / 1000000000 * 10) / 10;
+    return billions === Math.floor(billions) 
+      ? `${prefix}${Math.floor(billions)}B`
+      : `${prefix}${billions.toFixed(1)}B`;
   } else if (absValue >= 1000000) {
-    return `${prefix}${(absValue / 1000000).toFixed(1)}M`;
+    const millions = Math.round(absValue / 1000000 * 10) / 10;
+    return millions === Math.floor(millions)
+      ? `${prefix}${Math.floor(millions)}M`
+      : `${prefix}${millions.toFixed(1)}M`;
   } else if (absValue >= 1000) {
     return `${prefix}${addCommas(Math.round(absValue))}`;
   } else if (absValue > 0) {
-    return `${prefix}${absValue.toFixed(0)}`;
+    return `${prefix}${Math.round(absValue)}`;
   }
   return '$0';
 };
 
 // Format plain numbers with commas for readability
-// Examples: 1,234 | 45,678 | 1.2M | 3.5B
+// All numbers rounded to whole values (except percentages)
 const formatNumber = (value: number | string): string => {
   if (typeof value === 'string') {
     const num = parseFloat(value.replace(/[,]/g, ''));
@@ -205,9 +536,15 @@ const formatNumber = (value: number | string): string => {
   const prefix = isNegative ? '-' : '';
   
   if (absValue >= 1000000000) {
-    return `${prefix}${(absValue / 1000000000).toFixed(1)}B`;
+    const billions = Math.round(absValue / 1000000000 * 10) / 10;
+    return billions === Math.floor(billions)
+      ? `${prefix}${Math.floor(billions)}B`
+      : `${prefix}${billions.toFixed(1)}B`;
   } else if (absValue >= 1000000) {
-    return `${prefix}${(absValue / 1000000).toFixed(1)}M`;
+    const millions = Math.round(absValue / 1000000 * 10) / 10;
+    return millions === Math.floor(millions)
+      ? `${prefix}${Math.floor(millions)}M`
+      : `${prefix}${millions.toFixed(1)}M`;
   } else if (absValue >= 1000) {
     return `${prefix}${addCommas(Math.round(absValue))}`;
   }
@@ -230,7 +567,7 @@ const navigationSections = [
   { id: "step-3", label: "Friction Points", icon: Zap },
   { id: "step-4", label: "AI Use Cases", icon: Lightbulb },
   { id: "step-5", label: "Benefits Quantification", icon: DollarSign },
-  { id: "step-6", label: "Effort & Token Model", icon: Calculator },
+  { id: "step-6", label: "Readiness & Token Modeling", icon: Calculator },
   { id: "step-7", label: "Priority Roadmap", icon: MapPin },
 ];
 
@@ -241,9 +578,8 @@ const metricTooltips: Record<string, string> = {
   "costBenefit": "Projected annual cost savings from AI-driven process automation and efficiency improvements.",
   "cashFlowBenefit": "Projected annual cash flow improvements from accelerated collections and reduced inventory carrying costs.",
   "riskBenefit": "Projected annual risk reduction value from improved compliance, fraud detection, and quality control.",
-  "priorityScore": "Composite score (0-100) based on value potential, time-to-value, and implementation effort.",
+  "priorityScore": "Composite score (0-100) based on value potential, time-to-value, and implementation readiness.",
   "probabilityOfSuccess": "Estimated likelihood of achieving projected benefits, based on data readiness and implementation complexity.",
-  "tokenCost": "Estimated annual cost for AI model token usage based on projected runs and average tokens per run.",
   "monthlyTokens": "Estimated total monthly token consumption across all AI use cases, based on projected runs and average tokens per run.",
   "valuePerToken": "Average value generated per million tokens consumed, calculated by dividing total annual value by annual token consumption.",
 };
@@ -258,12 +594,70 @@ export default function Report() {
   const [status, setStatus] = useState<"init" | "loading" | "complete">("init");
   const [data, setData] = useState<any>(null);
   const [reportId, setReportId] = useState<string | null>(null);
+  // Presentation-only display name override for the rendered report,
+  // share blob, and exports. companyName (URL param + immutable research
+  // name) is unchanged. `null` => fall back to companyName.
+  const [displayNameOverride, setDisplayNameOverride] = useState<string | null>(null);
+  const [editingDisplayName, setEditingDisplayName] = useState(false);
+  const [displayNameDraft, setDisplayNameDraft] = useState("");
+  const [savingDisplayName, setSavingDisplayName] = useState(false);
+
+  // Resolved name for every user-facing surface (header, exports, share).
+  // Filenames and URL params keep using `companyName`.
+  const renderedName = resolveReportDisplayName(
+    { displayName: displayNameOverride, companyName, data },
+    companyName,
+  );
+
+  // Sync override state when fresh data arrives (import, fetch, or analyze).
+  useEffect(() => {
+    if (data && typeof data === "object" && "displayName" in data) {
+      setDisplayNameOverride((data as any).displayName ?? null);
+    }
+  }, [data]);
+
+  const saveDisplayName = async (next: string | null) => {
+    if (!reportId) {
+      toast({ variant: "destructive", title: "Not saved", description: "Report ID not available yet." });
+      return;
+    }
+    setSavingDisplayName(true);
+    try {
+      const r = await fetch(`/api/reports/${reportId}/display-name`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ displayName: next }),
+      });
+      const body = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        if (r.status === 401) throw new Error("You must be signed in to rename this report.");
+        throw new Error(body?.error || "Could not save display name.");
+      }
+      const saved = body?.report?.displayName ?? null;
+      setDisplayNameOverride(saved);
+      setData((prev: any) => (prev ? { ...prev, displayName: saved } : prev));
+      setEditingDisplayName(false);
+      toast({
+        title: saved ? "Display name updated" : "Display name cleared",
+        description: saved
+          ? `Reports and exports will show “${saved}”. Research lookups still use “${companyName}”.`
+          : `Reverted to the research name “${companyName}”.`,
+      });
+    } catch (e: any) {
+      toast({ variant: "destructive", title: "Save failed", description: e?.message || "Unknown error" });
+    } finally {
+      setSavingDisplayName(false);
+    }
+  };
   const [error, setError] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState<ProgressUpdate | null>(null);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+  const [failedStep, setFailedStep] = useState<number | null>(null);
+  const accumulatedResultsRef = useRef<Record<string, any>>({});
   
   // Assumption drawer state
   const [assumptionDrawerOpen, setAssumptionDrawerOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("dashboard");
   const [assumptionEdits, setAssumptionEdits] = useState<Record<string, string>>({});
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
@@ -277,194 +671,213 @@ export default function Report() {
     }
   }, []);
 
+  const stepLabels: Record<number, string> = {
+    0: "Company Overview",
+    1: "Strategic Anchoring",
+    2: "Business Functions & KPIs",
+    3: "Friction Points",
+    4: "AI Use Cases",
+    5: "Benefits Quantification",
+    6: "Readiness & Token Modeling",
+    7: "Priority Roadmap",
+  };
+
+  const callLabels = [
+    "Company Overview & Strategic Themes",
+    "Friction Points & AI Use Cases",
+    "Benefits Quantification",
+    "Readiness, Roadmap & Summary",
+  ];
+
+  const runPipelineFromStep = async (startCall: number, accumulatedResults: Record<string, any>, documentContext: string) => {
+    const stepsBeforeCall: Record<number, number[]> = {
+      1: [],
+      2: [0, 1, 2],
+      3: [0, 1, 2, 3, 4],
+      4: [0, 1, 2, 3, 4, 5],
+    };
+
+    for (let callNum = startCall; callNum <= 4; callNum++) {
+      setCurrentStep({
+        step: callNum,
+        message: `Step ${callNum}/4: ${callLabels[callNum - 1]}`,
+        detail: `Generating ${callLabels[callNum - 1].toLowerCase()}...`,
+      });
+
+      if (stepsBeforeCall[callNum]) {
+        setCompletedSteps(stepsBeforeCall[callNum]);
+      }
+
+      let attempts = 0;
+      const MAX_RETRIES = 3;
+      let success = false;
+
+      while (attempts < MAX_RETRIES && !success) {
+        try {
+          const response = await fetch("/api/analyze/step", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              companyName,
+              callNumber: callNum,
+              previousCallResults: accumulatedResults,
+              documentContext: callNum === 1 ? documentContext : undefined,
+            }),
+            signal: AbortSignal.timeout(180_000),
+          });
+
+          if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            throw new Error(errData.error || `Call ${callNum} failed: HTTP ${response.status}`);
+          }
+
+          const result = await response.json();
+
+          if (callNum === 4 && result.report) {
+            setReportId(result.report.id);
+            setData(normalizeReportData(result.report.data));
+            setStatus("complete");
+            setCompletedSteps([0, 1, 2, 3, 4, 5, 6, 7, 8]);
+            toast({ title: "Analysis Complete", description: "Your strategic analysis has been generated and saved." });
+            return;
+          }
+
+          accumulatedResults[`call${callNum}`] = result.data;
+          accumulatedResultsRef.current = { ...accumulatedResults };
+          success = true;
+        } catch (err: any) {
+          attempts++;
+          console.warn(`[Call ${callNum}] Attempt ${attempts} failed:`, err.message);
+          if (attempts >= MAX_RETRIES) {
+            setFailedStep(callNum);
+            accumulatedResultsRef.current = { ...accumulatedResults };
+            throw new Error(`Analysis failed at "${callLabels[callNum - 1]}" after ${MAX_RETRIES} attempts: ${err.message}`);
+          }
+          const delay = 2000 * Math.pow(2, attempts) + Math.random() * 1000;
+          await new Promise(r => setTimeout(r, delay));
+        }
+      }
+    }
+  };
+
   const fetchAnalysis = async () => {
     try {
       setStatus("loading");
       setError(null);
       setCompletedSteps([]);
-      
-      const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
-      // Set up SSE connection for progress updates
-      const eventSource = new EventSource(`/api/progress/${sessionId}`);
-      
-      eventSource.onmessage = (event) => {
-        try {
-          const update: ProgressUpdate = JSON.parse(event.data);
-          setCurrentStep(update);
-          
-          if (update.step > 0 && update.step < 100) {
-            setCompletedSteps(prev => {
-              if (!prev.includes(update.step - 1) && update.step > 1) {
-                return [...prev, update.step - 1];
-              }
-              return prev;
-            });
-          }
-          
-          if (update.step === 100) {
-            setCompletedSteps([0, 1, 2, 3, 4, 5, 6, 7, 8]);
-            eventSource.close();
-          }
-          
-          if (update.step === -1) {
-            eventSource.close();
-          }
-        } catch (e) {
-          console.error("Error parsing progress update:", e);
-        }
-      };
+      setFailedStep(null);
+      accumulatedResultsRef.current = {};
 
-      eventSource.onerror = () => {
-        eventSource.close();
-      };
-
-      let response: Response;
+      // ============================================================
+      // PRIOR-ASSESSMENT IMPORT FAST PATH
+      // ------------------------------------------------------------
+      // Home.tsx stages an uploaded JSON assessment in
+      // sessionStorage.priorAssessment when it detects a
+      // previously-exported BlueAlly file. We hit /api/import-analysis
+      // (which preserves the payload verbatim) and short-circuit the
+      // rest of the analyze pipeline — no Claude, no recompute.
+      // ============================================================
       try {
-        // Get uploaded documents from sessionStorage
-        let documents: Array<{ name: string; content: string }> = [];
-        try {
-          const storedDocs = sessionStorage.getItem("uploadedDocuments");
-          if (storedDocs) {
-            documents = JSON.parse(storedDocs);
-            sessionStorage.removeItem("uploadedDocuments"); // Clear after use
-          }
-        } catch (e) {
-          console.log("No documents found in session storage");
-        }
-        
-        response = await fetch("/api/analyze", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ companyName, sessionId, documents }),
-        });
-      } catch (fetchError: any) {
-        eventSource.close();
-        throw new Error(`Network error: ${fetchError?.message || 'Failed to connect to server'}`);
-      }
-
-      if (!response.ok) {
-        eventSource.close();
-        let errorMessage = "Failed to generate analysis";
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.message || errorData.error || errorMessage;
-        } catch {
-          errorMessage = `Server error (${response.status}): ${response.statusText}`;
-        }
-        throw new Error(errorMessage);
-      }
-
-      let initialResult;
-      try {
-        initialResult = await response.json();
-      } catch (parseError: any) {
-        eventSource.close();
-        throw new Error(`Failed to parse response: ${parseError?.message || 'Invalid JSON'}`);
-      }
-      
-      // If we got an existing report directly, use it
-      if (initialResult.id && initialResult.data) {
-        eventSource.close();
-        setReportId(initialResult.id);
-        setData(initialResult.data);
-        setStatus("complete");
-        setCompletedSteps([0, 1, 2, 3, 4, 5, 6, 7, 8]);
-        
-        if (initialResult.isNew === false) {
-          toast({
-            title: "Report Retrieved",
-            description: "Loaded existing analysis for this company.",
+        const stagedImport = sessionStorage.getItem("priorAssessment");
+        if (stagedImport) {
+          sessionStorage.removeItem("priorAssessment");
+          const parsed = JSON.parse(stagedImport);
+          const importResp = await fetch("/api/import-analysis", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              analysis: parsed.analysis,
+              companyName: parsed.companyName || companyName,
+            }),
           });
-        }
-        return;
-      }
-      
-      // If processing in background, poll for results
-      if (initialResult.status === 'processing' && initialResult.jobId) {
-        const jobId = initialResult.jobId;
-        const maxPolls = 180; // 3 minutes at 1 second intervals
-        let pollCount = 0;
-        
-        const pollForResult = async (): Promise<void> => {
-          while (pollCount < maxPolls) {
-            pollCount++;
-            await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
-            
-            try {
-              const statusResponse = await fetch(`/api/analyze/status/${jobId}`);
-              if (!statusResponse.ok) {
-                if (statusResponse.status === 404) {
-                  throw new Error('Analysis job not found - please try again');
-                }
-                continue; // Retry on other errors
-              }
-              
-              const statusData = await statusResponse.json();
-              
-              if (statusData.status === 'complete' && statusData.result) {
-                eventSource.close();
-                setReportId(statusData.result.id);
-                setData(statusData.result.data);
-                setStatus("complete");
-                setCompletedSteps([0, 1, 2, 3, 4, 5, 6, 7, 8]);
-                toast({
-                  title: "Analysis Complete",
-                  description: "Your strategic analysis has been generated and saved.",
-                });
-                return;
-              } else if (statusData.status === 'error') {
-                throw new Error(statusData.error || 'Analysis failed');
-              }
-              // Continue polling if still processing
-            } catch (pollError: any) {
-              if (pollError.message.includes('job not found') || pollError.message.includes('Analysis failed')) {
-                throw pollError;
-              }
-              // Continue polling on network errors
+          if (importResp.ok) {
+            const imported = await importResp.json();
+            if (imported?.report?.id) {
+              setReportId(imported.report.id);
+              setData(normalizeReportData(imported.report.data));
+              setStatus("complete");
+              setCompletedSteps([0, 1, 2, 3, 4, 5, 6, 7, 8]);
+              toast({
+                title: "Assessment imported",
+                description: "Showing the uploaded JSON exactly as provided — no values recalculated.",
+              });
+              return;
             }
+          } else {
+            const errBody = await importResp.json().catch(() => ({}));
+            throw new Error(errBody?.error || "Import endpoint rejected the uploaded assessment.");
           }
-          
-          throw new Error('Analysis timed out after 3 minutes. Please try again.');
-        };
-        
-        await pollForResult();
-        return;
-      }
-      
-      // Fallback for direct result (shouldn't happen with new pattern)
-      eventSource.close();
-      if (initialResult.id) {
-        setReportId(initialResult.id);
-        setData(initialResult.data);
-        setStatus("complete");
-        setCompletedSteps([0, 1, 2, 3, 4, 5, 6, 7, 8]);
+        }
+      } catch (importErr: any) {
         toast({
-          title: "Analysis Complete",
-          description: "Your strategic analysis has been generated and saved.",
+          variant: "destructive",
+          title: "Import failed",
+          description: importErr?.message || "Could not load the uploaded assessment.",
         });
       }
+
+      let documents: Array<{ name: string; content: string }> = [];
+      try {
+        const storedDocs = sessionStorage.getItem("uploadedDocuments");
+        if (storedDocs) {
+          documents = JSON.parse(storedDocs);
+          sessionStorage.removeItem("uploadedDocuments");
+        }
+      } catch (e) {}
+
+      let documentContext = "";
+      if (documents.length > 0) {
+        documentContext = documents.map(d => `--- ${d.name} ---\n${d.content.slice(0, 50000)}\n--- End ---`).join("\n\n");
+      }
+
+      const checkResponse = await fetch("/api/analyze/check", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ companyName }),
+      });
+
+      if (checkResponse.ok) {
+        const existing = await checkResponse.json();
+        if (existing.exists && existing.report) {
+          setReportId(existing.report.id);
+          setData(normalizeReportData(existing.report.data));
+          setStatus("complete");
+          setCompletedSteps([0, 1, 2, 3, 4, 5, 6, 7, 8]);
+          toast({ title: "Report Retrieved", description: "Loaded existing analysis." });
+          return;
+        }
+      }
+
+      await runPipelineFromStep(1, {}, documentContext);
     } catch (err: any) {
       console.error("Analysis error details:", err);
-      let errorMessage: string;
-      if (err instanceof Error) {
-        errorMessage = err.message;
-      } else if (typeof err === 'string') {
-        errorMessage = err;
-      } else if (err && typeof err === 'object') {
-        errorMessage = err.message || err.error || JSON.stringify(err) || "Unknown error";
-      } else {
-        errorMessage = "Unknown error occurred";
-      }
-      // Ensure we never show just "{}" 
-      if (errorMessage === "{}" || errorMessage === "{}") {
-        errorMessage = "Connection failed - please try again";
-      }
+      let errorMessage = err instanceof Error ? err.message : String(err || "Unknown error");
+      if (errorMessage === "{}") errorMessage = "Connection failed - please try again";
       setError(errorMessage);
       setStatus("complete");
       toast({
         variant: "destructive",
         title: "Analysis Failed",
+        description: errorMessage,
+      });
+    }
+  };
+
+  const retryFromStep = async (stepNum: number) => {
+    try {
+      setStatus("loading");
+      setError(null);
+      setFailedStep(null);
+      await runPipelineFromStep(stepNum, { ...accumulatedResultsRef.current }, "");
+    } catch (err: any) {
+      console.error("Retry error:", err);
+      let errorMessage = err instanceof Error ? err.message : String(err || "Unknown error");
+      if (errorMessage === "{}") errorMessage = "Connection failed - please try again";
+      setError(errorMessage);
+      setStatus("complete");
+      toast({
+        variant: "destructive",
+        title: "Retry Failed",
         description: errorMessage,
       });
     }
@@ -477,90 +890,14 @@ export default function Report() {
       setStatus("loading");
       setError(null);
       setCompletedSteps([]);
-      
-      const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
-      const eventSource = new EventSource(`/api/progress/${sessionId}`);
-      
-      eventSource.onmessage = (event) => {
-        try {
-          const update: ProgressUpdate = JSON.parse(event.data);
-          setCurrentStep(update);
-          if (update.step === 100 || update.step === -1) {
-            eventSource.close();
-          }
-        } catch (e) {
-          console.error("Error parsing progress update:", e);
-        }
-      };
+      setFailedStep(null);
+      accumulatedResultsRef.current = {};
 
-      let response: Response;
-      try {
-        // Use AbortController with 5-minute timeout for long-running analysis
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => {
-          controller.abort();
-        }, 5 * 60 * 1000); // 5 minutes
-        
-        response = await fetch(`/api/regenerate/${reportId}`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ companyName, sessionId }),
-          signal: controller.signal,
-        });
-        
-        clearTimeout(timeoutId);
-      } catch (fetchError: any) {
-        eventSource.close();
-        if (fetchError?.name === 'AbortError') {
-          throw new Error('Analysis timed out after 5 minutes. Please try again.');
-        }
-        throw new Error(`Network error: ${fetchError?.message || 'Failed to connect to server'}`);
-      }
-
-      eventSource.close();
-
-      if (!response.ok) {
-        let errorMessage = "Failed to regenerate analysis";
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.message || errorData.error || errorMessage;
-        } catch {
-          errorMessage = `Server error (${response.status}): ${response.statusText}`;
-        }
-        throw new Error(errorMessage);
-      }
-
-      let result;
-      try {
-        result = await response.json();
-      } catch (parseError: any) {
-        throw new Error(`Failed to parse response: ${parseError?.message || 'Invalid JSON'}`);
-      }
-      
-      setData(result.data);
-      setStatus("complete");
-      setCompletedSteps([0, 1, 2, 3, 4, 5, 6, 7, 8]);
-
-      toast({
-        title: "Analysis Refreshed",
-        description: "Your report has been regenerated with latest insights.",
-      });
+      await runPipelineFromStep(1, {}, "");
     } catch (err: any) {
       console.error("Regenerate error details:", err);
-      let errorMessage: string;
-      if (err instanceof Error) {
-        errorMessage = err.message;
-      } else if (typeof err === 'string') {
-        errorMessage = err;
-      } else if (err && typeof err === 'object') {
-        errorMessage = err.message || err.error || JSON.stringify(err) || "Unknown error";
-      } else {
-        errorMessage = "Unknown error occurred";
-      }
-      if (errorMessage === "{}" || errorMessage === "{}") {
-        errorMessage = "Connection failed - please try again";
-      }
+      let errorMessage = err instanceof Error ? err.message : String(err || "Unknown error");
+      if (errorMessage === "{}") errorMessage = "Connection failed - please try again";
       setError(errorMessage);
       setStatus("complete");
       toast({
@@ -596,7 +933,7 @@ export default function Report() {
     },
     onSuccess: (result) => {
       if (result.report) {
-        setData(result.report.analysisData);
+        setData(normalizeReportData(result.report.analysisData));
       }
       setHasUnsavedChanges(false);
       setAssumptionEdits({});
@@ -884,7 +1221,7 @@ export default function Report() {
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(22);
     doc.setTextColor(...BRAND.white);
-    doc.text(companyName, centerX, 180, { align: 'center' });
+    doc.text(renderedName, centerX, 180, { align: 'center' });
     
     // Centered date
     doc.setFont('helvetica', 'normal');
@@ -1179,23 +1516,29 @@ export default function Report() {
       if (step.data && step.data.length > 0) {
         const isBenefitsStep = step.step === 5;
         const isNarrativeStep = step.step === 1 || step.step === 2 || step.step === 3; // Strategic Anchoring, Business Functions, Friction Points
-        const allColumns = Object.keys(step.data[0]);
+        // Apply column reordering and normalization
+        const reorderedData = reorderAndFilterColumns(step.data, step.step);
+        const allColumns = Object.keys(reorderedData[0]);
         const formulaColumns = allColumns.filter(k => k.includes('Formula'));
-        const displayColumns = allColumns.filter(k => !k.includes('Formula'));
+        const displayColumns = allColumns.filter(k => !k.includes('Formula') && !k.includes('Labels') && !HIDDEN_COLUMNS.has(k));
         
         // Limit columns for board readability - fewer columns for narrative steps
-        const maxCols = isNarrativeStep ? 4 : 6;
+        const maxCols = isNarrativeStep ? 4 : (isBenefitsStep ? 9 : 6);
         const limitedColumns = displayColumns.slice(0, maxCols);
         
         // Character limits based on step type - narrative steps get more room
         const cellCharLimit = isNarrativeStep ? 120 : 60;
         const truncationLimit = isNarrativeStep ? 100 : 45;
         
-        const rows = step.data.map((row: any) => 
+        const rows = reorderedData.map((row: any) =>
           limitedColumns.map(col => {
             const val = row[col];
             if (typeof val === 'number' && col.toLowerCase().includes('$')) {
               return formatCurrency(val);
+            }
+            // Round hours to whole numbers
+            if (typeof val === 'number' && col.toLowerCase().includes('hours')) {
+              return Math.round(val).toLocaleString();
             }
             if (typeof val === 'number' && val > 1000) {
               return formatNumber(val);
@@ -1481,7 +1824,7 @@ export default function Report() {
       [""],
       ["Board Presentation"],
       [""],
-      [companyName],
+      [renderedName],
       [""],
       [new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })],
       [""],
@@ -1543,34 +1886,104 @@ export default function Report() {
       dashSheet.getColumn(5).width = 18;
     }
 
+    // VRM v2.1 — Methodology Integrity Sheet
+    if (data.vrm?.diagnostic) {
+      const diag = data.vrm.diagnostic;
+      const schemaVersion = data.vrm.schemaVersion || '2.1';
+      const integritySheet = wb.addWorksheet('Methodology Integrity');
+
+      const totalUseCases = diag.totalUseCases ?? 0;
+      const protoCount = diag.prototypingCandidatesCount ?? 0;
+      const protoPct = diag.prototypingCandidatesPct ??
+        (totalUseCases > 0 ? Math.round((protoCount / totalUseCases) * 100) : 0);
+      const foundationHard = diag.foundationHardCount ?? 0;
+      const foundationSoft = diag.foundationSoftCount ?? 0;
+
+      const integrityData: (string | number)[][] = [
+        [""],
+        [`METHODOLOGY INTEGRITY (v${schemaVersion})`],
+        [""],
+        ["SUMMARY"],
+        [""],
+        ["Metric", "Value"],
+        ["Total Use Cases", totalUseCases],
+        ["Prototyping Candidates", `${protoCount} (${protoPct}%)`],
+        ["Median Value Score", diag.medianValueScore ?? 0],
+        ["Median Readiness Score", diag.medianReadinessScore ?? 0],
+        [""],
+        [""],
+        ["QUADRANT BREAKDOWN"],
+        [""],
+        ["Quadrant", "Count"],
+        ["Champion", diag.championCount ?? 0],
+        ["Conditional Champion", diag.conditionalChampionCount ?? 0],
+        ["Quick Win", diag.quickWinCount ?? 0],
+        ["Strategic", diag.strategicCount ?? 0],
+        [`Foundation (${foundationHard} hard / ${foundationSoft} soft)`, diag.foundationCount ?? 0],
+        [""],
+        [""],
+        ["WARNINGS"],
+        [""],
+      ];
+
+      const warnings = diag.warnings || [];
+      if (warnings.length === 0) {
+        integrityData.push(["No methodology integrity warnings — portfolio passes all v2.1 checks."]);
+      } else {
+        integrityData.push(["Severity", "Code", "Message", "Recommendation"]);
+        warnings.forEach((wn: any) => {
+          integrityData.push([
+            String(wn.severity || '').toUpperCase(),
+            wn.code || '',
+            wn.message || '',
+            wn.remediation || wn.recommendedAction || '',
+          ]);
+        });
+      }
+
+      integrityData.forEach((row) => integritySheet.addRow(row));
+
+      integritySheet.getColumn(1).width = 30;
+      integritySheet.getColumn(2).width = 30;
+      integritySheet.getColumn(3).width = 60;
+      integritySheet.getColumn(4).width = 60;
+    }
+
     // Step sheets with proper column widths and data handling
     data.steps.forEach((step: any) => {
       if (step.data && step.data.length > 0) {
         const sheetName = `Step ${step.step}`.substring(0, 31);
         const ws = wb.addWorksheet(sheetName);
-        
+
         // Add header rows
         ws.addRow([`STEP ${step.step}: ${step.title.toUpperCase()}`]);
         ws.addRow([sanitizeForProse(step.content || '')]);
         ws.addRow(['']);
-        
-        // Get all unique column keys from all data rows to handle varying structures
+
+        // Apply column reordering and normalization
+        const reorderedStepData = reorderAndFilterColumns(step.data, step.step);
+
+        // Get all unique column keys from reordered data
         const allKeys = new Set<string>();
-        step.data.forEach((dataRow: any) => {
+        reorderedStepData.forEach((dataRow: any) => {
           Object.keys(dataRow).forEach(key => allKeys.add(key));
         });
-        const cols = Array.from(allKeys);
-        
+        const cols = Array.from(allKeys).filter(k => !HIDDEN_COLUMNS.has(k) && !k.includes('Labels'));
+
         // Add column headers
         ws.addRow(cols);
-        
+
         // Add data rows, preserving native types
-        step.data.forEach((dataRow: any) => {
+        reorderedStepData.forEach((dataRow: any) => {
           const values = cols.map(col => {
             const val = dataRow[col];
             // Handle different value types
             if (val === null || val === undefined) return '';
             if (typeof val === 'object') return JSON.stringify(val);
+            // Round hours to whole numbers
+            if (col.toLowerCase().includes('hours') && typeof val === 'number') {
+              return Math.round(val);
+            }
             // Preserve numbers, booleans, and strings as native types
             return val;
           });
@@ -1616,7 +2029,7 @@ export default function Report() {
         spacing: { after: 300 },
       }),
       new Paragraph({
-        text: companyName,
+        text: renderedName,
         heading: HeadingLevel.HEADING_1,
         alignment: AlignmentType.CENTER,
         spacing: { after: 200 },
@@ -1781,6 +2194,7 @@ export default function Report() {
 
     // Analysis Steps - Centered headers
     data.steps.forEach((step: any) => {
+      const isBenefitsStepDocx = step.step === 5;
       children.push(
         new Paragraph({
           text: `STEP ${step.step}: ${step.title.toUpperCase()}`,
@@ -1801,25 +2215,32 @@ export default function Report() {
       }
 
       if (step.data && step.data.length > 0) {
-        const allColumns = Object.keys(step.data[0]);
-        const columns = allColumns.filter(k => !k.includes('Formula')).slice(0, 6);
-        
+        // Apply column reordering and normalization
+        const reorderedDocxData = reorderAndFilterColumns(step.data, step.step);
+        const allColumns = Object.keys(reorderedDocxData[0]);
+        const columns = allColumns.filter(k => !k.includes('Formula') && !k.includes('Labels') && !HIDDEN_COLUMNS.has(k)).slice(0, isBenefitsStepDocx ? 9 : 6);
+
         const tableRows = [
           new DocxTableRow({
-            children: columns.map(col => 
+            children: columns.map(col =>
               new DocxTableCell({
                 children: [new Paragraph({ text: col, alignment: AlignmentType.CENTER })],
                 shading: { fill: "001278" },
               })
             ),
           }),
-          ...step.data.map((row: any) => 
+          ...reorderedDocxData.map((row: any) =>
             new DocxTableRow({
-              children: columns.map(col => 
-                new DocxTableCell({
-                  children: [new Paragraph({ text: String(row[col] || '').substring(0, 50), alignment: AlignmentType.CENTER })],
-                })
-              ),
+              children: columns.map(col => {
+                const val = row[col];
+                // Round hours to whole numbers
+                const formattedVal = col.toLowerCase().includes('hours') && typeof val === 'number'
+                  ? Math.round(val).toLocaleString()
+                  : String(val || '').substring(0, 50);
+                return new DocxTableCell({
+                  children: [new Paragraph({ text: formattedVal, alignment: AlignmentType.CENTER })],
+                });
+              }),
             })
           ),
         ];
@@ -1832,6 +2253,144 @@ export default function Report() {
         );
       }
     });
+
+    // VRM v2.1 — Methodology Integrity (Appendix)
+    if (data.vrm?.diagnostic) {
+      const diag = data.vrm.diagnostic;
+      const schemaVersion = data.vrm.schemaVersion || '2.1';
+      const totalUseCases = diag.totalUseCases ?? 0;
+      const protoCount = diag.prototypingCandidatesCount ?? 0;
+      const protoPct = diag.prototypingCandidatesPct ??
+        (totalUseCases > 0 ? Math.round((protoCount / totalUseCases) * 100) : 0);
+      const foundationHard = diag.foundationHardCount ?? 0;
+      const foundationSoft = diag.foundationSoftCount ?? 0;
+
+      children.push(
+        new Paragraph({
+          text: `METHODOLOGY INTEGRITY (v${schemaVersion})`,
+          heading: HeadingLevel.HEADING_1,
+          alignment: AlignmentType.CENTER,
+          spacing: { before: 400, after: 200 },
+        }),
+        new Paragraph({
+          text: `${totalUseCases} use cases analyzed · ${protoCount} prototyping candidates (${protoPct}%)`,
+          alignment: AlignmentType.CENTER,
+          spacing: { after: 200 },
+        }),
+        new Paragraph({
+          text: "Quadrant Breakdown",
+          heading: HeadingLevel.HEADING_2,
+          alignment: AlignmentType.CENTER,
+          spacing: { before: 200, after: 120 },
+        })
+      );
+
+      const quadrantTable = new DocxTable({
+        rows: [
+          new DocxTableRow({
+            children: [
+              new DocxTableCell({
+                children: [new Paragraph({ text: "Quadrant", alignment: AlignmentType.CENTER })],
+                shading: { fill: "001278" },
+              }),
+              new DocxTableCell({
+                children: [new Paragraph({ text: "Count", alignment: AlignmentType.CENTER })],
+                shading: { fill: "001278" },
+              }),
+            ],
+          }),
+          new DocxTableRow({
+            children: [
+              new DocxTableCell({ children: [new Paragraph({ text: "Champion", alignment: AlignmentType.CENTER })] }),
+              new DocxTableCell({ children: [new Paragraph({ text: String(diag.championCount ?? 0), alignment: AlignmentType.CENTER })] }),
+            ],
+          }),
+          new DocxTableRow({
+            children: [
+              new DocxTableCell({ children: [new Paragraph({ text: "Conditional Champion", alignment: AlignmentType.CENTER })] }),
+              new DocxTableCell({ children: [new Paragraph({ text: String(diag.conditionalChampionCount ?? 0), alignment: AlignmentType.CENTER })] }),
+            ],
+          }),
+          new DocxTableRow({
+            children: [
+              new DocxTableCell({ children: [new Paragraph({ text: "Quick Win", alignment: AlignmentType.CENTER })] }),
+              new DocxTableCell({ children: [new Paragraph({ text: String(diag.quickWinCount ?? 0), alignment: AlignmentType.CENTER })] }),
+            ],
+          }),
+          new DocxTableRow({
+            children: [
+              new DocxTableCell({ children: [new Paragraph({ text: "Strategic", alignment: AlignmentType.CENTER })] }),
+              new DocxTableCell({ children: [new Paragraph({ text: String(diag.strategicCount ?? 0), alignment: AlignmentType.CENTER })] }),
+            ],
+          }),
+          new DocxTableRow({
+            children: [
+              new DocxTableCell({ children: [new Paragraph({ text: `Foundation (${foundationHard} hard / ${foundationSoft} soft)`, alignment: AlignmentType.CENTER })] }),
+              new DocxTableCell({ children: [new Paragraph({ text: String(diag.foundationCount ?? 0), alignment: AlignmentType.CENTER })] }),
+            ],
+          }),
+        ],
+        width: { size: 100, type: WidthType.PERCENTAGE },
+      });
+      children.push(quadrantTable);
+
+      children.push(
+        new Paragraph({
+          text: "Warnings",
+          heading: HeadingLevel.HEADING_2,
+          alignment: AlignmentType.CENTER,
+          spacing: { before: 300, after: 120 },
+        })
+      );
+
+      const warnings = diag.warnings || [];
+      if (warnings.length === 0) {
+        children.push(
+          new Paragraph({
+            text: "No methodology integrity warnings — portfolio passes all v2.1 checks.",
+            alignment: AlignmentType.CENTER,
+            spacing: { after: 200 },
+          })
+        );
+      } else {
+        const warningsTable = new DocxTable({
+          rows: [
+            new DocxTableRow({
+              children: [
+                new DocxTableCell({
+                  children: [new Paragraph({ text: "Severity", alignment: AlignmentType.CENTER })],
+                  shading: { fill: "001278" },
+                }),
+                new DocxTableCell({
+                  children: [new Paragraph({ text: "Code", alignment: AlignmentType.CENTER })],
+                  shading: { fill: "001278" },
+                }),
+                new DocxTableCell({
+                  children: [new Paragraph({ text: "Message", alignment: AlignmentType.CENTER })],
+                  shading: { fill: "001278" },
+                }),
+                new DocxTableCell({
+                  children: [new Paragraph({ text: "Recommendation", alignment: AlignmentType.CENTER })],
+                  shading: { fill: "001278" },
+                }),
+              ],
+            }),
+            ...warnings.map((wn: any) =>
+              new DocxTableRow({
+                children: [
+                  new DocxTableCell({ children: [new Paragraph({ text: String(wn.severity || '').toUpperCase(), alignment: AlignmentType.CENTER })] }),
+                  new DocxTableCell({ children: [new Paragraph({ text: String(wn.code || ''), alignment: AlignmentType.CENTER })] }),
+                  new DocxTableCell({ children: [new Paragraph({ text: String(wn.message || ''), alignment: AlignmentType.LEFT })] }),
+                  new DocxTableCell({ children: [new Paragraph({ text: String(wn.remediation || wn.recommendedAction || ''), alignment: AlignmentType.LEFT })] }),
+                ],
+              })
+            ),
+          ],
+          width: { size: 100, type: WidthType.PERCENTAGE },
+        });
+        children.push(warningsTable);
+      }
+    }
 
     const doc = new Document({
       sections: [{ children }],
@@ -1846,7 +2405,7 @@ export default function Report() {
   const generateMarkdown = () => {
     let mdContent = `# BLUEALLY AI STRATEGIC ASSESSMENT\n\n`;
     mdContent += `## Board Presentation\n\n`;
-    mdContent += `### ${companyName}\n\n`;
+    mdContent += `### ${renderedName}\n\n`;
     mdContent += `*${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}*\n\n`;
     mdContent += `---\n\n`;
 
@@ -1885,6 +2444,7 @@ export default function Report() {
 
     // Analysis Steps
     data.steps.forEach((step: any) => {
+      const isBenefitsStepMd = step.step === 5;
       mdContent += `---\n\n`;
       mdContent += `## STEP ${step.step}: ${step.title.toUpperCase()}\n\n`;
       
@@ -1893,12 +2453,21 @@ export default function Report() {
       }
 
       if (step.data && step.data.length > 0) {
-        const allColumns = Object.keys(step.data[0]);
-        const columns = allColumns.filter(k => !k.includes('Formula')).slice(0, 6);
+        // Apply column reordering and normalization
+        const reorderedMdData = reorderAndFilterColumns(step.data, step.step);
+        const allColumns = Object.keys(reorderedMdData[0]);
+        const columns = allColumns.filter(k => !k.includes('Formula') && !k.includes('Labels') && !HIDDEN_COLUMNS.has(k)).slice(0, isBenefitsStepMd ? 9 : 6);
         mdContent += `| ${columns.join(' | ')} |\n`;
         mdContent += `| ${columns.map(() => ':---:').join(' | ')} |\n`;
-        step.data.forEach((row: any) => {
-          const values = columns.map(col => String(row[col] || '').substring(0, 40));
+        reorderedMdData.forEach((row: any) => {
+          const values = columns.map(col => {
+            const val = row[col];
+            // Round hours to whole numbers
+            if (col.toLowerCase().includes('hours') && typeof val === 'number') {
+              return Math.round(val).toLocaleString();
+            }
+            return String(val || '').substring(0, 40);
+          });
           mdContent += `| ${values.join(' | ')} |\n`;
         });
         mdContent += `\n`;
@@ -1921,7 +2490,7 @@ export default function Report() {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BlueAlly AI Strategic Assessment - ${companyName}</title>
+  <title>BlueAlly AI Strategic Assessment - ${renderedName}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8fafc; color: #1e293b; line-height: 1.6; }
@@ -1985,7 +2554,7 @@ export default function Report() {
     <div class="header">
       <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOEAAABGCAYAAAA6qvMsAAAAAXNSR0IArs4c6QAAAERlWElmTU0AKgAAAAgAAYdpAAQAAAABAAAAGgAAAAAAA6ABAAMAAAABAAEAAKACAAQAAAABAAAA4aADAAQAAAABAAAARgAAAADamIVBAAANoklEQVR4Ae2dT4gkdxXHd5PNP43QMTlIEpk6iCGnbTEHBXUr4iEIur3gQVCYSnIRPGwHchAUplYEJXhob0GFrREFBWF7VVDwML2Yg3pwJwdBQd0elSSokI5RI8km6+etVb01v3mv/nRXVffs/B681O/3fX9/r36vqrq6Z3PsmCdfAV8BXwFfAV+Bo1yB40d58X7tvgJlFbh27dod6HwJvhu+K8d35saCa/OfHT9+fIDMk6+Ar8AyFaARn4UXobcwet8ysb2tr4CvABWgke6DX1qkC7EZ+yL6CvgKNFABmulj8JsLNKLcDd/TQAreha+ArwDN9IUFmlBMEl89XwFfgYYqQEM9AV+VzqpBb6Dr74YNnQPv5ghVgMY5CX/ZXTLYR+F/wHUocf34ua+Ar0BBBeiuW+BdWO56fVcVbAP+CVyVxI+/G7qF9HNfAasCNEz+899l5rdruuCPwNvwq3AZJZoP/2W9VhWPHekK0EknKcCv4XzjPcUX7yOrMNjIl/Wn4I/A74dl7tJVgE/hZ+YK/NxXwFcgrQDNdDssj6EuvQAgv4zx5CvgK9BmBWi0r7ndl5sP24ztffsKHPkK0GzyNrToC/lJG0XynwnbqKr3eegqQPPJ579d+OGS5O/nM92LJTr7xPi+DeAx+ENwAD8Avxu+H/4s7MlXwFeARil6DEU8p0HVamFxAv4i/PLcev/gRaa33VLVodfzFbjJK3BrxfXJm89Sork+iNJv4a/APcPgHHfVNwyZh30FjlYFaJq74b/AZfRsUWUwvhV+BpYfbhfRHxCeKPLlZb4CR64CNMWgqGtS2fetwiB/G/zzCj5E5dOWH4/7ChzpCtAcPy5poh9oBcLmLvhXJbaZ+LLmw2O+Ar4CVIAueRAu+gma+jiKTVnzZg0oR3lT6slXwFfAqgBN8nS+Y5yx/Hsz+wj5k45O0fQX+4z9xFfAV+BgBeigO+DfGZ207y6Gzjvgvxu6GvzIwYge8RXwFThQAbonVDpIfk1zX16Z+dcVPQsa52392FfAV6CkAnRS4nTTJG+C7AH4dUfHmkoDP5S392NfAV+BkgrQNPfC+b+gj/ImyL4DV6Ukb5sfr91vR1mR/GOrd+aTTMev8uuCtxTcQ2tUAc6ffAH9diWl/2i/DkFffqki/7CuS6+h/7oLdj0nvyeJ+W34b/AGOf03ywHZxxm/E74nPebH8iuZe1Nc1vcwtn/meJBw1AbJXyJfgM/CwcGoNoL+V2GN3mtbeUmVClBU7XNOVuu4io8yHZx9InPoHCPNFh3591o0+rymvwqM5Hbgz7UVu63fjvZJeACP4CssQBpSrgyeVluBrYLwcsH050gv0BPA39JFy6NtNaGbmTSkNGPfFfh5NxWg9iGRhC2SBhxawqOM8xh5BX6zrRp01YSSv5xkf0ds60yW+43KVY5tVtDxKg1XoMsmlNQDeCQDT91VgLtgQLQqDRagG3WXmY8kFTCbkNtvLcLXoymf4bgNW3SaEy13RU/dVSCuEaroc2MNN161agXMJqzqINOjYycpjzlG4PK/hHolk+eO0oCD3NwPW6xAjbtgloXcDf35yarRwbGxJnRzpRF3wYYuns4DA7/p4bQpulyndQ4kB+uJ5WyXCR71WG3/Za80okY9DVwEY1OH2J1SbLe5EEwV3IQK7hqX8DUxDRUBvmSNklcID+AAvk7IsuGUgfAYvlg3X2wKKc1h01C6BB7Dmly+TwzrrtmIszRMLoGRp/iWuu3KYBHC95Zht930+TDiXP/7KfI4SKZBTcFBz9eRkeUGaa0v69GPjRihFcPC8SObT6PYsnFxjHvwFvwyXJfOYxC4Phed48uqjeQVil+OiUwU2lkkLn5a+bIev1MlR4GSRfIUG2wjw+cMvLeo37p2rT2OposMjYRmBn6oYU5cnwXIX03H8CInMcLuCn6sqzPiapRuIuux8vncXS4xPIb4CAzZKuCREXRziTy1pwAJM6I+ne3RVpuQxUSyIoUmCnaoITZCxAKkAQN4WYrxd35JJwPsrQvBfEOnzSiPphrFGrgiLCGu9qJP0onkP3WI+vbRDw2beX0MeaNwa03IIuVqrl1p9nJX4UYXsypnrHVA7KKmkc0jG/1cji8ytjYVomPyqFTkU3SKSOqvkdQ/cQTuPBNvkkOQTVZ5JOcZ8a3msO74RSkPDeF2GssQNw+bL2YovnUSy7LooxDCPUMxMvBDCaeb1GqWPRYVK5t+vlbsB0xG8MYcvDGQRpQXD+MbUPkImwitwNCUWPtI8sMmBtRyEDyC14Ekd21fyufwqKjO+eTR7TE/ncdy4zg37mZIQl1SVLYqkjlUL2bId2wUcBdcTnYpiR4sjaDRlVIHjgJOrmiOwGawmhP40LCRF0yqjRP2+hTdVl7MZLHwb9VpJ9MpO+JDLm4ajcts25C39jiqJPtU1SuVYruWEGcxJDHtivo8uLzin1VJXPTgCF2xcykgztAFrTm6A2SBIS964ZBgoz0e98ArxzfiNgnHhrOQtfcNmQtrd1PRGbmKXcy7bMItimQtvou1thEjMpwOqzagYz9w5tl0MxtUOBZ9Pkos+zTfsSE/y7nrGbJOYfKcEnDbCDo08DnMOkImwRy4MbiE78mNaXejLptQTmJMEc53t7zWI4VKhIVPZsEG61dpgnSDaTlJmtupfyXlORTPR/sHcu4G+6GVzkZG9M0KdYoM28TAW4fNFzNEvrRE9FMFtvI8vseGiAt01l7EGvokuaEkuoFsR8GrQoGhKPEmhiyDt7KBcjxZMa8Ztj3FXnwnCt45xN7ZZS2yP08pwYdgsYIfw0bWtanIZD8mCt4JZDYhSYXLZMCCB9iP4A3FzxbyhBhTRXZYIDmhGgWAwk1TH4cTyyn1DJCFlhxc7JehgBiV30AuE6iibYzejqIrTSYyjYYaCBYbeCdwa4+jNNiYFciJ3zNWEhn4YYF7HSdaFi/uIJ+tDmJUCsH+mqBovcgaGE6kQV16BV+JC3Y5b60JZREsbsZhaCwoNPDDApc1RWfrSO+C2gZrOge5G4ZNO13C38iwPfByirwH6AaKvuVDUW0HarUJ05QnRuonDfywwNM1SjTuMJd1uhsmrFt70grTC1O+LAcaE6F8JXPzN2F6N8wXIxv3ssFNdjzDmtug2KoTweSzWqNErMeNeLLBQ0O2Cjg2gs7xtCFDRW9M0WYK3inUxZ2w0wUtGaxf1Z6TNzF0BwZ+2OAxCWtf3ss6IvnPOhDnISEPLc/TNF8vzXFo5BobeKdw601IIaxNqX2o7nTxSjDrZCmq16GLimAzd/IVsQ2JHXwB3lE4sC3/L8HmHlj+N10X4Z/Cd5XZWPL0DjEy5Jv4DgzZKmAtzx6JRGky2uflbdY4TeUrPbTehKxOexaXRe82tPKZ4Wdg4CrMpkoQbKhCGxwbogsGXgYPUZC8Q4fZL/aGkYaAv4fNS7D8k+2fhP+EzWscl6FRgXFcIOtaJHlqd0P5pU+ErKcklCjYaiCSVGnZbHAqG0Ou6hbJZjtAKNf9Abd8RtHoZcD+gQAOgI7cfc7DRRQ7ZvMpRlPD8Dy4dvLntvkBupHhR+Awr5sfIzsN/1uUcvQW44fyeouO8ZPk/LrDwPWLQqs/4HbjZXPijtzk0rnsA5cmmd06HE9YSZD1om/BAnzK5i9qgD2u0mMrdh0cPxNy1UykAXaQye84t10FcJHLY8oQDuBFSey1O18EHhIn1uJnwZAHjCWPGNboG7JGTYDt0+DPwMcd+Y+w+b2DLTqNMZT8NIoAY02wAmxETO2pS86zS6K7PsSJXAX1rQqQTK07ofjBpuhqna1vh0HGlzOw4jG28q0YX67GF+Ath3eYF5H8PEvbRLLm0wWGHyjKt66MOGMjlqxrX37MV3InrHgeZBnTuutvXV+y6piiokWRyyJNGGA3a3EdcVHOIiN2lQtBnRSLGlDWKw2g0S/Lcq0rJ0ioBUqxOO8PbJVNKHUpoyif7zqMu3gxk61TPjjLd2hJBjR1xOcUXyGsfTgHrkTPo3WmkqaiRA4R8DlFtAh0EaMQnzPDOAbfdwfK6Y1y40aG5DHBkdRHI+0RUNNrHUv3gdTOopX/RE1LrIsm3COwbM6AIo21JJrA8L0rMeBLNf29gv457PscZzVt96njIwZ4FK6bQ+Znj8Hj+BnAai5c5h9E5zOZgXOUz4E/dLCmpiPDUY+cIkO2CtjKU3Ipkq0i1+sx5cXMohsmn7RsmN08kM532UxTBy+b/gaF7ypK/1SwfVC6ceXRqY9gCIfwBqyRXNnH8Ci34WfMtXpMwSsRviYoSg4Bx0jG8CnYImm8CTzGVvIpow+j8Jyh9E18XDVkS8H4TVjTACc9xVEIlqT4Xzlq5++Pqdw9yNcqmv5CL5ak/uQ5xWcA50kutqM8sC7j4+uSSFt5cEJk0/Tz/uVE5eddjNcljy7WusoY1Dkg/hUlh23Oe6TgHvIV8BVosgI04WVYo6DJON6Xr8CRrgAdFsGnhKUQHPuwfGWzA2uUHOmC+cX7CjRdAbpMPvdVJfnqKmg6hyb9dfF2tMl8vS9fgboVkF8sTesaeX1fAV+BggpwZ6t6J0wK3KyNyN8J1+ZU+EQarED23W/UoM/WXN30X1G0VjnveGUV4E74GMHla6d3OUn8i/ku/ByPoPL946Gg/wG43MM9CqEA7AAAAABJRU5ErkJggg==" alt="BlueAlly" class="header-logo" />
       <h1>AI Strategic Assessment</h1>
-      <div class="company">${companyName}</div>
+      <div class="company">${renderedName}</div>
       <div class="date">${new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</div>
     </div>
 `;
@@ -2080,17 +2649,26 @@ export default function Report() {
       }
 
       if (step.data && step.data.length > 0) {
-        const allColumns = Object.keys(step.data[0]);
-        const columns = allColumns.filter(k => !k.includes('Formula')).slice(0, 6);
-        
+        // Apply column reordering and normalization
+        const reorderedHtmlData = reorderAndFilterColumns(step.data, step.step);
+        const allColumns = Object.keys(reorderedHtmlData[0]);
+        const columns = allColumns.filter(k => !k.includes('Formula') && !k.includes('Labels') && !HIDDEN_COLUMNS.has(k)).slice(0, isBenefitsStep ? 9 : 6);
+
         html += `        <table>
           <thead>
             <tr>${columns.map(c => `<th>${c}</th>`).join('')}</tr>
           </thead>
           <tbody>
 `;
-        step.data.forEach((row: any, idx: number) => {
-          html += `            <tr>${columns.map(c => `<td>${String(row[c] || '').substring(0, 60)}</td>`).join('')}</tr>\n`;
+        reorderedHtmlData.forEach((row: any, idx: number) => {
+          html += `            <tr>${columns.map(c => {
+            const val = row[c];
+            // Format hours as whole numbers
+            if (c.toLowerCase().includes('hours') && typeof val === 'number') {
+              return `<td>${Math.round(val).toLocaleString()}</td>`;
+            }
+            return `<td>${String(val || '').substring(0, 60)}</td>`;
+          }).join('')}</tr>\n`;
           
           // Add benefit breakdown for Step 5
           if (isBenefitsStep) {
@@ -2173,10 +2751,30 @@ export default function Report() {
   const generateJSON = () => {
     if (!data) return;
     
+    const cleanedData = JSON.parse(JSON.stringify(data));
+    if (cleanedData.steps) {
+      const step6 = cleanedData.steps.find((s: any) => s.step === 6);
+      if (step6?.data) {
+        for (const row of step6.data) {
+          delete row['Annual Token Cost'];
+          delete row['Annual Token Cost ($)'];
+        }
+      }
+    }
+
+    // Fill in verifiable benchmark citations for any Step-2 figures that lack a
+    // stored source so the downloaded JSON carries the same links shown in-app.
+    const enrichedData = augmentAnalysisBenchmarkSourcesForPresentation(cleanedData);
+
     const exportData = {
+      // Research/canonical name — keep stable so re-imports reuse the same row.
       companyName,
+      // Presentation-only override (null when not set). The importer reads
+      // both the top-level `displayName` and `analysis.displayName` so this
+      // round-trips cleanly.
+      displayName: displayNameOverride,
       generatedAt: new Date().toISOString(),
-      analysis: data,
+      analysis: { ...enrichedData, displayName: displayNameOverride },
     };
     
     const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
@@ -2193,7 +2791,7 @@ export default function Report() {
 
     try {
       switch (format) {
-        case "PDF": await generateBoardPresentationPDF(data, companyName); break;
+        case "PDF": await generateBoardPresentationPDF(data, renderedName); break;
         case "Excel": await generateExcel(); break;
         case "Word": generateWord(); break;
         case "Markdown": generateMarkdown(); break;
@@ -2238,7 +2836,7 @@ export default function Report() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           url: originalUrl,
-          title: `${companyName || 'Company'} AI Assessment Report`,
+          title: `${renderedName || 'Company'} AI Assessment Report`,
         }),
       });
       
@@ -2282,7 +2880,11 @@ export default function Report() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           reportData: {
+            // Canonical name is preserved for downstream identifiers; the
+            // baked `displayName` (if any) freezes the override into the
+            // share snapshot so future edits do not mutate this share.
             companyName,
+            displayName: displayNameOverride,
             analysisData: data,
           }
         }),
@@ -2311,12 +2913,13 @@ export default function Report() {
   const analysisSteps = [
     { step: 0, title: "Company Overview", desc: "Gathering company information..." },
     { step: 1, title: "Strategic Anchoring", desc: "Identifying business drivers..." },
-    { step: 2, title: "Business Functions", desc: "Analyzing departments and KPIs..." },
-    { step: 3, title: "Friction Points", desc: "Identifying operational bottlenecks..." },
-    { step: 4, title: "AI Use Cases", desc: "Generating opportunities with 6 primitives..." },
+    { step: 2, title: "Business Functions & KPIs", desc: "Analyzing 10 KPIs across 5 strategic themes..." },
+    { step: 3, title: "Friction Points", desc: "Identifying 10 operational bottlenecks..." },
+    { step: 4, title: "AI Use Cases", desc: "Generating 10 AI use cases with 1:1:1 mapping..." },
     { step: 5, title: "Benefit Quantification", desc: "Calculating ROI across 4 drivers..." },
-    { step: 6, title: "Token Modeling", desc: "Estimating token costs per use case..." },
-    { step: 7, title: "Priority Scoring", desc: "Computing weighted priority scores..." },
+    { step: 6, title: "Readiness & Token Modeling", desc: "Scoring readiness and token costs..." },
+    { step: 7, title: "Priority Roadmap", desc: "Computing priority scores and tiers..." },
+    { step: 8, title: "Applying Formulas", desc: "Deterministic post-processing..." },
   ];
 
   if (status === "loading") {
@@ -2333,7 +2936,7 @@ export default function Report() {
               </div>
               
               <h2 className="text-lg md:text-2xl font-bold mb-2" data-testid="text-loading-title">
-                Generating Report for {companyName}
+                Generating Report for {renderedName}
               </h2>
               
               {currentStep && (
@@ -2399,11 +3002,24 @@ export default function Report() {
                 <ShieldCheck className="h-8 w-8 md:h-12 md:w-12 text-red-500" />
               </div>
               <h2 className="text-xl md:text-2xl font-bold mb-2">Analysis Failed</h2>
+              {failedStep && (
+                <p className="text-sm font-medium text-red-600 mb-2" data-testid="text-failed-step">
+                  Failed at Step {failedStep}/4: {callLabels[failedStep - 1]}
+                </p>
+              )}
               <p className="text-sm md:text-base text-muted-foreground mb-4 md:mb-6">{error || "Unable to generate analysis"}</p>
-              <Button onClick={() => { setStatus("init"); setError(null); }} data-testid="button-retry">
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Try Again
-              </Button>
+              <div className="flex gap-3 flex-wrap justify-center">
+                {failedStep && failedStep > 1 && (
+                  <Button onClick={() => retryFromStep(failedStep)} variant="default" data-testid="button-retry-step">
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Retry from Step {failedStep}
+                  </Button>
+                )}
+                <Button onClick={() => { setStatus("init"); setError(null); setFailedStep(null); }} variant={failedStep && failedStep > 1 ? "outline" : "default"} data-testid="button-retry">
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Start Over
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -2423,10 +3039,83 @@ export default function Report() {
                </Button>
                <div className="min-w-0">
                  <h1 className="text-base md:text-xl font-bold flex items-center gap-2 flex-wrap" data-testid="text-company-name">
-                   <span className="truncate">{companyName}</span>
+                   <span className="truncate">{renderedName}</span>
+                   {displayNameOverride && (
+                     <Badge
+                       variant="outline"
+                       className="bg-blue-50 text-blue-700 border-blue-200 font-normal text-[10px] md:text-xs flex-shrink-0"
+                       title={`Research name: ${companyName}`}
+                       data-testid="badge-display-name-override"
+                     >
+                       Display name
+                     </Badge>
+                   )}
+                   <Button
+                     variant="ghost"
+                     size="icon"
+                     className="h-6 w-6 md:h-7 md:w-7 text-muted-foreground hover:text-foreground flex-shrink-0"
+                     onClick={() => {
+                       setDisplayNameDraft(displayNameOverride ?? "");
+                       setEditingDisplayName(true);
+                     }}
+                     title="Edit display name (does not change research name)"
+                     data-testid="button-edit-display-name"
+                   >
+                     <Pencil className="h-3 w-3 md:h-3.5 md:w-3.5" />
+                   </Button>
                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 font-normal text-[10px] md:text-xs flex-shrink-0">AI Analyzed</Badge>
                  </h1>
-                 <p className="text-[10px] md:text-xs text-muted-foreground hidden sm:block">Full 8-Step Strategic Analysis with 4 Business Drivers</p>
+                 <p className="text-[10px] md:text-xs text-muted-foreground hidden sm:block">
+                   {displayNameOverride
+                     ? <>Research name: <span className="font-medium" data-testid="text-research-name">{companyName}</span> · Full 8-Step Strategic Analysis</>
+                     : <>Full 8-Step Strategic Analysis with 4 Business Drivers</>}
+                 </p>
+                 {editingDisplayName && (
+                   <div className="mt-2 flex items-center gap-2 bg-muted/40 border rounded-md px-2 py-1.5" data-testid="form-edit-display-name">
+                     <Input
+                       autoFocus
+                       value={displayNameDraft}
+                       onChange={(e) => setDisplayNameDraft(e.target.value)}
+                       onKeyDown={(e) => {
+                         if (e.key === "Enter") { e.preventDefault(); saveDisplayName(displayNameDraft.trim() || null); }
+                         if (e.key === "Escape") { setEditingDisplayName(false); }
+                       }}
+                       maxLength={200}
+                       placeholder={`How to display (research name: ${companyName})`}
+                       className="h-8 text-sm"
+                       data-testid="input-display-name"
+                     />
+                     <Button
+                       size="sm"
+                       onClick={() => saveDisplayName(displayNameDraft.trim() || null)}
+                       disabled={savingDisplayName}
+                       data-testid="button-save-display-name"
+                     >
+                       {savingDisplayName ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckIcon className="h-3.5 w-3.5" />}
+                       <span className="ml-1">Save</span>
+                     </Button>
+                     {displayNameOverride && (
+                       <Button
+                         size="sm"
+                         variant="outline"
+                         onClick={() => saveDisplayName(null)}
+                         disabled={savingDisplayName}
+                         data-testid="button-clear-display-name"
+                       >
+                         Reset
+                       </Button>
+                     )}
+                     <Button
+                       size="sm"
+                       variant="ghost"
+                       onClick={() => setEditingDisplayName(false)}
+                       disabled={savingDisplayName}
+                       data-testid="button-cancel-display-name"
+                     >
+                       Cancel
+                     </Button>
+                   </div>
+                 )}
                </div>
             </div>
             <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
@@ -2437,9 +3126,9 @@ export default function Report() {
                     variant="outline" 
                     size="sm" 
                     data-testid="button-assumptions"
-                    className="h-8 md:h-9 px-2 md:px-3 text-xs md:text-sm relative"
+                    className="h-10 md:h-9 min-w-[44px] px-2 md:px-3 text-xs md:text-sm relative"
                   >
-                    <Sliders className="h-3 w-3 md:h-4 md:w-4 md:mr-2" />
+                    <Sliders className="h-4 w-4 md:mr-2" />
                     <span className="hidden md:inline">Assumptions</span>
                     {hasUnsavedChanges && (
                       <span className="absolute -top-1 -right-1 h-2 w-2 bg-amber-500 rounded-full" />
@@ -2649,9 +3338,9 @@ export default function Report() {
                 onClick={regenerateAnalysis}
                 disabled={!reportId || status !== "complete"}
                 data-testid="button-refresh"
-                className="h-8 md:h-9 px-2 md:px-3 text-xs md:text-sm"
+                className="h-10 md:h-9 min-w-[44px] px-2 md:px-3 text-xs md:text-sm"
               >
-                <RefreshCw className="h-3 w-3 md:h-4 md:w-4 md:mr-2" />
+                <RefreshCw className="h-4 w-4 md:mr-2" />
                 <span className="hidden md:inline">Update</span>
               </Button>
               <Button 
@@ -2660,43 +3349,66 @@ export default function Report() {
                 onClick={handleShareDashboard}
                 disabled={!data || status !== "complete"}
                 data-testid="button-share"
-                className="h-8 md:h-9 px-2 md:px-3 text-xs md:text-sm"
+                className="h-10 md:h-9 min-w-[44px] px-2 md:px-3 text-xs md:text-sm"
               >
-                <Share2 className="h-3 w-3 md:h-4 md:w-4 md:mr-2" />
+                <Share2 className="h-4 w-4 md:mr-2" />
                 <span className="hidden sm:inline">Share</span>
               </Button>
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button size="sm" data-testid="button-export" className="h-8 md:h-9 px-2 md:px-3 text-xs md:text-sm">
-                    <Download className="h-3 w-3 md:h-4 md:w-4 md:mr-2" />
+                  <Button size="sm" data-testid="button-export" className="h-10 md:h-9 min-w-[44px] px-2 md:px-3 text-xs md:text-sm">
+                    <Download className="h-4 w-4 md:mr-2" />
                     <span className="hidden sm:inline">Export</span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => handleDownload("PDF")} data-testid="menu-pdf">
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem onClick={() => handleDownload("PDF")} data-testid="menu-pdf" className="min-h-[44px] text-sm">
                     <FileText className="mr-2 h-4 w-4" /> Download PDF
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleDownload("Excel")} data-testid="menu-excel">
+                  <DropdownMenuItem onClick={() => handleDownload("Excel")} data-testid="menu-excel" className="min-h-[44px] text-sm">
                     <FileSpreadsheet className="mr-2 h-4 w-4" /> Download Excel
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleDownload("Word")} data-testid="menu-word">
+                  <DropdownMenuItem onClick={() => handleDownload("Word")} data-testid="menu-word" className="min-h-[44px] text-sm">
                     <FileType className="mr-2 h-4 w-4" /> Download Word
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleDownload("Markdown")} data-testid="menu-md">
+                  <DropdownMenuItem onClick={() => handleDownload("Markdown")} data-testid="menu-md" className="min-h-[44px] text-sm">
                     <FileText className="mr-2 h-4 w-4" /> Download Markdown
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => handleDownload("JSON")} data-testid="menu-json">
+                  <DropdownMenuItem onClick={() => handleDownload("JSON")} data-testid="menu-json" className="min-h-[44px] text-sm">
                     <FileText className="mr-2 h-4 w-4" /> Download JSON
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={handleShareHTML} data-testid="menu-share-html">
+                  <DropdownMenuItem onClick={handleShareHTML} data-testid="menu-share-html" className="min-h-[44px] text-sm">
                     <Share2 className="mr-2 h-4 w-4" /> Share HTML Report
                   </DropdownMenuItem>
-                  <DropdownMenuItem 
-                    onClick={handleShareDashboard} 
+                  <DropdownMenuItem
+                    onClick={handleShareDashboard}
                     data-testid="menu-view-dashboard"
                     disabled={!data}
+                    className="min-h-[44px] text-sm"
                   >
                     <LayoutDashboard className="mr-2 h-4 w-4" /> Share Dashboard
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      const url = reportId
+                        ? `/api/assumptions/export/${reportId}?format=excel`
+                        : `/api/assumptions/export?format=excel`;
+                      window.open(url, '_blank');
+                    }}
+                    className="min-h-[44px] text-sm"
+                  >
+                    <FileSpreadsheet className="mr-2 h-4 w-4" /> Export Assumptions (Excel)
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      const url = reportId
+                        ? `/api/assumptions/export/${reportId}?format=json`
+                        : `/api/assumptions/export?format=json`;
+                      window.open(url, '_blank');
+                    }}
+                    className="min-h-[44px] text-sm"
+                  >
+                    <FileText className="mr-2 h-4 w-4" /> Export Assumptions (JSON)
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
@@ -2769,6 +3481,79 @@ export default function Report() {
                 </div>
               </div>
             </aside>
+
+            {/* Mobile Navigation Sheet */}
+            <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+              <SheetContent side="left" className="w-[280px] p-0 lg:hidden">
+                <SheetHeader className="p-4 border-b">
+                  <SheetTitle className="text-left">Navigation</SheetTitle>
+                </SheetHeader>
+                <ScrollArea className="h-[calc(100vh-80px)]">
+                  <div className="p-4">
+                    <nav className="space-y-1">
+                      {navigationSections.map((section) => {
+                        const Icon = section.icon;
+                        const isActive = activeSection === section.id;
+                        return (
+                          <button
+                            key={section.id}
+                            onClick={() => {
+                              scrollToSection(section.id);
+                              setMobileNavOpen(false);
+                            }}
+                            className={`w-full flex items-center gap-3 px-3 py-3 text-sm rounded-md transition-colors min-h-[44px] ${
+                              isActive 
+                                ? 'bg-primary/10 text-primary font-medium' 
+                                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                            }`}
+                            data-testid={`mobile-nav-${section.id}`}
+                          >
+                            <Icon className="h-5 w-5 flex-shrink-0" />
+                            <span>{section.label}</span>
+                          </button>
+                        );
+                      })}
+                    </nav>
+                    
+                    <div className="mt-6 pt-4 border-t space-y-2">
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start min-h-[44px]"
+                        onClick={() => {
+                          setMobileNavOpen(false);
+                          setAssumptionDrawerOpen(true);
+                        }}
+                      >
+                        <Sliders className="h-4 w-4 mr-2" />
+                        Edit Assumptions
+                      </Button>
+                      {reportId && (
+                        <Link href={`/whatif/${reportId}`}>
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start min-h-[44px]"
+                            onClick={() => setMobileNavOpen(false)}
+                          >
+                            <BarChart3 className="h-4 w-4 mr-2" />
+                            What-If Analysis
+                          </Button>
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+                </ScrollArea>
+              </SheetContent>
+            </Sheet>
+
+            {/* Mobile Floating Navigation Button */}
+            <button
+              onClick={() => setMobileNavOpen(true)}
+              className="lg:hidden fixed bottom-4 left-4 z-50 h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:bg-primary/90 transition-colors"
+              aria-label="Open navigation menu"
+              data-testid="button-mobile-nav"
+            >
+              <Menu className="h-5 w-5" />
+            </button>
 
             {/* Main Content */}
             <div className="flex-1 p-3 md:p-6">
@@ -2890,7 +3675,7 @@ export default function Report() {
                     <div>
                       <h4 className="font-semibold mb-2 md:mb-3 flex items-center gap-2 text-sm md:text-base">
                         <Zap className="h-3.5 w-3.5 md:h-4 md:w-4 text-primary" />
-                        Top 5 Use Cases by Priority
+                        Use Cases by Priority
                         <TooltipProvider>
                           <Tooltip>
                             <TooltipTrigger>
@@ -2909,21 +3694,7 @@ export default function Report() {
                               <TableRow className="bg-muted/50">
                                 <TableHead className="font-semibold text-primary text-xs md:text-sm whitespace-nowrap">#</TableHead>
                                 <TableHead className="font-semibold text-primary text-xs md:text-sm whitespace-nowrap">Use Case</TableHead>
-                                <TableHead className="font-semibold text-primary text-xs md:text-sm whitespace-nowrap hidden sm:table-cell">
-                                  <span className="flex items-center gap-1">
-                                    Score
-                                    <TooltipProvider>
-                                      <Tooltip>
-                                        <TooltipTrigger>
-                                          <Info className="h-3 w-3 text-muted-foreground hover:text-foreground cursor-help" />
-                                        </TooltipTrigger>
-                                        <TooltipContent className="max-w-xs">
-                                          <p className="text-xs">{metricTooltips.priorityScore}</p>
-                                        </TooltipContent>
-                                      </Tooltip>
-                                    </TooltipProvider>
-                                  </span>
-                                </TableHead>
+                                <TableHead className="font-semibold text-primary text-xs md:text-sm whitespace-nowrap hidden sm:table-cell">Tier</TableHead>
                                 <TableHead className="font-semibold text-primary text-xs md:text-sm whitespace-nowrap hidden md:table-cell">Tokens</TableHead>
                                 <TableHead className="font-semibold text-primary text-xs md:text-sm whitespace-nowrap">Value</TableHead>
                               </TableRow>
@@ -2936,15 +3707,14 @@ export default function Report() {
                                   </TableCell>
                                   <TableCell className="font-medium text-xs md:text-sm py-2">{uc.useCase}</TableCell>
                                   <TableCell className="hidden sm:table-cell py-2">
-                                    <div className="flex items-center gap-1.5 md:gap-2">
-                                      <div className="w-10 md:w-16 h-1.5 md:h-2 bg-muted rounded-full overflow-hidden">
-                                        <div 
-                                          className="h-full bg-primary rounded-full" 
-                                          style={{ width: `${uc.priorityScore}%` }}
-                                        />
-                                      </div>
-                                      <span className="text-xs md:text-sm font-medium">{uc.priorityScore?.toFixed(0)}</span>
-                                    </div>
+                                    <Badge variant="outline" className={`text-[10px] md:text-xs font-medium whitespace-nowrap ${
+                                      uc.priorityTier?.includes('Champions') ? 'bg-emerald-50 text-emerald-700 border-emerald-300' :
+                                      uc.priorityTier?.includes('Quick Win') ? 'bg-teal-50 text-teal-700 border-teal-300' :
+                                      uc.priorityTier?.includes('Strategic') ? 'bg-blue-50 text-blue-700 border-blue-300' :
+                                      'bg-slate-50 text-slate-600 border-slate-300'
+                                    }`}>
+                                      {uc.priorityTier || 'N/A'}
+                                    </Badge>
                                   </TableCell>
                                   <TableCell className="hidden md:table-cell text-xs md:text-sm py-2">{formatNumber(uc.monthlyTokens)}</TableCell>
                                   <TableCell className="font-medium text-green-600 text-xs md:text-sm py-2">{formatCurrency(uc.annualValue)}</TableCell>
@@ -2979,7 +3749,77 @@ export default function Report() {
             <div className="flex flex-col space-y-4 md:space-y-8">
               {data.steps?.map((step: any, index: number) => (
                 <div key={index} id={`step-${step.step}`} className="scroll-mt-32">
+                  {step.step === 7 && data.vrm && (
+                    <>
+                      <div
+                        className="mb-3 px-3 md:px-4 py-2.5 rounded-xl border border-blue-200 bg-blue-50 text-[11px] md:text-xs text-slate-700"
+                        data-testid="text-vrm-methodology-report"
+                      >
+                        <span className="font-semibold text-slate-900">Value-Readiness Matrix v{data.vrm.schemaVersion}</span>
+                        <span className="mx-2 text-slate-400">·</span>
+                        <span>Sector preset: <span className="font-medium text-slate-900">{data.vrm.sectorPresetLabel}</span></span>
+                        <span className="mx-2 text-slate-400">·</span>
+                        <span>
+                          Weights — Org {Math.round((data.vrm.weights?.orgCapacity ?? 0.35) * 100)}% /
+                          Data {Math.round((data.vrm.weights?.dataReadiness ?? 0.30) * 100)}% /
+                          Gov {Math.round((data.vrm.weights?.governance ?? 0.20) * 100)}% /
+                          Tech {Math.round((data.vrm.weights?.techInfrastructure ?? 0.15) * 100)}%
+                        </span>
+                        <span className="mx-2 text-slate-400">·</span>
+                        <span className="text-slate-500">
+                          {data.vrm.quadrantThresholds?.valueFloorBand
+                            ? `Champion ≥ ${data.vrm.quadrantThresholds.championMin}, Hard floor V<${data.vrm.quadrantThresholds.valueFloorBand.minNormalizedScore ?? data.vrm.quadrantThresholds.valueFloorBand.minNormalized ?? 4.0} & abs<$${(((data.vrm.quadrantThresholds.valueFloorBand.minAbsoluteAnnualValue ?? data.vrm.quadrantThresholds.valueFloorBand.minAbsoluteAnnual ?? 500_000)/1000)).toFixed(0)}K, TTP ≤ ${data.vrm.quadrantThresholds.maxTimeToPilotWeeks ?? 16} wks`
+                            : `Champion ≥ ${data.vrm.quadrantThresholds?.championMin ?? 7.5}, Value floor ${data.vrm.quadrantThresholds?.valueFloor ?? 6.0}, TTP ≤ ${data.vrm.quadrantThresholds?.maxTimeToPilotWeeks ?? 12} wks`}
+                        </span>
+                      </div>
+                      <div className="mb-4">
+                        <HowWeScoreReadiness compact />
+                      </div>
+                      {data.vrm.diagnostic && (
+                        <div
+                          className="mb-3 px-3 md:px-4 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-[11px] md:text-xs text-slate-700"
+                          data-testid="text-vrm-diagnostic-report"
+                        >
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="font-semibold text-slate-900">Methodology Integrity (v{data.vrm.schemaVersion})</span>
+                            <span className="text-slate-500">
+                              Prototyping: <strong className="text-slate-900 tabular-nums">{data.vrm.diagnostic.prototypingCandidatesCount}</strong>/{data.vrm.diagnostic.totalUseCases}
+                              {' · '}Champ {data.vrm.diagnostic.championCount} / CC {data.vrm.diagnostic.conditionalChampionCount} / QW {data.vrm.diagnostic.quickWinCount} / Strat {data.vrm.diagnostic.strategicCount} / Found {data.vrm.diagnostic.foundationCount}
+                            </span>
+                          </div>
+                          {(data.vrm.diagnostic.warnings || []).length > 0 ? (
+                            <div className="space-y-1.5 mt-2">
+                              {data.vrm.diagnostic.warnings.map((wn: any, wi: number) => {
+                                const cls = wn.severity === 'critical'
+                                  ? 'bg-red-50 border-red-300 text-red-800'
+                                  : wn.severity === 'warning'
+                                    ? 'bg-amber-50 border-amber-300 text-amber-800'
+                                    : 'bg-blue-50 border-blue-300 text-blue-800';
+                                return (
+                                  <div key={wi} className={`rounded-md px-2 py-1.5 border text-[11px] ${cls}`} data-testid={`warning-report-${wn.code}`}>
+                                    <span className="font-bold uppercase tracking-wider text-[9px]">{wn.severity}</span>
+                                    <span className="font-mono text-[9px] ml-1.5 opacity-70">{wn.code}</span>
+                                    <div className="mt-0.5">{wn.message}</div>
+                                    {wn.remediation && <div className="mt-0.5 text-[10px] opacity-80"><strong>Recommendation:</strong> {wn.remediation}</div>}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div className="mt-1 text-emerald-700">No methodology integrity warnings.</div>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
                   <StepCard step={step} />
+                  {step.step === 5 && data && data.validationSummary && (
+                    <ValidationSummaryPanel
+                      summary={data.validationSummary}
+                      benefitsCapped={data.benefitsCapped}
+                      totalUseCases={Array.isArray(step.data) ? step.data.length : undefined}
+                    />
+                  )}
                 </div>
               ))}
             </div>
@@ -3086,12 +3926,12 @@ const stepTooltips: Record<number, { title: string; description: string }> = {
     description: "Conservative financial estimates across 4 business drivers with probability-weighted total annual value for each use case." 
   },
   6: { 
-    title: "Effort & Token Modeling", 
-    description: "Implementation effort assessment and token economics including runs/month, tokens per run, data readiness, integration complexity, and annual token costs." 
+    title: "Readiness & Token Modeling",
+    description: "Implementation readiness assessment and token economics including runs/month, tokens per run, data readiness, integration complexity, and readiness scoring." 
   },
   7: { 
     title: "Priority Scoring & Roadmap", 
-    description: "Priority scoring (0-100) based on value potential, time-to-value, and implementation effort. Use cases are tiered as Critical, High, or Standard with recommended implementation phases." 
+    description: "Priority scoring (0-100) based on value potential, time-to-value, and implementation readiness. Use cases are tiered as Critical, High, or Standard with recommended implementation phases." 
   },
 };
 
@@ -3105,10 +3945,16 @@ function StepCard({ step }: { step: any }) {
     const absValue = Math.abs(value);
     const prefix = isNegative ? '-$' : '$';
     
-    if (absValue >= 1000000000) return `${prefix}${(absValue / 1000000000).toFixed(1)}B`;
-    if (absValue >= 1000000) return `${prefix}${(absValue / 1000000).toFixed(1)}M`;
-    if (absValue >= 1000) return `${prefix}${absValue.toLocaleString('en-US')}`;
-    return `${prefix}${absValue.toFixed(0)}`;
+    if (absValue >= 1000000000) {
+      const billions = Math.round(absValue / 1000000000 * 10) / 10;
+      return billions === Math.floor(billions) ? `${prefix}${Math.floor(billions)}B` : `${prefix}${billions.toFixed(1)}B`;
+    }
+    if (absValue >= 1000000) {
+      const millions = Math.round(absValue / 1000000 * 10) / 10;
+      return millions === Math.floor(millions) ? `${prefix}${Math.floor(millions)}M` : `${prefix}${millions.toFixed(1)}M`;
+    }
+    if (absValue >= 1000) return `${prefix}${Math.round(absValue).toLocaleString('en-US')}`;
+    return `${prefix}${Math.round(absValue)}`;
   };
   
   const formatNumberLocal = (value: number): string => {
@@ -3116,9 +3962,15 @@ function StepCard({ step }: { step: any }) {
     const absValue = Math.abs(value);
     const prefix = isNegative ? '-' : '';
     
-    if (absValue >= 1000000000) return `${prefix}${(absValue / 1000000000).toFixed(1)}B`;
-    if (absValue >= 1000000) return `${prefix}${(absValue / 1000000).toFixed(1)}M`;
-    if (absValue >= 1000) return `${prefix}${absValue.toLocaleString('en-US')}`;
+    if (absValue >= 1000000000) {
+      const billions = Math.round(absValue / 1000000000 * 10) / 10;
+      return billions === Math.floor(billions) ? `${prefix}${Math.floor(billions)}B` : `${prefix}${billions.toFixed(1)}B`;
+    }
+    if (absValue >= 1000000) {
+      const millions = Math.round(absValue / 1000000 * 10) / 10;
+      return millions === Math.floor(millions) ? `${prefix}${Math.floor(millions)}M` : `${prefix}${millions.toFixed(1)}M`;
+    }
+    if (absValue >= 1000) return `${prefix}${Math.round(absValue).toLocaleString('en-US')}`;
     return `${prefix}${Math.round(absValue)}`;
   };
   
@@ -3153,22 +4005,33 @@ function StepCard({ step }: { step: any }) {
   };
 
   const isBenefitsStep = step.step === 5;
+  const isFrictionStep = step.step === 3;
+  const isExpandableStep = isBenefitsStep || isFrictionStep;
+
+  const getSeverityColor = (severity: string) => {
+    switch (severity?.toLowerCase()) {
+      case 'critical': return { bg: 'bg-red-100', text: 'text-red-700', border: 'border-red-300' };
+      case 'high': return { bg: 'bg-orange-100', text: 'text-orange-700', border: 'border-orange-300' };
+      case 'medium': return { bg: 'bg-yellow-100', text: 'text-yellow-700', border: 'border-yellow-300' };
+      default: return { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-300' };
+    }
+  };
 
   return (
     <Card data-testid={`card-step-${step.step}`}>
-      <CardHeader className="pb-2 md:pb-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+      <CardHeader className="p-3 pb-2 md:p-6 md:pb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-1 md:mb-2">
           <div className="flex items-center gap-2 md:gap-3">
             <div className="h-6 w-6 md:h-8 md:w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs md:text-sm border border-primary/20 flex-shrink-0">
               {step.step}
             </div>
-            <CardTitle className="text-base md:text-xl leading-tight flex items-center gap-2">
+            <CardTitle className="text-sm md:text-xl leading-tight flex items-center gap-1.5 md:gap-2">
               {step.title}
               {stepInfo && (
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger>
-                      <Info className="h-4 w-4 text-muted-foreground hover:text-foreground transition-colors cursor-help" />
+                      <Info className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground hover:text-foreground transition-colors cursor-help" />
                     </TooltipTrigger>
                     <TooltipContent className="max-w-sm">
                       <p className="text-xs font-normal">{stepInfo.description}</p>
@@ -3179,13 +4042,13 @@ function StepCard({ step }: { step: any }) {
             </CardTitle>
           </div>
           <div className="flex items-center gap-1 md:gap-2 flex-shrink-0">
-            {isBenefitsStep && hasData && (
+            {isExpandableStep && hasData && (
               <div className="flex gap-0.5 md:gap-1">
-                <Button variant="ghost" size="sm" onClick={expandAll} className="text-[10px] md:text-xs h-7 md:h-8 px-1.5 md:px-2">
+                <Button variant="ghost" size="sm" onClick={expandAll} className="text-[10px] md:text-xs h-8 md:h-8 min-w-[44px] md:min-w-0 px-2 md:px-2">
                   <span className="hidden sm:inline">Expand All</span>
                   <span className="sm:hidden">+</span>
                 </Button>
-                <Button variant="ghost" size="sm" onClick={collapseAll} className="text-[10px] md:text-xs h-7 md:h-8 px-1.5 md:px-2">
+                <Button variant="ghost" size="sm" onClick={collapseAll} className="text-[10px] md:text-xs h-8 md:h-8 min-w-[44px] md:min-w-0 px-2 md:px-2">
                   <span className="hidden sm:inline">Collapse All</span>
                   <span className="sm:hidden">-</span>
                 </Button>
@@ -3195,31 +4058,37 @@ function StepCard({ step }: { step: any }) {
           </div>
         </div>
       </CardHeader>
-      <CardContent className="pt-0 md:pt-0">
+      <CardContent className="p-3 pt-0 md:p-6 md:pt-0">
         {step.content && (
           <div className="prose prose-sm max-w-none mb-4 md:mb-6 text-muted-foreground">
             <p className="text-xs md:text-sm">{sanitizeForProse(step.content)}</p>
           </div>
         )}
         
-        {hasData && isBenefitsStep ? (
+        {hasData && isBenefitsStep ? (() => {
+          const reorderedBenefitsData = reorderAndFilterColumns(step.data, step.step);
+          const benefitsVisibleCols = reorderedBenefitsData.length > 0
+            ? Object.keys(reorderedBenefitsData[0]).filter((k: string) =>
+                !k.includes('Formula') && !k.includes('Labels') && k !== 'Benefit Formula' && k !== 'Strategic Theme' && !HIDDEN_COLUMNS.has(k)
+              )
+            : [];
+          return (
           <div className="rounded-md border overflow-hidden">
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/50">
-                    <TableHead className="w-8"></TableHead>
-                    {Object.keys(step.data[0]).filter((k: string) => 
-                      !k.includes('Formula') && k !== 'Benefit Formula'
-                    ).map((key: string, i: number) => (
-                      <TableHead key={i} className="font-semibold text-primary whitespace-nowrap">{key}</TableHead>
+                    <TableHead className="w-6 md:w-8 px-1 md:px-2"></TableHead>
+                    {benefitsVisibleCols.map((key: string, i: number) => (
+                      <TableHead key={i} className="font-semibold text-primary whitespace-nowrap text-xs md:text-sm px-2 md:px-4 py-2 md:py-3">{key}</TableHead>
                     ))}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {step.data.map((row: any, i: number) => {
+                  {reorderedBenefitsData.map((row: any, i: number) => {
                     const isExpanded = expandedRows.has(i);
-                    const colCount = Object.keys(row).filter(k => !k.includes('Formula')).length + 1;
+                    const colCount = benefitsVisibleCols.length + 1;
+                    const originalRow = step.data[i];
                     
                     return (
                       <React.Fragment key={i}>
@@ -3227,20 +4096,18 @@ function StepCard({ step }: { step: any }) {
                           className="hover:bg-muted/20 transition-colors cursor-pointer"
                           onClick={() => toggleRow(i)}
                         >
-                          <TableCell className="w-8 p-2">
+                          <TableCell className="w-6 md:w-8 p-1 md:p-2">
                             <div className="flex items-center justify-center">
                               {isExpanded ? (
-                                <ChevronDown className="h-4 w-4 text-primary" />
+                                <ChevronDown className="h-3.5 w-3.5 md:h-4 md:w-4 text-primary" />
                               ) : (
-                                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                <ChevronRight className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground" />
                               )}
                             </div>
                           </TableCell>
-                          {Object.entries(row).filter(([key]) => 
-                            !key.includes('Formula') && key !== 'Benefit Formula'
-                          ).map(([key, value]: [string, any], j: number) => (
-                            <TableCell key={j} className={j === 0 ? "font-medium" : ""}>
-                              {renderCellValue(key, value)}
+                          {benefitsVisibleCols.map((key: string, j: number) => (
+                            <TableCell key={j} className={`text-xs md:text-sm px-2 md:px-4 py-1.5 md:py-2 ${j === 0 ? "font-medium" : ""}`}>
+                              {renderCellValue(key, row[key])}
                             </TableCell>
                           ))}
                         </TableRow>
@@ -3249,7 +4116,7 @@ function StepCard({ step }: { step: any }) {
                             <TableCell colSpan={colCount} className="py-2 md:py-4">
                               <div className="flex flex-col gap-2 md:gap-4 px-1 md:px-4">
                                 <div className="text-xs md:text-sm font-medium text-primary">Benefit Calculation Breakdown by Driver:</div>
-                                
+
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                                   {/* Revenue Driver */}
                                   <div className="p-3 md:p-4 bg-green-50 rounded-lg border border-green-200">
@@ -3262,18 +4129,16 @@ function StepCard({ step }: { step: any }) {
                                         {row['Revenue Benefit ($)'] || '$0'}
                                       </div>
                                     </div>
-                                    {row['Revenue Formula'] ? (
+                                    {originalRow['Revenue Formula'] && !originalRow['Revenue Formula'].toLowerCase().includes('no ') ? (
                                       <div className="bg-white/80 rounded-md p-2 md:p-3 border border-green-200">
-                                        <div className="text-[9px] md:text-xs text-green-600 font-medium mb-1">Calculation:</div>
-                                        <div className="text-[10px] md:text-sm text-green-800 font-mono break-all leading-relaxed">
-                                          {row['Revenue Formula']}
-                                        </div>
+                                        <div className="text-[9px] md:text-xs text-green-600 font-medium mb-1.5">Calculation:</div>
+                                        {renderLabeledFormula(originalRow['Revenue Formula Labels'], originalRow['Revenue Formula'], 'text-green-800')}
                                       </div>
                                     ) : (
                                       <div className="text-[10px] md:text-xs text-green-600 italic">No revenue impact for this use case</div>
                                     )}
                                   </div>
-                                  
+
                                   {/* Cost Driver */}
                                   <div className="p-3 md:p-4 bg-blue-50 rounded-lg border border-blue-200">
                                     <div className="flex items-center justify-between mb-2 md:mb-3">
@@ -3285,88 +4150,193 @@ function StepCard({ step }: { step: any }) {
                                         {row['Cost Benefit ($)'] || '$0'}
                                       </div>
                                     </div>
-                                    {row['Cost Formula'] ? (
+                                    {originalRow['Cost Formula'] && !originalRow['Cost Formula'].toLowerCase().includes('no ') ? (
                                       <div className="bg-white/80 rounded-md p-2 md:p-3 border border-blue-200">
-                                        <div className="text-[9px] md:text-xs text-blue-600 font-medium mb-1">Calculation:</div>
-                                        <div className="text-[10px] md:text-sm text-blue-800 font-mono break-all leading-relaxed">
-                                          {row['Cost Formula']}
-                                        </div>
+                                        <div className="text-[9px] md:text-xs text-blue-600 font-medium mb-1.5">Calculation:</div>
+                                        {renderLabeledFormula(originalRow['Cost Formula Labels'], originalRow['Cost Formula'], 'text-blue-800')}
                                       </div>
                                     ) : (
                                       <div className="text-[10px] md:text-xs text-blue-600 italic">No cost impact for this use case</div>
                                     )}
                                   </div>
-                                  
+
                                   {/* Cash Flow Driver */}
                                   <div className="p-3 md:p-4 bg-purple-50 rounded-lg border border-purple-200">
                                     <div className="flex items-center justify-between mb-2 md:mb-3">
                                       <div className="flex items-center gap-2">
                                         <DollarSign className="h-4 w-4 md:h-5 md:w-5 text-purple-600" />
-                                        <span className="font-semibold text-purple-700 text-xs md:text-sm">Cash Flow</span>
+                                        <span className="font-semibold text-purple-700 text-xs md:text-sm">Increase Cash Flow</span>
                                       </div>
                                       <div className="text-sm md:text-xl font-bold text-purple-800 bg-purple-100 px-2 md:px-3 py-1 rounded-md border border-purple-300">
                                         {row['Cash Flow Benefit ($)'] || '$0'}
                                       </div>
                                     </div>
-                                    {row['Cash Flow Formula'] ? (
+                                    {originalRow['Cash Flow Formula'] && !originalRow['Cash Flow Formula'].toLowerCase().includes('no ') ? (
                                       <div className="bg-white/80 rounded-md p-2 md:p-3 border border-purple-200">
-                                        <div className="text-[9px] md:text-xs text-purple-600 font-medium mb-1">Calculation:</div>
-                                        <div className="text-[10px] md:text-sm text-purple-800 font-mono break-all leading-relaxed">
-                                          {row['Cash Flow Formula']}
-                                        </div>
+                                        <div className="text-[9px] md:text-xs text-purple-600 font-medium mb-1.5">Calculation:</div>
+                                        {renderLabeledFormula(originalRow['Cash Flow Formula Labels'], originalRow['Cash Flow Formula'], 'text-purple-800')}
                                       </div>
                                     ) : (
                                       <div className="text-[10px] md:text-xs text-purple-600 italic">No cash flow impact for this use case</div>
                                     )}
                                   </div>
-                                  
+
                                   {/* Risk Driver */}
                                   <div className="p-3 md:p-4 bg-orange-50 rounded-lg border border-orange-200">
                                     <div className="flex items-center justify-between mb-2 md:mb-3">
                                       <div className="flex items-center gap-2">
                                         <ShieldCheck className="h-4 w-4 md:h-5 md:w-5 text-orange-600" />
-                                        <span className="font-semibold text-orange-700 text-xs md:text-sm">Reduce Risk</span>
+                                        <span className="font-semibold text-orange-700 text-xs md:text-sm">Decrease Risk</span>
                                       </div>
                                       <div className="text-sm md:text-xl font-bold text-orange-800 bg-orange-100 px-2 md:px-3 py-1 rounded-md border border-orange-300">
                                         {row['Risk Benefit ($)'] || '$0'}
                                       </div>
                                     </div>
-                                    {row['Risk Formula'] ? (
+                                    {originalRow['Risk Formula'] && !originalRow['Risk Formula'].toLowerCase().includes('no ') ? (
                                       <div className="bg-white/80 rounded-md p-2 md:p-3 border border-orange-200">
-                                        <div className="text-[9px] md:text-xs text-orange-600 font-medium mb-1">Calculation:</div>
-                                        <div className="text-[10px] md:text-sm text-orange-800 font-mono break-all leading-relaxed">
-                                          {row['Risk Formula']}
-                                        </div>
+                                        <div className="text-[9px] md:text-xs text-orange-600 font-medium mb-1.5">Calculation:</div>
+                                        {renderLabeledFormula(originalRow['Risk Formula Labels'], originalRow['Risk Formula'], 'text-orange-800')}
                                       </div>
                                     ) : (
                                       <div className="text-[10px] md:text-xs text-orange-600 italic">No risk impact for this use case</div>
                                     )}
                                   </div>
                                 </div>
-                                
-                                {/* Total Summary with Formula Breakdown */}
-                                <div className="p-3 md:p-4 bg-primary/10 rounded-lg border-2 border-primary">
-                                  <div className="flex items-center justify-between mb-2 md:mb-3">
-                                    <div className="flex items-center gap-2">
-                                      <Target className="h-5 w-5 md:h-6 md:w-6 text-primary" />
-                                      <span className="font-bold text-primary text-sm md:text-base">Total Annual Value</span>
-                                    </div>
-                                    <div className="text-lg md:text-2xl font-bold text-primary bg-white px-3 md:px-4 py-1 md:py-2 rounded-md border-2 border-primary">
-                                      {row['Total Annual Value ($)'] || '$0'}
-                                    </div>
+
+                                {/* Total Summary — shown ONCE with color-coded breakdown */}
+                                <div className="bg-white/80 rounded-md p-2 md:p-3 border border-primary/30">
+                                  <div className="text-[10px] md:text-sm text-primary font-mono flex flex-wrap items-center gap-1 md:gap-2">
+                                    <span className="text-xs font-medium text-primary mr-1">Total:</span>
+                                    <span className="bg-green-100 px-1.5 py-0.5 rounded text-green-800">{row['Revenue Benefit ($)'] || '$0'}</span>
+                                    <span className="text-muted-foreground">+</span>
+                                    <span className="bg-blue-100 px-1.5 py-0.5 rounded text-blue-800">{row['Cost Benefit ($)'] || '$0'}</span>
+                                    <span className="text-muted-foreground">+</span>
+                                    <span className="bg-purple-100 px-1.5 py-0.5 rounded text-purple-800">{row['Cash Flow Benefit ($)'] || '$0'}</span>
+                                    <span className="text-muted-foreground">+</span>
+                                    <span className="bg-orange-100 px-1.5 py-0.5 rounded text-orange-800">{row['Risk Benefit ($)'] || '$0'}</span>
+                                    <span className="text-muted-foreground">=</span>
+                                    <span className="bg-primary/20 px-2 py-0.5 rounded text-primary font-bold text-sm">{row['Total Annual Value ($)'] || '$0'}</span>
                                   </div>
-                                  <div className="bg-white/80 rounded-md p-2 md:p-3 border border-primary/30">
-                                    <div className="text-[9px] md:text-xs text-primary/70 font-medium mb-1">How it adds up:</div>
-                                    <div className="text-[10px] md:text-sm text-primary font-mono flex flex-wrap items-center gap-1 md:gap-2">
-                                      <span className="bg-green-100 px-1.5 py-0.5 rounded text-green-800">{row['Revenue Benefit ($)'] || '$0'}</span>
-                                      <span className="text-muted-foreground">+</span>
-                                      <span className="bg-blue-100 px-1.5 py-0.5 rounded text-blue-800">{row['Cost Benefit ($)'] || '$0'}</span>
-                                      <span className="text-muted-foreground">+</span>
-                                      <span className="bg-purple-100 px-1.5 py-0.5 rounded text-purple-800">{row['Cash Flow Benefit ($)'] || '$0'}</span>
-                                      <span className="text-muted-foreground">+</span>
-                                      <span className="bg-orange-100 px-1.5 py-0.5 rounded text-orange-800">{row['Risk Benefit ($)'] || '$0'}</span>
-                                      <span className="text-muted-foreground">=</span>
-                                      <span className="bg-primary/20 px-1.5 py-0.5 rounded text-primary font-bold">{row['Total Annual Value ($)'] || '$0'}</span>
+                                </div>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </React.Fragment>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </div>);
+        })()
+        : hasData && isFrictionStep ? (() => {
+          // Use column ordering for friction step
+          const frictionReordered = reorderAndFilterColumns(step.data, 3);
+          const frictionVisibleCols = frictionReordered.length > 0
+            ? Object.keys(frictionReordered[0]).filter((k: string) => !k.includes('Formula') && k !== 'Annual Hours' && k !== 'Hourly Rate' && k !== 'Strategic Theme' && !k.startsWith('_'))
+            : [];
+
+          // Build a map from reordered row back to original flat index
+          const rowToOriginalIndex = new Map<any, number>();
+          frictionReordered.forEach((row: any, i: number) => { rowToOriginalIndex.set(row, i); });
+
+          // Group friction points by Strategic Theme (same pattern as Business Functions)
+          const hasStrategicThemes = frictionReordered.some((r: any) => r['Strategic Theme']);
+          const themeGroups = hasStrategicThemes ? groupByStrategicTheme(frictionReordered) : null;
+          const themeNames = themeGroups ? Array.from(themeGroups.keys()) : [];
+
+          // Render a friction table for a subset of rows
+          const renderFrictionTable = (rows: any[]) => (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/50">
+                    <TableHead className="w-6 md:w-8 px-1 md:px-2"></TableHead>
+                    {frictionVisibleCols.map((key: string, i: number) => (
+                      <TableHead key={i} className="font-semibold text-primary whitespace-nowrap text-xs md:text-sm px-2 md:px-4 py-2 md:py-3">{key}</TableHead>
+                    ))}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {rows.map((row: any, localIdx: number) => {
+                    const globalIdx = rowToOriginalIndex.get(row) ?? localIdx;
+                    const isExpanded = expandedRows.has(globalIdx);
+                    const colCount = frictionVisibleCols.length + 1;
+                    const severityColors = getSeverityColor(row['Severity']);
+                    const originalRow = step.data[globalIdx];
+
+                    return (
+                      <React.Fragment key={globalIdx}>
+                        <TableRow
+                          className="hover:bg-muted/20 transition-colors cursor-pointer"
+                          onClick={() => toggleRow(globalIdx)}
+                        >
+                          <TableCell className="w-6 md:w-8 p-1 md:p-2">
+                            <div className="flex items-center justify-center">
+                              {isExpanded ? (
+                                <ChevronDown className="h-3.5 w-3.5 md:h-4 md:w-4 text-primary" />
+                              ) : (
+                                <ChevronRight className="h-3.5 w-3.5 md:h-4 md:w-4 text-muted-foreground" />
+                              )}
+                            </div>
+                          </TableCell>
+                          {frictionVisibleCols.map((key: string, j: number) => (
+                            <TableCell key={j} className={`text-xs md:text-sm px-2 md:px-4 py-1.5 md:py-2 ${j === 0 ? "font-medium" : ""}`}>
+                              {key === 'Severity' ? (
+                                <Badge className={`${severityColors.bg} ${severityColors.text} ${severityColors.border} border text-[10px] md:text-xs`}>
+                                  {row[key] || 'Low'}
+                                </Badge>
+                              ) : key === 'Friction Type' ? (
+                                row[key] ? (
+                                  <Badge variant="outline" className="text-[10px] md:text-xs font-normal whitespace-nowrap">
+                                    {row[key]}
+                                  </Badge>
+                                ) : null
+                              ) : (
+                                renderCellValue(key, row[key])
+                              )}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                        {isExpanded && (
+                          <TableRow className="bg-amber-50 border-l-4 border-l-amber-500">
+                            <TableCell colSpan={colCount} className="py-2 md:py-4">
+                              <div className="flex flex-col gap-2 md:gap-4 px-1 md:px-4">
+                                <div className="text-xs md:text-sm font-medium text-amber-700">Friction Cost Calculation:</div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                                  <div className="p-3 md:p-4 bg-white rounded-lg border border-amber-200">
+                                    <div className="flex items-center justify-between mb-2 md:mb-3">
+                                      <div className="flex items-center gap-2">
+                                        <Zap className="h-4 w-4 md:h-5 md:w-5 text-amber-600" />
+                                        <span className="font-semibold text-amber-700 text-xs md:text-sm">Annual Cost</span>
+                                      </div>
+                                      <div className="text-sm md:text-xl font-bold text-amber-800 bg-amber-100 px-2 md:px-3 py-1 rounded-md border border-amber-300">
+                                        {(originalRow || row)['Estimated Annual Cost ($)'] || '$0'}
+                                      </div>
+                                    </div>
+                                    {(originalRow || row)['Cost Formula'] ? (
+                                      <div className="bg-amber-50/80 rounded-md p-2 md:p-3 border border-amber-200">
+                                        <div className="text-[9px] md:text-xs text-amber-600 font-medium mb-1">Calculation:</div>
+                                        <div className="text-[10px] md:text-sm text-amber-800 font-mono break-all leading-relaxed">
+                                          {(originalRow || row)['Cost Formula']}
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <div className="text-[10px] md:text-xs text-amber-600 italic">No formula available</div>
+                                    )}
+                                  </div>
+
+                                  <div className="p-3 md:p-4 bg-white rounded-lg border border-gray-200">
+                                    <div className="text-xs md:text-sm font-medium text-gray-700 mb-2">Calculation Inputs</div>
+                                    <div className="grid grid-cols-2 gap-2 text-xs md:text-sm">
+                                      <div className="text-gray-500">Annual Hours:</div>
+                                      <div className="font-medium">{typeof (originalRow || row)['Annual Hours'] === 'number' ? Math.round((originalRow || row)['Annual Hours']).toLocaleString() : (originalRow || row)['Annual Hours'] || 'N/A'}</div>
+                                      <div className="text-gray-500">Loaded Hourly Rate:</div>
+                                      <div className="font-medium">${typeof (originalRow || row)['Hourly Rate'] === 'number' ? (originalRow || row)['Hourly Rate'] : (originalRow || row)['Hourly Rate'] || 'N/A'}/hr</div>
+                                      <div className="text-gray-500">Primary Driver:</div>
+                                      <div className="font-medium">{(originalRow || row)['Primary Driver Impact'] || row['Primary Driver Impact'] || 'Cost'}</div>
                                     </div>
                                   </div>
                                 </div>
@@ -3380,36 +4350,322 @@ function StepCard({ step }: { step: any }) {
                 </TableBody>
               </Table>
             </div>
-          </div>
-        ) : hasData ? (
-          <div className="rounded-md border overflow-hidden">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-muted/50">
-                    {Object.keys(step.data[0]).map((key: string, i: number) => (
-                      <TableHead key={i} className="font-semibold text-primary whitespace-nowrap">{key}</TableHead>
+          );
+
+          return themeGroups && themeNames.length > 1 ? (
+            <Accordion type="multiple" defaultValue={themeNames} className="space-y-2">
+              {themeNames.map((themeName, themeIdx) => {
+                const themeRows = themeGroups.get(themeName) || [];
+                const themeColor = getThemeColor(themeIdx);
+                return (
+                  <AccordionItem key={themeName} value={themeName} className={`border rounded-lg ${themeColor.border}`}>
+                    <AccordionTrigger className={`px-3 py-2 text-sm font-semibold ${themeColor.text} ${themeColor.bg} rounded-t-lg hover:no-underline`}>
+                      <div className="flex items-center gap-2">
+                        <Target className="h-4 w-4" />
+                        <span>{themeName}</span>
+                        <Badge variant="outline" className={`ml-2 text-[10px] ${themeColor.badge}`}>
+                          {themeRows.length} {themeRows.length === 1 ? 'item' : 'items'}
+                        </Badge>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="p-0">
+                      {renderFrictionTable(themeRows)}
+                    </AccordionContent>
+                  </AccordionItem>
+                );
+              })}
+            </Accordion>
+          ) : (
+            <div className="rounded-md border overflow-hidden">
+              {renderFrictionTable(frictionReordered)}
+            </div>
+          );
+        })()
+        : hasData && step.step === 4 ? (() => {
+          // ===== STEP 4: AI USE CASES WITH PATTERN CARDS =====
+          const reorderedData = reorderAndFilterColumns(step.data, step.step);
+          const hasStrategicThemes = reorderedData.some((r: any) => r['Strategic Theme']);
+          const themeGroups = hasStrategicThemes ? groupByStrategicTheme(reorderedData) : null;
+          const themeNames = themeGroups ? Array.from(themeGroups.keys()) : [];
+
+          const getPatternBadgeColor = (pattern: string) => {
+            const singleAgent = ['Reflection', 'Tool Use', 'Planning', 'ReAct Loop', 'Prompt Chaining', 'Semantic Router', 'Constitutional Guardrail'];
+            if (singleAgent.some(p => pattern?.includes(p))) return 'bg-[#001278] text-white';
+            return 'bg-[#02a2fd] text-white'; // multi-agent
+          };
+
+          const getEpochBadgeLocal = (flag: string) => epochGetBadge(flag);
+
+          const parseArrayField = (value: unknown): string[] => {
+            if (!value) return [];
+            if (Array.isArray(value)) return value.map((v) => String(v).trim()).filter(Boolean);
+            const str = String(value).trim();
+            if (!str) return [];
+            if (str.startsWith("[")) {
+              try {
+                const parsed = JSON.parse(str);
+                if (Array.isArray(parsed)) return parsed.map((v: unknown) => String(v).trim()).filter(Boolean);
+              } catch { /* fall through */ }
+            }
+            return str.split(",").map((s) => s.trim()).filter(Boolean);
+          };
+
+          const renderUseCaseCards = (rows: any[]) => (
+            <div className="space-y-4">
+              {rows.map((row: any, i: number) => {
+                const pattern = row['Primary Pattern'] || row['Agentic Pattern'] || '';
+                const altPattern = row['Alternative Pattern'] || '';
+                const desiredOutcomes = parseArrayField(row['Desired Outcomes']);
+                const dataTypes = parseArrayField(row['Data Types']);
+                const integrations = parseArrayField(row['Integrations']);
+
+                return (
+                  <div key={i} className="border rounded-lg overflow-hidden hover:shadow-md transition-shadow">
+                    {/* Card Header */}
+                    <div className="bg-slate-50 px-4 py-3 border-b flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-mono text-slate-400">{row.ID}</span>
+                      <span className="font-semibold text-sm md:text-base text-slate-800 flex-1">{row['Use Case Name']}</span>
+                      {pattern && (
+                        <span className={`text-[10px] md:text-xs px-2 py-0.5 rounded-full font-medium ${getPatternBadgeColor(pattern)}`}>
+                          {pattern}
+                        </span>
+                      )}
+                      {row['Function'] && (
+                        <span className="text-[10px] md:text-xs px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">
+                          {row['Function']}
+                        </span>
+                      )}
+                    </div>
+                    {/* Card Body */}
+                    <div className="p-4 space-y-3">
+                      {row['Description'] && (
+                        <p className="text-xs md:text-sm text-slate-600 leading-relaxed">{row['Description']}</p>
+                      )}
+
+                      {row['Target Friction'] && (
+                        <div className="flex flex-wrap gap-4 text-xs md:text-sm">
+                          <div>
+                            <span className="text-slate-400 font-medium">Target Friction: </span>
+                            <span className="text-slate-700">{row['Target Friction']}</span>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* AI Primitives */}
+                      {row['AI Primitives'] && (
+                        <div className="flex flex-wrap gap-1.5">
+                          {String(row['AI Primitives']).split(',').map((p: string, j: number) => (
+                            <span key={j} className="text-[10px] px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              {p.trim()}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Agentic Pattern Analysis */}
+                      {(pattern || altPattern) && (
+                        <div className="bg-slate-50 rounded-lg p-3 border space-y-2">
+                          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Agentic Pattern Analysis</div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div className="space-y-1">
+                              <div className="text-[10px] text-slate-400 font-medium">PRIMARY PATTERN</div>
+                              <span className={`inline-block text-xs px-2.5 py-1 rounded-md font-medium ${getPatternBadgeColor(pattern)}`}>
+                                {pattern || 'Not assigned'}
+                              </span>
+                            </div>
+                            <div className="space-y-1">
+                              <div className="text-[10px] text-slate-400 font-medium">ALTERNATIVE PATTERN</div>
+                              <span className={`inline-block text-xs px-2.5 py-1 rounded-md font-medium ${altPattern ? getPatternBadgeColor(altPattern) + ' opacity-75' : 'bg-slate-200 text-slate-500'}`}>
+                                {altPattern || 'None'}
+                              </span>
+                            </div>
+                          </div>
+                          {row['Pattern Rationale'] && (
+                            <div className="mt-2 pt-2 border-t border-slate-200">
+                              <div className="text-[10px] text-slate-400 font-medium mb-1">RATIONALE</div>
+                              <p className="text-xs text-slate-600 leading-relaxed">{row['Pattern Rationale']}</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* E.P.O.C.H. Flags */}
+                      {row['EPOCH Flags'] && (() => {
+                        const flags = parseEpochFlags(row['EPOCH Flags']);
+                        return flags.length > 0 ? (
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="text-[10px] font-semibold text-slate-400 uppercase">E.P.O.C.H.:</span>
+                            {flags.map((f: string, j: number) => {
+                              const badge = getEpochBadgeLocal(f);
+                              return (
+                                <span key={j} className={`text-[10px] px-1.5 py-0.5 rounded border font-medium ${badge.color}`}>
+                                  {badge.label}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        ) : null;
+                      })()}
+
+                      {/* Desired Outcomes */}
+                      {desiredOutcomes.length > 0 && (
+                        <div className="space-y-1">
+                          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Desired Outcomes</div>
+                          <ul className="list-disc list-inside space-y-0.5">
+                            {desiredOutcomes.map((outcome, j) => (
+                              <li key={j} className="text-xs text-slate-600 leading-relaxed">{outcome}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Data Types */}
+                      {dataTypes.length > 0 && (
+                        <div className="space-y-1">
+                          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Data Types</div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {dataTypes.map((dt, j) => (
+                              <span key={j} className="text-[10px] px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">{dt}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Integrations */}
+                      {integrations.length > 0 && (
+                        <div className="space-y-1">
+                          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Integrations</div>
+                          <div className="flex flex-wrap gap-1.5">
+                            {integrations.map((intg, j) => (
+                              <span key={j} className="text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-600 border border-slate-200">{intg}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* HITL Checkpoint */}
+                      {row['Human-in-the-Loop Checkpoint'] && (
+                        <div className="text-xs text-blue-600 flex items-center gap-1.5 bg-blue-50 px-2 py-1.5 rounded border border-blue-200">
+                          <Users className="h-3.5 w-3.5 shrink-0" />
+                          <span className="font-medium">HITL:</span> {row['Human-in-the-Loop Checkpoint']}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+
+          return (
+            <div className="space-y-3">
+              {themeGroups ? (
+                themeNames.map((theme, ti) => (
+                  <div key={ti}>
+                    <div className="flex items-center gap-2 mb-3 mt-4">
+                      <div className="h-1 w-4 rounded bg-[#001278]"></div>
+                      <h4 className="text-sm font-semibold text-[#001278]">{theme}</h4>
+                      <span className="text-xs text-slate-400">({themeGroups.get(theme)?.length} use cases)</span>
+                    </div>
+                    {renderUseCaseCards(themeGroups.get(theme) || [])}
+                  </div>
+                ))
+              ) : (
+                renderUseCaseCards(reorderedData)
+              )}
+            </div>
+          );
+        })()
+        : hasData ? (() => {
+          // ===== GENERIC TABLE WITH COLUMN REORDERING + BENCHMARK COLORS + STRATEGIC THEME GROUPING =====
+          const reorderedData = reorderAndFilterColumns(step.data, step.step);
+          const visibleCols = reorderedData.length > 0
+            ? Object.keys(reorderedData[0]).filter(k => !HIDDEN_COLUMNS.has(k) && k !== 'Strategic Theme')
+            : [];
+          const hasStrategicThemes = reorderedData.some(r => r['Strategic Theme']);
+          const isBenchmarkStep = step.step === 2;
+
+          // Group by strategic theme if available
+          const themeGroups = hasStrategicThemes ? groupByStrategicTheme(reorderedData) : null;
+          const themeNames = themeGroups ? Array.from(themeGroups.keys()) : [];
+
+          const renderTableForRows = (rows: any[]) => (
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/50">
+                  {visibleCols.map((key: string, i: number) => (
+                    <TableHead
+                      key={i}
+                      className={`font-semibold text-primary whitespace-nowrap text-xs md:text-sm px-2 md:px-4 py-2 md:py-3 ${getBenchmarkCellClass(key)}`}
+                    >
+                      {key}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {rows.map((row: any, i: number) => (
+                  <TableRow key={i} className="hover:bg-muted/20 transition-colors">
+                    {visibleCols.map((key: string, j: number) => (
+                      <TableCell
+                        key={j}
+                        className={`text-xs md:text-sm px-2 md:px-4 py-1.5 md:py-2 ${j === 0 ? "font-medium" : ""} ${key.toLowerCase() === "description" ? "min-w-[200px] md:min-w-[300px] max-w-[300px] md:max-w-[400px] whitespace-normal" : ""} ${getBenchmarkCellClass(key)}`}
+                      >
+                        {renderBenchmarkCell(key, row)}
+                      </TableCell>
                     ))}
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {step.data.map((row: any, i: number) => (
-                    <TableRow key={i} className="hover:bg-muted/20 transition-colors">
-                      {Object.entries(row).map(([key, value]: [string, any], j: number) => (
-                        <TableCell 
-                          key={j} 
-                          className={`${j === 0 ? "font-medium" : ""} ${key.toLowerCase() === "description" ? "min-w-[300px] max-w-[400px] whitespace-normal" : ""}`}
-                        >
-                          {renderCellValue(key, value)}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </div>
-        ) : null}
+                ))}
+              </TableBody>
+            </Table>
+          );
+
+          return (
+          <div className="space-y-3">
+            {/* Benchmark legend for Step 2 */}
+            {isBenchmarkStep && reorderedData.some(r => r['Benchmark (Avg)'] || r['Benchmark (Industry Best)'] || r['Benchmark (Overall Best)']) && (
+              <div className="flex flex-wrap items-center gap-3 text-xs px-1">
+                <span className="font-medium text-muted-foreground">Benchmark Legend:</span>
+                <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded bg-yellow-100 border border-yellow-300"></span> Industry Average</span>
+                <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded bg-blue-100 border border-blue-300"></span> Industry Best in Class</span>
+                <span className="inline-flex items-center gap-1"><span className="w-3 h-3 rounded bg-green-100 border border-green-300"></span> Overall Best in Class</span>
+              </div>
+            )}
+
+            {/* Grouped by strategic theme if available */}
+            {themeGroups && themeNames.length > 1 ? (
+              <Accordion type="multiple" defaultValue={themeNames} className="space-y-2">
+                {themeNames.map((themeName, themeIdx) => {
+                  const themeRows = themeGroups.get(themeName) || [];
+                  const themeColor = getThemeColor(themeIdx);
+                  return (
+                    <AccordionItem key={themeName} value={themeName} className={`border rounded-lg ${themeColor.border}`}>
+                      <AccordionTrigger className={`px-3 py-2 text-sm font-semibold ${themeColor.text} ${themeColor.bg} rounded-t-lg hover:no-underline`}>
+                        <div className="flex items-center gap-2">
+                          <Target className="h-4 w-4" />
+                          <span>{themeName}</span>
+                          <Badge variant="outline" className={`ml-2 text-[10px] ${themeColor.badge}`}>{themeRows.length} items</Badge>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="p-0">
+                        <div className="overflow-x-auto">
+                          {renderTableForRows(themeRows)}
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  );
+                })}
+              </Accordion>
+            ) : (
+              <div className="rounded-md border overflow-hidden">
+                <div className="overflow-x-auto">
+                  {renderTableForRows(reorderedData)}
+                </div>
+              </div>
+            )}
+          </div>);
+        })()
+        : null}
       </CardContent>
     </Card>
   );
@@ -3466,6 +4722,17 @@ function renderCellValue(key: string, value: any): React.ReactNode {
         <span>{(value * 100).toFixed(0)}%</span>
       </div>
     );
+  }
+
+  // Format Annual Hours as whole numbers
+  if (key.toLowerCase().includes('hours') && typeof value === 'number') {
+    return Math.round(value).toLocaleString('en-US');
+  }
+  if (key.toLowerCase().includes('hours') && typeof value === 'string') {
+    const num = parseFloat(value.replace(/[,]/g, ''));
+    if (!isNaN(num)) {
+      return Math.round(num).toLocaleString('en-US');
+    }
   }
 
   // Format large numbers with commas (Runs/Month, Monthly Tokens, Input/Output Tokens)

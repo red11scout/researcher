@@ -1,14 +1,31 @@
-import type { Express } from "express";
+import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
-import { generateCompanyAnalysis, generateWhatIfSuggestion, checkProductionConfig } from "./ai-service";
+import { storage, AUDIT_EXPORT_MAX_ROWS, type AdminAuditLogQuery } from "./storage";
+import { generateCompanyAnalysis, generateWhatIfSuggestion, checkProductionConfig, executePipelineCall } from "./ai-service";
 import * as formulaService from "./formula-service";
-import { registerCalcGraphRoutes } from "./calcgraph/routes";
 import { dubService } from "./dub-service";
-import { insertReportSchema } from "@shared/schema";
+import { insertReportSchema, adminSettingsUpdateSchema } from "@shared/schema";
+import { augmentAnalysisBenchmarkSourcesForPresentation } from "@shared/benchmarkSources";
+import {
+  resolveRetentionDays as resolveAuditRetentionDays,
+  CLEANUP_INTERVAL_MS as ADMIN_AUDIT_CLEANUP_INTERVAL_MS,
+} from "./admin-audit-retention";
+import { maybeDispatchOverdueAlert } from "./admin-audit-overdue-alert";
+import { recordAdminAudit } from "./auth";
+import { buildAssumptionExcelWorkbook, buildAssumptionJSON } from "./assumption-export";
+import { formatReportAsJson, formatReportAsMarkdown } from "./export-formatters";
+import {
+  evaluateReportStaleness,
+  backfillAllReports,
+  parseOnlyIdsFromBody,
+  type BackfillReportResult,
+} from "./report-backfill";
 import { nanoid } from "nanoid";
 import multer from "multer";
 import { createRequire } from "module";
+import archiver from "archiver";
+import fs from "fs";
+import path from "path";
 const require = createRequire(import.meta.url);
 const { PDFParse } = require("pdf-parse");
 
@@ -38,16 +55,22 @@ const upload = multer({
   },
 });
 
-// Store active SSE connections for progress updates
-const progressConnections = new Map<string, any>();
-
 // Store background job status and results
+interface StepResult {
+  step: number;
+  title: string;
+  data: any;
+  completedAt: number;
+}
+
 interface JobStatus {
   status: 'pending' | 'processing' | 'complete' | 'error';
   companyName: string;
   result?: any;
   error?: string;
   startedAt: number;
+  completedSteps: StepResult[];
+  currentStep: number;
 }
 const backgroundJobs = new Map<string, JobStatus>();
 
@@ -62,17 +85,366 @@ setInterval(() => {
   }
 }, 5 * 60 * 1000); // Check every 5 minutes
 
+// Escape a value for inclusion in a CSV cell. Per RFC 4180: any cell
+// containing a comma, double-quote, CR, or LF must be wrapped in double
+// quotes, with embedded double-quotes escaped by doubling. Plain-text
+// cells (no special chars) are emitted verbatim so common cases like
+// timestamps and action codes don't produce noisy quoting that breaks
+// `cut`-style command-line analysis on the resulting file.
+function csvEscape(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  const s = typeof value === "string" ? value : String(value);
+  if (/[",\r\n]/.test(s)) {
+    return `"${s.replace(/"/g, '""')}"`;
+  }
+  return s;
+}
+
+// Format one audit-log entry as a CSV row matching the header
+//   when,action,status,statusCode,actorIp,path,errorMessage,outcome
+// `outcome` is JSON-stringified so structured fields like
+// `{ updated: 12, skipped: 0, failed: 1 }` survive round-tripping into
+// a spreadsheet without losing their shape.
+function formatAuditEntryAsCsvRow(entry: {
+  createdAt: Date;
+  action: string;
+  status: string;
+  statusCode: number | null;
+  actorIp: string | null;
+  path: string | null;
+  errorMessage: string | null;
+  outcome: unknown;
+}): string {
+  const when =
+    entry.createdAt instanceof Date
+      ? entry.createdAt.toISOString()
+      : String(entry.createdAt ?? "");
+  const outcomeStr =
+    entry.outcome === null || entry.outcome === undefined
+      ? ""
+      : JSON.stringify(entry.outcome);
+  return (
+    [
+      csvEscape(when),
+      csvEscape(entry.action),
+      csvEscape(entry.status),
+      csvEscape(entry.statusCode),
+      csvEscape(entry.actorIp),
+      csvEscape(entry.path),
+      csvEscape(entry.errorMessage),
+      csvEscape(outcomeStr),
+    ].join(",") + "\n"
+  );
+}
+
+// Build a self-describing filename for the CSV download so an operator
+// who archives the file (e.g. attaches it to an incident ticket) can
+// later recover what filter slice it represents without re-running the
+// query. Format: `admin-audit-<UTC timestamp>[-<filter tags>].csv`
+// where filter tags only appear for active filters. Sanitised to
+// filesystem-safe characters because operators routinely save these to
+// shared drives where Windows paths reject `:`, `/`, etc.
+function buildAuditExportFilename(
+  opts: AdminAuditLogQuery,
+  extension: "csv" | "xlsx" | "pdf" = "csv",
+): string {
+  const stamp = new Date()
+    .toISOString()
+    .replace(/[:.]/g, "-")
+    .replace(/Z$/, "Z");
+  const tags: string[] = [];
+  const safe = (s: string) =>
+    s.replace(/[^A-Za-z0-9_.-]/g, "_").replace(/_+/g, "_");
+  if (opts.action) tags.push(`action_${safe(opts.action)}`);
+  if (opts.status === "success" || opts.status === "failure") {
+    tags.push(`status_${opts.status}`);
+  }
+  if (opts.since instanceof Date && !Number.isNaN(opts.since.getTime())) {
+    tags.push(`from_${opts.since.toISOString().slice(0, 10)}`);
+  }
+  if (opts.until instanceof Date && !Number.isNaN(opts.until.getTime())) {
+    tags.push(`to_${opts.until.toISOString().slice(0, 10)}`);
+  }
+  if (opts.ip && opts.ip.trim().length > 0) {
+    tags.push(`ip_${safe(opts.ip.trim())}`);
+  }
+  const suffix = tags.length === 0 ? "" : `-${tags.join("-")}`;
+  return `admin-audit-${stamp}${suffix}.${extension}`;
+}
+
+// Build a real .xlsx workbook for the audit-log export. Returns a Buffer
+// suitable for piping to the response. Two sheets:
+//   - "Audit Log": one row per entry. `when` is a real Excel datetime cell
+//     (so spreadsheet date filters work and the local-timezone coercion
+//     trap is avoided), `statusCode` is a real number, the rest are text.
+//     The header row is bold + frozen so it stays visible while scrolling.
+//   - "Outcomes": one row per entry that has a non-null `outcome`, keyed
+//     by the audit row id so an operator can look up the structured
+//     counters without staring at JSON-stringified gibberish in the main
+//     sheet. Skipped entirely (no sheet at all) if no row has an outcome.
+async function buildAuditExportXlsxBuffer(
+  entries: ReadonlyArray<{
+    id: string;
+    createdAt: Date;
+    action: string;
+    status: string;
+    statusCode: number | null;
+    actorIp: string | null;
+    path: string | null;
+    errorMessage: string | null;
+    outcome: unknown;
+  }>,
+): Promise<Buffer> {
+  const ExcelJS = (await import("exceljs")).default;
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "BlueAlly Insight";
+  wb.created = new Date();
+
+  const main = wb.addWorksheet("Audit Log", {
+    views: [{ state: "frozen", ySplit: 1 }],
+  });
+  main.columns = [
+    { header: "id", key: "id", width: 38 },
+    { header: "when", key: "when", width: 22, style: { numFmt: "yyyy-mm-dd hh:mm:ss" } },
+    { header: "action", key: "action", width: 28 },
+    { header: "status", key: "status", width: 12 },
+    { header: "statusCode", key: "statusCode", width: 12 },
+    { header: "actorIp", key: "actorIp", width: 18 },
+    { header: "path", key: "path", width: 60 },
+    { header: "errorMessage", key: "errorMessage", width: 50 },
+    { header: "outcome", key: "outcome", width: 18 },
+  ];
+  main.getRow(1).font = { bold: true };
+
+  const outcomesPresent = entries.some(
+    (e) => e.outcome !== null && e.outcome !== undefined,
+  );
+  let outcomeSheet: import("exceljs").Worksheet | null = null;
+  if (outcomesPresent) {
+    outcomeSheet = wb.addWorksheet("Outcomes", {
+      views: [{ state: "frozen", ySplit: 1 }],
+    });
+    outcomeSheet.columns = [
+      { header: "id", key: "id", width: 38 },
+      { header: "action", key: "action", width: 28 },
+      { header: "when", key: "when", width: 22, style: { numFmt: "yyyy-mm-dd hh:mm:ss" } },
+      { header: "outcomeJson", key: "outcomeJson", width: 80 },
+    ];
+    outcomeSheet.getRow(1).font = { bold: true };
+  }
+
+  for (const entry of entries) {
+    const when =
+      entry.createdAt instanceof Date ? entry.createdAt : null;
+    const hasOutcome =
+      entry.outcome !== null && entry.outcome !== undefined;
+    main.addRow({
+      id: entry.id,
+      when,
+      action: entry.action,
+      status: entry.status,
+      // Use null (rather than the string "") so the spreadsheet column
+      // stays numeric — mixing "" into a number column makes Excel
+      // complain about "Number stored as text" on every other row.
+      statusCode:
+        typeof entry.statusCode === "number" ? entry.statusCode : null,
+      actorIp: entry.actorIp ?? "",
+      path: entry.path ?? "",
+      errorMessage: entry.errorMessage ?? "",
+      // Cross-reference: if there's structured outcome data, point the
+      // operator at the Outcomes sheet rather than dumping JSON inline.
+      outcome: hasOutcome ? "see Outcomes sheet" : "",
+    });
+    if (hasOutcome && outcomeSheet) {
+      outcomeSheet.addRow({
+        id: entry.id,
+        action: entry.action,
+        when,
+        outcomeJson: JSON.stringify(entry.outcome),
+      });
+    }
+  }
+
+  // exceljs returns ArrayBuffer-like; coerce to Node Buffer for res.end().
+  const arrayBuffer = await wb.xlsx.writeBuffer();
+  return Buffer.from(arrayBuffer as ArrayBuffer);
+}
+
+// Build a print-ready PDF of the filtered audit slice. Operators who
+// archive these to compliance systems or attach them to incident
+// tickets prefer a paginated PDF over a spreadsheet because it reads
+// well on mobile, captures the active filters at the top of every
+// page, and avoids "is this column a date or a string?" import
+// questions entirely.
+//
+// Rendering choices:
+//   - Landscape A4 — eight columns of audit data don't fit portrait
+//     once `path` and `errorMessage` get any breathing room.
+//   - Header band (page 1 + repeated atop every page via autotable's
+//     `didDrawPage` hook) lists the active filter values, the export
+//     timestamp, and a truncation banner when the slice exceeded the
+//     10k cap. Operators routinely flip to page 7 to find one row;
+//     repeating the filter context means they don't have to flip back.
+//   - `outcome` is rendered as compact JSON inline (PDFs don't have
+//     a sister "Outcomes sheet" the way the .xlsx export does) so the
+//     row stays self-contained.
+async function buildAuditExportPdfBuffer(
+  entries: ReadonlyArray<{
+    id: string;
+    createdAt: Date;
+    action: string;
+    status: string;
+    statusCode: number | null;
+    actorIp: string | null;
+    path: string | null;
+    errorMessage: string | null;
+    outcome: unknown;
+  }>,
+  opts: AdminAuditLogQuery,
+  meta: { total: number; truncated: boolean; generatedAt: Date },
+): Promise<Buffer> {
+  const { jsPDF } = await import("jspdf");
+  const autoTable = (await import("jspdf-autotable")).default;
+
+  const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+  const pageWidth = doc.internal.pageSize.getWidth();
+
+  // Build a human-readable summary of the active filters so the
+  // header band reads like the panel's filter row, not like a
+  // query-string dump.
+  const filterLines: string[] = [];
+  const fmtDate = (d: Date) => d.toISOString().replace("T", " ").replace(/\..+$/, "Z");
+  if (opts.action) filterLines.push(`Action: ${opts.action}`);
+  if (opts.status === "success" || opts.status === "failure") {
+    filterLines.push(`Status: ${opts.status}`);
+  }
+  if (opts.since instanceof Date && !Number.isNaN(opts.since.getTime())) {
+    filterLines.push(`From: ${fmtDate(opts.since)}`);
+  }
+  if (opts.until instanceof Date && !Number.isNaN(opts.until.getTime())) {
+    filterLines.push(`To: ${fmtDate(opts.until)}`);
+  }
+  if (opts.ip && opts.ip.trim().length > 0) {
+    filterLines.push(`IP contains: ${opts.ip.trim()}`);
+  }
+  if (filterLines.length === 0) filterLines.push("Filters: (none — full slice)");
+
+  const headerBlock = (): number => {
+    let y = 32;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.text("Admin audit log", 32, y);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    y += 16;
+    doc.text(
+      `Generated ${meta.generatedAt.toISOString()}  ·  Rows: ${entries.length}${
+        meta.truncated ? ` of ${meta.total} (truncated)` : ""
+      }`,
+      32,
+      y,
+    );
+    y += 14;
+    for (const line of filterLines) {
+      doc.text(line, 32, y);
+      y += 12;
+    }
+    if (meta.truncated) {
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(180, 0, 0);
+      doc.text(
+        `Truncated at ${entries.length} rows (cap: ${entries.length}). Narrow the filters to capture the remaining ${
+          meta.total - entries.length
+        } rows.`,
+        32,
+        y,
+      );
+      doc.setTextColor(0, 0, 0);
+      doc.setFont("helvetica", "normal");
+      y += 14;
+    }
+    return y + 6;
+  };
+
+  const startY = headerBlock();
+
+  const body = entries.map((e) => [
+    e.createdAt instanceof Date ? e.createdAt.toISOString() : String(e.createdAt ?? ""),
+    e.action,
+    e.status,
+    typeof e.statusCode === "number" ? String(e.statusCode) : "",
+    e.actorIp ?? "",
+    e.path ?? "",
+    e.errorMessage ?? "",
+    e.outcome === null || e.outcome === undefined ? "" : JSON.stringify(e.outcome),
+  ]);
+
+  autoTable(doc, {
+    head: [[
+      "when",
+      "action",
+      "status",
+      "statusCode",
+      "actorIp",
+      "path",
+      "errorMessage",
+      "outcome",
+    ]],
+    body,
+    startY,
+    margin: { left: 32, right: 32, top: 32, bottom: 32 },
+    styles: { fontSize: 7, cellPadding: 3, overflow: "linebreak" },
+    headStyles: { fillColor: [30, 41, 59], textColor: [255, 255, 255], fontStyle: "bold" },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+    columnStyles: {
+      0: { cellWidth: 110 },
+      1: { cellWidth: 90 },
+      2: { cellWidth: 45 },
+      3: { cellWidth: 45 },
+      4: { cellWidth: 75 },
+      5: { cellWidth: 130 },
+      6: { cellWidth: 130 },
+      7: { cellWidth: "auto" },
+    },
+    didDrawPage: (data) => {
+      // Page 1 already had the full header rendered before
+      // autotable started; subsequent pages get just a compact
+      // "Admin audit log — page N" strip so the filter context
+      // isn't lost mid-document.
+      if ((data.pageNumber ?? 1) > 1) {
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.text("Admin audit log (continued)", 32, 24);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.text(filterLines.join("  ·  "), 32, 38);
+      }
+      // Footer with page numbers on every page.
+      const pageHeight = doc.internal.pageSize.getHeight();
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(100, 116, 139);
+      doc.text(
+        `Page ${data.pageNumber}`,
+        pageWidth - 32,
+        pageHeight - 16,
+        { align: "right" },
+      );
+      doc.setTextColor(0, 0, 0);
+    },
+  });
+
+  const ab = doc.output("arraybuffer");
+  return Buffer.from(ab as ArrayBuffer);
+}
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  
-  // Register CalcGraph routes for deterministic calculations
-  registerCalcGraphRoutes(app);
 
-  // Version check
   app.get("/api/version", (req, res) => {
-    res.json({ version: "2.6.0", buildTime: "2025-01-30T12:00:00Z", calcGraphVersion: "2.0.0" });
+    res.json({ version: "2.5.0", buildTime: "2025-11-30T03:10:00Z" });
   });
 
   // Document upload endpoint - extracts text from PDFs and text files
@@ -110,6 +482,39 @@ export async function registerRoutes(
             content = file.buffer.toString("utf-8");
           }
 
+          // ============================================================
+          // PRIOR-ASSESSMENT DETECTION (.json imports)
+          // ------------------------------------------------------------
+          // If the uploaded JSON is a previously-exported BlueAlly
+          // assessment (has `analysis.steps[]` with use cases), surface
+          // it as an importable assessment instead of stuffing the raw
+          // text into Claude as source material. The client routes
+          // these into `/api/import-analysis`, which saves the JSON
+          // verbatim — preserving every input the user provided.
+          // ============================================================
+          let priorAssessment: any = null;
+          if (ext === ".json") {
+            try {
+              const parsed = JSON.parse(content);
+              const steps = parsed?.analysis?.steps;
+              if (
+                parsed &&
+                typeof parsed === "object" &&
+                Array.isArray(steps) &&
+                steps.some((s: any) => s?.step === 5 && Array.isArray(s?.data) && s.data.length > 0)
+              ) {
+                priorAssessment = {
+                  companyName: typeof parsed.companyName === "string" ? parsed.companyName : null,
+                  analysis: parsed.analysis,
+                  generatedAt: typeof parsed.generatedAt === "string" ? parsed.generatedAt : null,
+                };
+              }
+            } catch {
+              // Not valid JSON or not an assessment — fall through to
+              // the regular text-document path below.
+            }
+          }
+
           // Enforce character limit per document
           const MAX_CHARS = 50000;
           if (content.length > MAX_CHARS) {
@@ -121,6 +526,7 @@ export async function registerRoutes(
             content,
             size: file.size,
             type: file.mimetype || "text/plain",
+            ...(priorAssessment ? { priorAssessment } : {}),
           });
         } catch (fileError: any) {
           console.error(`Error processing file ${file.originalname}:`, fileError);
@@ -144,6 +550,96 @@ export async function registerRoutes(
     }
   });
 
+  // ============================================================
+  // POST /api/import-analysis
+  // ------------------------------------------------------------
+  // Accept a previously-exported assessment JSON and persist it
+  // VERBATIM as a new (or upserted) report. Critically, this path:
+  //   1. Does NOT call Claude / the LLM pipeline.
+  //   2. Does NOT call `postProcessAnalysis` — that function would
+  //      overwrite the per-UC benefit values, formula strings,
+  //      scenario / headline figures, and run the CFO reality
+  //      rescale. Imports must preserve every input the user
+  //      explicitly provided.
+  //   3. Stamps `importedFromJson: true` on the analysis payload so
+  //      `evaluateReportStaleness` short-circuits and subsequent
+  //      loads through /api/reports/:id and /api/analyze/check
+  //      never reprocess the report either.
+  // ============================================================
+  app.post("/api/import-analysis", async (req, res) => {
+    try {
+      const { analysis, companyName: explicitCompanyName, displayName: explicitDisplayName } = req.body ?? {};
+      if (!analysis || typeof analysis !== "object" || !Array.isArray(analysis?.steps)) {
+        return res.status(400).json({
+          error: "Invalid import payload — `analysis` must be an object with a `steps` array (a previously-exported BlueAlly assessment).",
+        });
+      }
+      const companyName: string =
+        (typeof explicitCompanyName === "string" && explicitCompanyName.trim()) ||
+        (typeof analysis?.companyOverview?.companyName === "string" && analysis.companyOverview.companyName.trim()) ||
+        (typeof req.body?.parsedCompanyName === "string" && req.body.parsedCompanyName.trim()) ||
+        "";
+      if (!companyName) {
+        return res.status(400).json({
+          error: "Could not determine a company name for the imported assessment. Provide `companyName` in the request body.",
+        });
+      }
+
+      // Display-name override: prefer the explicit request body field, then
+      // a top-level `displayName` baked into the exported JSON. Trim and
+      // collapse empty strings to null so the UI falls back to companyName.
+      const candidateDisplayName: unknown =
+        explicitDisplayName ?? (analysis as any)?.displayName ?? null;
+      const displayName: string | null =
+        typeof candidateDisplayName === "string" && candidateDisplayName.trim()
+          ? candidateDisplayName.trim().slice(0, 200)
+          : null;
+
+      const preservedAnalysis = {
+        ...analysis,
+        // Stamp displayName into the analysis envelope so client renderers
+        // (which read from `analysisData`) see it without an extra fetch.
+        displayName,
+        importedFromJson: true,
+        importedAt: new Date().toISOString(),
+      };
+
+      // Upsert: if a report already exists for this company, replace
+      // its analysisData with the imported payload so the user sees
+      // exactly what they imported (no merge, no reconciliation).
+      const existing = await storage.getReportByCompany(companyName);
+      let report: any;
+      if (existing) {
+        report = await storage.updateReport(existing.id, { analysisData: preservedAnalysis, displayName } as any);
+        if (!report) report = { ...existing, analysisData: preservedAnalysis, displayName, updatedAt: new Date() };
+        console.log(`[import-analysis] Replaced report ${existing.id} for ${companyName}${displayName ? ` (display: ${displayName})` : ""}`);
+      } else {
+        report = await storage.createReport({
+          companyName,
+          displayName,
+          analysisData: preservedAnalysis,
+        } as any);
+        console.log(`[import-analysis] Created report ${report?.id} for ${companyName}${displayName ? ` (display: ${displayName})` : ""}`);
+      }
+      if (!report?.id) {
+        return res.status(500).json({ error: "Storage layer did not return a report row." });
+      }
+
+      res.json({
+        success: true,
+        report: {
+          id: report.id,
+          data: preservedAnalysis,
+          createdAt: report.createdAt,
+          updatedAt: report.updatedAt,
+        },
+      });
+    } catch (err: any) {
+      console.error("[import-analysis] Error:", err);
+      res.status(500).json({ error: err?.message || "Failed to import assessment" });
+    }
+  });
+
   // Shareable link endpoint - Get report by ID
   app.get("/api/reports/:id", async (req, res) => {
     try {
@@ -156,11 +652,91 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Report not found" });
       }
 
+      // Re-run post-processing to ensure Step 6 recovery, correct column order, and current VRM schema
+      const analysis = report.analysisData as any;
+      if (analysis?.steps && Array.isArray(analysis.steps)) {
+        const staleness = evaluateReportStaleness(analysis);
+        if (staleness.stale) {
+          try {
+            const { postProcessAnalysis } = await import("./calculation-postprocessor");
+            const reprocessed = await postProcessAnalysis(analysis);
+            report.analysisData = reprocessed;
+            // Persist so future loads don't need reprocessing
+            await storage.updateReport(reportId, { analysisData: reprocessed });
+            console.log(`[routes] Re-processed report ${reportId} (reasons: ${staleness.reasons.join(', ')})`);
+          } catch (ppErr) {
+            console.warn(`[routes] Post-processing failed for report ${reportId}:`, ppErr);
+          }
+        }
+      }
+
+      // Splice displayName onto the analysisData envelope so client renderers
+      // (which read primarily from analysisData) see the override without
+      // needing a second fetch. The row's `displayName` column is the source
+      // of truth — this is just a convenience mirror.
+      if (report.analysisData && typeof report.analysisData === "object") {
+        (report.analysisData as any).displayName = report.displayName ?? null;
+      }
+
       // Return the full report data
       res.json(report);
     } catch (error) {
       console.error("Error fetching report:", error);
       res.status(500).json({ message: "Failed to load report" });
+    }
+  });
+
+  // Update the presentation-only display name for a report.
+  // Auth-gated. The research/canonical companyName is left untouched so AI
+  // lookups, slugs, and export filenames keep working.
+  //   PATCH body: { "displayName": "A+E Networks, LLC" }   → set
+  //   PATCH body: { "displayName": null } | "" | omitted   → clear (revert)
+  app.patch("/api/reports/:id/display-name", async (req, res) => {
+    try {
+      if (!req.session?.authenticated) {
+        return res.status(401).json({ error: "Authentication required" });
+      }
+      const { id } = req.params;
+      const { updateReportDisplayNameSchema } = await import("@shared/schema");
+      const parsed = updateReportDisplayNameSchema.safeParse(req.body ?? {});
+      if (!parsed.success) {
+        return res.status(400).json({
+          error: "Invalid display name",
+          details: parsed.error.flatten(),
+        });
+      }
+      const existing = await storage.getReportById(id);
+      if (!existing) {
+        return res.status(404).json({ error: "Report not found" });
+      }
+      const newDisplayName = parsed.data.displayName ?? null;
+      const updated = await storage.updateReportDisplayName(id, newDisplayName);
+      if (!updated) {
+        return res.status(500).json({ error: "Failed to update display name" });
+      }
+      // Mirror onto analysisData so future loads see the new override.
+      try {
+        const analysis = updated.analysisData as any;
+        if (analysis && typeof analysis === "object") {
+          analysis.displayName = updated.displayName ?? null;
+          await storage.updateReport(id, { analysisData: analysis });
+        }
+      } catch (mirrorErr) {
+        console.warn(`[display-name] Could not mirror onto analysisData for ${id}:`, mirrorErr);
+      }
+      console.log(`[display-name] ${id} → ${updated.displayName ? `"${updated.displayName}"` : "(cleared)"} (research name remains "${updated.companyName}")`);
+      return res.json({
+        success: true,
+        report: {
+          id: updated.id,
+          companyName: updated.companyName,
+          displayName: updated.displayName,
+          updatedAt: updated.updatedAt,
+        },
+      });
+    } catch (err: any) {
+      console.error("[display-name] Error:", err);
+      return res.status(500).json({ error: err?.message || "Failed to update display name" });
     }
   });
 
@@ -212,9 +788,10 @@ export async function registerRoutes(
   app.get("/api/debug-config", (req, res) => {
     const integrationApiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
     const integrationBaseUrl = process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL;
+    const claudeResearcherKey = process.env.CLAUDERESEARCHER;
     
-    // Use Replit-managed integration
-    const activeConfig = integrationApiKey ? "INTEGRATION_KEY" : "NONE";
+    // Use Replit-managed integration, fallback to CLAUDERESEARCHER
+    const activeConfig = integrationApiKey ? "INTEGRATION_KEY" : (claudeResearcherKey ? "CLAUDERESEARCHER" : "NONE");
     const activeBaseUrl = integrationBaseUrl || "https://api.anthropic.com";
     
     res.json({
@@ -224,6 +801,7 @@ export async function registerRoutes(
       apiKeyStatus: {
         AI_INTEGRATIONS_ANTHROPIC_API_KEY: integrationApiKey ? `SET (${integrationApiKey.length} chars)` : "NOT SET",
         AI_INTEGRATIONS_ANTHROPIC_BASE_URL: integrationBaseUrl ? `SET (${integrationBaseUrl.substring(0, 30)}...)` : "NOT SET",
+        CLAUDERESEARCHER: claudeResearcherKey ? `SET (${claudeResearcherKey.length} chars)` : "NOT SET",
       },
       activeConfiguration: activeConfig,
       activeBaseUrl: activeBaseUrl,
@@ -233,15 +811,14 @@ export async function registerRoutes(
 
   // Test direct fetch to Anthropic (bypass SDK)
   app.get("/api/test-direct-fetch", async (req, res) => {
-    // Use Replit-managed integration
+    // Use Replit-managed integration, fallback to CLAUDERESEARCHER
     const integrationApiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
     const integrationBaseUrl = process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL;
     
-    if (!integrationApiKey) {
+    const apiKey = integrationApiKey || process.env.CLAUDERESEARCHER;
+    if (!apiKey) {
       return res.json({ error: "No API key configured", hasIntegrationKey: false });
     }
-    
-    const apiKey = integrationApiKey;
     const baseUrl = integrationBaseUrl || "https://api.anthropic.com";
     
     try {
@@ -272,7 +849,7 @@ export async function registerRoutes(
   
   // Test longer prompt with larger output
   app.get("/api/test-long", async (req, res) => {
-    const apiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
+    const apiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY || process.env.CLAUDERESEARCHER;
     if (!apiKey) {
       return res.json({ error: "No AI integration API key configured" });
     }
@@ -305,7 +882,7 @@ Return ONLY valid JSON with this structure:
           model: "claude-sonnet-4-5-20250929",
           max_tokens: 4000,
           system: longSystemPrompt,
-          messages: [{ role: "user", content: "Analyze TestCorp and return the JSON analysis" }],
+          messages: [{ role: "user", content: "Analyze TestCorp and return the JSON analysis. Return ONLY valid JSON. No markdown code fences, no explanation text before or after. The response must start with { or [ and end with } or ]." }],
         }),
       });
       
@@ -326,7 +903,7 @@ Return ONLY valid JSON with this structure:
   
   // Test with very long system prompt (similar to actual analysis)
   app.get("/api/test-full-prompt", async (req, res) => {
-    const apiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
+    const apiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY || process.env.CLAUDERESEARCHER;
     if (!apiKey) {
       return res.json({ error: "No AI integration API key configured" });
     }
@@ -362,7 +939,7 @@ Return ONLY valid JSON with this structure:
   "summary": "Executive summary"
 }`;
 
-    const userPrompt = `Analyze "TestCorp" and generate the 3-step analysis. Return only valid JSON.`;
+    const userPrompt = `Analyze "TestCorp" and generate the 3-step analysis. Return ONLY valid JSON. No markdown code fences, no explanation text before or after. The response must start with { or [ and end with } or ].`;
     
     try {
       console.log("[test-full-prompt] Making fetch request, prompt length:", systemPrompt.length);
@@ -483,6 +1060,877 @@ Return ONLY valid JSON with this structure:
     });
   });
 
+  app.post("/api/analyze/check", async (req, res) => {
+    try {
+      const { companyName } = req.body;
+      if (!companyName) return res.status(400).json({ exists: false });
+      const existing = await storage.getReportByCompany(companyName);
+      if (existing) {
+        // Refresh stale v2.0 reports to current v2.1 schema on the fly
+        let analysis: any = existing.analysisData;
+        if (analysis?.steps) {
+          const staleness = evaluateReportStaleness(analysis);
+          if (staleness.stale) {
+            try {
+              const { postProcessAnalysis } = await import("./calculation-postprocessor");
+              const reprocessed = await postProcessAnalysis(analysis);
+              analysis = reprocessed;
+              await storage.updateReport(existing.id, { analysisData: reprocessed });
+              console.log(`[analyze/check] Refreshed ${companyName} (reasons: ${staleness.reasons.join(', ')})`);
+            } catch (ppErr) {
+              console.warn(`[analyze/check] Refresh failed for ${companyName}:`, ppErr);
+            }
+          }
+        }
+        // Splice displayName onto analysis so client renderers see it.
+        if (analysis && typeof analysis === "object") {
+          analysis.displayName = existing.displayName ?? null;
+        }
+        return res.json({
+          exists: true,
+          report: {
+            id: existing.id,
+            data: analysis,
+            displayName: existing.displayName ?? null,
+            createdAt: existing.createdAt,
+            updatedAt: existing.updatedAt,
+          },
+        });
+      }
+      res.json({ exists: false });
+    } catch (err: any) {
+      console.error("[analyze/check] Error:", err.message);
+      res.status(500).json({ exists: false, error: err.message });
+    }
+  });
+
+  // One-shot admin backfill: re-run postProcessAnalysis over every report so
+  // they all carry the v2.1 schema, diagnostic flat fields, and Step 6 hard
+  // knockout fields without waiting for a user to open them. Protected by the
+  // session auth middleware (registered in setupAuth).
+  // Query params:
+  //   force=1  → reprocess every report regardless of staleness
+  //   verbose=1 → include the per-report results array in the response
+  //   stream=1 → stream per-report progress as newline-delimited JSON
+  // Body (JSON, optional):
+  //   { onlyIds: string[] } → restrict the run to just those report IDs
+  //   (used by the "Retry these" button on /admin to re-run only the
+  //   failures from the previous run instead of the whole dataset).
+  app.post("/api/admin/backfill-reports", async (req, res) => {
+    const force = req.query.force === "1" || req.query.force === "true";
+    const verbose = req.query.verbose === "1" || req.query.verbose === "true";
+    const stream = req.query.stream === "1" || req.query.stream === "true";
+
+    // Parse and validate the optional onlyIds whitelist from the JSON body.
+    // We intentionally accept it from the body (not query string) so the
+    // request does not bump into URL-length limits when retrying dozens of
+    // failed reports. The validation is in `parseOnlyIdsFromBody` so the
+    // wire-format contract is unit-testable without standing up the route.
+    const parsed = parseOnlyIdsFromBody(req.body);
+    if (!parsed.ok) {
+      recordAdminAudit(req, {
+        action: "backfill-reports",
+        status: "failure",
+        statusCode: 400,
+        params: { force, stream, verbose },
+        errorMessage: parsed.error,
+      });
+      return res.status(400).json({ success: false, error: parsed.error });
+    }
+    const onlyIds = parsed.onlyIds;
+    // Store onlyIds count (not the IDs themselves) so the row stays compact.
+    const auditParams = {
+      force,
+      stream,
+      verbose,
+      onlyIdsCount: onlyIds ? onlyIds.length : 0,
+    };
+
+    const startedAt = Date.now();
+    console.log(
+      `[admin/backfill-reports] Starting backfill (force=${force}, stream=${stream}${
+        onlyIds ? `, onlyIds=${onlyIds.length}` : ""
+      }) — initiated by ${req.ip || "unknown"}`,
+    );
+
+    if (stream) {
+      // Stream per-report progress as newline-delimited JSON. The browser
+      // consumes the response body incrementally so operators see live
+      // progress instead of staring at a spinner for minutes.
+      type StreamEvent =
+        | { type: "start"; total: number; force: boolean }
+        | {
+            type: "progress";
+            index: number;
+            total: number;
+            result: BackfillReportResult;
+          }
+        | {
+            type: "complete";
+            success: true;
+            force: boolean;
+            total: number;
+            updated: number;
+            skipped: number;
+            failed: number;
+            durationMs: number;
+            failures: BackfillReportResult[];
+            results?: BackfillReportResult[];
+          }
+        | { type: "error"; success: false; error: string };
+
+      res.status(200);
+      res.setHeader("Content-Type", "application/x-ndjson; charset=utf-8");
+      res.setHeader("Cache-Control", "no-cache, no-transform");
+      res.setHeader("X-Accel-Buffering", "no");
+      // Flush headers immediately so the client knows the stream is open.
+      // `flushHeaders` is part of Node's http.ServerResponse but isn't
+      // declared on Express's narrowed Response type, so guard via a
+      // type-safe interface narrowing rather than an `any` cast.
+      const maybeFlushable: { flushHeaders?: () => void } = res;
+      if (typeof maybeFlushable.flushHeaders === "function") {
+        maybeFlushable.flushHeaders();
+      }
+
+      const writeEvent = (event: StreamEvent) => {
+        res.write(JSON.stringify(event) + "\n");
+      };
+
+      try {
+        const summary = await backfillAllReports({
+          force,
+          onlyIds,
+          onStart: (total) => {
+            // Emit a start frame as soon as the report list is known so the
+            // client can render the progress bar immediately, even while the
+            // first report is still being processed.
+            writeEvent({ type: "start", total, force });
+          },
+          onProgress: (i, total, result) => {
+            if (result.status !== "skipped") {
+              console.log(
+                `[admin/backfill-reports] (${i}/${total}) ${result.status.toUpperCase()} ${result.companyName} (${result.id})${
+                  result.reasons ? ` reasons=${result.reasons.join(",")}` : ""
+                }${result.error ? ` error=${result.error}` : ""} (${result.durationMs}ms)`,
+              );
+            }
+            writeEvent({ type: "progress", index: i, total, result });
+          },
+        });
+        console.log(
+          `[admin/backfill-reports] Done in ${summary.durationMs}ms — total=${summary.total}, updated=${summary.updated}, skipped=${summary.skipped}, failed=${summary.failed}`,
+        );
+        recordAdminAudit(req, {
+          action: "backfill-reports",
+          status: "success",
+          statusCode: 200,
+          params: auditParams,
+          outcome: {
+            total: summary.total,
+            updated: summary.updated,
+            skipped: summary.skipped,
+            failed: summary.failed,
+            durationMs: summary.durationMs,
+          },
+        });
+        const failures = summary.results.filter((r) => r.status === "failed");
+        const updatedReports = summary.results.filter(
+          (r) => r.status === "updated",
+        );
+        const completePayload: Extract<StreamEvent, { type: "complete" }> = {
+          type: "complete",
+          success: true,
+          force,
+          total: summary.total,
+          updated: summary.updated,
+          skipped: summary.skipped,
+          failed: summary.failed,
+          durationMs: summary.durationMs,
+          failures,
+          ...(verbose ? { results: summary.results } : {}),
+        };
+        // Persist the completed run so the Admin page can rehydrate the
+        // same summary, failures table, and "Retry these" button on the
+        // next page load (or after the operator comes back tomorrow). A
+        // persistence failure must NOT mask the run itself — the live
+        // stream consumer already has every byte they need — so we log
+        // and swallow.
+        try {
+          await storage.saveLastBackfillSummary(
+            {
+              success: true,
+              force,
+              total: summary.total,
+              updated: summary.updated,
+              skipped: summary.skipped,
+              failed: summary.failed,
+              durationMs: summary.durationMs,
+              failures,
+            },
+            updatedReports,
+          );
+        } catch (persistErr) {
+          console.error(
+            "[admin/backfill-reports] Failed to persist last-run summary:",
+            persistErr,
+          );
+        }
+        writeEvent(completePayload);
+        res.end();
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(
+          `[admin/backfill-reports] Aborted after ${Date.now() - startedAt}ms:`,
+          err,
+        );
+        recordAdminAudit(req, {
+          action: "backfill-reports",
+          status: "failure",
+          statusCode: 500,
+          params: auditParams,
+          outcome: { durationMs: Date.now() - startedAt },
+          errorMessage: message,
+        });
+        try {
+          writeEvent({
+            type: "error",
+            success: false,
+            error: message,
+          });
+        } catch {
+          // Stream may already be torn down — nothing useful to do.
+        }
+        res.end();
+      }
+      return;
+    }
+
+    try {
+      const summary = await backfillAllReports({
+        force,
+        onlyIds,
+        onProgress: (i, total, result) => {
+          if (result.status !== "skipped") {
+            console.log(
+              `[admin/backfill-reports] (${i}/${total}) ${result.status.toUpperCase()} ${result.companyName} (${result.id})${
+                result.reasons ? ` reasons=${result.reasons.join(",")}` : ""
+              }${result.error ? ` error=${result.error}` : ""} (${result.durationMs}ms)`,
+            );
+          }
+        },
+      });
+      console.log(
+        `[admin/backfill-reports] Done in ${summary.durationMs}ms — total=${summary.total}, updated=${summary.updated}, skipped=${summary.skipped}, failed=${summary.failed}`,
+      );
+      recordAdminAudit(req, {
+        action: "backfill-reports",
+        status: "success",
+        statusCode: 200,
+        params: auditParams,
+        outcome: {
+          total: summary.total,
+          updated: summary.updated,
+          skipped: summary.skipped,
+          failed: summary.failed,
+          durationMs: summary.durationMs,
+        },
+      });
+      const failures = summary.results.filter((r) => r.status === "failed");
+      const updatedReports = summary.results.filter(
+        (r) => r.status === "updated",
+      );
+      const responseBody: any = {
+        success: true,
+        force,
+        total: summary.total,
+        updated: summary.updated,
+        skipped: summary.skipped,
+        failed: summary.failed,
+        durationMs: summary.durationMs,
+      };
+      if (verbose) {
+        responseBody.results = summary.results;
+      } else {
+        // Always surface failures so the operator can act on them without re-running with verbose
+        responseBody.failures = failures;
+      }
+      // Persist the same snapshot the streaming branch persists so an
+      // operator who triggered the backfill via curl/CLI also gets the
+      // hydrated post-run state next time they open /admin in the browser.
+      try {
+        await storage.saveLastBackfillSummary(
+          {
+            success: true,
+            force,
+            total: summary.total,
+            updated: summary.updated,
+            skipped: summary.skipped,
+            failed: summary.failed,
+            durationMs: summary.durationMs,
+            failures,
+          },
+          updatedReports,
+        );
+      } catch (persistErr) {
+        console.error(
+          "[admin/backfill-reports] Failed to persist last-run summary:",
+          persistErr,
+        );
+      }
+      res.json(responseBody);
+    } catch (err: any) {
+      console.error(
+        `[admin/backfill-reports] Aborted after ${Date.now() - startedAt}ms:`,
+        err,
+      );
+      recordAdminAudit(req, {
+        action: "backfill-reports",
+        status: "failure",
+        statusCode: 500,
+        params: auditParams,
+        outcome: { durationMs: Date.now() - startedAt },
+        errorMessage: err?.message ?? String(err),
+      });
+      res.status(500).json({
+        success: false,
+        error: err?.message ?? String(err),
+      });
+    }
+  });
+
+  // Returns the most recently completed backfill run so the Admin page can
+  // hydrate the post-run summary, failures table, and "Retry these" button
+  // on page load — without forcing the operator to re-run the entire upgrade
+  // just to surface failures they noticed yesterday. Returns
+  // `{ summary: null }` when no run has ever completed against this DB.
+  app.get("/api/admin/last-backfill", async (req, res) => {
+    try {
+      const row = await storage.getLastBackfillSummary();
+      if (!row) {
+        return res.json({ summary: null });
+      }
+      res.json({
+        summary: row.summary,
+        updatedReports: row.updatedReports,
+        completedAt: row.completedAt,
+      });
+    } catch (err: any) {
+      console.error("[admin/last-backfill] Failed to read last run:", err);
+      res
+        .status(500)
+        .json({ summary: null, error: err?.message ?? String(err) });
+    }
+  });
+
+  // Operator-triggered "Clear last run" affordance. Drops the singleton
+  // `admin_last_backfill` row so the Admin page collapses back to the
+  // empty `{ summary: null }` state on the next hydration fetch — used
+  // when the operator has already actioned (or dismissed) the previous
+  // failures table and doesn't want it rehydrating until the next full
+  // run. Audited explicitly via `recordAdminAudit` so the action shows
+  // up in the audit log alongside backfill runs and settings changes.
+  app.delete("/api/admin/last-backfill", async (req, res) => {
+    try {
+      const removed = await storage.clearLastBackfillSummary();
+      recordAdminAudit(req, {
+        action: "clear-last-backfill",
+        status: "success",
+        statusCode: 200,
+        outcome: { removed },
+      });
+      res.json({ success: true, removed });
+    } catch (err: any) {
+      console.error("[admin/last-backfill] Failed to clear last run:", err);
+      recordAdminAudit(req, {
+        action: "clear-last-backfill",
+        status: "failure",
+        statusCode: 500,
+        errorMessage: err?.message ?? String(err),
+      });
+      res
+        .status(500)
+        .json({ success: false, error: err?.message ?? String(err) });
+    }
+  });
+
+  // Most recent admin_audit_log retention sweep, used by the cleanup
+  // status banner on /admin. Returns 200 with `cleanup: null` before
+  // the first sweep, and also on read failure (banner renders the muted
+  // "no record" state instead of a hard error).
+  app.get("/api/admin/last-audit-cleanup", async (_req, res) => {
+    try {
+      const row = await storage.getLastAdminAuditCleanup();
+      if (!row) {
+        return res.json({
+          cleanup: null,
+          intervalMs: ADMIN_AUDIT_CLEANUP_INTERVAL_MS,
+        });
+      }
+      // Best-effort push alert when the most recent successful run is
+      // overdue. The check runs on every banner poll but is rate-limited
+      // inside `maybeDispatchOverdueAlert` so a 30s polling cadence
+      // doesn't translate into a notification storm. Failure-status
+      // rows are skipped — those already produce console errors and
+      // the banner shows them in red; the silent-failure mode the
+      // alert exists to catch is "no successful row for >2× the
+      // interval".
+      if (row.status === "success") {
+        void maybeDispatchOverdueAlert({
+          lastRanAt: new Date(row.ranAt),
+          intervalMs: ADMIN_AUDIT_CLEANUP_INTERVAL_MS,
+          retentionDays: row.retentionDays,
+        });
+      }
+      res.json({
+        cleanup: {
+          status: row.status,
+          removedCount: row.removedCount,
+          retentionDays: row.retentionDays,
+          cutoff: row.cutoff,
+          errorMessage: row.errorMessage,
+          durationMs: row.durationMs,
+          ranAt: row.ranAt,
+        },
+        intervalMs: ADMIN_AUDIT_CLEANUP_INTERVAL_MS,
+      });
+    } catch (err: any) {
+      console.error(
+        "[admin/last-audit-cleanup] Failed to read last run:",
+        err,
+      );
+      res
+        .status(200)
+        .json({
+          cleanup: null,
+          intervalMs: ADMIN_AUDIT_CLEANUP_INTERVAL_MS,
+          error: err?.message ?? String(err),
+        });
+    }
+  });
+
+  // Operator-tunable admin settings. Currently exposes only the audit log
+  // retention window (in days). The shape is intentionally `{ settings,
+  // effective }` so the UI can both:
+  //   - render the input bound to the persisted override (`settings.auditRetentionDays`,
+  //     null when no override is stored), and
+  //   - show the value the scheduler would use right now if it ran
+  //     (`effective.auditRetentionDays`, which folds in the env-var fallback
+  //     so an admin who hasn't set a UI override still sees what's in force).
+  app.get("/api/admin/settings", async (_req, res) => {
+    try {
+      const row = await storage.getAdminSettings();
+      const effective = await resolveAuditRetentionDays();
+      res.json({
+        settings: {
+          auditRetentionDays: row?.auditRetentionDays ?? null,
+          updatedAt: row?.updatedAt ?? null,
+        },
+        effective: {
+          auditRetentionDays: effective,
+        },
+      });
+    } catch (err: any) {
+      console.error("[admin/settings] Failed to read settings:", err);
+      res
+        .status(500)
+        .json({ error: err?.message ?? String(err) });
+    }
+  });
+
+  // Persist an updated admin setting. Validation lives in
+  // `adminSettingsUpdateSchema` (shared/schema.ts) so the wire contract
+  // stays consistent. A clear error message — not a 500, not "Internal
+  // Server Error" — is returned for invalid input so the operator sees
+  // what's wrong (zero, negative, non-numeric) without having to read
+  // the server log. Crucially, an invalid value can never reach the
+  // scheduler, which would silently disable retention if it did.
+  app.put("/api/admin/settings", async (req, res) => {
+    const parsed = adminSettingsUpdateSchema.safeParse(req.body);
+    if (!parsed.success) {
+      const message =
+        parsed.error.issues[0]?.message ?? "Invalid settings payload.";
+      recordAdminAudit(req, {
+        action: "update-admin-settings",
+        status: "failure",
+        statusCode: 400,
+        params: { keys: Object.keys(req.body ?? {}) },
+        errorMessage: message,
+      });
+      return res.status(400).json({ error: message });
+    }
+    try {
+      const updated = await storage.updateAdminSettings(parsed.data);
+      const effective = await resolveAuditRetentionDays();
+      recordAdminAudit(req, {
+        action: "update-admin-settings",
+        status: "success",
+        statusCode: 200,
+        params: { auditRetentionDays: parsed.data.auditRetentionDays ?? null },
+      });
+      res.json({
+        settings: {
+          auditRetentionDays: updated.auditRetentionDays,
+          updatedAt: updated.updatedAt,
+        },
+        effective: {
+          auditRetentionDays: effective,
+        },
+      });
+    } catch (err: any) {
+      console.error("[admin/settings] Failed to persist settings:", err);
+      recordAdminAudit(req, {
+        action: "update-admin-settings",
+        status: "failure",
+        statusCode: 500,
+        errorMessage: err?.message ?? String(err),
+      });
+      res
+        .status(500)
+        .json({ error: err?.message ?? String(err) });
+    }
+  });
+
+  // Preview how many existing audit_log rows would fall outside a proposed
+  // retention window. Used by the Admin UI to put a real number in front of
+  // the operator before they shorten retention — e.g. "going from 90 days to
+  // 7 will permanently delete 1,243 audit entries on the next sweep".
+  // Read-only: this never mutates anything; it just runs a COUNT(*) over the
+  // same filter the scheduler would use (createdAt < now - days).
+  app.get("/api/admin/settings/retention-impact", async (req, res) => {
+    const raw = req.query.days;
+    // Strict integer parsing — `parseInt` would silently accept "7abc"
+    // or "7.9" as 7, masking obvious bugs in the caller. We require a
+    // pure decimal string so the wire contract matches the stated
+    // "integer between 1 and 3650".
+    if (typeof raw !== "string" || !/^\d+$/.test(raw)) {
+      return res
+        .status(400)
+        .json({ error: "Query param `days` must be an integer between 1 and 3650." });
+    }
+    const days = Number(raw);
+    if (!Number.isFinite(days) || days <= 0 || days > 3650) {
+      return res
+        .status(400)
+        .json({ error: "Query param `days` must be an integer between 1 and 3650." });
+    }
+    try {
+      const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+      // The retention sweeper deletes rows where `createdAt < cutoff`
+      // (see `pruneOldAdminAuditEntries`). Mirror that strict comparison
+      // here so the previewed count is exactly what the next sweep will
+      // delete — not off-by-one for entries created at the cutoff
+      // instant. `getRecentAdminAuditEntries` only exposes a `<=` filter
+      // (`until`), so we shave a millisecond off the cutoff to emulate
+      // strict `<`.
+      const strictCutoff = new Date(cutoff.getTime() - 1);
+      const result = await storage.getRecentAdminAuditEntries({
+        until: strictCutoff,
+        limit: 1,
+        offset: 0,
+      });
+      res.json({ days, cutoff: cutoff.toISOString(), affected: result.total });
+    } catch (err: any) {
+      console.error(
+        "[admin/settings/retention-impact] Failed to count entries:",
+        err,
+      );
+      res.status(500).json({ error: err?.message ?? String(err) });
+    }
+  });
+
+  // Read-only access to recent admin activity for the Admin UI panel.
+  //
+  // Accepts optional filters (`action`, `status`, `since`, `until`, `ip`)
+  // and pagination (`limit`, `offset`) so the Admin page can support
+  // operators investigating "who overwrote report X two weeks ago?" once
+  // the table grows past the most-recent-25 default.
+  //
+  // - `since` and `until` are ISO-8601 strings; invalid values are silently
+  //   ignored so a partial query still returns useful data instead of 400.
+  // - `status` is restricted to "success" / "failure"; anything else is
+  //   ignored at the storage layer.
+  // - `ip` is treated as a case-insensitive substring (operators rarely
+  //   know the full IPv6 address; "10.0." is a common partial query).
+  //
+  // The same filter shape is shared with `/api/admin/audit-log/export`
+  // (CSV download), via `parseAuditLogQuery` below — so a future filter
+  // addition only has to be wired in one place.
+  const parseAuditLogQuery = (
+    q: Record<string, unknown>,
+    defaultLimit: number,
+  ) => {
+    const asString = (v: unknown): string | undefined =>
+      typeof v === "string" && v.trim().length > 0 ? v : undefined;
+    const asInt = (v: unknown, fallback: number): number => {
+      if (typeof v !== "string") return fallback;
+      const n = parseInt(v, 10);
+      return Number.isFinite(n) ? n : fallback;
+    };
+    const asDate = (v: unknown): Date | undefined => {
+      const s = asString(v);
+      if (!s) return undefined;
+      const d = new Date(s);
+      return Number.isNaN(d.getTime()) ? undefined : d;
+    };
+    return {
+      limit: asInt(q.limit, defaultLimit),
+      offset: asInt(q.offset, 0),
+      action: asString(q.action),
+      status: asString(q.status),
+      since: asDate(q.since),
+      until: asDate(q.until),
+      ip: asString(q.ip),
+    };
+  };
+
+  app.get("/api/admin/audit-log", async (req, res) => {
+    try {
+      const result = await storage.getRecentAdminAuditEntries(
+        parseAuditLogQuery(req.query as Record<string, unknown>, 25),
+      );
+      res.json({ entries: result.entries, total: result.total });
+    } catch (err: any) {
+      console.error("[admin/audit-log] Failed to read audit log:", err);
+      res
+        .status(500)
+        .json({ entries: [], total: 0, error: err?.message ?? String(err) });
+    }
+  });
+
+  // CSV export of the filtered audit trail. Mirrors the same filter
+  // semantics as `/api/admin/audit-log` so an operator's "Download CSV"
+  // pulls exactly the slice they're currently viewing in the panel.
+  // Capped at `AUDIT_EXPORT_MAX_ROWS` rows in the storage layer; if the
+  // filter selects more, the response includes an `X-Audit-Export-Truncated`
+  // header so the UI can warn the operator they need to narrow further.
+  // Filename includes the timestamp + active filters for archival —
+  // operators routinely attach these to incident tickets.
+  app.get("/api/admin/audit-log/export", async (req, res) => {
+    try {
+      const opts = parseAuditLogQuery(
+        req.query as Record<string, unknown>,
+        AUDIT_EXPORT_MAX_ROWS,
+      );
+      const result = await storage.exportAdminAuditEntries(opts);
+
+      const filename = buildAuditExportFilename(opts);
+      res.setHeader("Content-Type", "text/csv; charset=utf-8");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${filename}"`,
+      );
+      // Custom headers so the client can show "exported N of M rows" /
+      // "results were truncated" toast feedback without re-fetching.
+      res.setHeader("X-Audit-Export-Total", String(result.total));
+      res.setHeader("X-Audit-Export-Rows", String(result.entries.length));
+      res.setHeader(
+        "X-Audit-Export-Truncated",
+        result.truncated ? "1" : "0",
+      );
+      // Expose the custom headers to the browser fetch layer — without
+      // this, the Admin page can't read them off the Response object.
+      res.setHeader(
+        "Access-Control-Expose-Headers",
+        "Content-Disposition, X-Audit-Export-Total, X-Audit-Export-Rows, X-Audit-Export-Truncated",
+      );
+
+      // Stream row-by-row so we don't buffer the entire CSV in memory
+      // before the first byte hits the wire. At the 10k cap with ~1KB
+      // rows the buffered approach would still be fine, but streaming
+      // is the same code and gives us headroom if the cap ever rises.
+      res.write(
+        "when,action,status,statusCode,actorIp,path,errorMessage,outcome\n",
+      );
+      for (const entry of result.entries) {
+        res.write(formatAuditEntryAsCsvRow(entry));
+      }
+      res.end();
+    } catch (err: any) {
+      console.error("[admin/audit-log/export] Failed to export audit log:", err);
+      // If headers haven't gone out yet, surface the error as JSON so the
+      // browser fetch can display it. Once we've started writing CSV
+      // bytes we can't switch content types — best we can do is hang up
+      // mid-stream and log the failure.
+      if (!res.headersSent) {
+        res
+          .status(500)
+          .json({ error: err?.message ?? String(err) });
+      } else {
+        res.end();
+      }
+    }
+  });
+
+  // Excel (.xlsx) export of the same filtered slice as the CSV endpoint
+  // above. Operators who archive audit trails in spreadsheets prefer this
+  // because: (a) `when` round-trips as a real datetime cell instead of
+  // being coerced to local time on import, (b) `statusCode` stays numeric
+  // so they can sort/filter numerically, (c) long action paths and error
+  // messages don't get truncated by Excel's CSV import column-width
+  // heuristic, and (d) structured `outcome` data lives on its own sheet
+  // keyed by row id rather than as a JSON-stringified blob in a single
+  // cell. Identical filter shape, 10k row cap, and truncation headers as
+  // the CSV route — so the UI can offer both side-by-side.
+  app.get("/api/admin/audit-log/export.xlsx", async (req, res) => {
+    try {
+      const opts = parseAuditLogQuery(
+        req.query as Record<string, unknown>,
+        AUDIT_EXPORT_MAX_ROWS,
+      );
+      const result = await storage.exportAdminAuditEntries(opts);
+
+      const buffer = await buildAuditExportXlsxBuffer(result.entries);
+      const filename = buildAuditExportFilename(opts, "xlsx");
+      res.setHeader(
+        "Content-Type",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      );
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${filename}"`,
+      );
+      res.setHeader("X-Audit-Export-Total", String(result.total));
+      res.setHeader("X-Audit-Export-Rows", String(result.entries.length));
+      res.setHeader(
+        "X-Audit-Export-Truncated",
+        result.truncated ? "1" : "0",
+      );
+      res.setHeader(
+        "Access-Control-Expose-Headers",
+        "Content-Disposition, X-Audit-Export-Total, X-Audit-Export-Rows, X-Audit-Export-Truncated",
+      );
+      res.setHeader("Content-Length", String(buffer.length));
+      res.end(buffer);
+    } catch (err: any) {
+      console.error(
+        "[admin/audit-log/export.xlsx] Failed to export audit log:",
+        err,
+      );
+      // Mirror the CSV route's pre-stream error handling: build the whole
+      // workbook in-memory before sending bytes, so any failure (storage
+      // throw, exceljs serialization error) can still surface as JSON.
+      if (!res.headersSent) {
+        res
+          .status(500)
+          .json({ error: err?.message ?? String(err) });
+      } else {
+        res.end();
+      }
+    }
+  });
+
+  // PDF export of the same filtered slice as the CSV / .xlsx routes
+  // above. Operators who attach audit trails to compliance archives or
+  // incident tickets typically prefer a print-ready PDF: it reads well
+  // on mobile, captures the active filter values + timestamp at the top
+  // of every page, and avoids spreadsheet import quirks. Identical
+  // filter shape, 10k row cap, and truncation headers as the other
+  // export routes — so the UI can offer all three side-by-side.
+  app.get("/api/admin/audit-log/export.pdf", async (req, res) => {
+    try {
+      const opts = parseAuditLogQuery(
+        req.query as Record<string, unknown>,
+        AUDIT_EXPORT_MAX_ROWS,
+      );
+      const result = await storage.exportAdminAuditEntries(opts);
+
+      const buffer = await buildAuditExportPdfBuffer(result.entries, opts, {
+        total: result.total,
+        truncated: result.truncated,
+        generatedAt: new Date(),
+      });
+      const filename = buildAuditExportFilename(opts, "pdf");
+      res.setHeader("Content-Type", "application/pdf");
+      res.setHeader(
+        "Content-Disposition",
+        `attachment; filename="${filename}"`,
+      );
+      res.setHeader("X-Audit-Export-Total", String(result.total));
+      res.setHeader("X-Audit-Export-Rows", String(result.entries.length));
+      res.setHeader(
+        "X-Audit-Export-Truncated",
+        result.truncated ? "1" : "0",
+      );
+      res.setHeader(
+        "Access-Control-Expose-Headers",
+        "Content-Disposition, X-Audit-Export-Total, X-Audit-Export-Rows, X-Audit-Export-Truncated",
+      );
+      res.setHeader("Content-Length", String(buffer.length));
+      res.end(buffer);
+    } catch (err: any) {
+      console.error(
+        "[admin/audit-log/export.pdf] Failed to export audit log:",
+        err,
+      );
+      // Mirror the .xlsx route's pre-stream error handling: the whole
+      // PDF is built in memory before any byte hits the wire, so a
+      // failure can still surface as JSON for the browser fetch.
+      if (!res.headersSent) {
+        res
+          .status(500)
+          .json({ error: err?.message ?? String(err) });
+      } else {
+        res.end();
+      }
+    }
+  });
+
+  app.post("/api/analyze/step", async (req, res) => {
+    try {
+      const { companyName, callNumber, previousCallResults, documentContext } = req.body;
+
+      if (!companyName || typeof companyName !== "string") {
+        return res.status(400).json({ error: "companyName is required" });
+      }
+      if (!callNumber || callNumber < 1 || callNumber > 4) {
+        return res.status(400).json({ error: "callNumber must be 1-4" });
+      }
+
+      const configCheck = checkProductionConfig();
+      if (!configCheck.ok) {
+        return res.status(503).json({ error: configCheck.message });
+      }
+
+      console.log(`[analyze/step] Call ${callNumber} for "${companyName}"`);
+
+      const result = await executePipelineCall(
+        callNumber,
+        companyName,
+        previousCallResults || {},
+        documentContext
+      );
+
+      if (callNumber === 4 && result.analysis) {
+        const report = await storage.createReport({
+          companyName,
+          analysisData: result.analysis,
+        });
+        console.log(`[analyze/step] Report saved: ${report.id}`);
+        return res.json({
+          report: {
+            id: report.id,
+            data: report.analysisData,
+            createdAt: report.createdAt,
+            updatedAt: report.updatedAt,
+          },
+        });
+      }
+
+      return res.json({ data: result });
+    } catch (err: any) {
+      console.error(`[analyze/step] Error:`, err.message);
+
+      if (err.message?.includes("rate limit") || err.message?.includes("429")) {
+        return res.status(429).json({ error: "AI service is busy. Please wait and retry." });
+      }
+      if (err.message?.includes("401") || err.message?.includes("Authentication")) {
+        return res.status(401).json({ error: "API key configuration error." });
+      }
+
+      return res.status(500).json({ error: err.message || "Pipeline step failed" });
+    }
+  });
+
   // Direct analyze test - same as /api/analyze but simpler logging
   app.post("/api/analyze-direct", async (req, res) => {
     console.log("=== ANALYZE-DIRECT START ===");
@@ -554,6 +2002,7 @@ Return ONLY valid JSON with this structure:
       environment: process.env.NODE_ENV || "development",
       aiConfigured: {
         hasIntegrationApiKey: !!process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY,
+        hasCustomApiKey: !!process.env.CLAUDERESEARCHER,
         configOk: configCheck.ok,
         message: configCheck.message,
       },
@@ -604,7 +2053,7 @@ Return ONLY valid JSON with this structure:
   app.get("/api/test-ai", async (req, res) => {
     const Anthropic = (await import("@anthropic-ai/sdk")).default;
     
-    const integrationApiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY;
+    const integrationApiKey = process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY || process.env.CLAUDERESEARCHER;
     const baseURL = process.env.AI_INTEGRATIONS_ANTHROPIC_BASE_URL;
     
     const testResult: any = {
@@ -645,33 +2094,6 @@ Return ONLY valid JSON with this structure:
     res.json(testResult);
   });
 
-  // SSE endpoint for progress updates
-  app.get("/api/progress/:sessionId", (req, res) => {
-    const { sessionId } = req.params;
-    
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.flushHeaders();
-
-    progressConnections.set(sessionId, res);
-
-    req.on('close', () => {
-      progressConnections.delete(sessionId);
-    });
-  });
-
-  // Helper to send progress updates
-  const sendProgress = (sessionId: string, step: number, message: string, detail?: string) => {
-    const connection = progressConnections.get(sessionId);
-    if (connection) {
-      const data = JSON.stringify({ step, message, detail, timestamp: Date.now() });
-      connection.write(`data: ${data}\n\n`);
-    }
-  };
-
-  // Generate or retrieve analysis for a company with progress updates
   // Check job status endpoint
   app.get("/api/analyze/status/:jobId", (req, res) => {
     const { jobId } = req.params;
@@ -694,9 +2116,45 @@ Return ONLY valid JSON with this structure:
     } else {
       return res.json({
         status: job.status,
-        companyName: job.companyName
+        companyName: job.companyName,
+        currentStep: job.currentStep || 0,
+        completedSteps: (job.completedSteps || []).map(s => s.step),
       });
     }
+  });
+
+  app.get("/api/analyze/step/:jobId/:stepNum", (req, res) => {
+    const { jobId, stepNum } = req.params;
+    const step = parseInt(stepNum);
+    const job = backgroundJobs.get(jobId);
+    
+    if (!job) {
+      return res.status(404).json({ error: "Job not found" });
+    }
+    
+    if (job.status === 'error') {
+      return res.status(500).json({ error: job.error });
+    }
+    
+    if (job.status !== 'complete' || !job.result?.data) {
+      if (job.currentStep !== undefined && job.currentStep > step + 1) {
+        return res.json({ status: 'step_complete', step });
+      }
+      return res.json({ status: 'pending', currentStep: job.currentStep || 0 });
+    }
+    
+    const analysisData = job.result.data;
+    const steps = analysisData?.steps;
+    if (!steps || !Array.isArray(steps)) {
+      return res.status(500).json({ error: "Analysis data missing steps" });
+    }
+    
+    const stepData = steps.find((s: any) => s.step === step);
+    if (!stepData) {
+      return res.status(404).json({ error: `Step ${step} not found in analysis` });
+    }
+    
+    return res.json({ status: 'complete', step, data: stepData });
   });
 
   app.post("/api/analyze", async (req, res) => {
@@ -726,9 +2184,6 @@ Return ONLY valid JSON with this structure:
       const configCheck = checkProductionConfig();
       if (!configCheck.ok) {
         console.error("Production config check failed:", configCheck.message);
-        if (sessionId) {
-          sendProgress(sessionId, -1, "Configuration Error", configCheck.message);
-        }
         return res.status(503).json({ 
           error: "AI service not configured for production",
           message: configCheck.message
@@ -736,20 +2191,12 @@ Return ONLY valid JSON with this structure:
       }
       console.log("Config check passed");
 
-      // Send initial progress
-      if (sessionId) {
-        sendProgress(sessionId, 0, "Starting analysis", `Analyzing ${companyName}...`);
-      }
-
       // Check if we already have a report for this company
       console.log("Checking for existing report...");
       const existingReport = await storage.getReportByCompany(companyName);
       console.log("Existing report check complete:", existingReport ? "found" : "not found");
       
       if (existingReport) {
-        if (sessionId) {
-          sendProgress(sessionId, 100, "Complete", "Retrieved existing report");
-        }
         return res.json({
           id: existingReport.id,
           companyName: existingReport.companyName,
@@ -767,44 +2214,39 @@ Return ONLY valid JSON with this structure:
       backgroundJobs.set(jobId, {
         status: 'processing',
         companyName,
-        startedAt: Date.now()
+        startedAt: Date.now(),
+        completedSteps: [],
+        currentStep: 0,
       });
-
-      // Send progress updates during generation
-      if (sessionId) {
-        sendProgress(sessionId, 1, "Step 0: Company Overview", "Gathering company information...");
-        
-        setTimeout(() => sendProgress(sessionId, 2, "Step 1: Strategic Anchoring", "Identifying business drivers..."), 2000);
-        setTimeout(() => sendProgress(sessionId, 3, "Step 2: Business Functions", "Analyzing departments and KPIs..."), 5000);
-        setTimeout(() => sendProgress(sessionId, 4, "Step 3: Friction Points", "Identifying operational bottlenecks..."), 8000);
-        setTimeout(() => sendProgress(sessionId, 5, "Step 4: AI Use Cases", "Generating AI opportunities with 6 primitives..."), 12000);
-        setTimeout(() => sendProgress(sessionId, 6, "Step 5: Benefit Quantification", "Calculating ROI across 4 drivers..."), 16000);
-        setTimeout(() => sendProgress(sessionId, 7, "Step 6: Token Modeling", "Estimating token costs per use case..."), 20000);
-        setTimeout(() => sendProgress(sessionId, 8, "Step 7: Priority Scoring", "Computing weighted priority scores..."), 24000);
-      }
 
       // Start background processing and return immediately
       // Use setImmediate to ensure response is sent before processing starts
       setImmediate(async () => {
+        const startTime = Date.now();
+        console.log(`[analyze-job] Starting background analysis for "${companyName}" (jobId: ${jobId})`);
         try {
-          // Generate new analysis using AI
-          const analysis = await generateCompanyAnalysis(companyName, documentContext);
-          
-          if (sessionId) {
-            sendProgress(sessionId, 9, "Saving Report", "Storing analysis in database...");
-          }
+          const progressCallback = (step: number, message: string, detail?: string) => {
+            const job = backgroundJobs.get(jobId);
+            if (job) {
+              job.currentStep = step;
+            }
+          };
 
-          // Save to database
+          const analysis = await generateCompanyAnalysis(companyName, documentContext, progressCallback);
+          const aiElapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+          console.log(`[analyze-job] AI generation completed in ${aiElapsed}s for "${companyName}"`);
+
           const report = await storage.createReport({
             companyName,
             analysisData: analysis,
           });
 
-          // Update job status with result
           backgroundJobs.set(jobId, {
             status: 'complete',
             companyName,
             startedAt: backgroundJobs.get(jobId)?.startedAt || Date.now(),
+            completedSteps: [],
+            currentStep: 10,
             result: {
               id: report.id,
               companyName: report.companyName,
@@ -815,23 +2257,21 @@ Return ONLY valid JSON with this structure:
             }
           });
 
-          if (sessionId) {
-            sendProgress(sessionId, 100, "Complete", "Report generated successfully!");
-          }
+          const totalElapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+          console.log(`[analyze-job] Job complete for "${companyName}" in ${totalElapsed}s (jobId: ${jobId})`);
         } catch (error: any) {
-          console.error("Background analysis error:", error);
+          const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+          console.error(`[analyze-job] Job FAILED for "${companyName}" after ${elapsed}s (jobId: ${jobId}):`, error?.message || error);
           const errorMessage = error instanceof Error ? error.message : String(error);
           
           backgroundJobs.set(jobId, {
             status: 'error',
             companyName,
             startedAt: backgroundJobs.get(jobId)?.startedAt || Date.now(),
+            completedSteps: [],
+            currentStep: 0,
             error: errorMessage
           });
-
-          if (sessionId) {
-            sendProgress(sessionId, -1, "Error", errorMessage);
-          }
         }
       });
 
@@ -847,11 +2287,7 @@ Return ONLY valid JSON with this structure:
       console.error("Analysis error full details:", error);
       console.error("Error message:", error?.message);
       console.error("Error stack:", error?.stack);
-      const { sessionId } = req.body;
       const errorMessage = error instanceof Error ? error.message : (typeof error === 'string' ? error : JSON.stringify(error));
-      if (sessionId) {
-        sendProgress(sessionId, -1, "Error", errorMessage);
-      }
       return res.status(500).json({ 
         error: "Failed to generate analysis",
         message: errorMessage,
@@ -870,34 +2306,74 @@ Return ONLY valid JSON with this structure:
         return res.status(400).json({ error: "Company name is required" });
       }
 
-      if (sessionId) {
-        sendProgress(sessionId, 1, "Regenerating Analysis", "Starting fresh analysis...");
-      }
-
-      // Generate fresh analysis
-      const analysis = await generateCompanyAnalysis(companyName);
+      const jobId = sessionId || nanoid();
       
-      // Update existing report
-      const updatedReport = await storage.updateReport(id, {
-        analysisData: analysis,
+      backgroundJobs.set(jobId, {
+        status: 'processing',
+        companyName,
+        startedAt: Date.now(),
+        completedSteps: [],
+        currentStep: 0,
       });
 
-      if (!updatedReport) {
-        return res.status(404).json({ error: "Report not found" });
-      }
+      setImmediate(async () => {
+        const startTime = Date.now();
+        console.log(`[regenerate-job] Starting regeneration for "${companyName}" (jobId: ${jobId})`);
+        try {
+          const progressCallback = (step: number, message: string, detail?: string) => {
+            const job = backgroundJobs.get(jobId);
+            if (job) {
+              job.currentStep = step;
+            }
+          };
 
-      if (sessionId) {
-        sendProgress(sessionId, 100, "Complete", "Report regenerated!");
-      }
+          const analysis = await generateCompanyAnalysis(companyName, "", progressCallback);
+          
+          const updatedReport = await storage.updateReport(id, {
+            analysisData: analysis,
+          });
+
+          if (!updatedReport) {
+            throw new Error("Report not found during regeneration");
+          }
+
+          backgroundJobs.set(jobId, {
+            status: 'complete',
+            companyName,
+            startedAt: backgroundJobs.get(jobId)?.startedAt || Date.now(),
+            completedSteps: [],
+            currentStep: 10,
+            result: {
+              id: updatedReport.id,
+              companyName: updatedReport.companyName,
+              data: updatedReport.analysisData,
+              createdAt: updatedReport.createdAt,
+              updatedAt: updatedReport.updatedAt,
+            }
+          });
+
+          const totalElapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+          console.log(`[regenerate-job] Regeneration complete for "${companyName}" in ${totalElapsed}s`);
+        } catch (error: any) {
+          const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+          console.error(`[regenerate-job] Failed for "${companyName}" after ${elapsed}s:`, error?.message || error);
+          backgroundJobs.set(jobId, {
+            status: 'error',
+            companyName,
+            startedAt: backgroundJobs.get(jobId)?.startedAt || Date.now(),
+            completedSteps: [],
+            currentStep: 0,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
+      });
 
       return res.json({
-        id: updatedReport.id,
-        companyName: updatedReport.companyName,
-        data: updatedReport.analysisData,
-        createdAt: updatedReport.createdAt,
-        updatedAt: updatedReport.updatedAt,
+        status: 'processing',
+        jobId,
+        companyName,
+        message: 'Regeneration started. Poll /api/analyze/status/:jobId for results.'
       });
-      
     } catch (error) {
       console.error("Regeneration error:", error);
       return res.status(500).json({ 
@@ -1594,6 +3070,46 @@ Return ONLY valid JSON with this structure:
     }
   });
 
+  // Export all assumption/reference data (Excel or JSON)
+  app.get("/api/assumptions/export/:reportId?", async (req, res) => {
+    try {
+      const format = (req.query.format as string) || "json";
+      const { reportId } = req.params;
+
+      // Optionally load report-specific assumptions
+      let reportAssumptions: any[] | undefined;
+      if (reportId) {
+        const activeSet = await storage.getActiveAssumptionSet(reportId);
+        if (activeSet) {
+          const fields = await storage.getAssumptionFieldsBySet(activeSet.id);
+          reportAssumptions = fields.map((f: any) => ({
+            category: f.category,
+            fieldName: f.fieldName,
+            displayName: f.displayName,
+            value: f.value,
+            valueType: f.valueType,
+            unit: f.unit,
+            description: f.description,
+          }));
+        }
+      }
+
+      if (format === "excel") {
+        const workbook = buildAssumptionExcelWorkbook(reportAssumptions);
+        res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        res.setHeader("Content-Disposition", `attachment; filename="assumptions-export.xlsx"`);
+        await workbook.xlsx.write(res);
+        res.end();
+      } else {
+        const data = buildAssumptionJSON(reportAssumptions);
+        res.json(data);
+      }
+    } catch (error) {
+      console.error("Error exporting assumptions:", error);
+      return res.status(500).json({ error: "Failed to export assumptions" });
+    }
+  });
+
   // Recalculate report based on assumptions
   app.post("/api/assumptions/recalculate/:reportId", async (req, res) => {
     try {
@@ -1655,7 +3171,7 @@ Return ONLY valid JSON with this structure:
           step7.data = step7.data.map((row: any) => {
             const valueScore = parseFloat(row['Value Score']) || 0;
             const ttvScore = parseFloat(row['TTV Score']) || 0;
-            const effortScore = parseFloat(row['Effort Score']) || 0;
+            const effortScore = parseFloat(row['Readiness Score'] || row['Effort Score']) || 0;
             
             // Recalculate priority score with new weights
             const priorityScore = Math.round(
@@ -1713,7 +3229,7 @@ Return ONLY valid JSON with this structure:
         
         // Update top use cases based on recalculated priority scores
         if (step7?.data && Array.isArray(step7.data)) {
-          const topUseCases = step7.data.slice(0, 5).map((row: any, index: number) => ({
+          const topUseCases = step7.data.slice(0, 12).map((row: any, index: number) => ({
             rank: index + 1,
             useCase: row['Use Case'],
             annualValue: row['Total Annual Value ($)'] || row['annualValue'],
@@ -1989,7 +3505,35 @@ Return ONLY valid JSON with this structure:
       if (!reportData) {
         return res.status(400).json({ error: "Report data required" });
       }
-      
+
+      // Bake the resolved displayName into the snapshot at share-creation
+      // time. Future edits to the source report's displayName will NOT
+      // mutate already-shared links — that's a feature, not a bug.
+      // We accept displayName from either the top level or a nested
+      // analysisData.displayName, since older clients only mirror inside
+      // the analysis envelope.
+      try {
+        const topDn = typeof reportData.displayName === "string" ? reportData.displayName.trim() : "";
+        const nestedDn =
+          reportData.analysisData &&
+          typeof reportData.analysisData === "object" &&
+          typeof (reportData.analysisData as any).displayName === "string"
+            ? ((reportData.analysisData as any).displayName as string).trim()
+            : "";
+        const dn = topDn || nestedDn;
+        if (dn) {
+          reportData.displayName = dn;
+          if (reportData.analysisData && typeof reportData.analysisData === "object") {
+            (reportData.analysisData as any).displayName = dn;
+          }
+        } else {
+          reportData.displayName = null;
+          if (reportData.analysisData && typeof reportData.analysisData === "object") {
+            (reportData.analysisData as any).displayName = null;
+          }
+        }
+      } catch { /* best-effort */ }
+
       const shareId = nanoid(12);
       const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
       
@@ -2180,6 +3724,1269 @@ Return ONLY valid JSON with this structure:
     const { executionId } = req.params;
     const result = await proxyCrewAIRequest(`${CREWAI_SERVICE_URL}/history/${executionId}`);
     return res.status(result.status).json(result.data);
+  });
+
+  // ==========================================
+  // ASSUMPTIONS MANAGEMENT ENDPOINTS
+  // ==========================================
+
+  // GET /api/assumptions/:reportId - Get all assumptions for a report
+  app.get("/api/assumptions/:reportId", async (req, res) => {
+    try {
+      const { reportId } = req.params;
+
+      // Verify report exists
+      const report = await storage.getReportById(reportId);
+      if (!report) {
+        return res.status(404).json({ error: "Report not found" });
+      }
+
+      // Get all assumption sets for this report
+      const assumptionSets = await storage.getAssumptionSetsByReport(reportId);
+
+      // Get the active assumption set
+      const activeSet = await storage.getActiveAssumptionSet(reportId);
+
+      // Get all fields for each set
+      const setsWithFields = await Promise.all(
+        assumptionSets.map(async (set) => {
+          const fields = await storage.getAssumptionFieldsBySet(set.id);
+          return {
+            ...set,
+            fields,
+          };
+        })
+      );
+
+      res.json({
+        reportId,
+        companyName: report.companyName,
+        activeSetId: activeSet?.id || null,
+        assumptionSets: setsWithFields,
+        totalSets: assumptionSets.length,
+        totalFields: setsWithFields.reduce((acc, set) => acc + set.fields.length, 0),
+      });
+    } catch (error: any) {
+      console.error("Error fetching assumptions:", error);
+      res.status(500).json({ error: error.message || "Failed to fetch assumptions" });
+    }
+  });
+
+  // PUT /api/assumptions/:assumptionId - Update a single assumption value
+  app.put("/api/assumptions/:assumptionId", async (req, res) => {
+    try {
+      const { assumptionId } = req.params;
+      const { value, source, sourceUrl, description, isLocked } = req.body;
+
+      // Validate that at least one field is being updated
+      if (value === undefined && source === undefined && sourceUrl === undefined && 
+          description === undefined && isLocked === undefined) {
+        return res.status(400).json({ 
+          error: "At least one field must be provided for update (value, source, sourceUrl, description, isLocked)" 
+        });
+      }
+
+      // Build update object with only provided fields
+      const updateData: Record<string, any> = {};
+      if (value !== undefined) updateData.value = String(value);
+      if (source !== undefined) updateData.source = source;
+      if (sourceUrl !== undefined) updateData.sourceUrl = sourceUrl;
+      if (description !== undefined) updateData.description = description;
+      if (isLocked !== undefined) updateData.isLocked = isLocked;
+
+      const updatedField = await storage.updateAssumptionField(assumptionId, updateData);
+
+      if (!updatedField) {
+        return res.status(404).json({ error: "Assumption field not found" });
+      }
+
+      res.json({
+        success: true,
+        field: updatedField,
+        message: "Assumption updated successfully",
+      });
+    } catch (error: any) {
+      console.error("Error updating assumption:", error);
+      res.status(500).json({ error: error.message || "Failed to update assumption" });
+    }
+  });
+
+  // POST /api/reports/:id/recalculate - Recalculate all derived values using the formula registry
+  app.post("/api/reports/:id/recalculate", async (req, res) => {
+    try {
+      const { id: reportId } = req.params;
+
+      // Load the report
+      const report = await storage.getReportById(reportId);
+      if (!report) {
+        return res.status(404).json({ error: "Report not found" });
+      }
+
+      // Get the active assumption set
+      const activeSet = await storage.getActiveAssumptionSet(reportId);
+      if (!activeSet) {
+        return res.status(400).json({ 
+          error: "No active assumption set found for this report. Please create or activate an assumption set first." 
+        });
+      }
+
+      // Get all assumption fields for the active set
+      const assumptionFields = await storage.getAssumptionFieldsBySet(activeSet.id);
+
+      // Build a lookup map for assumption values
+      const assumptions: Record<string, number | string> = {};
+      for (const field of assumptionFields) {
+        // Try to parse as number, fallback to string
+        const numValue = parseFloat(field.value);
+        assumptions[field.fieldName] = isNaN(numValue) ? field.value : numValue;
+      }
+
+      // Import formula functions dynamically
+      const formulas = await import("../src/calc/formulas");
+
+      // Extract key values from assumptions with defaults
+      const getNum = (key: string, defaultVal: number = 0): number => {
+        const val = assumptions[key];
+        return typeof val === "number" ? val : defaultVal;
+      };
+
+      // Calculate benefits using the formula registry (SPEC COMPLIANT: Section 3.2 & 3.3)
+      const calculationResults: Record<string, any> = {};
+      const traces: Record<string, any> = {};
+
+      // SPEC 3.3: Required global assumptions
+      const hoursSaved = getNum("hours_saved_annually", 10000);
+      const loadedHourlyRate = getNum("loaded_hourly_rate", formulas.DEFAULT_MULTIPLIERS.loadedHourlyRate);
+      const costRealizationMultiplier = getNum("cost_realization", formulas.DEFAULT_MULTIPLIERS.costRealizationMultiplier);
+      const dataMaturityMultiplier = getNum("data_maturity", formulas.DEFAULT_MULTIPLIERS.dataMaturityMultiplier);
+
+      // SPEC 3.2: CostBenefit = HoursSaved × LoadedRate × BenefitsLoading × Realization × DataMaturity × Scenario
+      const costBenefitResult = formulas.calculateCostBenefit({
+        hoursSaved,
+        loadedHourlyRate,
+        costRealizationMultiplier,
+        dataMaturityMultiplier,
+      });
+      calculationResults.costBenefit = costBenefitResult.value;
+      traces.costBenefit = costBenefitResult.trace;
+
+      // SPEC 3.2: RevenueBenefit = UpliftPct × BaselineRevenueAtRisk × MarginPct × Realization × DataMaturity
+      const upliftPct = getNum("revenue_uplift_pct", 0.05);
+      const baselineRevenueAtRisk = getNum("annual_revenue", 100000000);
+      const marginPct = getNum("gross_margin_pct", 1.0);
+      const revenueRealizationMultiplier = getNum("revenue_realization", formulas.DEFAULT_MULTIPLIERS.revenueRealizationMultiplier);
+
+      const revenueBenefitResult = formulas.calculateRevenueBenefit({
+        upliftPct,
+        baselineRevenueAtRisk,
+        marginPct,
+        revenueRealizationMultiplier,
+        dataMaturityMultiplier,
+      });
+      calculationResults.revenueBenefit = revenueBenefitResult.value;
+      traces.revenueBenefit = revenueBenefitResult.trace;
+
+      // SPEC 3.2: CashFlowBenefit = AnnualRevenue × (DaysImprovement / 365) × CostOfCapital × Realization × DataMaturity
+      const daysImprovement = getNum("dso_improvement_days", 5);
+      const annualRevenue = baselineRevenueAtRisk; // Use full annual revenue for working capital calculation
+      const costOfCapital = getNum("cost_of_capital", formulas.DEFAULT_MULTIPLIERS.defaultCostOfCapital);
+      const cashFlowRealizationMultiplier = getNum("cashflow_realization", formulas.DEFAULT_MULTIPLIERS.cashFlowRealizationMultiplier);
+
+      const cashFlowBenefitResult = formulas.calculateCashFlowBenefit({
+        daysImprovement,
+        annualRevenue,
+        costOfCapital,
+        cashFlowRealizationMultiplier,
+        dataMaturityMultiplier,
+      });
+      calculationResults.cashFlowBenefit = cashFlowBenefitResult.value;
+      traces.cashFlowBenefit = cashFlowBenefitResult.trace;
+
+      // SPEC 3.2: RiskBenefit = (ProbBefore × ImpactBefore - ProbAfter × ImpactAfter) × Realization × DataMaturity
+      const probBefore = getNum("risk_prob_before", 0.15);
+      const impactBefore = getNum("risk_impact_before", 5000000);
+      const probAfter = getNum("risk_prob_after", 0.05);
+      const impactAfter = getNum("risk_impact_after", 2000000);
+      const riskRealizationMultiplier = getNum("risk_realization", formulas.DEFAULT_MULTIPLIERS.riskRealizationMultiplier);
+
+      const riskBenefitResult = formulas.calculateRiskBenefit({
+        probBefore,
+        impactBefore,
+        probAfter,
+        impactAfter,
+        riskRealizationMultiplier,
+        dataMaturityMultiplier,
+      });
+      calculationResults.riskBenefit = riskBenefitResult.value;
+      traces.riskBenefit = riskBenefitResult.trace;
+
+      // Calculate total annual value (with revenue cap)
+      const totalAnnualValueResult = formulas.calculateTotalAnnualValue({
+        costBenefit: calculationResults.costBenefit,
+        revenueBenefit: calculationResults.revenueBenefit,
+        cashFlowBenefit: calculationResults.cashFlowBenefit,
+        riskBenefit: calculationResults.riskBenefit,
+        annualRevenue: baselineRevenueAtRisk,
+      });
+      calculationResults.totalAnnualValue = totalAnnualValueResult.value;
+      traces.totalAnnualValue = totalAnnualValueResult.trace;
+
+      // Calculate token costs (if applicable)
+      const runsPerMonth = getNum("runs_per_month", 1000);
+      const inputTokensPerRun = getNum("input_tokens_per_run", 2000);
+      const outputTokensPerRun = getNum("output_tokens_per_run", 500);
+      const inputTokenPricePerM = getNum("input_token_price_per_m", formulas.DEFAULT_MULTIPLIERS.inputTokenPricePerM);
+      const outputTokenPricePerM = getNum("output_token_price_per_m", formulas.DEFAULT_MULTIPLIERS.outputTokenPricePerM);
+
+      const tokenCostResult = formulas.calculateTokenCost({
+        runsPerMonth,
+        inputTokensPerRun,
+        outputTokensPerRun,
+        inputTokenPricePerM,
+        outputTokenPricePerM,
+      });
+      // Calculate net value
+      calculationResults.netAnnualValue = calculationResults.totalAnnualValue;
+
+      // Calculate priority score
+      const timeToValueMonths = getNum("time_to_value_months", 6);
+      const dataReadiness = getNum("data_readiness", 3);
+      const integrationComplexity = getNum("integration_complexity", 3);
+      const changeMgmt = getNum("change_mgmt_complexity", 3);
+
+      const priorityScoreResult = formulas.calculatePriorityScore({
+        totalAnnualValue: calculationResults.totalAnnualValue,
+        timeToValueMonths,
+        dataReadiness,
+        integrationComplexity,
+        changeMgmt,
+      });
+      calculationResults.priorityScore = priorityScoreResult.value;
+      calculationResults.priorityTier = formulas.getPriorityTier(priorityScoreResult.value);
+      calculationResults.recommendedPhase = formulas.getRecommendedPhase(priorityScoreResult.value, timeToValueMonths);
+      traces.priorityScore = priorityScoreResult.trace;
+
+      // Update the report's analysisData with calculated values
+      const analysisData = report.analysisData as any || {};
+      
+      // Merge calculated results into analysisData
+      const updatedAnalysisData = {
+        ...analysisData,
+        calculatedAt: new Date().toISOString(),
+        assumptionSetId: activeSet.id,
+        assumptionSetName: activeSet.name,
+        calculations: calculationResults,
+        formulaTraces: traces,
+        summary: {
+          ...analysisData.summary,
+          totalAnnualValue: calculationResults.totalAnnualValue,
+          netAnnualValue: calculationResults.netAnnualValue,
+          costBenefit: calculationResults.costBenefit,
+          revenueBenefit: calculationResults.revenueBenefit,
+          cashFlowBenefit: calculationResults.cashFlowBenefit,
+          riskBenefit: calculationResults.riskBenefit,
+          priorityScore: calculationResults.priorityScore,
+          priorityTier: calculationResults.priorityTier,
+          recommendedPhase: calculationResults.recommendedPhase,
+        },
+      };
+
+      // Update the report in the database
+      const updatedReport = await storage.updateReport(reportId, {
+        analysisData: updatedAnalysisData,
+      });
+
+      res.json({
+        success: true,
+        reportId,
+        companyName: report.companyName,
+        assumptionSetUsed: {
+          id: activeSet.id,
+          name: activeSet.name,
+        },
+        calculations: calculationResults,
+        formulaTraces: traces,
+        formattedSummary: {
+          totalAnnualValue: formulas.formatMoney(calculationResults.totalAnnualValue),
+          netAnnualValue: formulas.formatMoney(calculationResults.netAnnualValue),
+          costBenefit: formulas.formatMoney(calculationResults.costBenefit),
+          revenueBenefit: formulas.formatMoney(calculationResults.revenueBenefit),
+          cashFlowBenefit: formulas.formatMoney(calculationResults.cashFlowBenefit),
+          riskBenefit: formulas.formatMoney(calculationResults.riskBenefit),
+          priorityScore: calculationResults.priorityScore,
+          priorityTier: calculationResults.priorityTier,
+          recommendedPhase: calculationResults.recommendedPhase,
+        },
+        message: "Recalculation completed successfully",
+      });
+    } catch (error: any) {
+      console.error("Error recalculating report:", error);
+      res.status(500).json({ 
+        error: error.message || "Failed to recalculate report",
+        stack: process.env.NODE_ENV === "development" ? error.stack : undefined,
+      });
+    }
+  });
+
+  // =============================================
+  // BULK UPDATE API ENDPOINTS
+  // =============================================
+
+  // Processing function for bulk updates (non-blocking)
+  async function processBulkUpdate(jobId: string, reportIds: string[]) {
+    console.log(`[bulk-update] Starting job ${jobId} with ${reportIds.length} reports`);
+    
+    try {
+      // Update job status to in_progress
+      await storage.updateBulkUpdateJob(jobId, {
+        status: "in_progress",
+        startedAt: new Date(),
+      });
+
+      const completedCompanies: Array<{ id: string; name: string; status: string }> = [];
+      const failedCompanies: Array<{ id: string; name: string; error: string }> = [];
+
+      for (let i = 0; i < reportIds.length; i++) {
+        const reportId = reportIds[i];
+        
+        // Check if job was cancelled
+        const currentJob = await storage.getBulkUpdateJob(jobId);
+        if (currentJob?.status === "cancelled") {
+          console.log(`[bulk-update] Job ${jobId} was cancelled, stopping processing`);
+          break;
+        }
+
+        // Get the report
+        const report = await storage.getReportById(reportId);
+        if (!report) {
+          failedCompanies.push({ id: reportId, name: "Unknown", error: "Report not found" });
+          continue;
+        }
+
+        const companyName = report.companyName;
+        console.log(`[bulk-update] Processing ${i + 1}/${reportIds.length}: ${companyName}`);
+
+        // Update current company being processed
+        await storage.updateBulkUpdateJob(jobId, {
+          currentCompanyId: reportId,
+          progress: Math.round((i / reportIds.length) * 100),
+          completedCompanies,
+          failedCompanies,
+        });
+
+        try {
+          // Generate new analysis
+          const analysis = await generateCompanyAnalysis(companyName);
+          
+          // Update the report with new analysis
+          await storage.updateReport(reportId, {
+            analysisData: analysis,
+          });
+
+          completedCompanies.push({ id: reportId, name: companyName, status: "updated" });
+          console.log(`[bulk-update] Successfully updated ${companyName}`);
+        } catch (error: any) {
+          console.error(`[bulk-update] Error updating ${companyName}:`, error?.message);
+          failedCompanies.push({ 
+            id: reportId, 
+            name: companyName, 
+            error: error?.message || "Unknown error" 
+          });
+        }
+
+        // Update progress after each company
+        await storage.updateBulkUpdateJob(jobId, {
+          progress: Math.round(((i + 1) / reportIds.length) * 100),
+          completedCompanies,
+          failedCompanies,
+        });
+      }
+
+      // Check final status (may have been cancelled)
+      const finalJob = await storage.getBulkUpdateJob(jobId);
+      if (finalJob?.status !== "cancelled") {
+        // Determine final status
+        const finalStatus = failedCompanies.length === reportIds.length 
+          ? "failed" 
+          : "completed";
+
+        await storage.updateBulkUpdateJob(jobId, {
+          status: finalStatus,
+          progress: 100,
+          currentCompanyId: null,
+          completedCompanies,
+          failedCompanies,
+          completedAt: new Date(),
+        });
+
+        console.log(`[bulk-update] Job ${jobId} finished with status: ${finalStatus}`);
+      }
+    } catch (error: any) {
+      console.error(`[bulk-update] Job ${jobId} failed with error:`, error?.message);
+      await storage.updateBulkUpdateJob(jobId, {
+        status: "failed",
+        completedAt: new Date(),
+      });
+    }
+  }
+
+  // POST /api/bulk-update/start - Initiate bulk update job
+  app.post("/api/bulk-update/start", async (req, res) => {
+    try {
+      const { reportIds } = req.body;
+
+      if (!reportIds || !Array.isArray(reportIds) || reportIds.length === 0) {
+        return res.status(400).json({ error: "reportIds array is required" });
+      }
+
+      // Check AI service configuration
+      const configCheck = checkProductionConfig();
+      if (!configCheck.ok) {
+        return res.status(503).json({ error: configCheck.message });
+      }
+
+      // Create the bulk update job
+      const job = await storage.createBulkUpdateJob({
+        companyIds: reportIds,
+        status: "pending",
+        progress: 0,
+        completedCompanies: [],
+        failedCompanies: [],
+      });
+
+      // Estimate time (roughly 30-60 seconds per report)
+      const estimatedTime = reportIds.length * 45; // seconds
+
+      // Start processing asynchronously (non-blocking)
+      setImmediate(() => {
+        processBulkUpdate(job.id, reportIds);
+      });
+
+      res.json({
+        jobId: job.id,
+        estimatedTime,
+        totalReports: reportIds.length,
+        message: "Bulk update job started",
+      });
+    } catch (error: any) {
+      console.error("Error starting bulk update:", error);
+      res.status(500).json({ error: error.message || "Failed to start bulk update" });
+    }
+  });
+
+  // GET /api/bulk-update/status/:jobId - Check job progress
+  app.get("/api/bulk-update/status/:jobId", async (req, res) => {
+    try {
+      const { jobId } = req.params;
+      
+      const job = await storage.getBulkUpdateJob(jobId);
+      
+      if (!job) {
+        return res.status(404).json({ error: "Job not found" });
+      }
+
+      res.json(job);
+    } catch (error: any) {
+      console.error("Error getting bulk update status:", error);
+      res.status(500).json({ error: error.message || "Failed to get job status" });
+    }
+  });
+
+  // POST /api/bulk-update/cancel/:jobId - Cancel running job
+  app.post("/api/bulk-update/cancel/:jobId", async (req, res) => {
+    try {
+      const { jobId } = req.params;
+      
+      const job = await storage.getBulkUpdateJob(jobId);
+      
+      if (!job) {
+        return res.status(404).json({ error: "Job not found" });
+      }
+
+      if (job.status !== "pending" && job.status !== "in_progress") {
+        return res.status(400).json({ 
+          error: "Cannot cancel job", 
+          reason: `Job is already ${job.status}` 
+        });
+      }
+
+      await storage.updateBulkUpdateJob(jobId, {
+        status: "cancelled",
+        completedAt: new Date(),
+      });
+
+      res.json({ success: true, message: "Job cancelled" });
+    } catch (error: any) {
+      console.error("Error cancelling bulk update:", error);
+      res.status(500).json({ error: error.message || "Failed to cancel job" });
+    }
+  });
+
+  // GET /api/bulk-update/active - Get active jobs
+  app.get("/api/bulk-update/active", async (req, res) => {
+    try {
+      const activeJobs = await storage.getActiveBulkUpdateJobs();
+      res.json(activeJobs);
+    } catch (error: any) {
+      console.error("Error getting active bulk updates:", error);
+      res.status(500).json({ error: error.message || "Failed to get active jobs" });
+    }
+  });
+
+  // GET /api/bulk-update/history - List recent bulk update jobs
+  app.get("/api/bulk-update/history", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 10;
+      const history = await storage.getBulkUpdateHistory(limit);
+      res.json(history);
+    } catch (error: any) {
+      console.error("Error getting bulk update history:", error);
+      res.status(500).json({ error: error.message || "Failed to get job history" });
+    }
+  });
+
+  // ============================================================
+  // BULK EXPORT ENDPOINTS
+  // ============================================================
+
+  const EXPORTS_DIR = "/tmp/exports";
+  
+  // Ensure exports directory exists
+  if (!fs.existsSync(EXPORTS_DIR)) {
+    fs.mkdirSync(EXPORTS_DIR, { recursive: true });
+  }
+
+  // Process bulk export job asynchronously
+  async function processBulkExport(jobId: string): Promise<void> {
+    try {
+      const job = await storage.getBulkExport(jobId);
+      if (!job) {
+        console.error(`[bulk-export] Job ${jobId} not found`);
+        return;
+      }
+
+      const reportIds = job.companyIds as string[];
+      const format = job.format;
+      const reportType = job.reportType;
+
+      // Update status to generating
+      await storage.updateBulkExport(jobId, {
+        status: "generating",
+      });
+
+      console.log(`[bulk-export] Starting job ${jobId} with ${reportIds.length} reports, format: ${format}`);
+
+      const completedCompanies: Array<{ id: string; name: string; filename: string }> = [];
+      const failedCompanies: Array<{ id: string; name: string; error: string }> = [];
+      const exportFiles: Array<{ filename: string; content: string }> = [];
+
+      for (let i = 0; i < reportIds.length; i++) {
+        // Check if job was cancelled
+        const currentJob = await storage.getBulkExport(jobId);
+        if (currentJob?.status === "cancelled") {
+          console.log(`[bulk-export] Job ${jobId} was cancelled, stopping processing`);
+          return;
+        }
+
+        const reportId = reportIds[i];
+        try {
+          const report = await storage.getReportById(reportId);
+          if (!report) {
+            failedCompanies.push({ id: reportId, name: "Unknown", error: "Report not found" });
+            continue;
+          }
+
+          const companyName = report.companyName;
+          console.log(`[bulk-export] Processing ${i + 1}/${reportIds.length}: ${companyName}`);
+
+          // Generate export content based on format
+          let filename: string;
+          let content: string;
+          const safeCompanyName = companyName.replace(/[^a-zA-Z0-9]/g, "_");
+
+          // Pure pass-through formatters (server/export-formatters.ts).
+          // Calculation-determinism gate: these MUST NOT recompute or
+          // round numbers — they emit the canonical analysisData verbatim.
+          const exportCtx = { reportType, exportedAt: new Date().toISOString() };
+          switch (format) {
+            case "json": {
+              filename = `${safeCompanyName}_${reportType}.json`;
+              // Enrich a CLONE so legacy AND imported reports carry verifiable
+              // benchmark citations in the downloaded JSON. augment() never
+              // mutates and is never persisted, so the stored (imported) record
+              // stays immutable — this only augments the exported view. The
+              // formatter remains a pure pass-through of what it receives.
+              const jsonReport = {
+                ...report,
+                analysisData: augmentAnalysisBenchmarkSourcesForPresentation(
+                  report.analysisData,
+                ),
+              };
+              content = JSON.stringify(
+                formatReportAsJson(jsonReport, exportCtx),
+                null,
+                2,
+              );
+              break;
+            }
+            case "md":
+              filename = `${safeCompanyName}_${reportType}.md`;
+              content = formatReportAsMarkdown(report, exportCtx);
+              break;
+            case "pdf":
+              filename = `${safeCompanyName}_${reportType}.txt`;
+              content = `[PDF Export Placeholder]\n\nCompany: ${companyName}\nReport Type: ${reportType}\nExported: ${new Date().toISOString()}\n\nNote: Actual PDF generation will be implemented in a future update.`;
+              break;
+            case "docx":
+              filename = `${safeCompanyName}_${reportType}.txt`;
+              content = `[DOCX Export Placeholder]\n\nCompany: ${companyName}\nReport Type: ${reportType}\nExported: ${new Date().toISOString()}\n\nNote: Actual DOCX generation will be implemented in a future update.`;
+              break;
+            case "xlsx":
+              filename = `${safeCompanyName}_${reportType}.txt`;
+              content = `[XLSX Export Placeholder]\n\nCompany: ${companyName}\nReport Type: ${reportType}\nExported: ${new Date().toISOString()}\n\nNote: Actual XLSX generation will be implemented in a future update.`;
+              break;
+            default:
+              filename = `${safeCompanyName}_${reportType}.json`;
+              content = JSON.stringify(report.analysisData, null, 2);
+          }
+
+          exportFiles.push({ filename, content });
+          completedCompanies.push({ id: reportId, name: companyName, filename });
+
+          // Update progress
+          const progress = Math.round(((i + 1) / reportIds.length) * 90); // Reserve 10% for ZIP creation
+          await storage.updateBulkExport(jobId, {
+            progress,
+            completedCompanies,
+            failedCompanies,
+          });
+
+        } catch (error: any) {
+          console.error(`[bulk-export] Error processing report ${reportId}:`, error?.message);
+          failedCompanies.push({ id: reportId, name: "Unknown", error: error?.message || "Unknown error" });
+        }
+      }
+
+      // Create ZIP file
+      const zipPath = path.join(EXPORTS_DIR, `${jobId}.zip`);
+      
+      // Create manifest object before ZIP creation
+      const manifestData = {
+        exportId: jobId,
+        exportedAt: new Date().toISOString(),
+        format: format,
+        reportType: reportType,
+        totalReports: reportIds.length,
+        successfulExports: completedCompanies.length,
+        failedExports: failedCompanies.length,
+        files: completedCompanies.map(c => c.filename),
+        failed: failedCompanies,
+      };
+      
+      await new Promise<void>((resolve, reject) => {
+        const output = fs.createWriteStream(zipPath);
+        const archive = archiver("zip", { zlib: { level: 9 } });
+
+        output.on("close", () => {
+          console.log(`[bulk-export] ZIP created: ${archive.pointer()} bytes`);
+          resolve();
+        });
+
+        archive.on("error", (err) => {
+          console.error(`[bulk-export] Archive error:`, err);
+          reject(err);
+        });
+
+        archive.pipe(output);
+
+        // Add all export files
+        for (const file of exportFiles) {
+          archive.append(file.content, { name: file.filename });
+        }
+
+        // Add manifest to ZIP
+        archive.append(JSON.stringify(manifestData, null, 2), { name: "manifest.json" });
+
+        archive.finalize();
+      });
+
+      // Get file size
+      const stats = fs.statSync(zipPath);
+      const fileSize = stats.size;
+
+      // Calculate expiration (24 hours from now)
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+      // Update job with final status
+      await storage.updateBulkExport(jobId, {
+        status: "ready",
+        progress: 100,
+        filePath: zipPath,
+        fileSize,
+        expiresAt,
+        completedCompanies,
+        failedCompanies,
+        manifest: manifestData,
+      });
+
+      console.log(`[bulk-export] Job ${jobId} completed successfully`);
+
+    } catch (error: any) {
+      console.error(`[bulk-export] Job ${jobId} failed:`, error?.message);
+      await storage.updateBulkExport(jobId, {
+        status: "failed",
+        failedCompanies: [{ id: "system", name: "System Error", error: error?.message || "Unknown error" }],
+      });
+    }
+  }
+
+  // POST /api/bulk-export/start - Initiate bulk export job
+  app.post("/api/bulk-export/start", async (req, res) => {
+    try {
+      const { reportIds, format, reportType } = req.body;
+
+      // Validate reportIds
+      if (!reportIds || !Array.isArray(reportIds) || reportIds.length === 0) {
+        return res.status(400).json({ error: "reportIds must be a non-empty array" });
+      }
+
+      if (reportIds.length > 100) {
+        return res.status(400).json({ error: "Maximum 100 reports per export job" });
+      }
+
+      // Validate format
+      const validFormats = ["pdf", "docx", "xlsx", "md", "json"];
+      if (!format || !validFormats.includes(format)) {
+        return res.status(400).json({ error: `Invalid format. Must be one of: ${validFormats.join(", ")}` });
+      }
+
+      // Validate reportType
+      if (!reportType || typeof reportType !== "string") {
+        return res.status(400).json({ error: "reportType is required" });
+      }
+
+      // Create job in storage
+      const job = await storage.createBulkExport({
+        companyIds: reportIds,
+        format,
+        reportType,
+        status: "pending",
+        progress: 0,
+        completedCompanies: [],
+        failedCompanies: [],
+      });
+
+      // Estimate time (roughly 2 seconds per report + 5 seconds for ZIP)
+      const estimatedTime = reportIds.length * 2 + 5;
+
+      // Start processing asynchronously
+      setImmediate(() => processBulkExport(job.id));
+
+      res.json({
+        jobId: job.id,
+        totalReports: reportIds.length,
+        estimatedTime,
+      });
+
+    } catch (error: any) {
+      console.error("Error starting bulk export:", error);
+      res.status(500).json({ error: error.message || "Failed to start export job" });
+    }
+  });
+
+  // GET /api/bulk-export/status/:jobId - Check export progress
+  app.get("/api/bulk-export/status/:jobId", async (req, res) => {
+    try {
+      const { jobId } = req.params;
+      const job = await storage.getBulkExport(jobId);
+
+      if (!job) {
+        return res.status(404).json({ error: "Export job not found" });
+      }
+
+      res.json(job);
+    } catch (error: any) {
+      console.error("Error getting bulk export status:", error);
+      res.status(500).json({ error: error.message || "Failed to get job status" });
+    }
+  });
+
+  // GET /api/bulk-export/download/:jobId - Download zip file
+  app.get("/api/bulk-export/download/:jobId", async (req, res) => {
+    try {
+      const { jobId } = req.params;
+      const job = await storage.getBulkExport(jobId);
+
+      if (!job) {
+        return res.status(404).json({ error: "Export job not found" });
+      }
+
+      if (job.status !== "ready") {
+        return res.status(400).json({ error: `Export is not ready. Current status: ${job.status}` });
+      }
+
+      if (!job.filePath || !fs.existsSync(job.filePath)) {
+        return res.status(404).json({ error: "Export file not found" });
+      }
+
+      // Check if expired
+      if (job.expiresAt && new Date(job.expiresAt) < new Date()) {
+        return res.status(410).json({ error: "Export has expired" });
+      }
+
+      // Set headers for download
+      res.setHeader("Content-Type", "application/zip");
+      res.setHeader("Content-Disposition", `attachment; filename="export_${jobId}.zip"`);
+      res.setHeader("Content-Length", job.fileSize || 0);
+
+      // Stream the file
+      const fileStream = fs.createReadStream(job.filePath);
+      fileStream.pipe(res);
+
+    } catch (error: any) {
+      console.error("Error downloading bulk export:", error);
+      res.status(500).json({ error: error.message || "Failed to download export" });
+    }
+  });
+
+  // POST /api/bulk-export/cancel/:jobId - Cancel export
+  app.post("/api/bulk-export/cancel/:jobId", async (req, res) => {
+    try {
+      const { jobId } = req.params;
+      const job = await storage.getBulkExport(jobId);
+
+      if (!job) {
+        return res.status(404).json({ error: "Export job not found" });
+      }
+
+      // Check if job is cancellable
+      const cancellableStatuses = ["pending", "generating"];
+      if (!cancellableStatuses.includes(job.status)) {
+        return res.status(400).json({ error: `Cannot cancel job with status: ${job.status}` });
+      }
+
+      // Update status to cancelled
+      await storage.updateBulkExport(jobId, {
+        status: "cancelled",
+      });
+
+      res.json({ success: true, message: "Export job cancelled" });
+
+    } catch (error: any) {
+      console.error("Error cancelling bulk export:", error);
+      res.status(500).json({ error: error.message || "Failed to cancel export" });
+    }
+  });
+
+  // GET /api/bulk-export/active - Get active export jobs
+  app.get("/api/bulk-export/active", async (req, res) => {
+    try {
+      const activeJobs = await storage.getActiveBulkExports();
+      res.json(activeJobs);
+    } catch (error: any) {
+      console.error("Error getting active bulk exports:", error);
+      res.status(500).json({ error: error.message || "Failed to get active exports" });
+    }
+  });
+
+  // GET /api/bulk-export/history - List export history
+  app.get("/api/bulk-export/history", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 10;
+      const history = await storage.getBulkExportHistory(limit);
+      res.json(history);
+    } catch (error: any) {
+      console.error("Error getting bulk export history:", error);
+      res.status(500).json({ error: error.message || "Failed to get export history" });
+    }
+  });
+
+  // ============================================
+  // BATCH RESEARCH ENDPOINTS
+  // ============================================
+
+  async function processBatchResearch(jobId: string) {
+    const BATCH_SIZE = 3;
+    const COOLDOWN_BETWEEN_BATCHES = 2000;
+
+    let job = await storage.getBatchResearchJob(jobId);
+    if (!job || job.status === 'cancelled' || job.status === 'paused') return;
+
+    await storage.updateBatchResearchJob(jobId, { status: 'processing', startedAt: new Date() });
+
+    while (true) {
+      job = await storage.getBatchResearchJob(jobId);
+      if (!job || job.status === 'cancelled' || job.status === 'paused') break;
+
+      const pending = job.pendingQueue as any[];
+      const completed = job.completedQueue as any[];
+      const failed = job.failedQueue as any[];
+
+      if (pending.length === 0) break;
+
+      const batch = pending.slice(0, BATCH_SIZE);
+      const remaining = pending.slice(BATCH_SIZE);
+
+      await storage.updateBatchResearchJob(jobId, { 
+        pendingQueue: remaining,
+        activeQueue: batch 
+      });
+
+      const results = await Promise.allSettled(
+        batch.map(async (company: any) => {
+          const startTime = Date.now();
+          try {
+            const analysis = await generateCompanyAnalysis(company.name);
+            const report = await storage.createReport({
+              companyName: company.name,
+              analysisData: analysis,
+              isWhatIf: false
+            });
+            return { success: true, name: company.name, reportId: report.id, duration: Math.round((Date.now() - startTime) / 1000) };
+          } catch (error: any) {
+            return { success: false, name: company.name, error: error.message, duration: Math.round((Date.now() - startTime) / 1000) };
+          }
+        })
+      );
+
+      const newCompleted = [...completed];
+      const newFailed = [...failed];
+
+      for (const result of results) {
+        if (result.status === 'fulfilled') {
+          const r = result.value;
+          if (r.success) {
+            newCompleted.push({ name: r.name, reportId: r.reportId, duration: r.duration });
+          } else {
+            newFailed.push({ name: r.name, error: r.error, attempts: 1, willRetry: false });
+          }
+        }
+      }
+
+      const progress = Math.round((newCompleted.length / job.totalCompanies) * 100);
+
+      await storage.updateBatchResearchJob(jobId, {
+        completedQueue: newCompleted,
+        failedQueue: newFailed,
+        activeQueue: [],
+        progress
+      });
+
+      await new Promise(r => setTimeout(r, COOLDOWN_BETWEEN_BATCHES));
+    }
+
+    await storage.updateBatchResearchJob(jobId, {
+      status: 'completed',
+      completedAt: new Date()
+    });
+  }
+
+  // POST /api/batch-research/start - Start a batch research job
+  app.post("/api/batch-research/start", async (req, res) => {
+    try {
+      const { companies, config = {} } = req.body;
+
+      if (!companies || !Array.isArray(companies)) {
+        return res.status(400).json({ error: "companies array is required" });
+      }
+
+      if (companies.length > 100) {
+        return res.status(400).json({ error: "Maximum 100 companies allowed per batch" });
+      }
+
+      if (companies.length === 0) {
+        return res.status(400).json({ error: "At least one company is required" });
+      }
+
+      const normalizeCompanyName = (name: string): string => {
+        return name.toLowerCase().trim().replace(/\s+/g, ' ');
+      };
+
+      const seenNames = new Set<string>();
+      const duplicatesRemoved: string[] = [];
+      const normalizedCompanies: Array<{name: string, normalizedName: string, group?: string, priority?: number}> = [];
+
+      for (const company of companies) {
+        if (!company.name || typeof company.name !== 'string') continue;
+        
+        const normalizedName = normalizeCompanyName(company.name);
+        if (seenNames.has(normalizedName)) {
+          duplicatesRemoved.push(company.name);
+        } else {
+          seenNames.add(normalizedName);
+          normalizedCompanies.push({
+            name: company.name.trim(),
+            normalizedName,
+            group: company.group,
+            priority: company.priority
+          });
+        }
+      }
+
+      const existingReports: Array<{name: string, reportId: string}> = [];
+      const pendingCompanies: Array<{name: string, group?: string, priority?: number}> = [];
+      const skipExisting = config.skipExisting !== false;
+
+      if (skipExisting) {
+        const allReports = await storage.getAllReports();
+        const reportsByNormalizedName = new Map<string, {id: string, companyName: string}>();
+        
+        for (const report of allReports) {
+          if (!report.isWhatIf) {
+            const normalized = normalizeCompanyName(report.companyName);
+            reportsByNormalizedName.set(normalized, { id: report.id, companyName: report.companyName });
+          }
+        }
+
+        for (const company of normalizedCompanies) {
+          const existing = reportsByNormalizedName.get(company.normalizedName);
+          if (existing) {
+            existingReports.push({ name: company.name, reportId: existing.id });
+          } else {
+            pendingCompanies.push({ name: company.name, group: company.group, priority: company.priority });
+          }
+        }
+      } else {
+        for (const company of normalizedCompanies) {
+          pendingCompanies.push({ name: company.name, group: company.group, priority: company.priority });
+        }
+      }
+
+      if (pendingCompanies.length === 0) {
+        return res.json({
+          jobId: null,
+          totalCompanies: 0,
+          duplicatesRemoved: duplicatesRemoved.length,
+          existingReports,
+          estimatedTime: 0,
+          message: "All companies already have existing reports"
+        });
+      }
+
+      const batchSize = config.batchSize || 3;
+      const estimatedTimePerCompany = 60;
+      const estimatedTime = Math.ceil(pendingCompanies.length / batchSize) * estimatedTimePerCompany;
+
+      const job = await storage.createBatchResearchJob({
+        status: 'pending',
+        config: { batchSize, skipExisting },
+        pendingQueue: pendingCompanies,
+        activeQueue: [],
+        completedQueue: [],
+        failedQueue: [],
+        retryQueue: [],
+        totalCompanies: pendingCompanies.length,
+        progress: 0,
+        duplicatesRemoved,
+        existingReports
+      });
+
+      setImmediate(() => {
+        processBatchResearch(job.id).catch(err => {
+          console.error(`[batch-research] Error processing job ${job.id}:`, err);
+        });
+      });
+
+      res.json({
+        jobId: job.id,
+        totalCompanies: pendingCompanies.length,
+        duplicatesRemoved: duplicatesRemoved.length,
+        existingReports,
+        estimatedTime
+      });
+    } catch (error: any) {
+      console.error("Error starting batch research job:", error);
+      res.status(500).json({ error: error.message || "Failed to start batch research" });
+    }
+  });
+
+  // GET /api/batch-research/status/:jobId - Get job status
+  app.get("/api/batch-research/status/:jobId", async (req, res) => {
+    try {
+      const { jobId } = req.params;
+      const job = await storage.getBatchResearchJob(jobId);
+      
+      if (!job) {
+        return res.status(404).json({ error: "Job not found" });
+      }
+      
+      res.json(job);
+    } catch (error: any) {
+      console.error("Error getting batch research status:", error);
+      res.status(500).json({ error: error.message || "Failed to get job status" });
+    }
+  });
+
+  // POST /api/batch-research/pause/:jobId - Pause processing
+  app.post("/api/batch-research/pause/:jobId", async (req, res) => {
+    try {
+      const { jobId } = req.params;
+      const job = await storage.getBatchResearchJob(jobId);
+      
+      if (!job) {
+        return res.status(404).json({ error: "Job not found" });
+      }
+      
+      if (job.status !== 'processing' && job.status !== 'pending') {
+        return res.status(400).json({ error: `Cannot pause job with status: ${job.status}` });
+      }
+      
+      await storage.updateBatchResearchJob(jobId, { status: 'paused' });
+      const updatedJob = await storage.getBatchResearchJob(jobId);
+      
+      res.json(updatedJob);
+    } catch (error: any) {
+      console.error("Error pausing batch research job:", error);
+      res.status(500).json({ error: error.message || "Failed to pause job" });
+    }
+  });
+
+  // POST /api/batch-research/resume/:jobId - Resume processing
+  app.post("/api/batch-research/resume/:jobId", async (req, res) => {
+    try {
+      const { jobId } = req.params;
+      const job = await storage.getBatchResearchJob(jobId);
+      
+      if (!job) {
+        return res.status(404).json({ error: "Job not found" });
+      }
+      
+      if (job.status !== 'paused') {
+        return res.status(400).json({ error: `Cannot resume job with status: ${job.status}` });
+      }
+      
+      await storage.updateBatchResearchJob(jobId, { status: 'processing' });
+      
+      setImmediate(() => {
+        processBatchResearch(jobId).catch(err => {
+          console.error(`[batch-research] Error resuming job ${jobId}:`, err);
+        });
+      });
+      
+      const updatedJob = await storage.getBatchResearchJob(jobId);
+      res.json(updatedJob);
+    } catch (error: any) {
+      console.error("Error resuming batch research job:", error);
+      res.status(500).json({ error: error.message || "Failed to resume job" });
+    }
+  });
+
+  // POST /api/batch-research/cancel/:jobId - Cancel job
+  app.post("/api/batch-research/cancel/:jobId", async (req, res) => {
+    try {
+      const { jobId } = req.params;
+      const job = await storage.getBatchResearchJob(jobId);
+      
+      if (!job) {
+        return res.status(404).json({ error: "Job not found" });
+      }
+      
+      if (job.status === 'completed' || job.status === 'cancelled') {
+        return res.status(400).json({ error: `Cannot cancel job with status: ${job.status}` });
+      }
+      
+      await storage.updateBatchResearchJob(jobId, { status: 'cancelled' });
+      const updatedJob = await storage.getBatchResearchJob(jobId);
+      
+      res.json(updatedJob);
+    } catch (error: any) {
+      console.error("Error cancelling batch research job:", error);
+      res.status(500).json({ error: error.message || "Failed to cancel job" });
+    }
+  });
+
+  // GET /api/batch-research/active - Get active jobs
+  app.get("/api/batch-research/active", async (req, res) => {
+    try {
+      const activeJobs = await storage.getActiveBatchResearchJobs();
+      res.json(activeJobs);
+    } catch (error: any) {
+      console.error("Error getting active batch research jobs:", error);
+      res.status(500).json({ error: error.message || "Failed to get active jobs" });
+    }
+  });
+
+  // GET /api/batch-research/history - Get job history
+  app.get("/api/batch-research/history", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 10;
+      const history = await storage.getBatchResearchJobHistory(limit);
+      res.json(history);
+    } catch (error: any) {
+      console.error("Error getting batch research history:", error);
+      res.status(500).json({ error: error.message || "Failed to get job history" });
+    }
+  });
+
+  // ============================================
+  // INTERACTIVE EDITING: Session and Edit Management
+  // Anonymous browser-based sessions (no auth required)
+  // ============================================
+
+  // POST /api/sessions - Create or get session for a report
+  app.post("/api/sessions", async (req, res) => {
+    try {
+      const { reportId, browserToken, sessionName } = req.body;
+      if (!reportId || !browserToken) {
+        return res.status(400).json({ error: "reportId and browserToken are required" });
+      }
+      const session = await storage.getOrCreateSession(reportId, browserToken, sessionName);
+      res.json(session);
+    } catch (error: any) {
+      console.error("Error creating session:", error);
+      res.status(500).json({ error: error.message || "Failed to create session" });
+    }
+  });
+
+  // GET /api/sessions/:reportId/:browserToken - Get session with edits
+  app.get("/api/sessions/:reportId/:browserToken", async (req, res) => {
+    try {
+      const { reportId, browserToken } = req.params;
+      const session = await storage.getSession(reportId, browserToken);
+      if (!session) {
+        return res.status(404).json({ error: "Session not found" });
+      }
+      const edits = await storage.getSessionEdits(session.id);
+      res.json({ session, edits });
+    } catch (error: any) {
+      console.error("Error getting session:", error);
+      res.status(500).json({ error: error.message || "Failed to get session" });
+    }
+  });
+
+  // POST /api/edits - Save a user edit
+  app.post("/api/edits", async (req, res) => {
+    try {
+      const { sessionId, reportId, stepNumber, useCaseId, fieldPath, originalValue, editedValue } = req.body;
+      if (!sessionId || !reportId || stepNumber == null || !fieldPath) {
+        return res.status(400).json({ error: "Missing required fields" });
+      }
+      const edit = await storage.saveEdit({
+        sessionId,
+        reportId,
+        stepNumber,
+        useCaseId: useCaseId || null,
+        fieldPath,
+        originalValue: String(originalValue),
+        editedValue: String(editedValue),
+      });
+      res.json(edit);
+    } catch (error: any) {
+      console.error("Error saving edit:", error);
+      res.status(500).json({ error: error.message || "Failed to save edit" });
+    }
+  });
+
+  // DELETE /api/edits/:sessionId - Reset all edits for a session
+  app.delete("/api/edits/:sessionId", async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      await storage.clearSessionEdits(sessionId);
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error("Error clearing edits:", error);
+      res.status(500).json({ error: error.message || "Failed to clear edits" });
+    }
   });
 
   return httpServer;

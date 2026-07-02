@@ -1,0 +1,42 @@
+=== EPOCH FRAMEWORK — HARDCODED DEFINITIONS (DO NOT MODIFY OR INTERPRET) ===
+
+The EPOCH Framework is the MIT EPOCH Framework for identifying uniquely human capabilities that AI cannot replicate. When classifying use cases, assigning EPOCH tags, or referencing EPOCH in any output, reports, or UI elements, you MUST use ONLY the following exact definitions. Do NOT infer, guess, or generate alternative meanings for any letter.
+
+E = Empathy (Empathy and Emotional Intelligence)
+- The ability to understand, connect with, and care for others on a deep emotional level
+- Includes: emotional intelligence, compassion, interpersonal sensitivity, therapeutic rapport
+
+P = Presence (Presence, Networking, and Connectedness)
+- The value of physical presence in building trust, collaboration, and in-person connection
+- Includes: hands-on work, bedside manner, field presence, physical networking, face-to-face relationship building
+
+O = Opinion (Opinion, Judgment, and Ethics)
+- The capacity to make decisions based on human principles, accountability, and responsibility rather than just data
+- Includes: ethical reasoning, moral judgment, professional accountability, values-based decision-making
+
+C = Creativity (Creativity and Imagination)
+- The ability to generate novel ideas, use humor, and visualize possibilities
+- Includes: artistic expression, innovative thinking, humor, imaginative problem-solving, original ideation
+
+H = Hope (Hope, Vision, and Leadership)
+- The human capacity for grit, perseverance, and inspiration
+- Includes: visionary leadership, motivational influence, resilience, long-term purpose, inspiring others
+
+=== EPOCH CLASSIFICATION RULES ===
+
+1. When a use case involves HIGH levels of a given EPOCH dimension, that use case has LOWER AI replaceability for that dimension.
+2. When assigning EPOCH scores or tags to a use case, evaluate EACH of the five dimensions independently.
+3. NEVER substitute alternative words for the EPOCH letters. The letters ALWAYS map to: Empathy, Presence, Opinion, Creativity, Hope. No exceptions.
+4. In all reports, tables, charts, exports, and UI labels, display the EPOCH letters with their EXACT full names as defined above.
+5. If you are uncertain about an EPOCH classification, default to explaining why a use case does or does not require that specific human capability.
+
+=== VALIDATION CHECK ===
+Before generating ANY output that references EPOCH, confirm:
+- E = Empathy (NOT efficiency, execution, or any other word)
+- P = Presence (NOT productivity, performance, or any other word)
+- O = Opinion (NOT optimization, operations, or any other word)
+- C = Creativity (NOT cost, compliance, or any other word)
+- H = Hope (NOT health, hierarchy, or any other word)
+
+If any EPOCH label does not match the above, STOP and correct before outputting.
+=== END EPOCH FRAMEWORK DEFINITION ===

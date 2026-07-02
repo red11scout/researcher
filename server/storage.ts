@@ -5,6 +5,9 @@ import {
   assumptionFields,
   formulaConfigs,
   sharedDashboards,
+  bulkUpdateJobs,
+  bulkExports,
+  batchResearchJobs,
   type Report, 
   type InsertReport,
   type AssumptionSet,
@@ -15,13 +18,96 @@ import {
   type InsertFormulaConfig,
   type SharedDashboard,
   type InsertSharedDashboard,
+  type BulkUpdateJob,
+  type InsertBulkUpdateJob,
+  type BulkExport,
+  type InsertBulkExport,
+  type BatchResearchJob,
+  type InsertBatchResearchJob,
+  userSessions,
+  userEdits,
+  type UserSession,
+  type InsertUserSession,
+  type UserEdit,
+  type InsertUserEdit,
+  adminAuditLog,
+  type AdminAuditLogEntry,
+  type InsertAdminAuditLog,
+  adminLastBackfill,
+  type AdminLastBackfillRow,
+  adminLastAuditCleanup,
+  type AdminLastAuditCleanupRow,
+  adminSettings,
+  type AdminSettingsRow,
   DEFAULT_ASSUMPTIONS,
   DEFAULT_FORMULAS,
   ASSUMPTION_CATEGORIES,
   type AssumptionCategory,
   type CalculatedFieldKey
 } from "@shared/schema";
-import { eq, desc, and, like, sql, isNull, lt } from "drizzle-orm";
+import { eq, desc, and, like, sql, isNull, lt, gte, lte, ilike } from "drizzle-orm";
+import type {
+  BackfillReportResult,
+  PersistedBackfillSummary,
+} from "./report-backfill";
+
+// Filter + pagination options for reading the admin audit log.
+//
+// All fields are optional. The caller supplies whichever subset of filters
+// the operator picked in the UI; unspecified fields are not constrained.
+// `limit`/`offset` paginate the result. `ip` is matched as a case-insensitive
+// substring so an operator can search "10.0." without typing the full v4.
+export interface AdminAuditLogQuery {
+  limit?: number;
+  offset?: number;
+  // Exact action match (e.g. "backfill-reports", "admin-login-failed"). The
+  // set of valid values mirrors the action codes recorded server-side.
+  action?: string;
+  // "success" or "failure". Anything else is ignored.
+  status?: string;
+  // Inclusive lower bound on createdAt.
+  since?: Date;
+  // Inclusive upper bound on createdAt.
+  until?: Date;
+  // Substring match against actorIp, case-insensitive.
+  ip?: string;
+}
+
+// Hard cap on a single CSV export. The Admin "Download CSV" button asks
+// for this many rows in one shot; multi-year exports past the cap get
+// truncated with a `truncated: true` flag so the UI can warn the
+// operator. Sized so a worst-case row (~1KB JSON outcome) keeps the
+// total payload under ~10MB — comfortable for a browser download and
+// well under the typical Node heap budget.
+export const AUDIT_EXPORT_MAX_ROWS = 10_000;
+
+// Shared WHERE-clause builder for the admin-audit read + export paths.
+// Kept module-private so the read endpoint and the CSV export endpoint
+// can never drift on filter semantics: a "Download CSV" must export
+// exactly the slice the operator is currently seeing in the panel.
+function buildAdminAuditWhereClause(options: AdminAuditLogQuery) {
+  const conditions = [] as ReturnType<typeof eq>[];
+  if (options.action && options.action.trim().length > 0) {
+    conditions.push(eq(adminAuditLog.action, options.action.trim()));
+  }
+  if (options.status === "success" || options.status === "failure") {
+    conditions.push(eq(adminAuditLog.status, options.status));
+  }
+  if (options.since instanceof Date && !Number.isNaN(options.since.getTime())) {
+    conditions.push(gte(adminAuditLog.createdAt, options.since));
+  }
+  if (options.until instanceof Date && !Number.isNaN(options.until.getTime())) {
+    conditions.push(lte(adminAuditLog.createdAt, options.until));
+  }
+  if (options.ip && options.ip.trim().length > 0) {
+    // Substring match — operators routinely know only the network prefix
+    // ("10.0.", "192.168.", an IPv6 fragment), not the full address.
+    conditions.push(ilike(adminAuditLog.actorIp, `%${options.ip.trim()}%`));
+  }
+  if (conditions.length === 0) return undefined;
+  if (conditions.length === 1) return conditions[0];
+  return and(...conditions);
+}
 
 export interface IStorage {
   // Report operations
@@ -29,6 +115,7 @@ export interface IStorage {
   getReportById(id: string): Promise<Report | undefined>;
   getReportByCompany(companyName: string): Promise<Report | undefined>;
   updateReport(id: string, data: Partial<InsertReport>): Promise<Report | undefined>;
+  updateReportDisplayName(id: string, displayName: string | null): Promise<Report | undefined>;
   deleteReport(id: string): Promise<void>;
   getAllReports(): Promise<Report[]>;
   getWhatIfReports(parentReportId: string): Promise<Report[]>;
@@ -65,6 +152,112 @@ export interface IStorage {
   getSharedDashboard(id: string): Promise<SharedDashboard | undefined>;
   incrementSharedDashboardViewCount(id: string): Promise<void>;
   cleanupExpiredSharedDashboards(): Promise<number>;
+  
+  // Bulk Update Job operations
+  createBulkUpdateJob(job: InsertBulkUpdateJob): Promise<BulkUpdateJob>;
+  getBulkUpdateJob(id: string): Promise<BulkUpdateJob | undefined>;
+  updateBulkUpdateJob(id: string, data: Partial<InsertBulkUpdateJob>): Promise<BulkUpdateJob | undefined>;
+  getActiveBulkUpdateJobs(): Promise<BulkUpdateJob[]>;
+  getBulkUpdateHistory(limit?: number): Promise<BulkUpdateJob[]>;
+  
+  // Bulk Export operations
+  createBulkExport(job: InsertBulkExport): Promise<BulkExport>;
+  getBulkExport(id: string): Promise<BulkExport | undefined>;
+  updateBulkExport(id: string, data: Partial<InsertBulkExport>): Promise<BulkExport | undefined>;
+  getActiveBulkExports(): Promise<BulkExport[]>;
+  getBulkExportHistory(limit?: number): Promise<BulkExport[]>;
+  cleanupExpiredBulkExports(): Promise<number>;
+  
+  // Batch Research Job operations
+  createBatchResearchJob(job: InsertBatchResearchJob): Promise<BatchResearchJob>;
+  getBatchResearchJob(id: string): Promise<BatchResearchJob | undefined>;
+  updateBatchResearchJob(id: string, data: Partial<InsertBatchResearchJob>): Promise<BatchResearchJob | undefined>;
+  getActiveBatchResearchJobs(): Promise<BatchResearchJob[]>;
+  getBatchResearchJobHistory(limit?: number): Promise<BatchResearchJob[]>;
+
+  // Interactive Editing: Session and Edit operations
+  getOrCreateSession(reportId: string, browserToken: string, sessionName?: string): Promise<UserSession>;
+  getSession(reportId: string, browserToken: string): Promise<UserSession | undefined>;
+  getSessionEdits(sessionId: string): Promise<UserEdit[]>;
+  saveEdit(edit: InsertUserEdit): Promise<UserEdit>;
+  clearSessionEdits(sessionId: string): Promise<void>;
+
+  // Admin audit log: append-only record of admin endpoint usage and access
+  // attempts. createAdminAuditEntry never throws — failures are logged and
+  // swallowed so audit-write problems can never break a real admin request.
+  createAdminAuditEntry(entry: InsertAdminAuditLog): Promise<AdminAuditLogEntry | null>;
+  // Read recent audit entries with optional filters and pagination. Returns
+  // both the page of rows and the total matching count so the UI can render
+  // "showing N of M" and disable pagination buttons at the boundaries.
+  // All filters are optional; an empty options object yields the most recent
+  // page (limit defaulting to 25, offset 0) which preserves the at-a-glance
+  // panel behaviour.
+  getRecentAdminAuditEntries(
+    options?: AdminAuditLogQuery,
+  ): Promise<{ entries: AdminAuditLogEntry[]; total: number }>;
+  // Bulk read of audit entries matching the same filter shape as
+  // `getRecentAdminAuditEntries`, but unbounded by the read-page limit.
+  // Used by the CSV-export endpoint so an operator can pull a slice of the
+  // trail (e.g. "every failed admin-login from last quarter") into a
+  // spreadsheet for offline analysis. The implementation enforces an
+  // upper cap (`AUDIT_EXPORT_MAX_ROWS`, currently 10_000) to keep a
+  // multi-year export from OOM-ing the server. The returned object also
+  // includes the total matching count so the caller can warn the
+  // operator when their filter slice was truncated.
+  exportAdminAuditEntries(
+    options?: AdminAuditLogQuery,
+  ): Promise<{ entries: AdminAuditLogEntry[]; total: number; truncated: boolean }>;
+  // Delete admin_audit_log rows older than the supplied cutoff date and
+  // return how many rows were removed. Used by the retention scheduler so
+  // the audit table doesn't grow unbounded — particularly important
+  // because failed admin-login attempts also write rows, so a brute-force
+  // bot could otherwise fill the table indefinitely. Callers pass the
+  // already-computed cutoff (now - retentionDays) so the scheduler owns
+  // the policy and storage stays a thin DB wrapper.
+  pruneOldAdminAuditEntries(olderThan: Date): Promise<number>;
+
+  // Persisted snapshot of the most recent completed admin backfill run, so
+  // the Admin page can hydrate the post-run summary / failures table /
+  // "Retry these" button on page load instead of losing them when the
+  // operator refreshes. Singleton: a new run replaces the previous row.
+  saveLastBackfillSummary(
+    summary: PersistedBackfillSummary,
+    updatedReports: BackfillReportResult[],
+  ): Promise<void>;
+  getLastBackfillSummary(): Promise<{
+    summary: PersistedBackfillSummary;
+    updatedReports: BackfillReportResult[];
+    completedAt: Date;
+  } | null>;
+  // Delete the singleton `admin_last_backfill` row so the Admin page
+  // collapses back to its empty state. Used by the operator-facing
+  // "Clear last run" affordance — they've already actioned (or
+  // dismissed) the previous failures table and don't want it
+  // rehydrating on every refresh until the next full run. Returns
+  // `true` if a row was actually removed, `false` if there was
+  // nothing to clear; both outcomes are valid (an operator double-
+  // clicking the button shouldn't see an error on the second click).
+  clearLastBackfillSummary(): Promise<boolean>;
+
+  recordAdminAuditCleanup(record: {
+    status: "success" | "failure";
+    removedCount: number;
+    retentionDays: number;
+    cutoff: Date;
+    errorMessage?: string | null;
+    durationMs?: number | null;
+  }): Promise<void>;
+  getLastAdminAuditCleanup(): Promise<AdminLastAuditCleanupRow | null>;
+
+  // Operator-tunable singleton settings row. `getAdminSettings` returns
+  // null when no row has ever been written, so callers can distinguish
+  // "no override stored — use the env / default" from "operator has
+  // pinned a value here". `updateAdminSettings` upserts on the
+  // singleton key so every call lands on the same row.
+  getAdminSettings(): Promise<AdminSettingsRow | null>;
+  updateAdminSettings(
+    settings: { auditRetentionDays?: number | null },
+  ): Promise<AdminSettingsRow>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -102,6 +295,15 @@ export class DatabaseStorage implements IStorage {
     const [updatedReport] = await db
       .update(reports)
       .set({ ...data, updatedAt: new Date() })
+      .where(eq(reports.id, id))
+      .returning();
+    return updatedReport;
+  }
+
+  async updateReportDisplayName(id: string, displayName: string | null): Promise<Report | undefined> {
+    const [updatedReport] = await db
+      .update(reports)
+      .set({ displayName, updatedAt: new Date() })
       .where(eq(reports.id, id))
       .returning();
     return updatedReport;
@@ -386,11 +588,22 @@ export class DatabaseStorage implements IStorage {
         ));
     }
 
+    const constants = Array.isArray(config.constants) ? config.constants : (config.constants ? Array.from(config.constants as any) : []);
+
     const [newConfig] = await db
       .insert(formulaConfigs)
       .values({
-        ...config,
+        reportId: config.reportId,
+        useCaseId: config.useCaseId || null,
+        fieldKey: config.fieldKey,
+        label: config.label,
+        expression: config.expression,
+        inputFields: config.inputFields,
+        constants: constants as any,
+        isActive: config.isActive,
         version: nextVersion,
+        notes: config.notes,
+        createdBy: config.createdBy,
       })
       .returning();
 
@@ -574,6 +787,493 @@ export class DatabaseStorage implements IStorage {
       .where(lt(sharedDashboards.expiresAt, new Date()))
       .returning();
     return result.length;
+  }
+
+  // Bulk Update Job operations
+  async createBulkUpdateJob(job: InsertBulkUpdateJob): Promise<BulkUpdateJob> {
+    const [newJob] = await db
+      .insert(bulkUpdateJobs)
+      .values(job)
+      .returning();
+    return newJob;
+  }
+
+  async getBulkUpdateJob(id: string): Promise<BulkUpdateJob | undefined> {
+    const [job] = await db
+      .select()
+      .from(bulkUpdateJobs)
+      .where(eq(bulkUpdateJobs.id, id))
+      .limit(1);
+    return job;
+  }
+
+  async updateBulkUpdateJob(id: string, data: Partial<InsertBulkUpdateJob>): Promise<BulkUpdateJob | undefined> {
+    const [updated] = await db
+      .update(bulkUpdateJobs)
+      .set(data)
+      .where(eq(bulkUpdateJobs.id, id))
+      .returning();
+    return updated;
+  }
+
+  async getActiveBulkUpdateJobs(): Promise<BulkUpdateJob[]> {
+    return await db
+      .select()
+      .from(bulkUpdateJobs)
+      .where(
+        sql`${bulkUpdateJobs.status} IN ('pending', 'in_progress')`
+      )
+      .orderBy(desc(bulkUpdateJobs.createdAt));
+  }
+
+  async getBulkUpdateHistory(limit: number = 50): Promise<BulkUpdateJob[]> {
+    return await db
+      .select()
+      .from(bulkUpdateJobs)
+      .orderBy(desc(bulkUpdateJobs.createdAt))
+      .limit(limit);
+  }
+
+  // Bulk Export operations
+  async createBulkExport(job: InsertBulkExport): Promise<BulkExport> {
+    const [newJob] = await db
+      .insert(bulkExports)
+      .values(job)
+      .returning();
+    return newJob;
+  }
+
+  async getBulkExport(id: string): Promise<BulkExport | undefined> {
+    const [job] = await db
+      .select()
+      .from(bulkExports)
+      .where(eq(bulkExports.id, id))
+      .limit(1);
+    return job;
+  }
+
+  async updateBulkExport(id: string, data: Partial<InsertBulkExport>): Promise<BulkExport | undefined> {
+    const [updated] = await db
+      .update(bulkExports)
+      .set(data)
+      .where(eq(bulkExports.id, id))
+      .returning();
+    return updated;
+  }
+
+  async getActiveBulkExports(): Promise<BulkExport[]> {
+    return await db
+      .select()
+      .from(bulkExports)
+      .where(
+        sql`${bulkExports.status} IN ('pending', 'generating')`
+      )
+      .orderBy(desc(bulkExports.createdAt));
+  }
+
+  async getBulkExportHistory(limit: number = 50): Promise<BulkExport[]> {
+    return await db
+      .select()
+      .from(bulkExports)
+      .orderBy(desc(bulkExports.createdAt))
+      .limit(limit);
+  }
+
+  async cleanupExpiredBulkExports(): Promise<number> {
+    const result = await db
+      .delete(bulkExports)
+      .where(
+        and(
+          lt(bulkExports.expiresAt, new Date()),
+          sql`${bulkExports.expiresAt} IS NOT NULL`
+        )
+      )
+      .returning();
+    return result.length;
+  }
+
+  // Batch Research Job operations
+  async createBatchResearchJob(job: InsertBatchResearchJob): Promise<BatchResearchJob> {
+    const [newJob] = await db
+      .insert(batchResearchJobs)
+      .values(job)
+      .returning();
+    return newJob;
+  }
+
+  async getBatchResearchJob(id: string): Promise<BatchResearchJob | undefined> {
+    const [job] = await db
+      .select()
+      .from(batchResearchJobs)
+      .where(eq(batchResearchJobs.id, id))
+      .limit(1);
+    return job;
+  }
+
+  async updateBatchResearchJob(id: string, data: Partial<InsertBatchResearchJob>): Promise<BatchResearchJob | undefined> {
+    const [updated] = await db
+      .update(batchResearchJobs)
+      .set(data)
+      .where(eq(batchResearchJobs.id, id))
+      .returning();
+    return updated;
+  }
+
+  async getActiveBatchResearchJobs(): Promise<BatchResearchJob[]> {
+    return await db
+      .select()
+      .from(batchResearchJobs)
+      .where(
+        sql`${batchResearchJobs.status} IN ('pending', 'processing')`
+      )
+      .orderBy(desc(batchResearchJobs.createdAt));
+  }
+
+  async getBatchResearchJobHistory(limit: number = 50): Promise<BatchResearchJob[]> {
+    return await db
+      .select()
+      .from(batchResearchJobs)
+      .orderBy(desc(batchResearchJobs.createdAt))
+      .limit(limit);
+  }
+
+  // ============================================
+  // Interactive Editing: Session and Edit operations
+  // ============================================
+
+  async getOrCreateSession(reportId: string, browserToken: string, sessionName?: string): Promise<UserSession> {
+    // Check for existing session
+    const existing = await db
+      .select()
+      .from(userSessions)
+      .where(and(
+        eq(userSessions.reportId, reportId),
+        eq(userSessions.browserToken, browserToken),
+      ))
+      .limit(1);
+
+    if (existing.length > 0) {
+      return existing[0];
+    }
+
+    // Create new session
+    const [session] = await db
+      .insert(userSessions)
+      .values({
+        reportId,
+        browserToken,
+        sessionName: sessionName || "Default Session",
+      })
+      .returning();
+
+    return session;
+  }
+
+  async getSession(reportId: string, browserToken: string): Promise<UserSession | undefined> {
+    const results = await db
+      .select()
+      .from(userSessions)
+      .where(and(
+        eq(userSessions.reportId, reportId),
+        eq(userSessions.browserToken, browserToken),
+      ))
+      .limit(1);
+
+    return results[0];
+  }
+
+  async getSessionEdits(sessionId: string): Promise<UserEdit[]> {
+    return await db
+      .select()
+      .from(userEdits)
+      .where(eq(userEdits.sessionId, sessionId))
+      .orderBy(desc(userEdits.createdAt));
+  }
+
+  async saveEdit(edit: InsertUserEdit): Promise<UserEdit> {
+    const [saved] = await db
+      .insert(userEdits)
+      .values(edit)
+      .returning();
+
+    // Update session updatedAt timestamp
+    await db
+      .update(userSessions)
+      .set({ updatedAt: new Date() })
+      .where(eq(userSessions.id, edit.sessionId));
+
+    return saved;
+  }
+
+  async clearSessionEdits(sessionId: string): Promise<void> {
+    await db
+      .delete(userEdits)
+      .where(eq(userEdits.sessionId, sessionId));
+  }
+
+  async createAdminAuditEntry(
+    entry: InsertAdminAuditLog,
+  ): Promise<AdminAuditLogEntry | null> {
+    // Audit writes must never crash an admin request — if the DB write fails
+    // we log to the server console (which is itself a passive audit trail)
+    // and return null so callers can keep going.
+    try {
+      const [saved] = await db.insert(adminAuditLog).values(entry).returning();
+      return saved ?? null;
+    } catch (err) {
+      console.error("[admin-audit] Failed to write audit entry:", err, entry);
+      return null;
+    }
+  }
+
+  async getRecentAdminAuditEntries(
+    options: AdminAuditLogQuery = {},
+  ): Promise<{ entries: AdminAuditLogEntry[]; total: number }> {
+    // Clamp the limit so a malicious or careless caller can't ask for the
+    // entire table in one shot. The default of 25 mirrors the original
+    // single-arg behaviour so the at-a-glance panel stays unchanged when
+    // the UI doesn't pass a limit.
+    const safeLimit = Math.max(
+      1,
+      Math.min(200, Math.floor(options.limit ?? 25) || 25),
+    );
+    const safeOffset = Math.max(0, Math.floor(options.offset ?? 0) || 0);
+
+    const whereClause = buildAdminAuditWhereClause(options);
+
+    // Run the page query and the COUNT(*) in parallel — both hit the same
+    // filtered set, so paying for one round-trip each is fine.
+    const pageQuery = db
+      .select()
+      .from(adminAuditLog)
+      .orderBy(desc(adminAuditLog.createdAt))
+      .limit(safeLimit)
+      .offset(safeOffset);
+    const countQuery = db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(adminAuditLog);
+
+    const [entries, countRows] = await Promise.all([
+      whereClause ? pageQuery.where(whereClause) : pageQuery,
+      whereClause ? countQuery.where(whereClause) : countQuery,
+    ]);
+    const total = Number(countRows[0]?.count ?? 0);
+    return { entries, total };
+  }
+
+  async exportAdminAuditEntries(
+    options: AdminAuditLogQuery = {},
+  ): Promise<{ entries: AdminAuditLogEntry[]; total: number; truncated: boolean }> {
+    // Reuse the exact same filter semantics as the read endpoint so an
+    // operator's "Download CSV" pulls the slice they're currently looking
+    // at — no chance of a divergent WHERE clause silently exporting more
+    // (or fewer) rows than the panel shows.
+    const whereClause = buildAdminAuditWhereClause(options);
+
+    // Hard cap to keep a multi-year export from OOM-ing the server. We
+    // ask for `cap + 1` rows so we can detect "the filter selected more
+    // than the cap" without paying for a separate COUNT(*) round-trip on
+    // the happy path (small portfolios export well under 10k rows).
+    const pageQuery = db
+      .select()
+      .from(adminAuditLog)
+      .orderBy(desc(adminAuditLog.createdAt))
+      .limit(AUDIT_EXPORT_MAX_ROWS + 1);
+
+    const rows = await (whereClause ? pageQuery.where(whereClause) : pageQuery);
+    const truncated = rows.length > AUDIT_EXPORT_MAX_ROWS;
+    const entries = truncated ? rows.slice(0, AUDIT_EXPORT_MAX_ROWS) : rows;
+
+    // Only pay for COUNT(*) when we actually hit the cap — otherwise the
+    // export already has every row and `total === entries.length`. This
+    // keeps the common case to a single round-trip.
+    let total = entries.length;
+    if (truncated) {
+      const countQuery = db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(adminAuditLog);
+      const countRows = await (whereClause
+        ? countQuery.where(whereClause)
+        : countQuery);
+      total = Number(countRows[0]?.count ?? entries.length);
+    }
+    return { entries, total, truncated };
+  }
+
+  async pruneOldAdminAuditEntries(olderThan: Date): Promise<number> {
+    // Defensive: if the caller hands us a bad Date we'd otherwise generate
+    // `WHERE created_at < 'Invalid Date'` and Postgres would reject it.
+    // Returning 0 keeps the scheduler's "we ran but nothing to prune" path
+    // working without surfacing a misconfiguration as a crash.
+    if (!(olderThan instanceof Date) || Number.isNaN(olderThan.getTime())) {
+      return 0;
+    }
+    // Use a CTE so Postgres returns only the aggregate count of deleted
+    // rows instead of streaming every deleted row back to Node. The
+    // first sweep after a long-running unbounded period could otherwise
+    // delete tens of thousands of audit rows in one shot, and a
+    // `RETURNING id` on that would create avoidable memory pressure.
+    const rows = await db.execute(sql<{ count: number }>`
+      WITH deleted AS (
+        DELETE FROM ${adminAuditLog}
+        WHERE ${adminAuditLog.createdAt} < ${olderThan}
+        RETURNING 1
+      )
+      SELECT count(*)::int AS count FROM deleted
+    `);
+    // `db.execute` returns the driver's raw result. Neon's serverless
+    // pg driver exposes the row list under `.rows`; fall back to
+    // treating `rows` as iterable for any other driver shape.
+    const first = (rows as { rows?: Array<{ count?: number }> }).rows?.[0]
+      ?? (rows as unknown as Array<{ count?: number }>)[0];
+    return Number(first?.count ?? 0);
+  }
+
+  async saveLastBackfillSummary(
+    summary: PersistedBackfillSummary,
+    updatedReports: BackfillReportResult[],
+  ): Promise<void> {
+    // Singleton row keyed by `id="singleton"`. Upsert so a new run replaces
+    // the previous snapshot and the Admin page only ever hydrates the most
+    // recent state, exactly mirroring the in-memory behaviour after a fresh
+    // run finishes in the same browser tab.
+    await db
+      .insert(adminLastBackfill)
+      .values({
+        id: "singleton",
+        summary,
+        updatedReports,
+      })
+      .onConflictDoUpdate({
+        target: adminLastBackfill.id,
+        set: {
+          summary,
+          updatedReports,
+          completedAt: new Date(),
+        },
+      });
+  }
+
+  async getLastBackfillSummary(): Promise<{
+    summary: PersistedBackfillSummary;
+    updatedReports: BackfillReportResult[];
+    completedAt: Date;
+  } | null> {
+    const [row] = await db
+      .select()
+      .from(adminLastBackfill)
+      .where(eq(adminLastBackfill.id, "singleton"))
+      .limit(1);
+    if (!row) return null;
+    // The JSONB columns come back as `unknown` from Drizzle (the schema is
+    // declared in shared/ where the server-side persisted types aren't
+    // visible). We narrow at the persistence boundary here so callers get
+    // typed data without sprinkling casts in every route handler. The cast
+    // is safe because writes go through `saveLastBackfillSummary` above,
+    // which is the only path that ever inserts into this table.
+    return {
+      summary: row.summary as PersistedBackfillSummary,
+      updatedReports: row.updatedReports as BackfillReportResult[],
+      completedAt: row.completedAt,
+    };
+  }
+
+  async clearLastBackfillSummary(): Promise<boolean> {
+    // Delete the singleton row keyed by `id="singleton"`. Drizzle's
+    // `.returning()` lets us tell the caller whether anything was
+    // actually removed without a separate SELECT — the route handler
+    // uses this to record an accurate audit `outcome.removed` flag.
+    const removed = await db
+      .delete(adminLastBackfill)
+      .where(eq(adminLastBackfill.id, "singleton"))
+      .returning({ id: adminLastBackfill.id });
+    return removed.length > 0;
+  }
+
+  async recordAdminAuditCleanup(record: {
+    status: "success" | "failure";
+    removedCount: number;
+    retentionDays: number;
+    cutoff: Date;
+    errorMessage?: string | null;
+    durationMs?: number | null;
+  }): Promise<void> {
+    // Wrapped in try/catch so a persistence failure never crashes the
+    // retention sweeper that calls this.
+    try {
+      const errorMessage = record.errorMessage ?? null;
+      const durationMs = record.durationMs ?? null;
+      await db
+        .insert(adminLastAuditCleanup)
+        .values({
+          id: "singleton",
+          status: record.status,
+          removedCount: record.removedCount,
+          retentionDays: record.retentionDays,
+          cutoff: record.cutoff,
+          errorMessage,
+          durationMs,
+        })
+        .onConflictDoUpdate({
+          target: adminLastAuditCleanup.id,
+          set: {
+            status: record.status,
+            removedCount: record.removedCount,
+            retentionDays: record.retentionDays,
+            cutoff: record.cutoff,
+            errorMessage,
+            durationMs,
+            ranAt: new Date(),
+          },
+        });
+    } catch (err) {
+      console.error(
+        "[storage] Failed to persist admin audit cleanup record:",
+        err,
+      );
+    }
+  }
+
+  async getLastAdminAuditCleanup(): Promise<AdminLastAuditCleanupRow | null> {
+    const [row] = await db
+      .select()
+      .from(adminLastAuditCleanup)
+      .where(eq(adminLastAuditCleanup.id, "singleton"))
+      .limit(1);
+    return row ?? null;
+  }
+
+  async getAdminSettings(): Promise<AdminSettingsRow | null> {
+    const [row] = await db
+      .select()
+      .from(adminSettings)
+      .where(eq(adminSettings.id, "singleton"))
+      .limit(1);
+    return row ?? null;
+  }
+
+  async updateAdminSettings(
+    settings: { auditRetentionDays?: number | null },
+  ): Promise<AdminSettingsRow> {
+    // Upsert on the singleton row so concurrent saves don't create
+    // multiple rows. We only set the columns explicitly mentioned in
+    // `settings` so a future caller updating one field doesn't wipe
+    // out unrelated columns we add to this table later.
+    const updateSet: Record<string, unknown> = { updatedAt: new Date() };
+    const insertValues: Record<string, unknown> = { id: "singleton" };
+    if (Object.prototype.hasOwnProperty.call(settings, "auditRetentionDays")) {
+      updateSet.auditRetentionDays = settings.auditRetentionDays ?? null;
+      insertValues.auditRetentionDays = settings.auditRetentionDays ?? null;
+    }
+    const [row] = await db
+      .insert(adminSettings)
+      .values(insertValues as typeof adminSettings.$inferInsert)
+      .onConflictDoUpdate({
+        target: adminSettings.id,
+        set: updateSet,
+      })
+      .returning();
+    return row;
   }
 }
 

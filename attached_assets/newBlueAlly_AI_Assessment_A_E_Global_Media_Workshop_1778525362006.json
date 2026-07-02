@@ -1,0 +1,2831 @@
+{
+  "companyName": "A+E Global Media",
+  "generatedAt": "2026-05-11T18:08:02.000Z",
+  "analysis": {
+    "vrm": {
+      "weights": {
+        "governance": 0.2,
+        "orgCapacity": 0.35,
+        "dataReadiness": 0.3,
+        "techInfrastructure": 0.15
+      },
+      "diagnostic": {
+        "warnings": [
+          {
+            "code": "VALUE_DISTRIBUTION_SKEWED",
+            "message": "Median normalized Value Score is 3.0, outside the typical 4-8 band. Min-max normalization may be over- or under-spreading the portfolio.",
+            "severity": "warning",
+            "remediation": "Sanity-check friction-cost denominators and EV inputs; consider whether one or two outlier use cases are compressing the rest of the distribution."
+          },
+          {
+            "code": "BENCHMARK_UNSOURCED",
+            "message": "10 Step-2 KPIs report benchmark figures with no citation. Advisory only \u2014 update the AI contract to require a Source URL or Benchmark ID.",
+            "severity": "warning",
+            "remediation": "Each industry / industry-best / overall-best benchmark must cite a public source URL (or reference a Benchmark ID from the canonical registry).",
+            "recommendedAction": "Each industry / industry-best / overall-best benchmark must cite a public source URL (or reference a Benchmark ID from the canonical registry)."
+          },
+          {
+            "code": "CLASS_INFERRED_NO_DECLARATION",
+            "message": "UC-01: Use Case Class was not declared by the model. Inferred revenue_bearing + cost_bearing + risk_bearing from emitted benefit pillars; class-aware gating is in advisory mode for this use case.",
+            "severity": "info",
+            "remediation": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected.",
+            "recommendedAction": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected."
+          },
+          {
+            "code": "RISK_NOT_ANCHORED",
+            "message": "UC-01: risk benefit lacks lossCategory and kpiAnchorId. Advisory only \u2014 update the AI contract to require both fields.",
+            "severity": "warning",
+            "remediation": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure.",
+            "recommendedAction": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure."
+          },
+          {
+            "code": "CLASS_INFERRED_NO_DECLARATION",
+            "message": "UC-02: Use Case Class was not declared by the model. Inferred revenue_bearing + cost_bearing + risk_bearing from emitted benefit pillars; class-aware gating is in advisory mode for this use case.",
+            "severity": "info",
+            "remediation": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected.",
+            "recommendedAction": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected."
+          },
+          {
+            "code": "RISK_NOT_ANCHORED",
+            "message": "UC-02: risk benefit lacks lossCategory and kpiAnchorId. Advisory only \u2014 update the AI contract to require both fields.",
+            "severity": "warning",
+            "remediation": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure.",
+            "recommendedAction": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure."
+          },
+          {
+            "code": "CLASS_INFERRED_NO_DECLARATION",
+            "message": "UC-03: Use Case Class was not declared by the model. Inferred revenue_bearing + cost_bearing + risk_bearing from emitted benefit pillars; class-aware gating is in advisory mode for this use case.",
+            "severity": "info",
+            "remediation": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected.",
+            "recommendedAction": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected."
+          },
+          {
+            "code": "RISK_NOT_ANCHORED",
+            "message": "UC-03: risk benefit lacks lossCategory and kpiAnchorId. Advisory only \u2014 update the AI contract to require both fields.",
+            "severity": "warning",
+            "remediation": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure.",
+            "recommendedAction": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure."
+          },
+          {
+            "code": "CLASS_INFERRED_NO_DECLARATION",
+            "message": "UC-04: Use Case Class was not declared by the model. Inferred revenue_bearing + cost_bearing + risk_bearing from emitted benefit pillars; class-aware gating is in advisory mode for this use case.",
+            "severity": "info",
+            "remediation": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected.",
+            "recommendedAction": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected."
+          },
+          {
+            "code": "RISK_NOT_ANCHORED",
+            "message": "UC-04: risk benefit lacks lossCategory and kpiAnchorId. Advisory only \u2014 update the AI contract to require both fields.",
+            "severity": "warning",
+            "remediation": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure.",
+            "recommendedAction": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure."
+          },
+          {
+            "code": "CLASS_INFERRED_NO_DECLARATION",
+            "message": "UC-05: Use Case Class was not declared by the model. Inferred revenue_bearing + cost_bearing + risk_bearing from emitted benefit pillars; class-aware gating is in advisory mode for this use case.",
+            "severity": "info",
+            "remediation": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected.",
+            "recommendedAction": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected."
+          },
+          {
+            "code": "RISK_NOT_ANCHORED",
+            "message": "UC-05: risk benefit lacks lossCategory and kpiAnchorId. Advisory only \u2014 update the AI contract to require both fields.",
+            "severity": "warning",
+            "remediation": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure.",
+            "recommendedAction": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure."
+          },
+          {
+            "code": "CLASS_INFERRED_NO_DECLARATION",
+            "message": "UC-06: Use Case Class was not declared by the model. Inferred revenue_bearing + cost_bearing + risk_bearing from emitted benefit pillars; class-aware gating is in advisory mode for this use case.",
+            "severity": "info",
+            "remediation": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected.",
+            "recommendedAction": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected."
+          },
+          {
+            "code": "RISK_NOT_ANCHORED",
+            "message": "UC-06: risk benefit lacks lossCategory and kpiAnchorId. Advisory only \u2014 update the AI contract to require both fields.",
+            "severity": "warning",
+            "remediation": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure.",
+            "recommendedAction": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure."
+          },
+          {
+            "code": "CLASS_INFERRED_NO_DECLARATION",
+            "message": "UC-07: Use Case Class was not declared by the model. Inferred revenue_bearing + cost_bearing + risk_bearing from emitted benefit pillars; class-aware gating is in advisory mode for this use case.",
+            "severity": "info",
+            "remediation": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected.",
+            "recommendedAction": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected."
+          },
+          {
+            "code": "RISK_NOT_ANCHORED",
+            "message": "UC-07: risk benefit lacks lossCategory and kpiAnchorId. Advisory only \u2014 update the AI contract to require both fields.",
+            "severity": "warning",
+            "remediation": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure.",
+            "recommendedAction": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure."
+          },
+          {
+            "code": "CLASS_INFERRED_NO_DECLARATION",
+            "message": "UC-08: Use Case Class was not declared by the model. Inferred revenue_bearing + cost_bearing + risk_bearing from emitted benefit pillars; class-aware gating is in advisory mode for this use case.",
+            "severity": "info",
+            "remediation": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected.",
+            "recommendedAction": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected."
+          },
+          {
+            "code": "RISK_NOT_ANCHORED",
+            "message": "UC-08: risk benefit lacks lossCategory and kpiAnchorId. Advisory only \u2014 update the AI contract to require both fields.",
+            "severity": "warning",
+            "remediation": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure.",
+            "recommendedAction": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure."
+          },
+          {
+            "code": "CLASS_INFERRED_NO_DECLARATION",
+            "message": "UC-09: Use Case Class was not declared by the model. Inferred revenue_bearing + cost_bearing + risk_bearing from emitted benefit pillars; class-aware gating is in advisory mode for this use case.",
+            "severity": "info",
+            "remediation": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected.",
+            "recommendedAction": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected."
+          },
+          {
+            "code": "RISK_NOT_ANCHORED",
+            "message": "UC-09: risk benefit lacks lossCategory and kpiAnchorId. Advisory only \u2014 update the AI contract to require both fields.",
+            "severity": "warning",
+            "remediation": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure.",
+            "recommendedAction": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure."
+          },
+          {
+            "code": "CLASS_INFERRED_NO_DECLARATION",
+            "message": "UC-10: Use Case Class was not declared by the model. Inferred revenue_bearing + cost_bearing + risk_bearing from emitted benefit pillars; class-aware gating is in advisory mode for this use case.",
+            "severity": "info",
+            "remediation": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected.",
+            "recommendedAction": "Update the AI contract to require an explicit 'Use Case Class' field per use case so revenue claims on non-revenue-bearing use cases can be hard-rejected."
+          },
+          {
+            "code": "RISK_NOT_ANCHORED",
+            "message": "UC-10: risk benefit lacks lossCategory and kpiAnchorId. Advisory only \u2014 update the AI contract to require both fields.",
+            "severity": "warning",
+            "remediation": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure.",
+            "recommendedAction": "Each risk pillar must cite both a lossCategory (markdown / stockout / working_capital / fines / churn / fraud / security_breach) and a Step-2 KPI ID so reviewers can trace the exposure."
+          },
+          {
+            "code": "IRR_IMPLAUSIBLE",
+            "message": "IRR of 261% exceeds 100% \u2014 verify the implementation cost basis.",
+            "severity": "warning",
+            "remediation": "IRR > 100% is rare in enterprise software programs. Confirm the cost basis is fully loaded (people, process, technology, change management).",
+            "recommendedAction": "IRR > 100% is rare in enterprise software programs. Confirm the cost basis is fully loaded (people, process, technology, change management)."
+          },
+          {
+            "code": "PAYBACK_IMPLAUSIBLE",
+            "message": "Payback under 1 month implies near-zero implementation cost \u2014 likely a calculation error.",
+            "severity": "critical",
+            "remediation": "Confirm implementation cost includes change management, integration, and ongoing operational overhead, not just licensing or tooling.",
+            "recommendedAction": "Confirm implementation cost includes change management, integration, and ongoing operational overhead, not just licensing or tooling."
+          },
+          {
+            "code": "IRR_DISPLAY_CLAMPED",
+            "message": "IRR clamped from 261% to \"200%+\" for executive display. Raw value preserved in audit trail.",
+            "severity": "warning",
+            "remediation": "An IRR above 200% is rarely defensible to a CFO. Verify implementation cost includes change management, integration, and ongoing operational overhead.",
+            "recommendedAction": "An IRR above 200% is rarely defensible to a CFO. Verify implementation cost includes change management, integration, and ongoing operational overhead."
+          },
+          {
+            "code": "PAYBACK_DISPLAY_CLAMPED",
+            "message": "Payback clamped from 0 months to \"<6 mo\" for executive display. Raw value preserved in audit trail.",
+            "severity": "warning",
+            "remediation": "Sub-6-month payback usually means implementation cost is understated. Confirm the cost basis is fully loaded.",
+            "recommendedAction": "Sub-6-month payback usually means implementation cost is understated. Confirm the cost basis is fully loaded."
+          },
+          {
+            "code": "HEADLINE_RECONCILIATION_OVERRIDE",
+            "message": "Executive-summary headline diverged from canonical first-year value by 76% (LLM said $12.8M, canonical is $52.8M). Headline overridden.",
+            "severity": "warning",
+            "remediation": "The original LLM headline is preserved at executiveSummary.headlineLLMOriginal. Review why the model's narrative diverged \u2014 usually because portfolio caps reshaped the totals after the LLM wrote the summary.",
+            "recommendedAction": "The original LLM headline is preserved at executiveSummary.headlineLLMOriginal. Review why the model's narrative diverged \u2014 usually because portfolio caps reshaped the totals after the LLM wrote the summary."
+          }
+        ],
+        "championCount": 1,
+        "quickWinCount": 1,
+        "schemaVersion": "2.2",
+        "totalUseCases": 10,
+        "strategicCount": 3,
+        "foundationCount": 5,
+        "conditionalCount": 1,
+        "medianValueScore": 3,
+        "leadChampionCount": 0,
+        "leadQuickWinCount": 0,
+        "foundationHardCount": 0,
+        "foundationSoftCount": 5,
+        "hardFloorFailureRate": 0,
+        "medianReadinessScore": 4.9,
+        "intakeIncompletionRate": 0,
+        "conditionalChampionCount": 1,
+        "prototypingCandidatesPct": 30,
+        "prototypingCandidatesCount": 3
+      },
+      "sectorPreset": "baseline",
+      "diagnosticV21": {
+        "warnings": [
+          {
+            "code": "VALUE_DISTRIBUTION_SKEWED",
+            "message": "Median normalized Value Score 3.0 is below the 4 floor.",
+            "severity": "warning",
+            "remediation": "Verify EV and Friction values were captured correctly. Consider whether friction baselines include realistic loaded labor rates.",
+            "recommendedAction": "Verify EV and Friction values were captured correctly. Consider whether friction baselines include realistic loaded labor rates."
+          }
+        ],
+        "byQuadrant": {
+          "champion": 0,
+          "quick_win": 0,
+          "strategic": 0,
+          "foundation": 8,
+          "conditional_champion": 2
+        },
+        "championCount": 0,
+        "quickWinCount": 0,
+        "totalUseCases": 10,
+        "strategicCount": 0,
+        "foundationCount": 8,
+        "medianValueScore": 3,
+        "foundationHardCount": 0,
+        "foundationSoftCount": 8,
+        "hardFloorFailureRate": 0,
+        "medianReadinessScore": 4.9,
+        "intakeIncompletionRate": 0,
+        "conditionalChampionCount": 2,
+        "prototypingCandidatesPct": 20,
+        "prototypingCandidatesCount": 2
+      },
+      "rubricVersion": "2.0",
+      "schemaVersion": "2.2",
+      "baselineWeights": {
+        "governance": 0.2,
+        "orgCapacity": 0.35,
+        "dataReadiness": 0.3,
+        "techInfrastructure": 0.15
+      },
+      "engagementConfig": {
+        "valueFloor": {
+          "minNormalizedScore": 4,
+          "minAbsoluteAnnualValue": 500000
+        },
+        "championMin": 7.5,
+        "quickStrategicMin": 6,
+        "maxTimeToPilotWeeks": 16,
+        "dataAccessSprintWeeks": 6
+      },
+      "sectorPresetLabel": "Baseline",
+      "priorSchemaVersion": "2.1",
+      "quadrantThresholds": {
+        "cut": 5.5,
+        "valueFloor": 6,
+        "championMin": 7.5,
+        "leadTierCut": 7.5,
+        "valueFloorBand": {
+          "minNormalizedScore": 4,
+          "minAbsoluteAnnualValue": 500000
+        },
+        "quickStrategicMin": 6,
+        "maxTimeToPilotWeeks": 16,
+        "minPrototypingCandidates": 3
+      },
+      "valueNormalization": "log10-percentile-winsorized",
+      "priorSchemaVersionV20": "2.0",
+      "valueNormalizationVersion": "v3"
+    },
+    "steps": [
+      {
+        "data": null,
+        "step": 0,
+        "title": "Company Overview",
+        "content": "A+E Global Media generates approximately $3.2B in annual revenue as a privately held joint venture between Hearst Communications and The Walt Disney Company. The company operates eight flagship brands \u2014 A&E, History, Lifetime, LMN, FYI, Vice TV, Crime+Investigation, and Biography \u2014 across roughly seventeen networks worldwide, plus FAST, AVOD, and SVOD distribution into 200+ territories and 40+ languages. The 2024 rebrand from A+E Networks to A+E Global Media named the three forward-leaning revenue motions: international expansion, FAST channels, and content licensing \u2014 all of which run downstream of the same asset, A+E's unscripted library, estimated at 25,000+ hours of programming spanning three decades. The company employs approximately 4,800 staff and operates one of television's largest unscripted franchise bases. Public cloud modernization under AWS, media supply chain orchestration via SDVI Rally, and a production-shaped agentic QA proof from the Witbe case study (16 releases, 4 platforms, 421 features, 1,400+ automated test hours in two months) establish meaningful AI-readiness baselines. Eight technology leaders convene for the two-day AI workshop. Tapan Shah (SVP Engineering, Platforms & Data) anchors the data foundation every use case depends on. Kevin Keeler (VP Digital Product Engineering & Enterprise Infrastructure) owns the GPU procurement and infrastructure investment decision. David Klee (VP Broadcast Operations & Engineering) holds the line between AI workloads and the broadcast path. Bruno Sathyan (VP Corporate Application Engineering & Enterprise Data) governs rights and contract data. Kshitij Bhutani (Senior Director Enterprise App Development) ships application delivery. Mike Goldberg (Senior Director Infrastructure Services) translates cloud-vs-on-prem GPU economics into workload arithmetic. Abhishek Neralla (Senior Director Media & Content Services) owns the unscripted asset management system that gates Library Search, Promo Generation, and downstream monetization. Clayton Griffith (Director, Generative AI Media Solutions, TechLab) leads GenAI experimentation at the pace the production platform cannot yet absorb. The room's organizing tension is that none of the eight can sign for a GPU alone; the business leaders who can \u2014 CFO, CPO, CDO, GC, CHRO, CRO \u2014 are not in the workshop. The company faces an estimated $294M in identifiable annual operational burden from manual processes concentrated across five domains: library discovery and licensing velocity ($89M / 127,000 hours), audience identity and ad-sales inventory ($62M / 94,000 hours), FAST and promo distribution workflows ($54M / 81,000 hours), rights management and contract operations ($47M / 71,000 hours), and production QA and release engineering ($42M / 63,000 hours). Data maturity is assessed at Level 2 with the SDVI Rally media supply chain and AWS modernization providing the cloud platform foundation; the gap is an AI-specific gateway, vector database, model registry, governed evaluation harness, and showback model. Financial and operational data derive from public corporate disclosures, the supplied A+E AI assessment baseline, and standard media-and-entertainment AI playbooks; the workshop's first job is to validate sponsor commitments and dataset availability before any pilot roadmap is treated as funded reality."
+      },
+      {
+        "data": [
+          {
+            "Target State": "Multi-modal embeddings index 100% of the unscripted library with frame, face, and dialogue retrieval in <2 minutes; rights-aware licensing proposals drafted in hours not weeks; 70% of FAST partner pitches sourced from agent-surfaced clips",
+            "Current State": "Researcher-week per pitch to surface clips from 25,000+ hours of unscripted; rights data fragmented across brands and territories; library is searchable but not licensable in the same workflow",
+            "Strategic Theme": "Library-Driven Content Monetization",
+            "Secondary Driver": "FAST partnership growth; international licensing throughput; the library moat thesis the CFO must hear",
+            "Primary Driver Impact": "$26M (researcher labor compression + licensing deal velocity + FAST partnership revenue + over-grant conflict avoidance)"
+          },
+          {
+            "Target State": "Promo cuts produced in hours not days across 20+ FAST channels and 40+ social accounts; closed captions and transcripts generated automatically across all releases; channel launch velocity one quarter faster",
+            "Current State": "Hand-cut promos by a small team that cannot scale; FCC and international caption requirements gating release; FAST channel launches paced by editorial throughput, not programming demand",
+            "Strategic Theme": "FAST & Promo Distribution Velocity",
+            "Secondary Driver": "Channel launch cadence; social media reach amplification; international accessibility compliance",
+            "Primary Driver Impact": "$18M (editor labor compression + FAST channel earlier launches + caption/transcript automation + outsourced cut spend reduction)"
+          },
+          {
+            "Target State": "100% of media assets pre-logged with scene, speaker, and beat metadata via batch GPU pipeline; agentic QA pattern (Witbe production proof) extended to 12+ release workflows; release-cycle compressed 40%",
+            "Current State": "Manual metadata tagging at 40% accuracy gates library search and recommendation; QA bottlenecks limit release velocity across linear, FAST, and digital platforms; Witbe agentic QA pattern proven in production but not generalized",
+            "Strategic Theme": "Production-Grade Media QA & Supply Chain",
+            "Secondary Driver": "Release engineering velocity; metadata foundation for every downstream AI use case; reusable platform pattern across brands",
+            "Primary Driver Impact": "$15M (manual QA labor compression + metadata enrichment + release velocity + content rework avoidance)"
+          },
+          {
+            "Target State": "Scene-level metadata creates advertiser-grade ad placements that did not exist yesterday; identity resolution at 85%+ across platforms; programmatic campaign errors reduced to <1%",
+            "Current State": "Viewer identity resolution at 47% across nine platform silos; programmatic campaign setup errors in 8.3% of 230 concurrent campaigns; audience insight reporting requires manual synthesis across five disconnected platforms",
+            "Strategic Theme": "Cross-Platform Audience & Advertising Intelligence",
+            "Secondary Driver": "CPM uplift through addressability; faster ad-sales proposal cycles; outcome media selling credibility",
+            "Primary Driver Impact": "$14M (CPM uplift through scene-level metadata + identity resolution improvements + programmatic error reduction + audience insight cycle compression)"
+          },
+          {
+            "Target State": "Compliance review augmented (not auto-scored) with 80%+ first-pass attorney acceptance; multilingual localization pipeline available for international expansion when sponsor and dataset readiness mature",
+            "Current State": "Compliance review at 34 attorney hours per episode; international localization handled manually per market; deepfake detection and brand safety auto-scoring rejected by workshop assessment as overhyped use cases for a publisher-side rather than platform-side problem",
+            "Strategic Theme": "Compliance & Localization (Validate / Defer Tier)",
+            "Secondary Driver": "International expansion enablement; attorney leverage; augmentation narrative (not headcount reduction) for CHRO",
+            "Primary Driver Impact": "$7M (compliance review augmentation + international localization unlock when readiness gates mature)"
+          }
+        ],
+        "step": 1,
+        "title": "Strategic Anchoring & Business Drivers",
+        "content": "Strategic themes anchor to A+E Global Media's three forward-leaning revenue motions \u2014 international expansion, FAST channel growth, content licensing \u2014 plus the production-grade automation (QA + pre-logging) that makes the library a moat rather than a warehouse. Five themes map to the workshop's investable-story framing: Library-Driven Content Monetization carries the highest value and pairs Library Search with Rights-Aware Licensing Proposals; FAST & Promo Distribution Velocity addresses the channel-launch and editorial-throughput bottleneck across FAST and social; Production-Grade Media QA & Supply Chain extends the Witbe production proof and adds batch media pre-logging as the GPU foundation; Cross-Platform Audience & Advertising Intelligence carries identity resolution and programmatic campaign discipline but requires business-side sponsor commitments; Compliance & Localization holds use cases the workshop will Validate or Defer rather than pursue in the first ninety days."
+      },
+      {
+        "data": [
+          {
+            "Function": "Operations",
+            "KPI Name": "Library Search Time-to-Clip",
+            "Direction": "\u2193",
+            "Timeframe": "12 months",
+            "Sub-Function": "Content Management",
+            "Target Value": "<2 minutes",
+            "Baseline Value": "1 week (researcher-led)",
+            "Benchmark (Avg)": "3-5 days (media industry typical)",
+            "Strategic Theme": "Library-Driven Content Monetization",
+            "Measurement Method": "Median time from producer query to first usable clip returned across the unscripted library [HIGH CONFIDENCE - Media & Content Services telemetry under Abhishek Neralla]",
+            "Benchmark (Overall Best)": "<60 seconds (best-in-class video search)",
+            "Benchmark (Industry Best)": "<10 minutes (top quartile media)"
+          },
+          {
+            "Function": "Legal & Compliance",
+            "KPI Name": "Rights-Aware Licensing Proposal Cycle Time",
+            "Direction": "\u2193",
+            "Timeframe": "12 months",
+            "Sub-Function": "Contract Management",
+            "Target Value": "3 days",
+            "Baseline Value": "21 days",
+            "Benchmark (Avg)": "14 days (media industry typical)",
+            "Strategic Theme": "Library-Driven Content Monetization",
+            "Measurement Method": "Days from licensing inquiry to rights-cleared draft proposal with territory, exclusivity, and term conflicts surfaced [MEDIUM CONFIDENCE - Enterprise Data + Legal pipeline data]",
+            "Benchmark (Overall Best)": "<1 day (best-in-class digital rights)",
+            "Benchmark (Industry Best)": "5 days (top quartile media)"
+          },
+          {
+            "Function": "Operations",
+            "KPI Name": "Promo Cut-to-Air Cycle Time",
+            "Direction": "\u2193",
+            "Timeframe": "12 months",
+            "Sub-Function": "Content Creation",
+            "Target Value": "4 hours",
+            "Baseline Value": "3 days",
+            "Benchmark (Avg)": "1-2 days (FAST media typical)",
+            "Strategic Theme": "FAST & Promo Distribution Velocity",
+            "Measurement Method": "Median time from FAST channel programming request to delivered promo asset, weighted by channel volume [HIGH CONFIDENCE - Broadcast Operations telemetry]",
+            "Benchmark (Overall Best)": "<1 hour (best-in-class automated promo)",
+            "Benchmark (Industry Best)": "8 hours (top quartile FAST operators)"
+          },
+          {
+            "Function": "Operations",
+            "KPI Name": "Closed Caption & Transcript Coverage",
+            "Direction": "\u2191",
+            "Timeframe": "12 months",
+            "Sub-Function": "Content Management",
+            "Target Value": "100%",
+            "Baseline Value": "62%",
+            "Benchmark (Avg)": "85% (US media compliance)",
+            "Strategic Theme": "FAST & Promo Distribution Velocity",
+            "Measurement Method": "Percentage of library hours with auto-generated, human-validated captions in English + 5 target languages [HIGH CONFIDENCE - SDVI Rally workflow telemetry]",
+            "Benchmark (Overall Best)": "100% (FCC + EU AVMS compliant operators)",
+            "Benchmark (Industry Best)": "95% (top quartile global media)"
+          },
+          {
+            "Function": "Operations",
+            "KPI Name": "Batch Media Pre-Logging Throughput",
+            "Direction": "\u2191",
+            "Timeframe": "12 months",
+            "Sub-Function": "Content Management",
+            "Target Value": "200 hours/day",
+            "Baseline Value": "12 hours/day (manual)",
+            "Benchmark (Avg)": "40 hours/day (semi-automated industry)",
+            "Strategic Theme": "Production-Grade Media QA & Supply Chain",
+            "Measurement Method": "Hours of media auto-tagged with scene, speaker, beat, and object metadata per 24-hour batch window [HIGH CONFIDENCE - SDVI Rally + Infrastructure Services]",
+            "Benchmark (Overall Best)": "500+ hours/day (best-in-class media AI)",
+            "Benchmark (Industry Best)": "150 hours/day (top quartile)"
+          },
+          {
+            "Function": "Operations",
+            "KPI Name": "Release-Window QA Cycle Time",
+            "Direction": "\u2193",
+            "Timeframe": "12 months",
+            "Sub-Function": "Quality Assurance",
+            "Target Value": "4 hours",
+            "Baseline Value": "32 hours",
+            "Benchmark (Avg)": "24 hours (media industry typical)",
+            "Strategic Theme": "Production-Grade Media QA & Supply Chain",
+            "Measurement Method": "Median time from release candidate to QA sign-off across the 4 platforms covered by the Witbe agentic QA proof [HIGH CONFIDENCE - Witbe production case study baseline]",
+            "Benchmark (Overall Best)": "<1 hour (Witbe-class automated QA)",
+            "Benchmark (Industry Best)": "8 hours (top quartile media QA)"
+          },
+          {
+            "Function": "Marketing",
+            "KPI Name": "Cross-Platform Identity Resolution Rate",
+            "Direction": "\u2191",
+            "Timeframe": "18 months",
+            "Sub-Function": "Market Research",
+            "Target Value": "85%",
+            "Baseline Value": "47%",
+            "Benchmark (Avg)": "65% (digital media typical)",
+            "Strategic Theme": "Cross-Platform Audience & Advertising Intelligence",
+            "Measurement Method": "Percentage of viewer sessions resolved to a unified identity across nine platform silos (linear, digital, FAST, AVOD, SVOD, international) [MEDIUM CONFIDENCE - identity graph telemetry under Platforms & Data]",
+            "Benchmark (Overall Best)": "92% (best-in-class CTV platforms)",
+            "Benchmark (Industry Best)": "75% (top quartile media)"
+          },
+          {
+            "Function": "Marketing",
+            "KPI Name": "Programmatic Campaign Error Rate",
+            "Direction": "\u2193",
+            "Timeframe": "12 months",
+            "Sub-Function": "Sales Operations",
+            "Target Value": "<1%",
+            "Baseline Value": "8.3%",
+            "Benchmark (Avg)": "4% (digital advertising typical)",
+            "Strategic Theme": "Cross-Platform Audience & Advertising Intelligence",
+            "Measurement Method": "Percentage of programmatic campaigns flagged for human remediation due to setup, targeting, or trafficking errors across 230 concurrent campaigns [HIGH CONFIDENCE - ad ops telemetry]",
+            "Benchmark (Overall Best)": "0.2% (best-in-class programmatic)",
+            "Benchmark (Industry Best)": "1.5% (top quartile media)"
+          },
+          {
+            "Function": "Legal & Compliance",
+            "KPI Name": "Compliance Review Attorney Hours per Episode",
+            "Direction": "\u2193",
+            "Timeframe": "18 months",
+            "Sub-Function": "Regulatory Filing",
+            "Target Value": "10 hours",
+            "Baseline Value": "34 hours",
+            "Benchmark (Avg)": "22 hours (media industry typical)",
+            "Strategic Theme": "Compliance & Localization (Validate / Defer Tier)",
+            "Measurement Method": "Attorney hours per episode for FCC, advertising standards, and clearance review under augmentation model (AI drafts, attorney signs) [MEDIUM CONFIDENCE - Legal time tracking]",
+            "Benchmark (Overall Best)": "6 hours (best-in-class augmentation)",
+            "Benchmark (Industry Best)": "15 hours (top quartile media)"
+          },
+          {
+            "Function": "Operations",
+            "KPI Name": "Localization Pipeline Throughput (Hours/Week)",
+            "Direction": "\u2191",
+            "Timeframe": "18 months",
+            "Sub-Function": "Content Management",
+            "Target Value": "120 hours/week",
+            "Baseline Value": "32 hours/week",
+            "Benchmark (Avg)": "60 hours/week (international media)",
+            "Strategic Theme": "Compliance & Localization (Validate / Defer Tier)",
+            "Measurement Method": "Hours of programming localized (dub + subtitle + market compliance) per week across target international markets [LOW CONFIDENCE - localization vendor data; sponsor not yet named]",
+            "Benchmark (Overall Best)": "300+ hours/week (global SVOD platforms)",
+            "Benchmark (Industry Best)": "150 hours/week (top quartile)"
+          }
+        ],
+        "step": 2,
+        "title": "Business Function Inventory & KPI Baselines",
+        "content": "Ten KPI baselines establish the measurement framework tied to workshop strategic priorities. Each metric links to specific operational friction and competitive benchmarks across media and entertainment. The two highest-value KPIs (library search time-to-clip and promo cut-to-air cycle time) sit under Operations / Media & Content Services and Broadcast Operations \u2014 the domains owned by Abhishek Neralla and David Klee. Rights-aware licensing proposal cycle time anchors the Bruno Sathyan / General Counsel engagement. Cross-platform identity resolution and programmatic campaign error rate map to the Tapan Shah / Chief Revenue Officer engagement. All KPIs are measurable against existing telemetry in SDVI Rally, the ad ops platform, and the legal/contract management systems \u2014 no exotic instrumentation required to establish a baseline."
+      },
+      {
+        "data": [
+          {
+            "Role": "Research Producer",
+            "Role ID": "ROLE_PRO_RESEARCH_PRODUCER",
+            "Function": "Operations",
+            "Severity": "Critical",
+            "Hourly Rate": 110,
+            "Annual Hours": 38000,
+            "Cost Formula": "38,000 hours \u00d7 $110/hr = $4.2M \u2192 $4.2M",
+            "Sub-Function": "Content Management",
+            "Friction Type": "Knowledge Friction",
+            "Friction Point": "Producer-to-clip discovery in the unscripted library requires a research producer to call, search, screen, and return clips over 3-7 days per pitch; library is the moat but not yet searchable to the people who pay for it",
+            "Strategic Theme": "Library-Driven Content Monetization",
+            "Primary Driver Impact": "Researcher-week per pitch blocks FAST partnership growth and licensing throughput; estimated $26M annual opportunity cost from delayed deals",
+            "Estimated Annual Cost ($)": "$4.2M"
+          },
+          {
+            "Role": "Rights Counsel",
+            "Role ID": "ROLE_SPEC_RIGHTS_COUNSEL",
+            "Function": "Legal & Compliance",
+            "Severity": "High",
+            "Hourly Rate": 150,
+            "Annual Hours": 22000,
+            "Cost Formula": "22,000 hours \u00d7 $150/hr = $3.3M \u2192 $3.3M",
+            "Sub-Function": "Contract Management",
+            "Friction Type": "Process Friction",
+            "Friction Point": "Lawyers read the same fifty pages all year across rights, territory, exclusivity, and renegotiation windows; over-grant conflicts surface late; licensing proposal turnaround is 21 days against a 3-day target",
+            "Strategic Theme": "Library-Driven Content Monetization",
+            "Primary Driver Impact": "21-day licensing proposal cycle delays deal velocity and creates $2-4M annual exposure to rights conflicts surfaced in production",
+            "Estimated Annual Cost ($)": "$3.3M"
+          },
+          {
+            "Role": "Promo Editor",
+            "Role ID": "ROLE_PRO_PROMO_EDITOR",
+            "Function": "Operations",
+            "Severity": "Critical",
+            "Hourly Rate": 95,
+            "Annual Hours": 42000,
+            "Cost Formula": "42,000 hours \u00d7 $95/hr = $4.0M \u2192 $4.0M",
+            "Sub-Function": "Content Creation",
+            "Friction Type": "Process Friction",
+            "Friction Point": "Hand-cut promos by a small team that cannot scale to 20+ FAST channels and 40+ social accounts; finding the beat \u2014 first kiss, first punch, closing line \u2014 across the unscripted catalogue is the bottleneck",
+            "Strategic Theme": "FAST & Promo Distribution Velocity",
+            "Primary Driver Impact": "3-day promo cycle paces FAST channel launches a full quarter behind programming demand; estimated $14M annual opportunity cost",
+            "Estimated Annual Cost ($)": "$4.0M"
+          },
+          {
+            "Role": "Caption & Transcript Editor",
+            "Role ID": "ROLE_PRO_CAPTION_EDITOR",
+            "Function": "Operations",
+            "Severity": "High",
+            "Hourly Rate": 80,
+            "Annual Hours": 28000,
+            "Cost Formula": "28,000 hours \u00d7 $80/hr = $2.2M \u2192 $2.2M",
+            "Sub-Function": "Content Management",
+            "Friction Type": "Process Friction",
+            "Friction Point": "Captions and transcripts produced manually per release; library coverage at 62% lags FCC and EU AVMS accessibility expectations; international release windows gated by localization throughput",
+            "Strategic Theme": "FAST & Promo Distribution Velocity",
+            "Primary Driver Impact": "Caption gaps block international release and FAST distribution windows; compliance exposure on FCC and EU accessibility requirements",
+            "Estimated Annual Cost ($)": "$2.2M"
+          },
+          {
+            "Role": "Media Operations Engineer",
+            "Role ID": "ROLE_PRO_MEDIA_OPS",
+            "Function": "Operations",
+            "Severity": "High",
+            "Hourly Rate": 100,
+            "Annual Hours": 32000,
+            "Cost Formula": "32,000 hours \u00d7 $100/hr = $3.2M \u2192 $3.2M",
+            "Sub-Function": "Content Management",
+            "Friction Type": "Data Friction",
+            "Friction Point": "Manual scene, speaker, and beat metadata tagging at 40% accuracy gates every downstream AI use case (library search, promo generation, recommendation, ad inventory); no batch GPU pre-logging pipeline exists today",
+            "Strategic Theme": "Production-Grade Media QA & Supply Chain",
+            "Primary Driver Impact": "Metadata gaps cap Library Search recall and prevent scene-level ad inventory; this is the foundation friction every other use case depends on",
+            "Estimated Annual Cost ($)": "$3.2M"
+          },
+          {
+            "Role": "QA Engineer",
+            "Role ID": "ROLE_PRO_QA_ENGINEER",
+            "Function": "Operations",
+            "Severity": "High",
+            "Hourly Rate": 105,
+            "Annual Hours": 26000,
+            "Cost Formula": "26,000 hours \u00d7 $105/hr = $2.7M \u2192 $2.7M",
+            "Sub-Function": "Quality Assurance",
+            "Friction Type": "Process Friction",
+            "Friction Point": "Platform-by-platform manual QA gates release velocity across linear, FAST, AVOD, and SVOD; Witbe agentic QA production proof (16 releases, 4 platforms, 421 features, 1,400+ test hours in two months) not yet generalized to the broader release portfolio",
+            "Strategic Theme": "Production-Grade Media QA & Supply Chain",
+            "Primary Driver Impact": "32-hour QA cycle per release across 4 platforms gates release velocity; production-proven Witbe pattern offers 8x compression when extended",
+            "Estimated Annual Cost ($)": "$2.7M"
+          },
+          {
+            "Role": "Data Engineer",
+            "Role ID": "ROLE_PRO_DATA_ENGINEER",
+            "Function": "Marketing",
+            "Severity": "High",
+            "Hourly Rate": 115,
+            "Annual Hours": 24000,
+            "Cost Formula": "24,000 hours \u00d7 $115/hr = $2.8M \u2192 $2.8M",
+            "Sub-Function": "Market Research",
+            "Friction Type": "Data Friction",
+            "Friction Point": "Viewer identity resolution at 47% across nine platform silos (linear, digital, FAST, AVOD, SVOD, international); manual stitching of partner data (Nielsen, Inscape, Samba) blocks unified audience view",
+            "Strategic Theme": "Cross-Platform Audience & Advertising Intelligence",
+            "Primary Driver Impact": "47% identity resolution caps addressable ad inventory and measurement credibility with advertisers; estimated $10M annual CPM uplift opportunity",
+            "Estimated Annual Cost ($)": "$2.8M"
+          },
+          {
+            "Role": "Ad Operations Specialist",
+            "Role ID": "ROLE_PRO_AD_OPS",
+            "Function": "Marketing",
+            "Severity": "Medium",
+            "Hourly Rate": 90,
+            "Annual Hours": 18000,
+            "Cost Formula": "18,000 hours \u00d7 $90/hr = $1.6M \u2192 $1.6M",
+            "Sub-Function": "Sales Operations",
+            "Friction Type": "Process Friction",
+            "Friction Point": "Programmatic campaign setup errors in 8.3% of 230 concurrent campaigns require manual remediation; tagging, targeting, and trafficking errors caught downstream rather than at proposal",
+            "Strategic Theme": "Cross-Platform Audience & Advertising Intelligence",
+            "Primary Driver Impact": "8.3% error rate loses ~18% margin on affected campaigns; manual remediation diverts ad ops from yield optimization",
+            "Estimated Annual Cost ($)": "$1.6M"
+          },
+          {
+            "Role": "Compliance Counsel",
+            "Role ID": "ROLE_SPEC_COMPLIANCE_COUNSEL",
+            "Function": "Legal & Compliance",
+            "Severity": "Medium",
+            "Hourly Rate": 145,
+            "Annual Hours": 14000,
+            "Cost Formula": "14,000 hours \u00d7 $145/hr = $2.0M \u2192 $2.0M",
+            "Sub-Function": "Risk Assessment",
+            "Friction Type": "Knowledge Friction",
+            "Friction Point": "Compliance review consumes 34 attorney hours per episode for FCC, advertising standards, and content clearance; augmentation potential is real but the workshop reframed this as 'lawyer signs, model drafts' rather than auto-score",
+            "Strategic Theme": "Compliance & Localization (Validate / Defer Tier)",
+            "Primary Driver Impact": "Validate tier: compliance augmentation worth $2M+ but deepfake detection and brand safety auto-scoring rejected as overhyped",
+            "Estimated Annual Cost ($)": "$2.0M"
+          },
+          {
+            "Role": "Localization Producer",
+            "Role ID": "ROLE_PRO_LOCALIZATION",
+            "Function": "Operations",
+            "Severity": "Low",
+            "Hourly Rate": 85,
+            "Annual Hours": 12000,
+            "Cost Formula": "12,000 hours \u00d7 $85/hr = $1.0M \u2192 $1.0M",
+            "Sub-Function": "Content Management",
+            "Friction Type": "Process Friction",
+            "Friction Point": "International localization (dub + subtitle + market compliance) handled manually per market; pipeline cannot scale to support the international expansion thesis named in the 2024 rebrand",
+            "Strategic Theme": "Compliance & Localization (Validate / Defer Tier)",
+            "Primary Driver Impact": "Defer tier: voice cloning and multilingual dubbing carry talent/SAG-AFTRA risk; workshop holds at Foundation pending sponsor and dataset readiness",
+            "Estimated Annual Cost ($)": "$1.0M"
+          }
+        ],
+        "step": 3,
+        "title": "Friction Point Mapping",
+        "content": "Media and entertainment AI friction concentrates at three boundaries: the library / monetization seam (where the asset exists but is not yet searchable to the people who pay for it), the FAST / promo distribution seam (where editorial throughput paces channel launches), and the production-grade automation seam (where Witbe's production-shaped QA proof sits beside a metadata tagging process running at 40% accuracy). Ten friction points drain approximately $27M annually in direct labor across these domains; the same friction blocks an estimated $80M+ of revenue, licensing, and ad-yield opportunity. The two top-priority friction points (researcher-to-clip discovery and hand-cut promo production) are individually worth more than $4M in annual labor each and are the natural anchors for the workshop's two highest-value champions: Abhishek Neralla on Library Search and David Klee on Promo Generation."
+      },
+      {
+        "data": [
+          {
+            "ID": "UC-01",
+            "Function": "Operations",
+            "Data Types": [
+              "Unstructured",
+              "Semi-structured",
+              "Structured"
+            ],
+            "Description": "Multi-modal video-language model indexes the unscripted library at frame, face, dialogue, and scene-beat level. Producers query in natural language ('every fight scene from a war series shot 2008-2012') and receive clips on screen in under two minutes instead of after a researcher-week. Embeddings are generated once per asset via batch GPU pipeline (see UC-04 pre-logging foundation) and served via vector retrieval with rights-aware filtering (see UC-02). Surfaced to producers in a web app integrated with the asset management system and SDVI Rally workflow.",
+            "EPOCH Flags": "O, C",
+            "Integrations": [
+              "Unscripted asset management system (MAM/PAM)",
+              "SDVI Rally media supply chain",
+              "Vector database (Pinecone/Weaviate-class)",
+              "Rights management database",
+              "AI gateway with model registry"
+            ],
+            "Sub-Function": "Content Management",
+            "_patternType": "single-agent",
+            "AI Primitives": "Research & Information Retrieval, Data Analysis, Content Creation",
+            "Use Case Name": "Multi-Modal Library Search & Semantic Archive Discovery",
+            "Agentic Pattern": "tool_use",
+            "Primary Pattern": "Tool Use",
+            "Strategic Theme": "Library-Driven Content Monetization",
+            "Target Friction": "Producer-to-clip discovery in the unscripted library requires a research producer to call, search, screen, and return clips over 3-7 days per pitch; library is the moat but not yet searchable to the people who pay for it",
+            "Desired Outcomes": [
+              "Compress producer-to-clip discovery from 1 week to <2 minutes",
+              "Surface 95% of library moments through frame/dialogue search",
+              "Enable producers to pitch FAST partners and licensing customers from clips, not synopses",
+              "Eliminate 38,000 hours of research producer time per year",
+              "Build the reusable embedding foundation for UC-02, UC-03, UC-04"
+            ],
+            "_tokenMultiplier": 1.6,
+            "Pattern Rationale": "Tool Use orchestrates multi-modal embedding generation (batch, GPU-heavy) and vector retrieval (interactive, low-latency) against rights metadata filters. ReAct Loop viable for exploratory producer queries but the deterministic search path is the primary workflow.",
+            "_patternComplexity": "medium",
+            "Alternative Pattern": "ReAct Loop",
+            "_implementationMonths": 4,
+            "Human-in-the-Loop Checkpoint": "Research producer or Programming lead validates clip shortlists before they are surfaced to FAST partners or licensing customers; rights-restricted clips require explicit clearance step (UC-02 handoff)"
+          },
+          {
+            "ID": "UC-02",
+            "Function": "Legal & Compliance",
+            "Data Types": [
+              "Unstructured",
+              "Structured"
+            ],
+            "Description": "Long-context LLM ingests rights contracts (PDF), licensing history, territory and exclusivity grants, talent and music clearances, and existing FAST/AVOD/SVOD distribution agreements. Drafts a rights-aware licensing proposal for every clip surfaced by UC-01, flagging conflicts with prior grants, expired clearances, and renegotiation windows. Lawyers review the model's draft and sign; the model does not sign. Confidential deals route to private deployment; public-domain contract work routes to API-class models for cost efficiency.",
+            "EPOCH Flags": "O, C, P",
+            "Integrations": [
+              "Contract management system",
+              "Rights management database",
+              "UC-01 Library Search output",
+              "AI gateway with private deployment routing",
+              "Long-context LLM endpoint"
+            ],
+            "Sub-Function": "Contract Management",
+            "_patternType": "multi-agent",
+            "AI Primitives": "Research & Information Retrieval, Content Creation, Workflow Automation, Data Analysis",
+            "Use Case Name": "Rights-Aware Automated Licensing Proposal Engine",
+            "Agentic Pattern": "orchestrator_worker",
+            "Primary Pattern": "Orchestrator-Workers",
+            "Strategic Theme": "Library-Driven Content Monetization",
+            "Target Friction": "Lawyers read the same fifty pages all year across rights, territory, exclusivity, and renegotiation windows; over-grant conflicts surface late; licensing proposal turnaround is 21 days against a 3-day target",
+            "Desired Outcomes": [
+              "Compress licensing proposal cycle from 21 days to 3 days",
+              "Surface 90% of rights conflicts before customer-facing proposal",
+              "Capture renegotiation windows 60+ days earlier than today",
+              "Eliminate 22,000 hours of attorney contract-reading per year",
+              "Seed the Private AI argument for confidential deal subset"
+            ],
+            "_tokenMultiplier": 2.2,
+            "Pattern Rationale": "Orchestrator-Workers parallelizes sub-agents (contract extraction, conflict detection, territory/exclusivity check, talent/music clearance, draft proposal generation) against a centralized rights conflict registry. Planning viable but lacks the concurrency required for live deal windows.",
+            "_patternComplexity": "high",
+            "Alternative Pattern": "Planning",
+            "_implementationMonths": 5,
+            "Human-in-the-Loop Checkpoint": "Rights counsel reviews and signs every customer-facing proposal; General Counsel approves any deal touching confidential or never-before-licensed material; model drafts, lawyers sign"
+          },
+          {
+            "ID": "UC-03",
+            "Function": "Operations",
+            "Data Types": [
+              "Unstructured",
+              "Semi-structured"
+            ],
+            "Description": "Multi-modal model finds narrative beats \u2014 first kiss, first punch, the closing line \u2014 across the unscripted library and assembles draft promo and social clips for FAST channels and forty social accounts. A promo editor reviews, refines, and approves; brand-safety review stays in the loop. Reuses UC-01 embeddings and UC-04 pre-logged metadata. Elastic burst GPU profile: spiky during promo cycles, ideal for reserved-with-burst capacity.",
+            "EPOCH Flags": "O, C",
+            "Integrations": [
+              "SDVI Rally media supply chain",
+              "Adobe Premiere / Avid Media Composer (NLE handoff)",
+              "FAST channel programming systems",
+              "Social media publishing platforms",
+              "Brand safety review tooling"
+            ],
+            "Sub-Function": "Content Creation",
+            "_patternType": "multi-agent",
+            "AI Primitives": "Content Creation, Data Analysis, Workflow Automation",
+            "Use Case Name": "Automated Promo & Clip Generation for FAST Channels",
+            "Agentic Pattern": "orchestrator_worker",
+            "Primary Pattern": "Orchestrator-Workers",
+            "Strategic Theme": "FAST & Promo Distribution Velocity",
+            "Target Friction": "Hand-cut promos by a small team that cannot scale to 20+ FAST channels and 40+ social accounts; finding the beat \u2014 first kiss, first punch, closing line \u2014 across the unscripted catalogue is the bottleneck",
+            "Desired Outcomes": [
+              "Compress promo cycle from 3 days to 4 hours per asset",
+              "Scale promo throughput from 1 editor to 10x via agent-drafted cuts",
+              "Light new FAST channels one quarter sooner than today",
+              "Eliminate 42,000 hours of manual editor labor per year",
+              "Reduce outsourced cut spend by 60%"
+            ],
+            "_tokenMultiplier": 2.0,
+            "Pattern Rationale": "Orchestrator-Workers coordinates beat detection (video-language model), cut assembly (rules-based + LLM), brand-safety review (separate classifier), and metadata tagging in parallel. The pattern matches the Witbe agentic QA production proof for multi-platform release coordination.",
+            "_patternComplexity": "high",
+            "Alternative Pattern": "Planning",
+            "_implementationMonths": 5,
+            "Human-in-the-Loop Checkpoint": "Promo editor reviews and approves every cut before publication; brand safety review stays in the loop; David Klee owns the gate that keeps AI workloads off the broadcast critical path"
+          },
+          {
+            "ID": "UC-04",
+            "Function": "Operations",
+            "Data Types": [
+              "Unstructured",
+              "Semi-structured"
+            ],
+            "Description": "Batch GPU pipeline runs overnight against the unscripted library to generate scene, speaker, beat, object, music, and dialogue metadata at frame-level resolution. Output feeds UC-01 (library search), UC-03 (promo generation), UC-06 (caption generation), and UC-08 (scene-level ad inventory). This is the cleanest GPU business case in the portfolio: continuous, predictable, sensitivity-driven, and feeds reusable metadata that multiple use cases share.",
+            "EPOCH Flags": "O",
+            "Integrations": [
+              "Unscripted asset management system (MAM/PAM)",
+              "SDVI Rally media supply chain",
+              "Batch scheduler (Argo / Airflow-class)",
+              "GPU pool (reserved cloud or colo)",
+              "Vector database",
+              "Metadata catalog (Apache Atlas / DataHub-class)"
+            ],
+            "Sub-Function": "Content Management",
+            "_patternType": "single-agent",
+            "AI Primitives": "Data Analysis, Workflow Automation",
+            "Use Case Name": "Footage Pre-Logging & Batch Media Enrichment",
+            "Agentic Pattern": "planning",
+            "Primary Pattern": "Planning",
+            "Strategic Theme": "Production-Grade Media QA & Supply Chain",
+            "Target Friction": "Manual scene, speaker, and beat metadata tagging at 40% accuracy gates every downstream AI use case (library search, promo generation, recommendation, ad inventory); no batch GPU pre-logging pipeline exists today",
+            "Desired Outcomes": [
+              "Scale batch pre-logging from 12 hours/day to 200 hours/day",
+              "Raise metadata accuracy from 40% to 90%+ at frame level",
+              "Unblock UC-01, UC-03, UC-06, UC-08 with reusable embeddings",
+              "Eliminate 32,000 hours of manual metadata tagging per year",
+              "Establish the GPU utilization baseline for procurement decisions"
+            ],
+            "_tokenMultiplier": 1.3,
+            "Pattern Rationale": "Planning decomposes ingestion into structured steps (ASR, scene segmentation, face recognition, object detection, embedding generation) executed in a deterministic batch workflow. Tool Use viable but Planning gives clearer checkpoint instrumentation for showback/chargeback.",
+            "_patternComplexity": "medium",
+            "Alternative Pattern": "Tool Use",
+            "_implementationMonths": 3,
+            "Human-in-the-Loop Checkpoint": "Media Operations Engineer (Abhishek Neralla's team) spot-checks accuracy on random samples; flagged segments route to human review; Infrastructure Services (Mike Goldberg) owns the GPU utilization SLOs"
+          },
+          {
+            "ID": "UC-05",
+            "Function": "Operations",
+            "Data Types": [
+              "Structured",
+              "Semi-structured",
+              "Unstructured"
+            ],
+            "Description": "Extends the Witbe agentic QA production proof (16 releases, 4 platforms, 421 features, 1,400+ automated test hours in two months) to the broader release portfolio across linear, FAST, AVOD, and SVOD. Multi-agent system runs functional, performance, accessibility, and regression tests in parallel against release candidates; drafts release-readiness reports; flags regressions for engineer review. The most production-shaped use case in the portfolio because the pattern has already shipped.",
+            "EPOCH Flags": "O",
+            "Integrations": [
+              "Witbe Agentic QA platform",
+              "CI/CD pipeline (Jenkins / GitHub Actions / etc.)",
+              "Test management system",
+              "Observability stack (Datadog / New Relic-class)",
+              "Release management system"
+            ],
+            "Sub-Function": "Quality Assurance",
+            "_patternType": "multi-agent",
+            "AI Primitives": "Workflow Automation, Data Analysis, Research & Information Retrieval",
+            "Use Case Name": "Agentic QA & Release-Window Test Automation",
+            "Agentic Pattern": "orchestrator_worker",
+            "Primary Pattern": "Orchestrator-Workers",
+            "Strategic Theme": "Production-Grade Media QA & Supply Chain",
+            "Target Friction": "Platform-by-platform manual QA gates release velocity across linear, FAST, AVOD, and SVOD; Witbe agentic QA production proof (16 releases, 4 platforms, 421 features, 1,400+ test hours in two months) not yet generalized to the broader release portfolio",
+            "Desired Outcomes": [
+              "Compress release-window QA from 32 hours to 4 hours",
+              "Extend Witbe pattern from 4 platforms to 12+ release workflows",
+              "Eliminate 26,000 hours of manual QA per year",
+              "Establish reusable agentic-QA platform pattern other teams can adopt",
+              "Maintain 99.5%+ release quality threshold (zero broadcast-path regression)"
+            ],
+            "_tokenMultiplier": 1.5,
+            "Pattern Rationale": "Orchestrator-Workers matches the proven Witbe production pattern: a supervisor agent coordinates parallel test execution agents per platform with a centralized release-readiness scorer. Tool Use viable for single-platform tests but lacks cross-platform concurrency.",
+            "_patternComplexity": "medium",
+            "Alternative Pattern": "Tool Use",
+            "_implementationMonths": 3,
+            "Human-in-the-Loop Checkpoint": "Release engineer (Kshitij Bhutani's team) reviews release-readiness reports and signs the gate; platform engineers validate any flagged regressions; David Klee approves any test workflow that touches the broadcast critical path"
+          },
+          {
+            "ID": "UC-06",
+            "Function": "Operations",
+            "Data Types": [
+              "Unstructured"
+            ],
+            "Description": "Multi-language ASR pipeline generates closed captions and transcripts across the unscripted library and live release stream. Auto-generated captions route through human post-edit for compliance-grade releases (FCC, EU AVMS); directly-published for FAST and social channels. Feeds UC-01 library search with searchable dialogue and feeds UC-09 multilingual localization pipeline.",
+            "EPOCH Flags": "O",
+            "Integrations": [
+              "SDVI Rally media supply chain",
+              "ASR service (cloud API or self-hosted)",
+              "Caption management system",
+              "FCC compliance workflow",
+              "Translation memory system"
+            ],
+            "Sub-Function": "Content Management",
+            "_patternType": "single-agent",
+            "AI Primitives": "Data Analysis, Content Creation",
+            "Use Case Name": "Multilingual Closed Caption & Transcript Generation",
+            "Agentic Pattern": "tool_use",
+            "Primary Pattern": "Tool Use",
+            "Strategic Theme": "FAST & Promo Distribution Velocity",
+            "Target Friction": "Captions and transcripts produced manually per release; library coverage at 62% lags FCC and EU AVMS accessibility expectations; international release windows gated by localization throughput",
+            "Desired Outcomes": [
+              "Raise caption coverage from 62% to 100% across the library",
+              "Add 5 target language captions (Spanish, Portuguese, French, German, Italian)",
+              "Eliminate 28,000 hours of manual caption editing per year",
+              "Feed UC-01 library search with searchable dialogue at scale",
+              "Meet FCC and EU AVMS accessibility compliance baselines"
+            ],
+            "_tokenMultiplier": 1.2,
+            "Pattern Rationale": "Tool Use against best-in-class ASR (Whisper-class or managed cloud API) with deterministic post-processing for compliance formatting. Generator-Critic viable for higher-stakes content but adds latency to release path.",
+            "_patternComplexity": "low",
+            "Alternative Pattern": "Generator-Critic",
+            "_implementationMonths": 2,
+            "Human-in-the-Loop Checkpoint": "Caption editor reviews auto-generated captions before release; high-visibility releases (premieres, live events) require human post-edit; compliance-grade captions require FCC reviewer sign-off"
+          },
+          {
+            "ID": "UC-07",
+            "Function": "Marketing",
+            "Data Types": [
+              "Structured",
+              "Semi-structured"
+            ],
+            "Description": "AI matches viewer signals across nine platform silos (linear, digital, FAST, AVOD, SVOD, international, Nielsen, Inscape, Samba) to produce a unified identity graph. ML model probabilistically links household, device, and platform identifiers under explicit privacy and partner-contract constraints. Output feeds advertiser-grade addressability and audience-based pricing; does NOT feed AI-generated audience claims (that is partner territory and triggers turf).",
+            "EPOCH Flags": "O, P, C",
+            "Integrations": [
+              "Identity graph platform",
+              "Nielsen, Inscape, Samba partner feeds",
+              "Linear, digital, FAST, AVOD, SVOD viewer telemetry",
+              "Consent management platform",
+              "Ad server integration"
+            ],
+            "Sub-Function": "Market Research",
+            "_patternType": "single-agent",
+            "AI Primitives": "Data Analysis, Workflow Automation, Research & Information Retrieval",
+            "Use Case Name": "Cross-Platform Audience Identity Resolution Engine",
+            "Agentic Pattern": "planning",
+            "Primary Pattern": "Planning",
+            "Strategic Theme": "Cross-Platform Audience & Advertising Intelligence",
+            "Target Friction": "Viewer identity resolution at 47% across nine platform silos (linear, digital, FAST, AVOD, SVOD, international); manual stitching of partner data (Nielsen, Inscape, Samba) blocks unified audience view",
+            "Desired Outcomes": [
+              "Raise identity resolution from 47% to 85% across platform silos",
+              "Enable scene-level ad inventory through UC-04 metadata enrichment",
+              "Improve CPM through advertiser-grade addressability",
+              "Build the data foundation the Chief Revenue Officer must approve",
+              "Maintain explicit privacy and partner-contract boundaries"
+            ],
+            "_tokenMultiplier": 1.4,
+            "Pattern Rationale": "Planning decomposes identity resolution into structured steps (graph construction, probabilistic matching, validation against ground truth, consent enforcement). Tool Use viable but Planning provides clearer auditability for partner contract compliance.",
+            "_patternComplexity": "high",
+            "Alternative Pattern": "Tool Use",
+            "_implementationMonths": 6,
+            "Human-in-the-Loop Checkpoint": "Data engineer (Tapan Shah's team) validates identity-graph match precision against held-out ground truth; legal approves any partner-data flow change; CRO/CDO sponsor must be named before pilot launch"
+          },
+          {
+            "ID": "UC-08",
+            "Function": "Marketing",
+            "Data Types": [
+              "Structured",
+              "Semi-structured"
+            ],
+            "Description": "Agent validates programmatic campaign setup (targeting, tagging, trafficking, frequency caps, brand safety) against established rules and historical patterns before campaigns go live. Catches the 8.3% of 230 concurrent campaigns that fail with manual setup errors. Surfaces yield-optimization recommendations during the campaign lifecycle. Output is advisory; ad ops specialists make all targeting changes.",
+            "EPOCH Flags": "O",
+            "Integrations": [
+              "Ad server (Google Ad Manager / FreeWheel)",
+              "DSP integrations",
+              "Brand safety classifier",
+              "Yield optimization engine",
+              "Campaign management system"
+            ],
+            "Sub-Function": "Sales Operations",
+            "_patternType": "single-agent",
+            "AI Primitives": "Workflow Automation, Data Analysis, Research & Information Retrieval",
+            "Use Case Name": "Programmatic Campaign Validation & Yield Optimization Agent",
+            "Agentic Pattern": "tool_use",
+            "Primary Pattern": "Tool Use",
+            "Strategic Theme": "Cross-Platform Audience & Advertising Intelligence",
+            "Target Friction": "Programmatic campaign setup errors in 8.3% of 230 concurrent campaigns require manual remediation; tagging, targeting, and trafficking errors caught downstream rather than at proposal",
+            "Desired Outcomes": [
+              "Reduce campaign error rate from 8.3% to <1%",
+              "Surface yield-optimization recommendations weekly per campaign",
+              "Eliminate 18,000 hours of ad-ops remediation per year",
+              "Improve campaign margin through fewer downstream corrections",
+              "Pair with UC-07 identity resolution for the full ad-sales story"
+            ],
+            "_tokenMultiplier": 1.3,
+            "Pattern Rationale": "Tool Use orchestrates deterministic validation rules with an LLM classifier for ambiguous flags; high transactional volume rules out latency-heavy multi-agent patterns. Semantic Router viable for simpler categorization but lacks campaign-level context.",
+            "_patternComplexity": "medium",
+            "Alternative Pattern": "Semantic Router",
+            "_implementationMonths": 3,
+            "Human-in-the-Loop Checkpoint": "Ad operations specialist reviews and dispositions every flagged campaign before launch; high-spend campaigns require sales leadership sign-off; CRO/Chief Ad Sales Officer must be named sponsor"
+          },
+          {
+            "ID": "UC-09",
+            "Function": "Operations",
+            "Data Types": [
+              "Unstructured",
+              "Semi-structured"
+            ],
+            "Description": "Multilingual dubbing and localization pipeline using voice-cloning and translation models to support international expansion. Workshop classification: DEFER. Voice cloning carries SAG-AFTRA and talent-contract risk; deepfake concerns from the broader industry context require explicit governance before any production deployment. Held at Foundation tier pending named sponsor, talent-contract review, and dataset readiness.",
+            "EPOCH Flags": "O, C, P",
+            "Integrations": [
+              "Translation memory system",
+              "Voice synthesis platform (with rights cleared)",
+              "Localization vendor management",
+              "International compliance database",
+              "Talent management system"
+            ],
+            "Sub-Function": "Content Management",
+            "_patternType": "multi-agent",
+            "AI Primitives": "Content Creation, Data Analysis, Workflow Automation",
+            "Use Case Name": "Multilingual Dubbing & Localization Pipeline",
+            "Agentic Pattern": "orchestrator_worker",
+            "Primary Pattern": "Orchestrator-Workers",
+            "Strategic Theme": "Compliance & Localization (Validate / Defer Tier)",
+            "Target Friction": "International localization (dub + subtitle + market compliance) handled manually per market; pipeline cannot scale to support the international expansion thesis named in the 2024 rebrand",
+            "Desired Outcomes": [
+              "Scale localization throughput from 32 hours/week to 120 hours/week",
+              "Cover 5 target international markets with consistent quality",
+              "Eliminate 12,000 hours of localization-coordination labor per year",
+              "Unlock international FAST and SVOD distribution windows",
+              "Maintain talent and SAG-AFTRA contract compliance throughout"
+            ],
+            "_tokenMultiplier": 2.5,
+            "Pattern Rationale": "Orchestrator-Workers coordinates translation, voice synthesis, lip-sync alignment, and market-compliance review in parallel. The pattern is technically viable today; the gate is governance, not capability.",
+            "_patternComplexity": "high",
+            "Alternative Pattern": "Planning",
+            "_implementationMonths": 6,
+            "Human-in-the-Loop Checkpoint": "TechLab pilot under Clayton Griffith only; production deployment requires CHRO, General Counsel, and talent-contract review sign-off; no voice cloning of identifiable performers without explicit written release"
+          },
+          {
+            "ID": "UC-10",
+            "Function": "Legal & Compliance",
+            "Data Types": [
+              "Unstructured",
+              "Structured"
+            ],
+            "Description": "AI augments (does not replace) compliance review by drafting first-pass FCC, advertising standards, and clearance findings against episode scripts and rough cuts. Workshop reframing: this is augmentation, not auto-score. Brand safety auto-scoring and deepfake detection were rejected by workshop assessment as overhyped for a publisher-side rather than platform-side problem. Held at Foundation pending augmentation-narrative alignment with GC and CHRO.",
+            "EPOCH Flags": "O, P",
+            "Integrations": [
+              "Script management system",
+              "Rough cut review platform",
+              "FCC compliance database",
+              "Advertising standards rules engine",
+              "Legal review workflow"
+            ],
+            "Sub-Function": "Risk Assessment",
+            "_patternType": "single-agent",
+            "AI Primitives": "Research & Information Retrieval, Data Analysis, Content Creation",
+            "Use Case Name": "Compliance Review Augmentation Copilot",
+            "Agentic Pattern": "tool_use",
+            "Primary Pattern": "Tool Use",
+            "Strategic Theme": "Compliance & Localization (Validate / Defer Tier)",
+            "Target Friction": "Compliance review consumes 34 attorney hours per episode for FCC, advertising standards, and content clearance; augmentation potential is real but the workshop reframed this as 'lawyer signs, model drafts' rather than auto-score",
+            "Desired Outcomes": [
+              "Reduce compliance review from 34 hours/episode to 10 hours/episode",
+              "Achieve 80%+ attorney first-pass acceptance of model drafts",
+              "Eliminate 14,000 hours of compliance attorney labor per year",
+              "Maintain augmentation narrative (not headcount reduction) for CHRO",
+              "Build on UC-02 rights infrastructure for shared platform pattern"
+            ],
+            "_tokenMultiplier": 1.4,
+            "Pattern Rationale": "Tool Use against deterministic FCC rules + LLM classification with confidence scoring; ambiguous flags route to attorney review. Lower complexity than full rights analysis (UC-02) and reuses much of that infrastructure.",
+            "_patternComplexity": "medium",
+            "Alternative Pattern": "Semantic Router",
+            "_implementationMonths": 4,
+            "Human-in-the-Loop Checkpoint": "Compliance counsel reviews and signs every finding; General Counsel approves any expansion beyond episode-level review; CHRO must align on augmentation narrative before broad rollout"
+          }
+        ],
+        "step": 4,
+        "title": "AI Use Case Generation",
+        "content": "Ten use cases target the workshop friction map mapped to the eight technology attendees as champions. The three workshop champion-tier stories anchor the portfolio: Multi-Modal Library Search (UC-01, Abhishek Neralla) makes the unscripted library searchable in <2 minutes; Rights-Aware Automated Licensing Proposals (UC-02, Bruno Sathyan) turn that search into licensable revenue with attorney sign-off; Automated Promo & Clip Generation (UC-03, David Klee) scales editorial throughput across 20+ FAST channels and 40+ social accounts. Two Quick Win foundations make the rest possible: Footage Pre-Logging & Batch Media Enrichment (UC-04, Mike Goldberg + Abhishek Neralla) builds the metadata moat and serves as the cleanest GPU business case in the portfolio; Agentic QA & Release-Window Test Automation (UC-05, Tapan Shah + Kshitij Bhutani) extends the proven Witbe production pattern to 12+ release workflows. UC-06 (Captions & Transcripts) rides on existing ASR capability and feeds UC-01 search. UC-07 (Identity Resolution) and UC-08 (Programmatic Validation) require Chief Revenue Officer sponsorship before launch. UC-09 (Dubbing & Localization) and UC-10 (Compliance Augmentation) sit at Foundation in the workshop's Validate/Defer tier \u2014 good ideas without yet-mature readiness, governance, or sponsorship. Each use case names a Champion from the eight attendees and a sponsor-to-recruit from the business side. AI handles volume and pattern recognition. Humans handle exceptions and strategic calls. The broadcast critical path stays AI-free until promotion criteria are met; David Klee owns that gate."
+      },
+      {
+        "data": [
+          {
+            "ID": "UC-01",
+            "Use Case": "Multi-Modal Library Search & Semantic Archive Discovery",
+            "Cost Formula": "32,000 hours \u00d7 $150/hr \u00d7 1.35 \u00d7 0.9 \u00d7 0.75 = $4.4M \u2192 $4.4M [HF/labels]",
+            "Risk Formula": "2% \u00d7 $48,000,000 \u00d7 0.80 \u00d7 0.75 = $576K \u2192 $576K [HF/labels]",
+            "Revenue Formula": "0.35% \u00d7 $3,200,000,000 \u00d7 0.95 \u00d7 0.75 = $8.0M \u2192 $8.0M [HF/labels]",
+            "Strategic Theme": "Library-Driven Content Monetization",
+            "Cost Benefit ($)": "$4.4M",
+            "Risk Benefit ($)": "$576K",
+            "Cash Flow Formula": "$3,200,000,000 \u00d7 (6/365) \u00d7 0.08 \u00d7 0.85 \u00d7 0.75 = $2.7M \u2192 $2.7M [HF/labels]",
+            "Expected Value ($)": "$10.1M",
+            "Cost Formula Labels": {
+              "result": "$4.4M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 32000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 150
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$8.0M",
+            "Risk Formula Labels": {
+              "result": "$576K",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.02
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 48000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$2.7M",
+            "Probability of Success": 0.65,
+            "Revenue Formula Labels": {
+              "result": "$8.0M",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.0035
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 3200000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$15.6M",
+            "Cash Flow Formula Labels": {
+              "result": "$2.7M",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 3200000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 6
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            }
+          },
+          {
+            "ID": "UC-02",
+            "Use Case": "Rights-Aware Automated Licensing Proposal Engine",
+            "Cost Formula": "18,000 hours \u00d7 $150/hr \u00d7 1.35 \u00d7 0.9 \u00d7 0.75 = $2.5M \u2192 $2.5M [HF/labels]",
+            "Risk Formula": "4% \u00d7 $72,000,000 \u00d7 0.80 \u00d7 0.75 = $1.7M \u2192 $1.7M [HF/labels]",
+            "Revenue Formula": "0.20% \u00d7 $3,200,000,000 \u00d7 0.95 \u00d7 0.75 = $4.6M \u2192 $4.6M [HF/labels]",
+            "Strategic Theme": "Library-Driven Content Monetization",
+            "Cost Benefit ($)": "$2.5M",
+            "Risk Benefit ($)": "$1.7M",
+            "Cash Flow Formula": "$3,200,000,000 \u00d7 (12/365) \u00d7 0.08 \u00d7 0.85 \u00d7 0.75 = $5.4M \u2192 $5.4M [HF/labels]",
+            "Expected Value ($)": "$7.8M",
+            "Cost Formula Labels": {
+              "result": "$2.5M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 18000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 150
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$4.6M",
+            "Risk Formula Labels": {
+              "result": "$1.7M",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.04
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 72000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$5.4M",
+            "Probability of Success": 0.55,
+            "Revenue Formula Labels": {
+              "result": "$4.6M",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.002
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 3200000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$14.1M",
+            "Cash Flow Formula Labels": {
+              "result": "$5.4M",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 3200000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 12
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            }
+          },
+          {
+            "ID": "UC-03",
+            "Use Case": "Automated Promo & Clip Generation for FAST Channels",
+            "Cost Formula": "34,000 hours \u00d7 $150/hr \u00d7 1.35 \u00d7 0.9 \u00d7 0.75 = $4.6M \u2192 $4.6M [HF/labels]",
+            "Risk Formula": "2% \u00d7 $42,000,000 \u00d7 0.80 \u00d7 0.75 = $378K \u2192 $378K [HF/labels]",
+            "Revenue Formula": "0.25% \u00d7 $3,200,000,000 \u00d7 0.95 \u00d7 0.75 = $5.7M \u2192 $5.7M [HF/labels]",
+            "Strategic Theme": "FAST & Promo Distribution Velocity",
+            "Cost Benefit ($)": "$4.6M",
+            "Risk Benefit ($)": "$378K",
+            "Cash Flow Formula": "$3,200,000,000 \u00d7 (4/365) \u00d7 0.08 \u00d7 0.85 \u00d7 0.75 = $1.8M \u2192 $1.8M [HF/labels]",
+            "Expected Value ($)": "$8.1M",
+            "Cost Formula Labels": {
+              "result": "$4.6M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 34000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 150
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$5.7M",
+            "Risk Formula Labels": {
+              "result": "$378K",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.015
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 42000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$1.8M",
+            "Probability of Success": 0.65,
+            "Revenue Formula Labels": {
+              "result": "$5.7M",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.0025
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 3200000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$12.5M",
+            "Cash Flow Formula Labels": {
+              "result": "$1.8M",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 3200000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 4
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            }
+          },
+          {
+            "ID": "UC-04",
+            "Use Case": "Footage Pre-Logging & Batch Media Enrichment",
+            "Cost Formula": "26,000 hours \u00d7 $150/hr \u00d7 1.35 \u00d7 0.9 \u00d7 0.75 = $3.6M \u2192 $3.6M [HF/labels]",
+            "Risk Formula": "1% \u00d7 $24,000,000 \u00d7 0.80 \u00d7 0.75 = $144K \u2192 $144K [HF/labels]",
+            "Revenue Formula": "0.05% \u00d7 $3,200,000,000 \u00d7 0.95 \u00d7 0.75 = $1.1M \u2192 $1.1M [HF/labels]",
+            "Strategic Theme": "Production-Grade Media QA & Supply Chain",
+            "Cost Benefit ($)": "$3.6M",
+            "Risk Benefit ($)": "$144K",
+            "Cash Flow Formula": "$3,200,000,000 \u00d7 (2/365) \u00d7 0.08 \u00d7 0.85 \u00d7 0.75 = $894K \u2192 $894K [HF/labels]",
+            "Expected Value ($)": "$4.0M",
+            "Cost Formula Labels": {
+              "result": "$3.6M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 26000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 150
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$1.1M",
+            "Risk Formula Labels": {
+              "result": "$144K",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.01
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 24000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$894K",
+            "Probability of Success": 0.7,
+            "Revenue Formula Labels": {
+              "result": "$1.1M",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.0005
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 3200000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$5.7M",
+            "Cash Flow Formula Labels": {
+              "result": "$894K",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 3200000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 2
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            }
+          },
+          {
+            "ID": "UC-05",
+            "Use Case": "Agentic QA & Release-Window Test Automation",
+            "Cost Formula": "22,000 hours \u00d7 $150/hr \u00d7 1.35 \u00d7 0.9 \u00d7 0.75 = $3.0M \u2192 $3.0M [HF/labels]",
+            "Risk Formula": "3% \u00d7 $36,000,000 \u00d7 0.80 \u00d7 0.75 = $648K \u2192 $648K [HF/labels]",
+            "Revenue Formula": "0.06% \u00d7 $3,200,000,000 \u00d7 0.95 \u00d7 0.75 = $1.4M \u2192 $1.4M [HF/labels]",
+            "Strategic Theme": "Production-Grade Media QA & Supply Chain",
+            "Cost Benefit ($)": "$3.0M",
+            "Risk Benefit ($)": "$648K",
+            "Cash Flow Formula": "$3,200,000,000 \u00d7 (2/365) \u00d7 0.08 \u00d7 0.85 \u00d7 0.75 = $894K \u2192 $894K [HF/labels]",
+            "Expected Value ($)": "$4.4M",
+            "Cost Formula Labels": {
+              "result": "$3.0M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 22000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 150
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$1.4M",
+            "Risk Formula Labels": {
+              "result": "$648K",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.03
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 36000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$894K",
+            "Probability of Success": 0.75,
+            "Revenue Formula Labels": {
+              "result": "$1.4M",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.0006
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 3200000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$5.9M",
+            "Cash Flow Formula Labels": {
+              "result": "$894K",
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 3200000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 2
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            }
+          },
+          {
+            "ID": "UC-06",
+            "Use Case": "Multilingual Closed Caption & Transcript Generation",
+            "Cost Formula": "22,000 hours \u00d7 $150/hr \u00d7 1.35 \u00d7 0.9 \u00d7 0.75 = $3.0M \u2192 $3.0M [HF/labels]",
+            "Risk Formula": "2% \u00d7 $12,000,000 \u00d7 0.80 \u00d7 0.75 = $144K \u2192 $144K [HF/labels]",
+            "Revenue Formula": "0.06% \u00d7 $3,200,000,000 \u00d7 0.95 \u00d7 0.75 = $1.4M \u2192 $1.4M [HF/labels]",
+            "Strategic Theme": "FAST & Promo Distribution Velocity",
+            "Cost Benefit ($)": "$3.0M",
+            "Risk Benefit ($)": "$144K",
+            "Cash Flow Formula": "No direct cash flow impact",
+            "Expected Value ($)": "$3.4M",
+            "Cost Formula Labels": {
+              "result": "$3.0M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 22000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 150
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$1.4M",
+            "Risk Formula Labels": {
+              "result": "$144K",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.02
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 12000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$0",
+            "Probability of Success": 0.75,
+            "Revenue Formula Labels": {
+              "result": "$1.4M",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.0006
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 3200000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$4.5M",
+            "Cash Flow Formula Labels": null
+          },
+          {
+            "ID": "UC-07",
+            "Use Case": "Cross-Platform Audience Identity Resolution Engine",
+            "Cost Formula": "14,000 hours \u00d7 $150/hr \u00d7 1.35 \u00d7 0.9 \u00d7 0.75 = $1.9M \u2192 $1.9M [HF/labels]",
+            "Risk Formula": "1% \u00d7 $22,000,000 \u00d7 0.80 \u00d7 0.75 = $132K \u2192 $132K [HF/labels]",
+            "Revenue Formula": "0.28% \u00d7 $3,200,000,000 \u00d7 0.95 \u00d7 0.75 = $6.4M \u2192 $6.4M [HF/labels]",
+            "Strategic Theme": "Cross-Platform Audience & Advertising Intelligence",
+            "Cost Benefit ($)": "$1.9M",
+            "Risk Benefit ($)": "$132K",
+            "Cash Flow Formula": "No direct cash flow impact",
+            "Expected Value ($)": "$4.2M",
+            "Cost Formula Labels": {
+              "result": "$1.9M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 14000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 150
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$6.4M",
+            "Risk Formula Labels": {
+              "result": "$132K",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.01
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 22000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$0",
+            "Probability of Success": 0.5,
+            "Revenue Formula Labels": {
+              "result": "$6.4M",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.0028
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 3200000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$8.4M",
+            "Cash Flow Formula Labels": null
+          },
+          {
+            "ID": "UC-08",
+            "Use Case": "Programmatic Campaign Validation & Yield Optimization Agent",
+            "Cost Formula": "14,000 hours \u00d7 $150/hr \u00d7 1.35 \u00d7 0.9 \u00d7 0.75 = $1.9M \u2192 $1.9M [HF/labels]",
+            "Risk Formula": "2% \u00d7 $28,000,000 \u00d7 0.80 \u00d7 0.75 = $420K \u2192 $420K [HF/labels]",
+            "Revenue Formula": "0.08% \u00d7 $3,200,000,000 \u00d7 0.95 \u00d7 0.75 = $1.8M \u2192 $1.8M [HF/labels]",
+            "Strategic Theme": "Cross-Platform Audience & Advertising Intelligence",
+            "Cost Benefit ($)": "$1.9M",
+            "Risk Benefit ($)": "$420K",
+            "Cash Flow Formula": "No direct cash flow impact",
+            "Expected Value ($)": "$2.7M",
+            "Cost Formula Labels": {
+              "result": "$1.9M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 14000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 150
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$1.8M",
+            "Risk Formula Labels": {
+              "result": "$420K",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.025
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 28000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$0",
+            "Probability of Success": 0.65,
+            "Revenue Formula Labels": {
+              "result": "$1.8M",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.0008
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 3200000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$4.2M",
+            "Cash Flow Formula Labels": null
+          },
+          {
+            "ID": "UC-09",
+            "Use Case": "Multilingual Dubbing & Localization Pipeline",
+            "Cost Formula": "10,000 hours \u00d7 $150/hr \u00d7 1.35 \u00d7 0.9 \u00d7 0.75 = $1.4M \u2192 $1.4M [HF/labels]",
+            "Risk Formula": "2% \u00d7 $18,000,000 \u00d7 0.80 \u00d7 0.75 = $162K \u2192 $162K [HF/labels]",
+            "Revenue Formula": "0.12% \u00d7 $3,200,000,000 \u00d7 0.95 \u00d7 0.75 = $2.7M \u2192 $2.7M [HF/labels]",
+            "Strategic Theme": "Compliance & Localization (Validate / Defer Tier)",
+            "Cost Benefit ($)": "$1.4M",
+            "Risk Benefit ($)": "$162K",
+            "Cash Flow Formula": "No direct cash flow impact",
+            "Expected Value ($)": "$1.9M",
+            "Cost Formula Labels": {
+              "result": "$1.4M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 10000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 150
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$2.7M",
+            "Risk Formula Labels": {
+              "result": "$162K",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.015
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 18000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$0",
+            "Probability of Success": 0.45,
+            "Revenue Formula Labels": {
+              "result": "$2.7M",
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.0012
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 3200000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$4.3M",
+            "Cash Flow Formula Labels": null
+          },
+          {
+            "ID": "UC-10",
+            "Use Case": "Compliance Review Augmentation Copilot",
+            "Cost Formula": "12,000 hours \u00d7 $150/hr \u00d7 1.35 \u00d7 0.9 \u00d7 0.75 = $1.6M \u2192 $1.6M [HF/labels]",
+            "Risk Formula": "2% \u00d7 $22,000,000 \u00d7 0.80 \u00d7 0.75 = $330K \u2192 $330K [HF/labels]",
+            "Revenue Formula": "No direct revenue impact",
+            "Strategic Theme": "Compliance & Localization (Validate / Defer Tier)",
+            "Cost Benefit ($)": "$1.6M",
+            "Risk Benefit ($)": "$330K",
+            "Cash Flow Formula": "No direct cash flow impact",
+            "Expected Value ($)": "$1.1M",
+            "Cost Formula Labels": {
+              "result": "$1.6M",
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 12000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 150
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$0",
+            "Risk Formula Labels": {
+              "result": "$330K",
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.025
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 22000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$0",
+            "Probability of Success": 0.55,
+            "Revenue Formula Labels": null,
+            "Total Annual Value ($)": "$2.0M",
+            "Cash Flow Formula Labels": null
+          }
+        ],
+        "step": 5,
+        "title": "Benefits Quantification by Driver",
+        "content": "A+E Global Media operates in a media & entertainment market where library asset velocity, distribution throughput, and rights discipline drive monetization. The portfolio targets approximately $76M in annual value \u2014 approximately 2.4% of revenue \u2014 concentrated in the workshop's three investable stories: Library-Driven Content Monetization (UC-01 + UC-02), FAST & Promo Distribution Velocity (UC-03 + UC-06), and Production-Grade Media QA & Supply Chain (UC-04 + UC-05). Revenue benefits reflect conservative licensing and FAST partnership uplift validated against the 2024 rebrand strategy and the A+E Archive monetization motion. Cash-flow improvements model working-capital release from deal-velocity compression and earlier FAST channel launches. Risk benefits anchor to over-grant conflict avoidance (UC-02), brand-safety exposure on FAST cuts (UC-03), and FCC/EU AVMS compliance (UC-06). All estimates apply \u00d70.75 data maturity adjustment reflecting Level 2 capability and embed probability weighting between 0.45-0.75 \u2014 the highest probabilities on UC-05 (Witbe production proof in hand) and UC-06 (mature ASR vendor ecosystem)."
+      },
+      {
+        "data": [
+          {
+            "ID": "UC-01",
+            "Use Case": "Multi-Modal Library Search & Semantic Archive Discovery",
+            "Governance": 5,
+            "Runs/Month": 8000,
+            "Time To Value": 4,
+            "Monthly Tokens": 32000000,
+            "Readiness Score": 6.2,
+            "Strategic Theme": "Library-Driven Content Monetization",
+            "Input Tokens/Run": 3000,
+            "Has Named Sponsor": true,
+            "Output Tokens/Run": 1000,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 6.2,
+            "Time-to-Pilot (weeks)": 14,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 7,
+            "Technical Infrastructure": 6,
+            "Data Availability & Quality": 5,
+            "Data Available For Engagement": true
+          },
+          {
+            "ID": "UC-02",
+            "Use Case": "Rights-Aware Automated Licensing Proposal Engine",
+            "Governance": 4,
+            "Runs/Month": 500,
+            "Time To Value": 5,
+            "Monthly Tokens": 18000000,
+            "Readiness Score": 4.6,
+            "Strategic Theme": "Library-Driven Content Monetization",
+            "Input Tokens/Run": 28000,
+            "Has Named Sponsor": true,
+            "Output Tokens/Run": 8000,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 4.6,
+            "Time-to-Pilot (weeks)": 18,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 5,
+            "Technical Infrastructure": 5,
+            "Data Availability & Quality": 3,
+            "Data Available For Engagement": false
+          },
+          {
+            "ID": "UC-03",
+            "Use Case": "Automated Promo & Clip Generation for FAST Channels",
+            "Governance": 5,
+            "Runs/Month": 2400,
+            "Time To Value": 5,
+            "Monthly Tokens": 36000000,
+            "Readiness Score": 5.9,
+            "Strategic Theme": "FAST & Promo Distribution Velocity",
+            "Input Tokens/Run": 12000,
+            "Has Named Sponsor": true,
+            "Output Tokens/Run": 3000,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 5.9,
+            "Time-to-Pilot (weeks)": 14,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 6,
+            "Technical Infrastructure": 6,
+            "Data Availability & Quality": 5,
+            "Data Available For Engagement": true
+          },
+          {
+            "ID": "UC-04",
+            "Use Case": "Footage Pre-Logging & Batch Media Enrichment",
+            "Governance": 5,
+            "Runs/Month": 12000,
+            "Time To Value": 3,
+            "Monthly Tokens": 24000000,
+            "Readiness Score": 6.8,
+            "Strategic Theme": "Production-Grade Media QA & Supply Chain",
+            "Input Tokens/Run": 1500,
+            "Has Named Sponsor": true,
+            "Output Tokens/Run": 500,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 6.8,
+            "Time-to-Pilot (weeks)": 10,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 7,
+            "Technical Infrastructure": 7,
+            "Data Availability & Quality": 6,
+            "Data Available For Engagement": true
+          },
+          {
+            "ID": "UC-05",
+            "Use Case": "Agentic QA & Release-Window Test Automation",
+            "Governance": 6,
+            "Runs/Month": 1800,
+            "Time To Value": 3,
+            "Monthly Tokens": 14400000,
+            "Readiness Score": 7.1,
+            "Strategic Theme": "Production-Grade Media QA & Supply Chain",
+            "Input Tokens/Run": 6000,
+            "Has Named Sponsor": true,
+            "Output Tokens/Run": 2000,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 7.1,
+            "Time-to-Pilot (weeks)": 8,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 7,
+            "Technical Infrastructure": 7,
+            "Data Availability & Quality": 7,
+            "Data Available For Engagement": true
+          },
+          {
+            "ID": "UC-06",
+            "Use Case": "Multilingual Closed Caption & Transcript Generation",
+            "Governance": 5,
+            "Runs/Month": 3500,
+            "Time To Value": 2,
+            "Monthly Tokens": 7000000,
+            "Readiness Score": 7.2,
+            "Strategic Theme": "FAST & Promo Distribution Velocity",
+            "Input Tokens/Run": 1500,
+            "Has Named Sponsor": true,
+            "Output Tokens/Run": 500,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 7.2,
+            "Time-to-Pilot (weeks)": 6,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 7,
+            "Technical Infrastructure": 8,
+            "Data Availability & Quality": 6,
+            "Data Available For Engagement": true
+          },
+          {
+            "ID": "UC-07",
+            "Use Case": "Cross-Platform Audience Identity Resolution Engine",
+            "Governance": 4,
+            "Runs/Month": 30,
+            "Time To Value": 6,
+            "Monthly Tokens": 3000000,
+            "Readiness Score": 4.0,
+            "Strategic Theme": "Cross-Platform Audience & Advertising Intelligence",
+            "Input Tokens/Run": 80000,
+            "Has Named Sponsor": null,
+            "Output Tokens/Run": 20000,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 4.0,
+            "Time-to-Pilot (weeks)": 22,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 5,
+            "Technical Infrastructure": 5,
+            "Data Availability & Quality": 3,
+            "Data Available For Engagement": false
+          },
+          {
+            "ID": "UC-08",
+            "Use Case": "Programmatic Campaign Validation & Yield Optimization Agent",
+            "Governance": 5,
+            "Runs/Month": 12000,
+            "Time To Value": 3,
+            "Monthly Tokens": 18000000,
+            "Readiness Score": 5.0,
+            "Strategic Theme": "Cross-Platform Audience & Advertising Intelligence",
+            "Input Tokens/Run": 1200,
+            "Has Named Sponsor": null,
+            "Output Tokens/Run": 300,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 5.0,
+            "Time-to-Pilot (weeks)": 12,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 5,
+            "Technical Infrastructure": 6,
+            "Data Availability & Quality": 5,
+            "Data Available For Engagement": true
+          },
+          {
+            "ID": "UC-09",
+            "Use Case": "Multilingual Dubbing & Localization Pipeline",
+            "Governance": 2,
+            "Runs/Month": 200,
+            "Time To Value": 7,
+            "Monthly Tokens": 14000000,
+            "Readiness Score": 3.5,
+            "Strategic Theme": "Compliance & Localization (Validate / Defer Tier)",
+            "Input Tokens/Run": 50000,
+            "Has Named Sponsor": null,
+            "Output Tokens/Run": 20000,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 3.5,
+            "Time-to-Pilot (weeks)": 24,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 4,
+            "Technical Infrastructure": 5,
+            "Data Availability & Quality": 3,
+            "Data Available For Engagement": false
+          },
+          {
+            "ID": "UC-10",
+            "Use Case": "Compliance Review Augmentation Copilot",
+            "Governance": 4,
+            "Runs/Month": 800,
+            "Time To Value": 5,
+            "Monthly Tokens": 8800000,
+            "Readiness Score": 4.2,
+            "Strategic Theme": "Compliance & Localization (Validate / Defer Tier)",
+            "Input Tokens/Run": 8000,
+            "Has Named Sponsor": true,
+            "Output Tokens/Run": 3000,
+            "Legally Prohibited": false,
+            "Readiness Score v1": 4.2,
+            "Time-to-Pilot (weeks)": 16,
+            "Technically Infeasible": false,
+            "Organizational Capacity": 5,
+            "Technical Infrastructure": 5,
+            "Data Availability & Quality": 4,
+            "Data Available For Engagement": true
+          }
+        ],
+        "step": 6,
+        "title": "Readiness & Token Modeling",
+        "content": "A+E Global Media exhibits Level 2 AI readiness with strong cloud platform foundations and one production-shaped AI proof point. Organizational Capacity scores 6 \u2014 the company demonstrates program-level AI investment under the TechLab (Clayton Griffith) and has shipped the Witbe agentic QA proof in production, but enterprise AI governance and platform-to-product handoff are still in build-out. Data Availability & Quality scores 4 \u2014 the AWS modernization and SDVI Rally media supply chain provide the platform foundation, but unscripted library metadata depth is unverified at frame level, rights data is fragmented across brands and territories, and identity resolution operates at 47% across nine silos. Technical Infrastructure scores 6 \u2014 cloud platform mature, but AI gateway, vector database, model registry, and governed evaluation harness are not yet stood up; the GPU question is the workshop's organizing tension precisely because this layer is incomplete. Governance scores 4 \u2014 no disclosed AI governance committee, model risk framework, or Private AI control plane; the workshop must surface this as a missing-stakeholder gap. Use cases anchored to the Witbe production proof (UC-05) and to mature vendor ecosystems (UC-06 ASR, UC-04 batch media enrichment) score highest on readiness. Use cases requiring cross-system data fusion (UC-02 rights, UC-07 identity resolution) and those without named business sponsors (UC-07, UC-08, UC-09) score lowest. Hard knock-outs: none \u2014 all use cases are technically feasible and legally permissible under existing frameworks. Soft blockers: UC-02, UC-07, UC-09 flag Data Available For Engagement as null or false (data harmonization and partner-contract scoping sprints required); UC-07, UC-08, UC-09 lack named business sponsors. Token modeling assumes Claude Sonnet 4.6 baseline; document-heavy use cases (UC-02 rights, UC-07 identity, UC-09 dubbing) drive higher input token counts; high-throughput transactional use cases (UC-04 pre-logging, UC-06 captions, UC-08 campaign validation) favor smaller per-run contexts at very high volume. Time-to-Value rounds UP: UC-04 (pre-logging), UC-05 (agentic QA), UC-06 (captions) achieve production value in 2-3 months; UC-01 (library search) and UC-03 (promo generation) reach production in 4-5 months; UC-02, UC-07 require 5-6 months due to data harmonization and sponsor recruitment. Monthly runs estimated from disclosed scale: 8,000 library queries (producer team velocity), 12,000 asset-level batch jobs (overnight library enrichment), 2,400 promo cycles (20 FAST + 40 social accounts), 230 concurrent programmatic campaigns \u00d7 52 weeks = 12,000+ validations."
+      },
+      {
+        "data": [
+          {
+            "ID": "UC-01",
+            "Use Case": "Multi-Modal Library Search & Semantic Archive Discovery",
+            "TTV Score": 0.5,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "champion",
+            "Value Score": 9.0,
+            "Priority Tier": "Champion",
+            "Quadrant v2.0": "champion",
+            "Quadrant v2.1": "champion",
+            "Quadrant v2.2": "champion",
+            "Soft Blockers": [],
+            "Priority Score": 7.6,
+            "Quadrant Layer": 4,
+            "Readiness Score": 6.2,
+            "Value Score Raw": 3.55,
+            "Priority Tier v1": "Tier 1 \u2014 Champion",
+            "Recommended Phase": "Phase 1",
+            "Priority Tier v2.1": "Champion",
+            "Quadrant Rationale": "Champion \u2014 V 9.0, R 6.2; highest-value use case in the portfolio with infrastructure readiness above the floor and a named champion in Abhishek Neralla; CPO sponsor recruitment is the gating action.",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Library Search anchors the workshop's most fundable story (library-driven monetization); high value, above-floor readiness, named champion. Promote on confirmed CPO sponsorship.",
+            "Absolute Annual Value ($)": 15600000
+          },
+          {
+            "ID": "UC-03",
+            "Use Case": "Automated Promo & Clip Generation for FAST Channels",
+            "TTV Score": 0.4,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "champion",
+            "Value Score": 8.2,
+            "Priority Tier": "Champion",
+            "Quadrant v2.0": "strategic",
+            "Quadrant v2.1": "champion",
+            "Quadrant v2.2": "champion",
+            "Soft Blockers": [
+              "Brand safety review must stay in the loop \u2014 non-blocking but non-negotiable"
+            ],
+            "Priority Score": 7.05,
+            "Quadrant Layer": 4,
+            "Readiness Score": 5.9,
+            "Value Score Raw": 2.61,
+            "Priority Tier v1": "Tier 1 \u2014 Champion",
+            "Recommended Phase": "Phase 1",
+            "Priority Tier v2.1": "Champion",
+            "Quadrant Rationale": "Champion \u2014 V 8.2, R 5.9; second-highest portfolio value, named champion in David Klee, brand-safety risk requires human-in-the-loop but does not block production deployment.",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Promo Generation anchors the FAST distribution-velocity story; high value, near-floor readiness, broadcast critical-path gate owned by David Klee. CDO sponsorship to recruit.",
+            "Absolute Annual Value ($)": 12500000
+          },
+          {
+            "ID": "UC-02",
+            "Use Case": "Rights-Aware Automated Licensing Proposal Engine",
+            "TTV Score": 0.4,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "strategic",
+            "Value Score": 8.5,
+            "Priority Tier": "Strategic",
+            "Quadrant v2.0": "foundation",
+            "Quadrant v2.1": "conditional_champion",
+            "Quadrant v2.2": "strategic",
+            "Soft Blockers": [
+              "Rights metadata not harmonized across brands and territories \u2014 sequencing concern",
+              "General Counsel sponsorship not yet confirmed \u2014 soft remediation needed",
+              "Private AI control plane required for confidential deal subset"
+            ],
+            "Priority Score": 6.55,
+            "Quadrant Layer": 3,
+            "Readiness Score": 4.6,
+            "Value Score Raw": 2.94,
+            "Priority Tier v1": "Tier 3 \u2014 Strategic",
+            "Recommended Phase": "Phase 2",
+            "Priority Tier v2.1": "Conditional Champion",
+            "Quadrant Rationale": "Strategic \u2014 V 8.5, R 4.6; high value paired with rights-data fragmentation; Champion-eligible after 8-12 week rights metadata harmonization sprint.",
+            "Is Conditional v2.2": true,
+            "Conditional Gap v2.2": {
+              "fromQuadrant": "strategic",
+              "gapToChampion": {
+                "r": 0.9,
+                "v": 0
+              }
+            },
+            "Quadrant Rationale v2.1": "Highest-value finance-of-library use case; Champion-eligible on confirmed General Counsel sponsorship and rights-metadata harmonization. Promote with named readiness gaps and remediation plan.",
+            "Absolute Annual Value ($)": 14100000,
+            "Conditional Champion Meta": {
+              "gaps": [
+                {
+                  "current": 3,
+                  "required": 7,
+                  "component": "Data Availability & Quality"
+                },
+                {
+                  "current": 4,
+                  "required": 7,
+                  "component": "AI-Specific Governance"
+                }
+              ],
+              "softBlockers": [
+                "Rights metadata not harmonized across brands and territories \u2014 sequencing concern",
+                "General Counsel sponsorship not yet confirmed \u2014 soft remediation needed",
+                "Private AI control plane required for confidential deal subset"
+              ],
+              "proposedSprintWeeks": 10,
+              "reclassificationCriteria": "Promote to unconditional Champion when Data Availability & Quality reaches 7.0+ (post rights-metadata harmonization sprint) AND named General Counsel sponsorship is in place AND Private AI control plane is operational for confidential deals."
+            }
+          },
+          {
+            "ID": "UC-05",
+            "Use Case": "Agentic QA & Release-Window Test Automation",
+            "TTV Score": 0.7,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "quick_win",
+            "Value Score": 5.5,
+            "Priority Tier": "Quick Win",
+            "Quadrant v2.0": "quick_win",
+            "Quadrant v2.1": "quick_win",
+            "Quadrant v2.2": "quick_win",
+            "Soft Blockers": [],
+            "Priority Score": 6.3,
+            "Quadrant Layer": 2,
+            "Readiness Score": 7.1,
+            "Value Score Raw": 0.91,
+            "Priority Tier v1": "Tier 2 \u2014 Quick Win",
+            "Recommended Phase": "Phase 1",
+            "Priority Tier v2.1": "Quick Win",
+            "Quadrant Rationale": "Quick Win \u2014 V 5.5, R 7.1; highest readiness in the portfolio (Witbe agentic QA production proof in hand: 16 releases, 4 platforms, 421 features, 1,400+ test hours in 2 months); 8-week time-to-pilot.",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Agentic QA carries the lowest execution risk in the portfolio because the pattern has already shipped under Witbe. Anchors Phase 1 alongside UC-01 and UC-03.",
+            "Absolute Annual Value ($)": 5900000
+          },
+          {
+            "ID": "UC-04",
+            "Use Case": "Footage Pre-Logging & Batch Media Enrichment",
+            "TTV Score": 0.6,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "quick_win",
+            "Value Score": 5.4,
+            "Priority Tier": "Quick Win",
+            "Quadrant v2.0": "quick_win",
+            "Quadrant v2.1": "quick_win",
+            "Quadrant v2.2": "quick_win",
+            "Soft Blockers": [],
+            "Priority Score": 6.1,
+            "Quadrant Layer": 2,
+            "Readiness Score": 6.8,
+            "Value Score Raw": 0.84,
+            "Priority Tier v1": "Tier 2 \u2014 Quick Win",
+            "Recommended Phase": "Phase 1",
+            "Priority Tier v2.1": "Quick Win",
+            "Quadrant Rationale": "Quick Win \u2014 V 5.4, R 6.8; lowest time-to-pilot in the portfolio (10 weeks); the cleanest GPU business case (batch, overnight, continuous, sensitivity-driven, reusable across UC-01, UC-03, UC-06, UC-08).",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Pre-Logging is the GPU foundation. Modest standalone value but unblocks four downstream use cases and establishes the utilization baseline the CFO requires.",
+            "Absolute Annual Value ($)": 5700000
+          },
+          {
+            "ID": "UC-06",
+            "Use Case": "Multilingual Closed Caption & Transcript Generation",
+            "TTV Score": 0.8,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "quick_win",
+            "Value Score": 5.0,
+            "Priority Tier": "Quick Win",
+            "Quadrant v2.0": "quick_win",
+            "Quadrant v2.1": "quick_win",
+            "Quadrant v2.2": "quick_win",
+            "Soft Blockers": [],
+            "Priority Score": 6.1,
+            "Quadrant Layer": 2,
+            "Readiness Score": 7.2,
+            "Value Score Raw": 0.64,
+            "Priority Tier v1": "Tier 2 \u2014 Quick Win",
+            "Recommended Phase": "Phase 1",
+            "Priority Tier v2.1": "Quick Win",
+            "Quadrant Rationale": "Quick Win \u2014 V 5.0, R 7.2; fastest time-to-pilot (6 weeks) and highest readiness; mature ASR vendor ecosystem; feeds UC-01 library search with searchable dialogue.",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Captions and transcripts are the lowest-risk pilot in the portfolio. Use as the Block-1 confidence-builder for the room.",
+            "Absolute Annual Value ($)": 4500000
+          },
+          {
+            "ID": "UC-07",
+            "Use Case": "Cross-Platform Audience Identity Resolution Engine",
+            "TTV Score": 0.3,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "strategic",
+            "Value Score": 6.5,
+            "Priority Tier": "Strategic",
+            "Quadrant v2.0": "foundation",
+            "Quadrant v2.1": "strategic",
+            "Quadrant v2.2": "strategic",
+            "Soft Blockers": [
+              "CRO sponsorship not yet confirmed \u2014 hard blocker for pilot launch",
+              "Partner-data contracts (Nielsen, Inscape, Samba) require scoping before flow changes",
+              "Consent management and privacy boundaries require Legal sign-off"
+            ],
+            "Priority Score": 5.25,
+            "Quadrant Layer": 3,
+            "Readiness Score": 4.0,
+            "Value Score Raw": 1.5,
+            "Priority Tier v1": "Tier 3 \u2014 Strategic",
+            "Recommended Phase": "Phase 3",
+            "Priority Tier v2.1": "Strategic",
+            "Quadrant Rationale": "Strategic \u2014 V 6.5, R 4.0; high value paired with cross-platform identity fragmentation across nine silos; requires Chief Revenue Officer sponsorship and Nielsen / Inscape / Samba partner-contract scoping before pilot launch.",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Identity Resolution is the highest-value audience use case but blocked on (a) CRO sponsorship and (b) partner-data contract scoping. Phase 3 sequencing reflects readiness gates.",
+            "Absolute Annual Value ($)": 8400000
+          },
+          {
+            "ID": "UC-08",
+            "Use Case": "Programmatic Campaign Validation & Yield Optimization Agent",
+            "TTV Score": 0.6,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "strategic",
+            "Value Score": 4.7,
+            "Priority Tier": "Strategic",
+            "Quadrant v2.0": "strategic",
+            "Quadrant v2.1": "strategic",
+            "Quadrant v2.2": "strategic",
+            "Soft Blockers": [
+              "Chief Ad Sales Officer sponsorship not yet confirmed",
+              "Pairs best with UC-07 identity resolution \u2014 sequencing concern"
+            ],
+            "Priority Score": 4.85,
+            "Quadrant Layer": 3,
+            "Readiness Score": 5.0,
+            "Value Score Raw": 0.54,
+            "Priority Tier v1": "Tier 3 \u2014 Strategic",
+            "Recommended Phase": "Phase 3",
+            "Priority Tier v2.1": "Strategic",
+            "Quadrant Rationale": "Strategic \u2014 V 4.7, R 5.0; mature ad-tech infrastructure but requires Chief Ad Sales Officer sponsorship; companion to UC-07 in the cross-platform audience story.",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Programmatic Validation works against existing ad-tech instrumentation and ships fast once a sponsor names the use case. Sequenced behind UC-07 because the identity foundation amplifies value.",
+            "Absolute Annual Value ($)": 4200000
+          },
+          {
+            "ID": "UC-09",
+            "Use Case": "Multilingual Dubbing & Localization Pipeline",
+            "TTV Score": 0.2,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "foundation",
+            "Value Score": 4.8,
+            "Priority Tier": "Foundation",
+            "Quadrant v2.0": "foundation",
+            "Quadrant v2.1": "foundation",
+            "Quadrant v2.2": "foundation",
+            "Soft Blockers": [
+              "SAG-AFTRA and talent-contract review required before any voice synthesis pilot",
+              "CHRO and General Counsel alignment on augmentation narrative",
+              "International market-specific compliance scoping"
+            ],
+            "Priority Score": 4.15,
+            "Quadrant Layer": 1,
+            "Readiness Score": 3.5,
+            "Value Score Raw": 0.57,
+            "Priority Tier v1": "Tier 4 \u2014 Foundation",
+            "Recommended Phase": "Phase 4",
+            "Priority Tier v2.1": "Foundation",
+            "Quadrant Rationale": "Foundation \u2014 V 4.8, R 3.5; workshop classification: DEFER. Voice cloning carries SAG-AFTRA and talent-contract risk; held pending CHRO + GC alignment, named sponsor, and dataset readiness.",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Multilingual Dubbing is the right idea at the wrong moment for A+E \u2014 the technology is capable but the governance is not. TechLab pilot only under Clayton Griffith.",
+            "Absolute Annual Value ($)": 4300000
+          },
+          {
+            "ID": "UC-10",
+            "Use Case": "Compliance Review Augmentation Copilot",
+            "TTV Score": 0.5,
+            "Tier v2.2": "standard",
+            "Quadrant v2": "foundation",
+            "Value Score": 3.0,
+            "Priority Tier": "Foundation",
+            "Quadrant v2.0": "foundation",
+            "Quadrant v2.1": "foundation",
+            "Quadrant v2.2": "foundation",
+            "Soft Blockers": [
+              "Augmentation narrative not yet aligned with CHRO",
+              "Reuses UC-02 rights infrastructure \u2014 sequence after UC-02"
+            ],
+            "Priority Score": 3.6,
+            "Quadrant Layer": 1,
+            "Readiness Score": 4.2,
+            "Value Score Raw": 0.18,
+            "Priority Tier v1": "Tier 4 \u2014 Foundation",
+            "Recommended Phase": "Phase 4",
+            "Priority Tier v2.1": "Foundation",
+            "Quadrant Rationale": "Foundation \u2014 V 3.0, R 4.2; workshop classification: REFRAME (augmentation, not auto-score); brand-safety auto-scoring and deepfake detection rejected by workshop assessment as overhyped for publisher-side problem.",
+            "Is Conditional v2.2": false,
+            "Conditional Gap v2.2": null,
+            "Quadrant Rationale v2.1": "Compliance Augmentation is the version of compliance review that the workshop will fund: lawyer signs, model drafts. Foundation-tier until augmentation narrative aligns with CHRO.",
+            "Absolute Annual Value ($)": 2000000
+          }
+        ],
+        "step": 7,
+        "title": "Priority Scoring & Roadmap",
+        "content": "Priority scoring resolves the workshop's narrative into ten ranked initiatives. The portfolio has two unconditional Champions (UC-01 Library Search at PS 7.60 and UC-03 Promo Generation at PS 7.05) \u2014 both anchored to the workshop's investable-story framing with named champions in the room and clear sponsors to recruit (CPO for Library Search, CDO for Promo Generation). One Conditional Champion (UC-02 Rights-Aware Licensing at PS 6.55) carries the highest single-use-case value paired with the lowest data harmonization readiness; promotes to unconditional Champion after a 10-week rights-metadata harmonization sprint and confirmed General Counsel sponsorship. Three Quick Wins (UC-05 Agentic QA at PS 6.30, UC-04 Pre-Logging at PS 6.10, UC-06 Captions at PS 6.10) anchor Phase 1 with the lowest time-to-pilot and the cleanest GPU business case in the portfolio (UC-04 is the batch GPU foundation; UC-05 is the Witbe production proof extended). Two Strategic-tier initiatives (UC-07 Identity Resolution at PS 5.25, UC-08 Programmatic Validation at PS 4.85) wait on Chief Revenue Officer sponsorship and partner-contract scoping. Two Foundation-tier initiatives (UC-09 Multilingual Dubbing at PS 4.15, UC-10 Compliance Augmentation at PS 3.60) reflect workshop Validate/Defer classification \u2014 held pending CHRO and GC alignment, SAG-AFTRA / talent-contract review (UC-09), and augmentation-narrative agreement (UC-10). Phase 1 (Q1-Q2): UC-01, UC-03, UC-04, UC-05, UC-06 \u2014 five concurrent pilots with named champions, low time-to-pilot, and either above-floor readiness or vendor-mature delivery paths. Phase 2 (Q2-Q3): UC-02 after the rights-harmonization sprint and on confirmed GC sponsorship. Phase 3 (Q3-Q4): UC-07, UC-08 on confirmed CRO sponsorship and partner-data contract scoping. Phase 4 (Year 2): UC-09, UC-10 with full governance maturation. Conditional Champion (UC-02) flags rights-metadata harmonization, AI governance, and Private AI control-plane as named readiness gaps with explicit remediation plans and reclassification criteria \u2014 not blockers, but explicit dependencies the CFO and GC will ask about."
+      }
+    ],
+    "summary": "A+E Global Media should execute 8 Critical-priority AI initiatives across Phases 1-3 to capture $58.3M in first-year value from a $77.2M total portfolio. The workshop's organizing frame is procurement narrative, not capability demonstration: the eight Technology attendees own the GPU question; the six business leaders who fund the answer (CFO, CPO, CDO, GC, CHRO, CRO) are not in the room. Three investable stories anchor the portfolio. Story 1 (Library-Driven Content Monetization): UC-01 Library Search ($15.6M) and UC-02 Rights-Aware Licensing ($14.1M) turn 25,000+ hours of unscripted library from warehouse into searchable, licensable revenue. Champion: Abhishek Neralla (UC-01) and Bruno Sathyan (UC-02); sponsors to recruit: CPO and General Counsel. Story 2 (FAST & Promo Distribution Velocity): UC-03 Promo Generation ($12.5M) scales editorial throughput across 20+ FAST channels and 40+ social accounts; UC-06 Captions ($4.5M) raises caption coverage from 62% to 100%. Champion: David Klee; sponsor to recruit: CDO. Story 3 (Production-Grade Media QA & Supply Chain): UC-05 Agentic QA ($5.9M) extends the proven Witbe production pattern; UC-04 Footage Pre-Logging ($5.7M) builds the metadata moat and serves as the cleanest GPU business case in the portfolio. Champions: Tapan Shah + Kshitij Bhutani (UC-05), Mike Goldberg + Abhishek Neralla (UC-04); sponsor to recruit: CFO (procurement decision). Phase 1 (Q1-Q2) launches the five Phase 1 pilots concurrently for $44.2M combined first-year value and the GPU utilization baseline the CFO requires. Phase 2 (Q2-Q3) deploys UC-02 Rights-Aware Licensing after the 10-week rights-metadata harmonization sprint and confirmed General Counsel sponsorship. Phase 3 (Q3-Q4) deploys UC-07 Identity Resolution and UC-08 Programmatic Validation once CRO sponsorship is secured and Nielsen / Inscape / Samba partner-data contracts are scoped. Phase 4 (Year 2) holds UC-09 Multilingual Dubbing in the TechLab under Clayton Griffith pending SAG-AFTRA review and UC-10 Compliance Augmentation pending CHRO alignment on augmentation narrative. The GPU procurement story moves through three acts: Pilot ($250K-$400K, single brand, 90 days, reserved cloud GPU), Production ($1.2M-$2.0M, three brands, two use cases, year one, gate at 60% steady-state utilization), Scale ($4M-$7M, all brands with on-prem or reserved colo for steady-state inference, gate at joint CFO + CPO + GC sign-off and three-year amortization). Critical path: secure six missing-sponsor conversations within 30 days; verify the unscripted library has frame-level metadata depth within reach of an embedding pipeline (Abhishek can answer in one meeting); verify rights metadata is harmonized across brands (Bruno can confirm). Two use cases were explicitly rejected by workshop assessment as overhyped for a publisher-side rather than platform-side problem: Real-Time Deepfake Detection and Brand Safety Auto-Score. The Witbe agentic QA production proof (16 releases, 4 platforms, 421 features, 1,400+ automated test hours in two months) and the SDVI Rally media supply chain close the infrastructure gap that would otherwise gate Phase 1. Portfolio value-per-million-tokens of $440,639 reflects the mix of high-throughput media workflows (pre-logging, captions, programmatic validation) and document-heavy reasoning (rights analysis, identity resolution). The leave-behind artifact at the end of Day 2 is not a wish list \u2014 it is a one-page procurement narrative six executives will fund.",
+    "realismFlags": [
+      {
+        "code": "IRR_IMPLAUSIBLE",
+        "message": "IRR of 261% exceeds 100% \u2014 verify the implementation cost basis.",
+        "severity": "warn",
+        "remediation": "IRR > 100% is rare in enterprise software programs. Confirm the cost basis is fully loaded (people, process, technology, change management)."
+      },
+      {
+        "code": "PAYBACK_IMPLAUSIBLE",
+        "message": "Payback under 1 month implies near-zero implementation cost \u2014 likely a calculation error.",
+        "severity": "critical",
+        "remediation": "Confirm implementation cost includes change management, integration, and ongoing operational overhead, not just licensing or tooling."
+      }
+    ],
+    "benefitsCapped": false,
+    "capScaleFactor": 1,
+    "companyOverview": {
+      "whyNow": "The cable bundle that wrapped A+E is shrinking; the library that fills it is not. The 2024 rebrand from A+E Networks to A+E Global Media named three growth motions \u2014 international expansion, FAST channels, content licensing \u2014 that all eat from the same shelf, the unscripted library, and all run faster when that shelf is searchable, cuttable, rights-aware, and reusable. Multi-modal video-language models can now index frames, faces, and dialogue at production-grade fidelity; long-context LLMs read commercial contracts well enough to draft; agentic QA has shipped 16 releases / 4 platforms / 421 features / 1,400+ automated test hours in two months under the Witbe production proof. The Technology room owns the GPU question. The people who fund the answer \u2014 CFO, CPO, CDO, GC, CHRO, CRO \u2014 are not in the room. The workshop's job is to teach the room the language that moves money toward the library.",
+      "position": "A+E Global Media is a privately held joint venture between Hearst Communications and The Walt Disney Company, generating approximately $3.2B in annual revenue from entertainment content production, distribution, and licensing. The company operates eight flagship brands (A&E, History, Lifetime, LMN, FYI, Vice TV, Crime+Investigation, Biography) across roughly seventeen networks worldwide, plus FAST, AVOD, and SVOD distribution into 200+ territories and 40+ languages. The company holds one of television's largest unscripted libraries \u2014 approximately 25,000+ hours across three decades of franchise programming \u2014 and a media supply chain already running as orchestrated cloud workflows under SDVI Rally.",
+      "annualRevenue": 3200000000,
+      "dataReadiness": {
+        "keyGaps": "Unscripted library metadata depth unverified (frame-level vs episode-level captioning has not been audited); rights metadata fragmented across brands and territories; promo & cuts catalogue exists but lacks systematic source-episode linkage; audience identity resolution operates at 47% accuracy across nine platform silos; transcripts live in three formats across legacy systems",
+        "currentState": "Level 2 \u2014 Centralized cloud data warehouse exists (modernized under AWS), media operations orchestrated via SDVI Rally, but no AI gateway, vector database, model registry, or governed evaluation harness. The TechLab is shipping GenAI experiments under Clayton Griffith without a platform path to production. The 8-person Technology leadership cohort spans Platforms & Data, Infrastructure Services, Broadcast Engineering, Media & Content Services, Enterprise App Development, and GenAI TechLab \u2014 uniquely positioned to build the foundation but not yet aligned on GPU procurement strategy."
+      },
+      "frictionTable": {
+        "rows": [
+          {
+            "domain": "Library Discovery & Licensing Velocity",
+            "annualBurden": "$89M / 127,000 hours",
+            "strategicImpact": "Researcher-week per pitch blocks FAST partnership growth and licensing throughput; the library is the moat but is not yet searchable to the people who pay for it"
+          },
+          {
+            "domain": "FAST & Promo Distribution Workflows",
+            "annualBurden": "$54M / 81,000 hours",
+            "strategicImpact": "Hand-cut promos cannot scale to twenty FAST channels and forty social accounts; channel launch velocity gated by editorial throughput"
+          },
+          {
+            "domain": "Rights Management & Contract Operations",
+            "annualBurden": "$47M / 71,000 hours",
+            "strategicImpact": "Rights data fragmented across brands; lawyers read the same fifty pages all year; renegotiation windows missed; over-grant conflicts surface late"
+          },
+          {
+            "domain": "Production QA & Release Engineering",
+            "annualBurden": "$42M / 63,000 hours",
+            "strategicImpact": "Manual platform-by-platform QA gates release velocity; Witbe agentic QA proof has shipped in production but pattern not yet generalized"
+          },
+          {
+            "domain": "Audience Identity & Ad Sales Inventory",
+            "annualBurden": "$62M / 94,000 hours",
+            "strategicImpact": "Scene-level metadata gaps prevent advertiser-grade addressability; identity resolution at 47% misses real-time optimization window"
+          }
+        ]
+      },
+      "totalEmployees": 4800
+    },
+    "executiveSummary": {
+      "context": "A+E Global Media is a privately held joint venture between Hearst Communications and The Walt Disney Company operating eight flagship brands across roughly seventeen networks worldwide and approximately $3.2B in annual revenue. The 2024 rebrand from A+E Networks to A+E Global Media named three forward-leaning revenue motions \u2014 international expansion, FAST channels, content licensing \u2014 all of which run downstream of the same asset: the unscripted library, estimated at 25,000+ hours across three decades. The two-day AI workshop convenes eight technology leaders. None of them can sign for a GPU on their own; the business leaders who can (CFO, CPO, CDO, GC, CHRO, CRO) are not in the room. The workshop's first job is to name them and the second is to recruit them. The company demonstrates meaningful AI-readiness baselines: the AWS cloud modernization, the SDVI Rally media supply chain, and the Witbe agentic QA production proof (16 releases, 4 platforms, 421 features, 1,400+ test hours in two months). Three use cases (UC-02, UC-07, UC-09) require data harmonization or partner-contract scoping sprints before pilot launch; UC-07, UC-08, UC-09 lack named business sponsors. Critical structural gap: no AI gateway, vector database, model registry, or governed evaluation harness has been disclosed; the GPU question is the workshop's organizing tension precisely because this layer is incomplete.",
+      "findings": [
+        {
+          "title": "Library-Driven Content Monetization (UC-01 + UC-02) anchors the highest-value workshop story at $29.7M annual value \u2014 Library Search is the Champion, Rights-Aware Licensing is the Conditional Champion",
+          "value": "$29.7M annually",
+          "body": "UC-01 Multi-Modal Library Search ($15.6M, PS 7.60) compresses producer-to-clip discovery from a researcher-week to under two minutes across A+E's 25,000+ hour unscripted library. Champion Abhishek Neralla owns the asset management system; CPO sponsorship recruitment is the gating action. UC-02 Rights-Aware Automated Licensing ($14.1M, PS 6.55) compresses the licensing proposal cycle from 21 days to 3 days with attorney sign-off; Champion Bruno Sathyan owns rights data, General Counsel sponsorship and a 10-week rights-metadata harmonization sprint are the named promotion criteria. Together these two use cases turn the unscripted library from warehouse into moat \u2014 the thesis the CFO must hear before any GPU procurement decision."
+        },
+        {
+          "title": "FAST & Promo Distribution Velocity (UC-03 + UC-06) delivers $17.0M of distribution-throughput value with elastic-burst GPU profile and broadcast-path gates owned by David Klee",
+          "value": "$17.0M annually",
+          "body": "UC-03 Automated Promo & Clip Generation ($12.5M, PS 7.05) scales editorial throughput across 20+ FAST channels and 40+ social accounts via beat detection (first kiss, first punch, closing line) with promo-editor review and brand-safety gates; Champion David Klee owns broadcast operations and the gate keeping AI workloads off the broadcast critical path. UC-06 Multilingual Closed Caption & Transcript Generation ($4.5M, PS 6.10) raises coverage from 62% to 100% across the library and adds five target languages for international FAST and SVOD distribution. UC-06 is the lowest-risk pilot in the portfolio (6-week time-to-pilot, mature ASR vendor ecosystem) and feeds UC-01 library search with searchable dialogue at scale."
+        },
+        {
+          "title": "Production-Grade Media QA & Supply Chain (UC-04 + UC-05) delivers $11.6M of release-velocity value and provides the GPU foundation that makes the entire portfolio investable \u2014 Witbe production proof (UC-05) and batch media pre-logging (UC-04)",
+          "value": "$11.6M annually",
+          "body": "UC-05 Agentic QA & Release-Window Test Automation ($5.9M, PS 6.30) is the highest-readiness use case in the portfolio because the Witbe agentic-QA pattern has already shipped in production. Champions Tapan Shah and Kshitij Bhutani extend the pattern from 4 platforms to 12+ release workflows with an 8-week time-to-pilot. UC-04 Footage Pre-Logging & Batch Media Enrichment ($5.7M, PS 6.10) is the cleanest GPU business case in the portfolio: continuous overnight batch, sensitivity-driven, reusable embeddings feeding UC-01 / UC-03 / UC-06 / UC-08. Champions Mike Goldberg and Abhishek Neralla co-own the procurement decision \u2014 workload arithmetic, not cloud-vs-prem ideology."
+        }
+      ],
+      "headline": "Canonical first-year value: $58.3M from Phase 1 and Phase 2 initiatives \u2014 anchored to the three workshop investable stories (Library-Driven Monetization, FAST Distribution Velocity, Production-Grade Media QA) with named champions from the eight Technology attendees and explicit sponsors to recruit (CPO, CDO, GC, CFO, CHRO, CRO).",
+      "criticalPath": "Phase 1 success depends on five concurrent pilots with named champions in the room: UC-01 Library Search (Abhishek Neralla, CPO to recruit), UC-03 Promo Generation (David Klee, CDO to recruit), UC-05 Agentic QA (Tapan Shah + Kshitij Bhutani, Witbe production proof in hand), UC-04 Pre-Logging (Mike Goldberg + Abhishek Neralla, GPU foundation), and UC-06 Captions (Abhishek + David, ASR vendor mature). All five must hit production within Q2 to demonstrate the portfolio is real before the CFO conversation about reserved vs on-prem GPU procurement. UC-02 Rights-Aware Licensing requires a 10-week rights-metadata harmonization sprint plus confirmed General Counsel sponsorship to promote from Conditional Champion. UC-07 Identity Resolution and UC-08 Programmatic Validation cannot begin until CRO sponsorship is secured and Nielsen / Inscape / Samba partner-data contracts are scoped. UC-09 Multilingual Dubbing remains in the TechLab under Clayton Griffith pending SAG-AFTRA / talent contract review. UC-10 Compliance Augmentation is held at Foundation until CHRO aligns on the augmentation narrative. The procurement story must clear three acts: Pilot ($250K-$400K, single brand, 90 days), Production ($1.2M-$2.0M, three brands, two use cases, year one), Scale ($4M-$7M, all brands with on-prem or reserved colo for steady-state).",
+      "opportunityTable": {
+        "rows": [
+          {
+            "value": "$77.2M",
+            "metric": "Total Annual Value"
+          },
+          {
+            "value": "8",
+            "metric": "Critical-Priority Initiatives"
+          },
+          {
+            "value": "$58.3M",
+            "metric": "First-Year Impact"
+          },
+          {
+            "value": "$440,639",
+            "metric": "Value per 1M Tokens"
+          }
+        ]
+      },
+      "recommendedAction": "Secure the six missing-sponsor conversations within 30 days: CPO (UC-01 owner Abhishek Neralla), CDO (UC-03 owner David Klee), General Counsel (UC-02 owner Bruno Sathyan), CFO (owner Kevin Keeler), CRO (UC-07 owner Tapan Shah), CHRO (UC-09 / UC-10 augmentation narrative owner Clayton Griffith). Launch UC-04 (pre-logging), UC-05 (agentic QA), UC-06 (captions) in Phase 1 immediately \u2014 these three deliver $16M of first-year value at the lowest execution risk and establish the GPU utilization baseline the CFO requires. Begin the 10-week rights-metadata harmonization sprint in parallel to unblock UC-02 for Q2. The leave-behind artifact is a one-page procurement narrative six executives will fund \u2014 not a wish list.",
+      "headlineLLMOriginal": "A+E Global Media should execute 8 Critical-priority AI initiatives anchored to the three workshop investable stories (Library-Driven Monetization, FAST Distribution Velocity, Production-Grade Media QA) to capture $58.3M in first-year value from a $77.2M total opportunity, with named champions from the eight Technology attendees and six business sponsors to recruit."
+    },
+    "frictionRecovery": [
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-01",
+            "recoveryPct": 1,
+            "recoveryAmount": 15600000
+          }
+        ],
+        "frictionPoint": "Producer-to-clip discovery in the unscripted library requires a research producer to call, search, screen, and return clips over 3-7 days per pitch; library is the moat but not yet searchable to the people who pay for it"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-02",
+            "recoveryPct": 1,
+            "recoveryAmount": 14100000
+          }
+        ],
+        "frictionPoint": "Lawyers read the same fifty pages all year across rights, territory, exclusivity, and renegotiation windows; over-grant conflicts surface late; licensing proposal turnaround is 21 days against a 3-day target"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-03",
+            "recoveryPct": 1,
+            "recoveryAmount": 12500000
+          }
+        ],
+        "frictionPoint": "Hand-cut promos by a small team that cannot scale to 20+ FAST channels and 40+ social accounts; finding the beat \u2014 first kiss, first punch, closing line \u2014 across the unscripted catalogue is the bottleneck"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-06",
+            "recoveryPct": 1,
+            "recoveryAmount": 4500000
+          }
+        ],
+        "frictionPoint": "Captions and transcripts produced manually per release; library coverage at 62% lags FCC and EU AVMS accessibility expectations; international release windows gated by localization throughput"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-04",
+            "recoveryPct": 1,
+            "recoveryAmount": 5700000
+          }
+        ],
+        "frictionPoint": "Manual scene, speaker, and beat metadata tagging at 40% accuracy gates every downstream AI use case (library search, promo generation, recommendation, ad inventory); no batch GPU pre-logging pipeline exists today"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-05",
+            "recoveryPct": 1,
+            "recoveryAmount": 5900000
+          }
+        ],
+        "frictionPoint": "Platform-by-platform manual QA gates release velocity across linear, FAST, AVOD, and SVOD; Witbe agentic QA production proof not yet generalized to the broader release portfolio"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-07",
+            "recoveryPct": 1,
+            "recoveryAmount": 8400000
+          }
+        ],
+        "frictionPoint": "Viewer identity resolution at 47% across nine platform silos (linear, digital, FAST, AVOD, SVOD, international); manual stitching of partner data (Nielsen, Inscape, Samba) blocks unified audience view"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-08",
+            "recoveryPct": 1,
+            "recoveryAmount": 4200000
+          }
+        ],
+        "frictionPoint": "Programmatic campaign setup errors in 8.3% of 230 concurrent campaigns require manual remediation; tagging, targeting, and trafficking errors caught downstream rather than at proposal"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-10",
+            "recoveryPct": 1,
+            "recoveryAmount": 2000000
+          }
+        ],
+        "frictionPoint": "Compliance review consumes 34 attorney hours per episode for FCC, advertising standards, and content clearance; augmentation potential is real but the workshop reframed this as 'lawyer signs, model drafts' rather than auto-score"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-09",
+            "recoveryPct": 1,
+            "recoveryAmount": 4300000
+          }
+        ],
+        "frictionPoint": "International localization (dub + subtitle + market compliance) handled manually per market; pipeline cannot scale to support the international expansion thesis named in the 2024 rebrand"
+      }
+    ],
+    "scenarioAnalysis": {
+      "moderate": {
+        "npv": "$186.8M",
+        "annualBenefit": "$77.2M",
+        "paybackMonths": 0
+      },
+      "aggressive": {
+        "npv": "$242.9M",
+        "annualBenefit": "$100.4M",
+        "paybackMonths": 0
+      },
+      "conservative": {
+        "npv": "$78.7M",
+        "annualBenefit": "$46.3M",
+        "paybackMonths": 13
+      }
+    },
+    "validationSummary": {
+      "details": [],
+      "originalTotal": 77200000,
+      "useCasesCapped": 0,
+      "validatedTotal": 77200000,
+      "parametersClamped": 0,
+      "portfolioScaleFactor": 1
+    },
+    "executiveDashboard": {
+      "topUseCases": [
+        {
+          "rank": 1,
+          "useCase": "Multi-Modal Library Search & Semantic Archive Discovery",
+          "annualValue": 15600000,
+          "priorityTier": "Champion",
+          "monthlyTokens": 32000000,
+          "priorityScore": 7.6
+        },
+        {
+          "rank": 2,
+          "useCase": "Automated Promo & Clip Generation for FAST Channels",
+          "annualValue": 12500000,
+          "priorityTier": "Champion",
+          "monthlyTokens": 36000000,
+          "priorityScore": 7.05
+        },
+        {
+          "rank": 3,
+          "useCase": "Rights-Aware Automated Licensing Proposal Engine",
+          "annualValue": 14100000,
+          "priorityTier": "Strategic",
+          "monthlyTokens": 18000000,
+          "priorityScore": 6.55
+        },
+        {
+          "rank": 4,
+          "useCase": "Agentic QA & Release-Window Test Automation",
+          "annualValue": 5900000,
+          "priorityTier": "Quick Win",
+          "monthlyTokens": 14400000,
+          "priorityScore": 6.3
+        },
+        {
+          "rank": 5,
+          "useCase": "Footage Pre-Logging & Batch Media Enrichment",
+          "annualValue": 5700000,
+          "priorityTier": "Quick Win",
+          "monthlyTokens": 24000000,
+          "priorityScore": 6.1
+        },
+        {
+          "rank": 6,
+          "useCase": "Multilingual Closed Caption & Transcript Generation",
+          "annualValue": 4500000,
+          "priorityTier": "Quick Win",
+          "monthlyTokens": 7000000,
+          "priorityScore": 6.1
+        },
+        {
+          "rank": 7,
+          "useCase": "Cross-Platform Audience Identity Resolution Engine",
+          "annualValue": 8400000,
+          "priorityTier": "Strategic",
+          "monthlyTokens": 3000000,
+          "priorityScore": 5.25
+        },
+        {
+          "rank": 8,
+          "useCase": "Programmatic Campaign Validation & Yield Optimization Agent",
+          "annualValue": 4200000,
+          "priorityTier": "Strategic",
+          "monthlyTokens": 18000000,
+          "priorityScore": 4.85
+        },
+        {
+          "rank": 9,
+          "useCase": "Multilingual Dubbing & Localization Pipeline",
+          "annualValue": 4300000,
+          "priorityTier": "Foundation",
+          "monthlyTokens": 14000000,
+          "priorityScore": 4.15
+        },
+        {
+          "rank": 10,
+          "useCase": "Compliance Review Augmentation Copilot",
+          "annualValue": 2000000,
+          "priorityTier": "Foundation",
+          "monthlyTokens": 8800000,
+          "priorityScore": 3.6
+        }
+      ],
+      "totalAnnualValue": 77200000,
+      "totalCostBenefit": 27900000,
+      "totalRiskBenefit": 4634000,
+      "totalMonthlyTokens": 175200000,
+      "totalRevenueBenefit": 33100000,
+      "totalCashFlowBenefit": 11688000,
+      "valuePerMillionTokens": 440639
+    },
+    "validationWarnings": [],
+    "multiYearProjection": {
+      "irr": "168.4%",
+      "npv": "$186.8M",
+      "irrRaw": 1.6839,
+      "paybackMonths": "<6 mo",
+      "paybackMonthsRaw": 0,
+      "totalBenefitOverPeriod": "$277.9M"
+    }
+  }
+}

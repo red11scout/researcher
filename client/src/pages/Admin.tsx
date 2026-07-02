@@ -1,0 +1,3576 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocation, useSearch } from "wouter";
+import Layout from "@/components/Layout";
+import {
+  buildAuditSearchString,
+  parseAuditUrlParams,
+  type AuditFilters as AuditFiltersHelper,
+} from "@/lib/auditUrlParams";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  AlertCircle,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  Copy,
+  Download,
+  Filter,
+  History,
+  Link2,
+  Loader2,
+  Lock,
+  RefreshCw,
+  ShieldAlert,
+  Trash2,
+  ShieldCheck,
+  SkipForward,
+  XCircle,
+} from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  StatusIcon,
+  UpgradeChip,
+  MetricDeltaChip,
+  UpgradesAppliedPanel,
+  HeadlineNumberChangesPanel,
+} from "@/components/admin";
+import type {
+  BackfillReportResult,
+  ReportUpgrade,
+  ReportMetricDelta,
+} from "@/components/admin/types";
+
+// Re-export so existing test imports (`tests/admin-*.test.tsx`) keep working
+// without touching every test file. The canonical home is
+// `@/components/admin`.
+export { UpgradesAppliedPanel, HeadlineNumberChangesPanel };
+
+type BackfillFailure = BackfillReportResult & { status: "failed" };
+
+interface BackfillResponse {
+  success: boolean;
+  force: boolean;
+  total: number;
+  updated: number;
+  skipped: number;
+  failed: number;
+  durationMs: number;
+  failures?: BackfillFailure[];
+}
+
+interface ProgressState {
+  total: number;
+  processed: number;
+  updated: number;
+  skipped: number;
+  failed: number;
+  recent: BackfillReportResult[];
+}
+
+type StreamEvent =
+  | { type: "start"; total: number; force: boolean }
+  | {
+      type: "progress";
+      index: number;
+      total: number;
+      result: BackfillReportResult;
+    }
+  | ({ type: "complete" } & BackfillResponse)
+  | { type: "error"; success: false; error: string };
+
+function isStreamEvent(value: unknown): value is StreamEvent {
+  if (!value || typeof value !== "object") return false;
+  const t = (value as { type?: unknown }).type;
+  return (
+    t === "start" || t === "progress" || t === "complete" || t === "error"
+  );
+}
+
+// How many recent reports to keep in the live activity feed.
+const MAX_RECENT = 25;
+
+function formatDuration(ms: number): string {
+  if (ms < 1000) return `${ms}ms`;
+  const seconds = ms / 1000;
+  if (seconds < 60) return `${seconds.toFixed(1)}s`;
+  const mins = Math.floor(seconds / 60);
+  const remSec = Math.round(seconds - mins * 60);
+  return `${mins}m ${remSec}s`;
+}
+
+// How old (in ms) a rehydrated summary needs to be before we visually
+// distinguish it as "stale". Operators returning to /admin after a long
+// break shouldn't mistake a week-old summary for a freshly-completed run.
+export const STALE_RUN_THRESHOLD_MS = 24 * 60 * 60 * 1000;
+
+// Pure helper that decides whether a rehydrated `completedAt` ISO string is
+// "stale" (older than STALE_RUN_THRESHOLD_MS). Exported so tests can lock in
+// the boundary, and so the chip / banner / panel-wrapper components below all
+// agree on the answer.
+export function isStaleRun(
+  hydratedAt: string | null | undefined,
+  now: number = Date.now(),
+): boolean {
+  if (!hydratedAt) return false;
+  const then = new Date(hydratedAt).getTime();
+  if (!Number.isFinite(then)) return false;
+  const age = now - then;
+  return Number.isFinite(age) && age >= STALE_RUN_THRESHOLD_MS;
+}
+
+// Compact, human-friendly relative time ("just now", "2h ago", "5d ago")
+// for the rehydrated last-run chip on the Admin page. We deliberately
+// keep it short so it fits as a badge next to the summary header without
+// wrapping; the absolute timestamp is still available via `title`.
+export function formatRelativeTime(fromIso: string, now: number = Date.now()): string {
+  const then = new Date(fromIso).getTime();
+  if (!Number.isFinite(then)) return "";
+  const diffMs = Math.max(0, now - then);
+  const sec = Math.floor(diffMs / 1000);
+  if (sec < 45) return "just now";
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr}h ago`;
+  const day = Math.floor(hr / 24);
+  if (day < 30) return `${day}d ago`;
+  const mo = Math.floor(day / 30);
+  if (mo < 12) return `${mo}mo ago`;
+  const yr = Math.floor(day / 365);
+  return `${yr}y ago`;
+}
+
+// Ticking clock hook used by the last-run chip / banner / panel so the
+// "X ago" relative time and the >24h stale treatment update on long-lived
+// admin sessions without requiring a page reload. Defaults to a 60s tick,
+// which matches the granularity of `formatRelativeTime` (minutes+). The
+// interval is cleared on unmount so no timers leak.
+export function useNow(intervalMs: number = 60_000): number {
+  const [now, setNow] = useState<number>(() => Date.now());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), intervalMs);
+    return () => window.clearInterval(id);
+  }, [intervalMs]);
+  return now;
+}
+
+// Resolves the effective "now" for a staleness-aware component. When a
+// caller passes an explicit `now` (e.g. tests, or a parent that already
+// owns its own ticker), we skip starting a redundant interval so we
+// don't pile up one ticker per nested component. Hooks are always
+// called in the same order; the interval is just a no-op when unused.
+function useEffectiveNow(now?: number): number {
+  const [tickingNow, setTickingNow] = useState<number>(() => Date.now());
+  const enabled = now === undefined;
+  useEffect(() => {
+    if (!enabled) return;
+    const id = window.setInterval(() => setTickingNow(Date.now()), 60_000);
+    return () => window.clearInterval(id);
+  }, [enabled]);
+  return now ?? tickingNow;
+}
+
+// Amber "this summary is stale" banner shown above the rehydrated last-run
+// panel when the saved `completedAt` is older than `STALE_RUN_THRESHOLD_MS`.
+// Returns `null` (renders nothing) for fresh or absent runs so callers can
+// drop it into the panel unconditionally. Exported for component tests.
+export function LastRunStaleBanner({
+  hydratedAt,
+  now,
+}: {
+  hydratedAt: string | null | undefined;
+  now?: number;
+}) {
+  const effectiveNow = useEffectiveNow(now);
+  if (!hydratedAt || !isStaleRun(hydratedAt, effectiveNow)) return null;
+  return (
+    <div
+      className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 flex items-start gap-2 text-sm text-amber-800"
+      data-testid="banner-last-run-stale"
+    >
+      <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+      <span>
+        This summary is from a previous run completed{" "}
+        {formatRelativeTime(hydratedAt, effectiveNow)} — re-run the upgrade to
+        see fresh results.
+      </span>
+    </div>
+  );
+}
+
+// "Last run · 2h ago" badge that lives next to the Last-run-summary header.
+// Renders nothing when no run has ever completed; switches to amber outline
+// styling once the underlying run crosses the stale threshold so the chip
+// itself signals freshness even when a reader scrolls past the banner.
+// Exported for component tests.
+export function LastRunRelativeChip({
+  hydratedAt,
+  now,
+}: {
+  hydratedAt: string | null | undefined;
+  now?: number;
+}) {
+  const effectiveNow = useEffectiveNow(now);
+  if (!hydratedAt) return null;
+  const stale = isStaleRun(hydratedAt, effectiveNow);
+  return (
+    <Badge
+      variant={stale ? "outline" : "secondary"}
+      className={
+        stale
+          ? "border-amber-300 bg-amber-50 text-amber-800 gap-1"
+          : "gap-1"
+      }
+      data-testid="chip-last-run-relative"
+      title={`Last run completed ${new Date(hydratedAt).toLocaleString()}`}
+    >
+      <Clock className="h-3 w-3" />
+      Last run · {formatRelativeTime(hydratedAt, effectiveNow)}
+    </Badge>
+  );
+}
+
+// Wrapper around the rehydrated last-run summary content. Owns the
+// `panel-backfill-result` testid + `data-stale` attribute, the muted
+// (opacity-70) visual treatment, the leading <Separator />, and the
+// stale-state banner — so any caller embedding the summary inherits all
+// four staleness affordances consistently. Exported for component tests.
+export function LastRunSummaryPanel({
+  hydratedAt,
+  now,
+  children,
+}: {
+  hydratedAt: string | null | undefined;
+  now?: number;
+  children: React.ReactNode;
+}) {
+  const effectiveNow = useEffectiveNow(now);
+  const stale = isStaleRun(hydratedAt, effectiveNow);
+  return (
+    <div
+      className={`space-y-4 ${stale ? "opacity-70" : ""}`}
+      data-testid="panel-backfill-result"
+      data-stale={stale ? "true" : "false"}
+    >
+      <Separator />
+      <LastRunStaleBanner hydratedAt={hydratedAt} now={effectiveNow} />
+      {children}
+    </div>
+  );
+}
+
+export default function Admin() {
+  const { isAdmin, isLoading: authLoading } = useAuth();
+
+  if (authLoading) {
+    return (
+      <Layout>
+        <div
+          className="container px-3 md:px-6 py-12 md:py-16 max-w-3xl flex items-center justify-center"
+          data-testid="state-admin-loading"
+        >
+          <Loader2 className="h-6 w-6 animate-spin text-brand-navy" />
+        </div>
+      </Layout>
+    );
+  }
+
+  if (!isAdmin) {
+    return <AdminNoAccess />;
+  }
+
+  return <AdminPanel />;
+}
+
+function AdminNoAccess() {
+  const { toast } = useToast();
+  const { adminAvailable, adminLogin } = useAuth();
+  const [password, setPassword] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!password.trim() || submitting) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const result = await adminLogin(password);
+      if (result.success) {
+        toast({
+          title: "Admin access granted",
+          description: "You can now run operator-only tools.",
+        });
+        setPassword("");
+      } else {
+        setError(result.message || "Invalid admin password");
+        setPassword("");
+      }
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Unable to elevate session");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Layout>
+      <div className="container px-3 md:px-6 py-6 md:py-10 max-w-2xl">
+        <Card data-testid="card-admin-no-access">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Lock className="h-5 w-5 text-amber-600" />
+              Admin access required
+            </CardTitle>
+            <CardDescription className="mt-1">
+              The Admin tools can rewrite analysis data for every saved report,
+              so they're locked behind a separate operator password. Your
+              regular sign-in does not grant access.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {adminAvailable ? (
+              <form
+                onSubmit={handleSubmit}
+                className="space-y-3"
+                data-testid="form-admin-elevate"
+              >
+                <Label
+                  htmlFor="input-admin-password"
+                  className="text-sm font-medium text-slate-900"
+                >
+                  Admin password
+                </Label>
+                <Input
+                  id="input-admin-password"
+                  type="password"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  disabled={submitting}
+                  placeholder="Enter ADMIN_PASSWORD"
+                  data-testid="input-admin-password"
+                />
+                {error && (
+                  <div
+                    className="text-sm text-red-600 flex items-start gap-2"
+                    data-testid="text-admin-elevate-error"
+                  >
+                    <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                    <span>{error}</span>
+                  </div>
+                )}
+                <Button
+                  type="submit"
+                  disabled={submitting || !password.trim()}
+                  data-testid="button-admin-elevate"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Verifying…
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck className="h-4 w-4 mr-2" />
+                      Unlock admin tools
+                    </>
+                  )}
+                </Button>
+              </form>
+            ) : (
+              <div
+                className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800"
+                data-testid="text-admin-not-configured"
+              >
+                Admin access has not been configured for this deployment. Set
+                the <code className="font-mono">ADMIN_PASSWORD</code>{" "}
+                environment variable on the server to enable operator tools.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </Layout>
+  );
+}
+
+// One row from /api/admin/audit-log. Mirrors the shape of `adminAuditLog`
+// in shared/schema.ts but kept local to avoid pulling server types into the
+// client bundle.
+interface AdminAuditEntry {
+  id: string;
+  action: string;
+  status: "success" | "failure" | string;
+  statusCode: number | null;
+  actorIp: string | null;
+  actorUserAgent: string | null;
+  path: string | null;
+  params: Record<string, unknown> | null;
+  outcome: Record<string, unknown> | null;
+  errorMessage: string | null;
+  createdAt: string;
+}
+
+interface AuditLogResponse {
+  entries: AdminAuditEntry[];
+  total?: number;
+  error?: string;
+}
+
+// Operator-tunable admin settings, served by `/api/admin/settings` and
+// rendered/edited by `AuditRetentionSettings`. `settings.auditRetentionDays`
+// is the persisted override (null when none stored); `effective.auditRetentionDays`
+// is the value the scheduler would use right now (folds in the env-var
+// fallback so the UI always shows what's actually in force).
+interface AdminSettingsResponse {
+  settings: {
+    auditRetentionDays: number | null;
+    updatedAt: string | null;
+  };
+  effective: {
+    auditRetentionDays: number;
+  };
+  error?: string;
+}
+
+// Most recent admin_audit_log retention sweep, served by
+// `/api/admin/last-audit-cleanup` and rendered by AuditCleanupBanner.
+export interface AuditCleanupStatus {
+  status: "success" | "failure" | string;
+  removedCount: number;
+  retentionDays: number;
+  cutoff: string;
+  errorMessage: string | null;
+  durationMs: number | null;
+  ranAt: string;
+}
+
+// Filter state for the "Recent admin activity" panel. All fields optional —
+// a value of "" / "all" means "do not constrain". `since`/`until` are bound
+// to <input type="date"> so the UI value is a YYYY-MM-DD string; we widen
+// `since` to start-of-day and `until` to end-of-day before sending to the
+// server so a single-day range like "since=2026-04-29, until=2026-04-29"
+// does what an operator expects.
+//
+// The shape lives in `@/lib/auditUrlParams` so the URL ↔ state syncing
+// helpers can reuse it; we just re-export under the page-local name for
+// readability of the rest of this file.
+type AuditFilters = AuditFiltersHelper;
+
+// `AUDIT_PAGE_SIZE` and `AUDIT_ACTION_OPTIONS` live in
+// `client/src/components/admin/constants.ts` so this file can stay a
+// "components only" module for Vite + react-refresh Fast Refresh. Mixing
+// non-component exports (constants, types) with component exports forces a
+// full page reload on every Admin.tsx edit. Tests that need the constants
+// import directly from the constants module — see
+// `tests/admin-audit-filter-form.test.tsx`.
+import {
+  AUDIT_ACTION_OPTIONS,
+  AUDIT_PAGE_SIZE,
+} from "@/components/admin/constants";
+
+export function AdminPanel() {
+  const { toast } = useToast();
+  const { adminLogout } = useAuth();
+  const [force, setForce] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  // "Clear last run" affordance state. Open the confirmation dialog
+  // separately from the upgrade-confirm dialog above — this is a
+  // destructive admin action (drops the persisted singleton) that
+  // shouldn't be one click away from the routine "Run upgrade" button.
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const [running, setRunning] = useState(false);
+  const [startedAt, setStartedAt] = useState<number | null>(null);
+  const [result, setResult] = useState<BackfillResponse | null>(null);
+  const [updatedReports, setUpdatedReports] = useState<BackfillReportResult[]>(
+    [],
+  );
+  // Wall-clock timestamp of the persisted run we hydrated from on page load.
+  // Null when the displayed result is from a run completed in *this* browser
+  // session (no need to label it — the operator just watched it finish) or
+  // before any run has ever happened. Used to render a small "from previous
+  // run completed …" hint above the summary so an operator returning the
+  // next day knows they're looking at yesterday's data, not a stale render
+  // bug.
+  const [hydratedAt, setHydratedAt] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<ProgressState | null>(null);
+  // Buffer progress updates so we don't re-render on every single line of
+  // NDJSON when the stream is firing rapidly.
+  const flushTimer = useRef<number | null>(null);
+  const pendingProgress = useRef<ProgressState | null>(null);
+  // Accumulate every "updated" result (uncapped) so the post-run summary
+  // can group reports by which upgrade was applied. The progress feed only
+  // keeps the last MAX_RECENT entries, which is too narrow for grouping.
+  const updatedReportsRef = useRef<BackfillReportResult[]>([]);
+  // Report IDs that are currently being retried via a per-row "Retry"
+  // button. We track them so the affected row can show a spinner without
+  // wiping the rest of the failures table out from under the operator
+  // (which is what happens for the batch "Retry these" button).
+  const [retryingIds, setRetryingIds] = useState<Set<string>>(new Set());
+
+  // "Recent admin activity" panel — fetched on mount and refreshed after
+  // every backfill run so the operator can immediately see their own action
+  // appear in the audit trail.
+  const [auditEntries, setAuditEntries] = useState<AdminAuditEntry[]>([]);
+  const [auditTotal, setAuditTotal] = useState<number>(0);
+  const [auditLoading, setAuditLoading] = useState(true);
+  const [auditError, setAuditError] = useState<string | null>(null);
+  // Last admin_audit_log retention sweep. `auditCleanup === null` with
+  // no `auditCleanupError` means "no sweep has run yet"; with an error
+  // it means "we couldn't read the status" — distinct UI states.
+  const [auditCleanup, setAuditCleanup] = useState<AuditCleanupStatus | null>(
+    null,
+  );
+  const [auditCleanupLoading, setAuditCleanupLoading] = useState(true);
+  const [auditCleanupError, setAuditCleanupError] = useState<string | null>(
+    null,
+  );
+  // The sweeper's configured interval in ms, returned alongside the
+  // last-cleanup payload so the banner's "overdue" threshold tracks the
+  // server-side constant instead of duplicating it on the client.
+  const [auditCleanupIntervalMs, setAuditCleanupIntervalMs] = useState<
+    number | null
+  >(null);
+  // Operator-tunable settings (currently just audit retention). Loaded
+  // on mount and refreshed after a successful save so the "currently in
+  // force" display always reflects what the next sweep will use.
+  const [adminSettings, setAdminSettings] =
+    useState<AdminSettingsResponse | null>(null);
+  const [adminSettingsLoading, setAdminSettingsLoading] = useState(true);
+  const [adminSettingsError, setAdminSettingsError] = useState<string | null>(
+    null,
+  );
+  // Filters + offset are persisted in the URL query string so a filtered view
+  // can be shared via link, restored after a refresh, and walked through with
+  // the browser's back/forward buttons. We derive the live state from
+  // wouter's `useSearch()` (which subscribes to history navigations) rather
+  // than mirroring it into `useState`, so popstate events from
+  // back/forward automatically refresh the panel without a custom listener.
+  const [, navigate] = useLocation();
+  const search = useSearch();
+  const { filters: auditFilters, offset: auditOffset } = useMemo(
+    () => parseAuditUrlParams(search),
+    [search],
+  );
+  // A ref of the current URL state so the navigation callbacks below can
+  // stay referentially stable (no `[auditFilters]` deps). Stable callbacks
+  // matter because the IP-input debounce effect inside
+  // `RecentAdminActivity` depends on `onChangeFilters` — a new identity each
+  // render would restart the timer on every keystroke.
+  const auditUrlStateRef = useRef({
+    filters: auditFilters,
+    offset: auditOffset,
+  });
+  auditUrlStateRef.current = { filters: auditFilters, offset: auditOffset };
+
+  const loadAuditLog = useCallback(
+    async (filters: AuditFilters, offset: number) => {
+      setAuditLoading(true);
+      setAuditError(null);
+      try {
+        const params = new URLSearchParams();
+        params.set("limit", String(AUDIT_PAGE_SIZE));
+        params.set("offset", String(offset));
+        if (filters.action && filters.action !== "all") {
+          params.set("action", filters.action);
+        }
+        if (filters.status && filters.status !== "all") {
+          params.set("status", filters.status);
+        }
+        // <input type="date"> gives a YYYY-MM-DD string. Widen to start- and
+        // end-of-day in the operator's local timezone so a single-day range
+        // captures every entry from that day, regardless of when in the day
+        // it was logged.
+        if (filters.since) {
+          const d = new Date(`${filters.since}T00:00:00`);
+          if (!Number.isNaN(d.getTime())) {
+            params.set("since", d.toISOString());
+          }
+        }
+        if (filters.until) {
+          const d = new Date(`${filters.until}T23:59:59.999`);
+          if (!Number.isNaN(d.getTime())) {
+            params.set("until", d.toISOString());
+          }
+        }
+        if (filters.ip.trim()) {
+          params.set("ip", filters.ip.trim());
+        }
+        const res = await fetch(`/api/admin/audit-log?${params.toString()}`, {
+          credentials: "include",
+        });
+        if (!res.ok) {
+          throw new Error(`${res.status}: ${res.statusText}`);
+        }
+        const data: AuditLogResponse = await res.json();
+        setAuditEntries(data.entries ?? []);
+        setAuditTotal(typeof data.total === "number" ? data.total : 0);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        setAuditError(message);
+      } finally {
+        setAuditLoading(false);
+      }
+    },
+    [],
+  );
+
+  // Reload whenever the operator changes filters or pages. The text-input
+  // filter (IP) is debounced via the input's own onChange + a 300ms timer
+  // inside the panel; this effect just tracks the canonical state.
+  useEffect(() => {
+    void loadAuditLog(auditFilters, auditOffset);
+  }, [loadAuditLog, auditFilters, auditOffset]);
+
+  // Whenever filters change, jump back to page 0 so the operator isn't
+  // stranded on (say) page 5 of a now-much-smaller filtered set. We push a
+  // new history entry (no `replace` flag) so the browser's back button
+  // walks the operator through their previous filter states.
+  const updateAuditFilters = useCallback(
+    (next: Partial<AuditFilters>) => {
+      const merged = { ...auditUrlStateRef.current.filters, ...next };
+      navigate(`/admin${buildAuditSearchString(merged, 0)}`);
+    },
+    [navigate],
+  );
+
+  const updateAuditOffset = useCallback(
+    (nextOffset: number) => {
+      navigate(
+        `/admin${buildAuditSearchString(
+          auditUrlStateRef.current.filters,
+          nextOffset,
+        )}`,
+      );
+    },
+    [navigate],
+  );
+
+  const resetAuditFilters = useCallback(() => {
+    // "Clear filters" should also clear the URL params so a shared link
+    // doesn't drag stale query state along after the operator resets.
+    navigate("/admin");
+  }, [navigate]);
+
+  const loadAuditCleanup = useCallback(async () => {
+    setAuditCleanupLoading(true);
+    try {
+      const res = await fetch("/api/admin/last-audit-cleanup", {
+        credentials: "include",
+      });
+      if (!res.ok) {
+        setAuditCleanup(null);
+        setAuditCleanupIntervalMs(null);
+        setAuditCleanupError(`HTTP ${res.status}`);
+        return;
+      }
+      const data: {
+        cleanup: AuditCleanupStatus | null;
+        intervalMs?: number;
+        error?: string;
+      } = await res.json();
+      setAuditCleanup(data.cleanup ?? null);
+      setAuditCleanupError(data.error ?? null);
+      setAuditCleanupIntervalMs(
+        typeof data.intervalMs === "number" && Number.isFinite(data.intervalMs)
+          ? data.intervalMs
+          : null,
+      );
+    } catch (err) {
+      setAuditCleanup(null);
+      setAuditCleanupIntervalMs(null);
+      setAuditCleanupError(
+        err instanceof Error ? err.message : "Failed to load cleanup status",
+      );
+    } finally {
+      setAuditCleanupLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadAuditCleanup();
+  }, [loadAuditCleanup]);
+
+  const loadAdminSettings = useCallback(async () => {
+    setAdminSettingsLoading(true);
+    try {
+      const res = await fetch("/api/admin/settings", {
+        credentials: "include",
+      });
+      if (!res.ok) {
+        setAdminSettingsError(`HTTP ${res.status}`);
+        setAdminSettings(null);
+        return;
+      }
+      const data: AdminSettingsResponse = await res.json();
+      setAdminSettings(data);
+      setAdminSettingsError(null);
+    } catch (err) {
+      setAdminSettings(null);
+      setAdminSettingsError(
+        err instanceof Error ? err.message : "Failed to load admin settings",
+      );
+    } finally {
+      setAdminSettingsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadAdminSettings();
+  }, [loadAdminSettings]);
+
+  // Save handler returned to the form component. Throws on validation /
+  // network failure so the form can surface a per-field error inline,
+  // and refreshes both the settings + cleanup banner on success so the
+  // "Retention window: N days" line updates the moment the next sweep
+  // would pick the new value up.
+  const saveAdminSettings = useCallback(
+    async (next: { auditRetentionDays: number | null }): Promise<void> => {
+      const res = await fetch("/api/admin/settings", {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(next),
+      });
+      if (!res.ok) {
+        let message = `${res.status}: ${res.statusText}`;
+        try {
+          const body = await res.json();
+          if (body && typeof body.error === "string") message = body.error;
+        } catch {
+          /* fall through */
+        }
+        throw new Error(message);
+      }
+      const data: AdminSettingsResponse = await res.json();
+      setAdminSettings(data);
+      setAdminSettingsError(null);
+      // The cleanup banner shows the retention window on its second
+      // line — refresh it so it doesn't lag behind the new value.
+      void loadAuditCleanup();
+    },
+    [loadAuditCleanup],
+  );
+
+  const refreshAuditLog = useCallback(() => {
+    void loadAuditLog(auditFilters, auditOffset);
+    void loadAuditCleanup();
+  }, [loadAuditLog, loadAuditCleanup, auditFilters, auditOffset]);
+
+  // Export handler — downloads every row matching the current filters
+  // (not just the visible page), capped server-side at 10k rows. Used by
+  // the "Download CSV" / "Download Excel" / "Download PDF" buttons next
+  // to Refresh on the audit panel so an operator can attach a slice of
+  // the trail to an incident ticket, pivot it in a spreadsheet, or hand
+  // a print-ready copy to a compliance reviewer without screenshotting
+  // page-by-page. The `format` arg picks between the three routes; the
+  // toast/filename labels follow it so the user-facing copy reads right.
+  const [auditExporting, setAuditExporting] = useState<null | "csv" | "xlsx" | "pdf">(
+    null,
+  );
+
+  // "Last exported" chip state. After a successful download we remember
+  // what was saved (format, row count, when) so a small chip under the
+  // download buttons can tell the operator "you already grabbed this slice
+  // 2 minutes ago" — preventing duplicate CSV-then-Excel downloads of an
+  // identical filtered view. Tied to a stable filter-key snapshot so the
+  // chip auto-clears the moment the operator narrows / widens the slice
+  // (since the previous download no longer represents the current view).
+  const auditFilterKey = useMemo(
+    () =>
+      JSON.stringify({
+        action: auditFilters.action ?? null,
+        status: auditFilters.status ?? null,
+        since: auditFilters.since ?? null,
+        until: auditFilters.until ?? null,
+        ip: auditFilters.ip.trim(),
+      }),
+    [auditFilters],
+  );
+  const [lastAuditExport, setLastAuditExport] = useState<
+    | {
+        format: "csv" | "xlsx" | "pdf";
+        rows: number;
+        at: number;
+        filterKey: string;
+      }
+    | null
+  >(null);
+  // Drop the chip whenever the filter slice changes — the previous download
+  // no longer corresponds to what the panel is showing, so claiming "you
+  // already exported this" would be misleading.
+  useEffect(() => {
+    setLastAuditExport((prev) =>
+      prev && prev.filterKey === auditFilterKey ? prev : null,
+    );
+  }, [auditFilterKey]);
+  // Mirror the live filter key in a ref so the export-completion handler
+  // can compare against the *current* slice (not the slice that was active
+  // when the request started) and discard stale results when filters
+  // changed mid-flight. Without this, a slow CSV download whose response
+  // returns after the operator narrows filters would attach an out-of-date
+  // chip to the new slice.
+  const auditFilterKeyRef = useRef(auditFilterKey);
+  auditFilterKeyRef.current = auditFilterKey;
+
+  const exportAuditLog = useCallback(
+    async (format: "csv" | "xlsx" | "pdf") => {
+      setAuditExporting(format);
+      const formatLabel =
+        format === "xlsx" ? "Excel" : format === "pdf" ? "PDF" : "CSV";
+      // Snapshot the filter key at request start; the completion handler
+      // compares this against the *live* key (via `auditFilterKeyRef`) so a
+      // mid-flight filter change discards the stale chip metadata instead
+      // of attaching it to the new slice.
+      const requestFilterKey = auditFilterKey;
+      try {
+        // Mirror the same filter→query-param translation as `loadAuditLog`
+        // so the download contains exactly what the panel is showing.
+        // No `limit`/`offset` — the server caps at AUDIT_EXPORT_MAX_ROWS
+        // (10k) rather than the read endpoint's per-page limit.
+        const params = new URLSearchParams();
+        if (auditFilters.action && auditFilters.action !== "all") {
+          params.set("action", auditFilters.action);
+        }
+        if (auditFilters.status && auditFilters.status !== "all") {
+          params.set("status", auditFilters.status);
+        }
+        if (auditFilters.since) {
+          const d = new Date(`${auditFilters.since}T00:00:00`);
+          if (!Number.isNaN(d.getTime())) params.set("since", d.toISOString());
+        }
+        if (auditFilters.until) {
+          const d = new Date(`${auditFilters.until}T23:59:59.999`);
+          if (!Number.isNaN(d.getTime())) params.set("until", d.toISOString());
+        }
+        if (auditFilters.ip.trim()) params.set("ip", auditFilters.ip.trim());
+
+        const path =
+          format === "xlsx"
+            ? "/api/admin/audit-log/export.xlsx"
+            : format === "pdf"
+              ? "/api/admin/audit-log/export.pdf"
+              : "/api/admin/audit-log/export";
+        const res = await fetch(`${path}?${params.toString()}`, {
+          credentials: "include",
+        });
+        if (!res.ok) {
+          // The server emits JSON on pre-stream failures so we can surface
+          // a meaningful toast instead of "[object Blob]".
+          let message = `${res.status}: ${res.statusText}`;
+          try {
+            const body = await res.json();
+            if (body && typeof body.error === "string") message = body.error;
+          } catch {
+            /* response wasn't JSON; fall back to status text */
+          }
+          throw new Error(message);
+        }
+        // Pull the server-suggested filename out of Content-Disposition so
+        // the file lands with the timestamp + filter tags baked in.
+        const cd = res.headers.get("content-disposition") ?? "";
+        const match = /filename="([^"]+)"/.exec(cd);
+        const filename = match?.[1] ?? `admin-audit.${format}`;
+        const truncated = res.headers.get("x-audit-export-truncated") === "1";
+        const rows = res.headers.get("x-audit-export-rows");
+        const total = res.headers.get("x-audit-export-total");
+
+        const blob = await res.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        try {
+          const a = document.createElement("a");
+          a.href = objectUrl;
+          a.download = filename;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+        } finally {
+          URL.revokeObjectURL(objectUrl);
+        }
+
+        if (truncated && rows && total) {
+          // Warn (not error) — they got a file, just not the whole slice.
+          toast({
+            title: `${formatLabel} download truncated`,
+            description: `Exported the first ${rows} of ${total} matching rows. Narrow the filters to capture more.`,
+            variant: "destructive",
+          });
+        } else if (rows) {
+          toast({
+            title: `${formatLabel} downloaded`,
+            description: `${rows} row${rows === "1" ? "" : "s"} saved as ${filename}`,
+          });
+        }
+        // Update the "last exported" chip so the operator can see at a
+        // glance that this slice has just been saved. Use the parsed row
+        // count from the response header (the source of truth — matches the
+        // toast's "N rows saved" copy and the file's actual row count, even
+        // when truncated). Tag with the filter key snapshot we captured
+        // *before* the network request so a mid-flight filter change can
+        // discard the stale result instead of attaching it to the new
+        // slice (race: operator narrows filters while the download is
+        // still in flight; the response no longer represents what the
+        // panel is showing).
+        if (rows && auditFilterKeyRef.current === requestFilterKey) {
+          const parsedRows = Number.parseInt(rows, 10);
+          if (Number.isFinite(parsedRows)) {
+            setLastAuditExport({
+              format,
+              rows: parsedRows,
+              at: Date.now(),
+              filterKey: requestFilterKey,
+            });
+          }
+        }
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        toast({
+          title: `${formatLabel} download failed`,
+          description: message,
+          variant: "destructive",
+        });
+      } finally {
+        setAuditExporting(null);
+      }
+    },
+    [auditFilters, auditFilterKey, toast],
+  );
+
+  // Hydrate the post-run summary from the server on page load. The Admin
+  // page used to keep `result` and `updatedReports` purely in component
+  // state, which meant a refresh (or coming back the next day) wiped the
+  // failures table, retry button, and "Upgrades applied" panel — forcing
+  // an operator to re-run the whole upgrade just to surface failures they
+  // saw yesterday. The server now persists the most recent completed run
+  // (see `/api/admin/last-backfill`) so we can render the same summary
+  // immediately on mount, even before the operator clicks anything.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/admin/last-backfill", {
+          credentials: "include",
+        });
+        if (!res.ok) return;
+        const data: {
+          summary: BackfillResponse | null;
+          updatedReports?: BackfillReportResult[];
+          completedAt?: string;
+        } = await res.json();
+        if (cancelled || !data.summary) return;
+        setResult(data.summary);
+        const hydratedUpdated = data.updatedReports ?? [];
+        setUpdatedReports(hydratedUpdated);
+        // Keep the ref in sync with hydrated state so that any code which
+        // appends to it later (e.g. a preserve-mode per-row retry that
+        // surfaces a newly-fixed report) doesn't overwrite the hydrated
+        // upgrades history with only the newly-appended entries.
+        updatedReportsRef.current = hydratedUpdated.slice();
+        setHydratedAt(data.completedAt ?? null);
+      } catch {
+        // Hydration is a nice-to-have — if the GET fails, the page still
+        // works (it just won't show the previous run until the operator
+        // triggers a new one). No toast: this would be noise on every
+        // mount when the DB is unreachable for unrelated reasons.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Drop the persisted last-run singleton on the server, then collapse
+  // the rehydrated panel locally so the operator doesn't have to refresh
+  // to see the change. The audit panel will pick up the new
+  // `clear-last-backfill` row on its next poll/refresh — we don't force
+  // an extra refetch here to avoid extra round-trips on a benign action.
+  const clearLastRun = useCallback(async () => {
+    setClearing(true);
+    try {
+      const res = await fetch("/api/admin/last-backfill", {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        const text = (await res.text()) || res.statusText;
+        throw new Error(`${res.status}: ${text}`);
+      }
+      // Mirror the empty-baseline state so the panel disappears
+      // without a round-trip — matches what the next page-load
+      // hydration would render against `{ summary: null }`.
+      setResult(null);
+      setUpdatedReports([]);
+      updatedReportsRef.current = [];
+      setHydratedAt(null);
+      toast({
+        title: "Last run cleared",
+        description:
+          "The saved summary has been removed. The panel will stay empty until the next upgrade run.",
+      });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      toast({
+        title: "Could not clear last run",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setClearing(false);
+    }
+  }, [toast]);
+
+  const scheduleFlush = () => {
+    if (flushTimer.current !== null) return;
+    flushTimer.current = window.setTimeout(() => {
+      flushTimer.current = null;
+      if (pendingProgress.current) {
+        setProgress(pendingProgress.current);
+      }
+    }, 80);
+  };
+
+  const runBackfill = async (opts?: {
+    onlyIds?: string[];
+    preserveResult?: boolean;
+  }) => {
+    const onlyIds = opts?.onlyIds;
+    // A retry-only run always forces reprocessing — the operator just saw
+    // these reports fail, so respecting the staleness short-circuit (which
+    // could mark them as "already-v2.1" and skip them) would defeat the
+    // whole point of the button.
+    const isRetry = !!onlyIds && onlyIds.length > 0;
+    const useForce = force || isRetry;
+    // Preserve mode is used by per-row retries. The operator is triaging
+    // failures one at a time and would lose the rest of the failures table
+    // (and the live progress / upgrades panels) if we wiped state at the
+    // start of the run. Instead, we keep the current `result`/`updatedReports`
+    // in place, just mark the row as retrying, and merge the per-ID result
+    // back into the existing `result.failures` once the stream completes.
+    const preserve = !!opts?.preserveResult && isRetry;
+    // Per-ID results accumulated from this run's progress events, used in
+    // preserve mode to splice the new statuses back into the existing
+    // failures table.
+    const perIdResults: BackfillReportResult[] = [];
+
+    setRunning(true);
+    setStartedAt(Date.now());
+    if (preserve) {
+      // Mark the targeted rows as retrying so their per-row Retry button
+      // can show a spinner without disturbing anything else on the page.
+      setRetryingIds(new Set(onlyIds));
+    } else {
+      setResult(null);
+      setUpdatedReports([]);
+      // We're about to produce a fresh result — once this run completes,
+      // the displayed summary is "live" again, not a hydrated snapshot
+      // from the previous run, so drop the "from previous run completed …"
+      // hint.
+      setHydratedAt(null);
+      setProgress(null);
+      pendingProgress.current = null;
+      updatedReportsRef.current = [];
+    }
+    setError(null);
+
+    try {
+      const params = new URLSearchParams({ stream: "1" });
+      if (useForce) params.set("force", "1");
+      const res = await fetch(
+        `/api/admin/backfill-reports?${params.toString()}`,
+        {
+          method: "POST",
+          credentials: "include",
+          headers: isRetry ? { "Content-Type": "application/json" } : undefined,
+          body: isRetry ? JSON.stringify({ onlyIds }) : undefined,
+        },
+      );
+
+      if (!res.ok || !res.body) {
+        const text = (await res.text()) || res.statusText;
+        throw new Error(`${res.status}: ${text}`);
+      }
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      // Wrap mutable values in a single object so TypeScript keeps the
+      // declared types after they're reassigned inside the closure below
+      // (without an indirection it narrows to `never`).
+      const state: {
+        completion: BackfillResponse | null;
+        streamError: string | null;
+      } = { completion: null, streamError: null };
+
+      const handleEvent = (event: StreamEvent) => {
+        if (event.type === "start") {
+          // In preserve mode the live progress panel is intentionally not
+          // shown (the existing summary stays in place), so there's no
+          // reason to seed `progress` state from this run.
+          if (preserve) return;
+          const initial: ProgressState = {
+            total: event.total,
+            processed: 0,
+            updated: 0,
+            skipped: 0,
+            failed: 0,
+            recent: [],
+          };
+          pendingProgress.current = initial;
+          setProgress(initial);
+        } else if (event.type === "progress") {
+          const r = event.result;
+          // Always capture per-ID results so preserve mode can merge them
+          // back into the failures table once the stream completes.
+          perIdResults.push(r);
+          if (preserve) return;
+          const prev =
+            pendingProgress.current ?? {
+              total: event.total,
+              processed: 0,
+              updated: 0,
+              skipped: 0,
+              failed: 0,
+              recent: [],
+            };
+          if (r.status === "updated") {
+            updatedReportsRef.current.push(r);
+          }
+          const next: ProgressState = {
+            total: event.total,
+            processed: event.index,
+            updated: prev.updated + (r.status === "updated" ? 1 : 0),
+            skipped: prev.skipped + (r.status === "skipped" ? 1 : 0),
+            failed: prev.failed + (r.status === "failed" ? 1 : 0),
+            recent: [r, ...prev.recent].slice(0, MAX_RECENT),
+          };
+          pendingProgress.current = next;
+          scheduleFlush();
+        } else if (event.type === "complete") {
+          const { type: _type, ...rest } = event;
+          state.completion = rest;
+        } else if (event.type === "error") {
+          state.streamError = event.error || "Unknown error";
+        }
+      };
+
+      const consumeLine = (raw: string) => {
+        const line = raw.trim();
+        if (!line) return;
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(line);
+        } catch {
+          return;
+        }
+        if (!isStreamEvent(parsed)) return;
+        handleEvent(parsed);
+      };
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        let newlineIdx = buffer.indexOf("\n");
+        while (newlineIdx !== -1) {
+          consumeLine(buffer.slice(0, newlineIdx));
+          buffer = buffer.slice(newlineIdx + 1);
+          newlineIdx = buffer.indexOf("\n");
+        }
+      }
+      // Flush any trailing bytes the decoder is still holding, plus any
+      // residual buffered line that was not newline-terminated.
+      buffer += decoder.decode();
+      if (buffer.length > 0) {
+        consumeLine(buffer);
+        buffer = "";
+      }
+
+      // Flush any pending progress updates before showing the summary.
+      if (flushTimer.current !== null) {
+        window.clearTimeout(flushTimer.current);
+        flushTimer.current = null;
+      }
+      if (pendingProgress.current) {
+        setProgress(pendingProgress.current);
+      }
+
+      if (state.streamError) {
+        throw new Error(state.streamError);
+      }
+
+      const completion = state.completion;
+      if (!completion) {
+        throw new Error("Stream ended before a completion event was received.");
+      }
+
+      if (preserve) {
+        // Per-row retry: splice the per-ID results back into the existing
+        // failures table instead of replacing the whole summary. Rows that
+        // weren't part of this retry stay exactly where they were.
+        const resultsById = new Map(perIdResults.map((r) => [r.id, r]));
+        let updatedDelta = 0;
+        let skippedDelta = 0;
+        let failedDelta = 0;
+        const newlyUpdated: BackfillReportResult[] = [];
+        setResult((prev) => {
+          if (!prev) return prev;
+          const nextFailures: BackfillFailure[] = [];
+          for (const f of prev.failures ?? []) {
+            const r = resultsById.get(f.id);
+            if (!r) {
+              // Not retried in this run — leave the failure row untouched.
+              nextFailures.push(f);
+              continue;
+            }
+            if (r.status === "failed") {
+              // Still failing, but with possibly-new error text/duration.
+              nextFailures.push(r as BackfillFailure);
+            } else if (r.status === "updated") {
+              updatedDelta += 1;
+              failedDelta -= 1;
+              newlyUpdated.push(r);
+            } else {
+              skippedDelta += 1;
+              failedDelta -= 1;
+            }
+          }
+          return {
+            ...prev,
+            failures: nextFailures,
+            updated: prev.updated + updatedDelta,
+            skipped: prev.skipped + skippedDelta,
+            failed: prev.failed + failedDelta,
+          };
+        });
+        if (newlyUpdated.length > 0) {
+          // Surface the newly-fixed reports in the "Upgrades applied" and
+          // "Headline number changes" panels alongside whatever was already
+          // there from the original run. Use a functional setState so we
+          // append to the latest committed `updatedReports` (including any
+          // hydrated history from the persisted last run) instead of relying
+          // solely on the ref, which is only kept in sync from the streaming
+          // path.
+          updatedReportsRef.current = [
+            ...updatedReportsRef.current,
+            ...newlyUpdated,
+          ];
+          setUpdatedReports((prev) => [...prev, ...newlyUpdated]);
+        }
+        setRetryingIds(new Set());
+        const succeeded = perIdResults.filter(
+          (r) => r.status === "updated" || r.status === "skipped",
+        ).length;
+        const failedAgain = perIdResults.filter(
+          (r) => r.status === "failed",
+        ).length;
+        toast({
+          title: "Retry complete",
+          description:
+            failedAgain === 0
+              ? `Retried ${perIdResults.length} report${perIdResults.length === 1 ? "" : "s"} — all succeeded.`
+              : `Retried ${perIdResults.length} report${perIdResults.length === 1 ? "" : "s"} — ${succeeded} succeeded, ${failedAgain} still failing.`,
+        });
+      } else {
+        setResult(completion);
+        setUpdatedReports(updatedReportsRef.current.slice());
+        toast({
+          title: "Upgrade complete",
+          description: `Updated ${completion.updated} of ${completion.total} reports (${completion.failed} failed) in ${formatDuration(completion.durationMs)}.`,
+        });
+      }
+      // Pull the audit log again so the run we just finished shows up at the
+      // top of the "Recent admin activity" panel.
+      refreshAuditLog();
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (preserve) {
+        // Don't surface an inline page-level "Upgrade failed" banner for a
+        // single-row retry — that would obscure the failures table the
+        // operator is still trying to read. The toast is enough.
+        toast({
+          title: "Retry failed",
+          description: message,
+          variant: "destructive",
+        });
+      } else {
+        setError(message);
+        toast({
+          title: "Upgrade failed",
+          description: message,
+          variant: "destructive",
+        });
+      }
+    } finally {
+      if (flushTimer.current !== null) {
+        window.clearTimeout(flushTimer.current);
+        flushTimer.current = null;
+      }
+      if (preserve) {
+        // Always clear the per-row spinner state on the way out, even if
+        // the network request errored mid-flight, so a stuck row can't
+        // permanently disable its own Retry button.
+        setRetryingIds(new Set());
+      }
+      setRunning(false);
+    }
+  };
+
+  return (
+    <Layout>
+      <div className="container px-3 md:px-6 py-6 md:py-10 max-w-5xl">
+        <div className="mb-6 flex items-start justify-between gap-4">
+          <div>
+            <h1
+              className="text-2xl md:text-3xl font-bold text-brand-navy"
+              data-testid="text-admin-title"
+            >
+              Admin
+            </h1>
+            <p className="text-sm md:text-base text-slate-600 mt-1">
+              Operator tools for maintaining saved reports.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Badge
+              variant="outline"
+              className="border-emerald-300 text-emerald-700 bg-emerald-50"
+              data-testid="badge-admin-active"
+            >
+              <ShieldCheck className="h-3.5 w-3.5 mr-1" />
+              Admin
+            </Badge>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                void adminLogout();
+                toast({
+                  title: "Stepped down from admin",
+                  description: "Your session is no longer elevated.",
+                });
+              }}
+              disabled={running}
+              data-testid="button-admin-step-down"
+            >
+              Step down
+            </Button>
+          </div>
+        </div>
+
+        <Card data-testid="card-upgrade-reports">
+          <CardHeader>
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <RefreshCw className="h-5 w-5 text-brand-navy" />
+                  Upgrade all reports
+                </CardTitle>
+                <CardDescription className="mt-1">
+                  Re-runs the v2.1 post-processor over every saved report so
+                  they all carry the latest schema, diagnostic flat fields, and
+                  Step 6 hard knockout fields. Reports that already match the
+                  current shape are skipped unless you force a reprocess.
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 p-4">
+              <div>
+                <Label
+                  htmlFor="switch-force"
+                  className="text-sm font-medium text-slate-900"
+                >
+                  Force reprocess (force=1)
+                </Label>
+                <p className="text-xs text-slate-600 mt-0.5">
+                  Ignore the staleness check and reprocess every report,
+                  including ones already on v2.1.
+                </p>
+              </div>
+              <Switch
+                id="switch-force"
+                checked={force}
+                onCheckedChange={setForce}
+                disabled={running}
+                data-testid="switch-force"
+              />
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                onClick={() => setConfirmOpen(true)}
+                disabled={running}
+                size="lg"
+                data-testid="button-run-upgrade"
+              >
+                {running ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Upgrading…
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Upgrade all reports
+                  </>
+                )}
+              </Button>
+              {running && startedAt && (
+                <span
+                  className="text-xs text-slate-500 flex items-center gap-1"
+                  data-testid="text-running-status"
+                >
+                  <Clock className="h-3.5 w-3.5" />
+                  Started {new Date(startedAt).toLocaleTimeString()} — this can
+                  take a while for large datasets.
+                </span>
+              )}
+            </div>
+
+            {progress && !result && (
+              <LiveProgressPanel progress={progress} running={running} />
+            )}
+
+            {error && (
+              <div
+                className="rounded-lg border border-red-200 bg-red-50 p-4 flex items-start gap-2"
+                data-testid="alert-backfill-error"
+              >
+                <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
+                <div className="text-sm text-red-700">
+                  <div className="font-medium">Upgrade failed</div>
+                  <div className="text-red-600">{error}</div>
+                </div>
+              </div>
+            )}
+
+            {result && (
+              <LastRunSummaryPanel hydratedAt={hydratedAt}>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                  <h3 className="text-base font-semibold text-slate-900">
+                    Last run summary
+                  </h3>
+                  {result.force && (
+                    <Badge variant="secondary" data-testid="badge-forced">
+                      forced
+                    </Badge>
+                  )}
+                  <LastRunRelativeChip hydratedAt={hydratedAt} />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="ml-auto gap-1"
+                    onClick={() => setClearConfirmOpen(true)}
+                    disabled={running || clearing}
+                    data-testid="button-clear-last-run"
+                    title="Drop the saved last-run summary so this panel collapses until the next upgrade."
+                  >
+                    {clearing ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-3.5 w-3.5" />
+                    )}
+                    Clear last run
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                  <SummaryStat
+                    label="Total"
+                    value={result.total}
+                    testId="stat-total"
+                  />
+                  <SummaryStat
+                    label="Updated"
+                    value={result.updated}
+                    tone="success"
+                    testId="stat-updated"
+                  />
+                  <SummaryStat
+                    label="Skipped"
+                    value={result.skipped}
+                    tone="muted"
+                    testId="stat-skipped"
+                  />
+                  <SummaryStat
+                    label="Failed"
+                    value={result.failed}
+                    tone={result.failed > 0 ? "danger" : "muted"}
+                    testId="stat-failed"
+                  />
+                  <SummaryStat
+                    label="Duration"
+                    value={formatDuration(result.durationMs)}
+                    testId="stat-duration"
+                  />
+                </div>
+
+                {updatedReports.length > 0 && (
+                  <UpgradesAppliedPanel updated={updatedReports} />
+                )}
+
+                {updatedReports.length > 0 && (
+                  <HeadlineNumberChangesPanel updated={updatedReports} />
+                )}
+
+                {result.failures && result.failures.length > 0 ? (
+                  <div className="rounded-lg border border-red-200 overflow-hidden">
+                    <div className="bg-red-50 px-4 py-2 flex items-center gap-2 border-b border-red-200">
+                      <AlertCircle className="h-4 w-4 text-red-600" />
+                      <span className="text-sm font-medium text-red-700 flex-1">
+                        {result.failures.length} failure
+                        {result.failures.length === 1 ? "" : "s"} — review and
+                        retry as needed
+                      </span>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-red-300 text-red-700 hover:bg-red-100 hover:text-red-800"
+                        disabled={result.failures.length === 0}
+                        onClick={async () => {
+                          const ids = (result.failures ?? []).map((f) => f.id);
+                          if (ids.length === 0) return;
+                          const text = ids.join("\n");
+                          try {
+                            await navigator.clipboard.writeText(text);
+                            toast({
+                              title: "Copied to clipboard",
+                              description: `${ids.length} failed report ID${ids.length === 1 ? "" : "s"} copied.`,
+                            });
+                          } catch {
+                            toast({
+                              title: "Copy failed",
+                              description:
+                                "Your browser blocked clipboard access. Please copy manually.",
+                              variant: "destructive",
+                            });
+                          }
+                        }}
+                        data-testid="button-copy-ids-failures"
+                      >
+                        <Copy className="h-3.5 w-3.5 mr-1.5" />
+                        Copy IDs
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-red-300 text-red-700 hover:bg-red-100 hover:text-red-800"
+                        disabled={running}
+                        onClick={() => {
+                          // Capture the failure IDs before kicking off the
+                          // retry — `runBackfill` clears `result` immediately
+                          // so the failures table disappears while the live
+                          // progress panel takes over.
+                          const ids = (result.failures ?? []).map((f) => f.id);
+                          if (ids.length === 0) return;
+                          void runBackfill({ onlyIds: ids });
+                        }}
+                        data-testid="button-retry-failures"
+                      >
+                        <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                        Retry these
+                      </Button>
+                    </div>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Company</TableHead>
+                          <TableHead>Report ID</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Error</TableHead>
+                          <TableHead className="text-right">Duration</TableHead>
+                          <TableHead className="text-right">Action</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {result.failures.map((f) => (
+                          <TableRow
+                            key={f.id}
+                            data-testid={`row-failure-${f.id}`}
+                          >
+                            <TableCell
+                              className="font-medium"
+                              data-testid={`text-failure-company-${f.id}`}
+                            >
+                              {f.companyName}
+                            </TableCell>
+                            <TableCell className="font-mono text-xs text-slate-600 select-all">
+                              <a
+                                href={`/reports/${f.id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:text-blue-800 hover:underline"
+                                title={
+                                  f.isWhatIf
+                                    ? "Open what-if report in new tab"
+                                    : "Open report in new tab"
+                                }
+                                onClick={(e) => {
+                                  // Preserve manual text selection: if the
+                                  // admin is mid-drag selecting the ID to
+                                  // copy it, don't hijack the click into a
+                                  // navigation.
+                                  const sel = window.getSelection();
+                                  if (!sel || sel.toString().length === 0) {
+                                    return;
+                                  }
+                                  const link = e.currentTarget;
+                                  const inAnchor =
+                                    sel.anchorNode &&
+                                    link.contains(sel.anchorNode);
+                                  const inFocus =
+                                    sel.focusNode &&
+                                    link.contains(sel.focusNode);
+                                  if (inAnchor || inFocus) {
+                                    e.preventDefault();
+                                  }
+                                }}
+                                data-testid={`link-failure-report-${f.id}`}
+                              >
+                                {f.id}
+                              </a>
+                            </TableCell>
+                            <TableCell>
+                              {f.isWhatIf ? (
+                                <Badge variant="outline">what-if</Badge>
+                              ) : (
+                                <Badge variant="outline">report</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell
+                              className="text-sm text-red-600 max-w-md break-words"
+                              data-testid={`text-failure-error-${f.id}`}
+                            >
+                              {f.error ?? "Unknown error"}
+                            </TableCell>
+                            <TableCell className="text-right text-xs text-slate-500">
+                              {formatDuration(f.durationMs)}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="border-red-300 text-red-700 hover:bg-red-100 hover:text-red-800"
+                                disabled={running}
+                                onClick={() => {
+                                  // Per-row retry: re-run the upgrade for
+                                  // just this one report ID so operators can
+                                  // skip a known-broken legacy report and
+                                  // triage the rest one at a time. Pass
+                                  // `preserveResult` so the rest of the
+                                  // failures table stays visible while this
+                                  // single row is re-run.
+                                  void runBackfill({
+                                    onlyIds: [f.id],
+                                    preserveResult: true,
+                                  });
+                                }}
+                                data-testid={`button-retry-failure-${f.id}`}
+                              >
+                                {retryingIds.has(f.id) ? (
+                                  <>
+                                    <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+                                    Retrying…
+                                  </>
+                                ) : (
+                                  <>
+                                    <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+                                    Retry
+                                  </>
+                                )}
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                ) : (
+                  <div
+                    className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 flex items-center gap-2 text-sm text-emerald-700"
+                    data-testid="text-no-failures"
+                  >
+                    <CheckCircle2 className="h-4 w-4" />
+                    No failures — every report was processed successfully.
+                  </div>
+                )}
+              </LastRunSummaryPanel>
+            )}
+          </CardContent>
+        </Card>
+
+        <RecentAdminActivity
+          entries={auditEntries}
+          total={auditTotal}
+          loading={auditLoading}
+          error={auditError}
+          filters={auditFilters}
+          offset={auditOffset}
+          pageSize={AUDIT_PAGE_SIZE}
+          onChangeFilters={updateAuditFilters}
+          onResetFilters={resetAuditFilters}
+          onChangeOffset={updateAuditOffset}
+          onRefresh={refreshAuditLog}
+          onExport={(format) => void exportAuditLog(format)}
+          exporting={auditExporting}
+          lastExport={lastAuditExport}
+          cleanup={auditCleanup}
+          cleanupLoading={auditCleanupLoading}
+          cleanupError={auditCleanupError}
+          cleanupIntervalMs={auditCleanupIntervalMs}
+        />
+
+        <AuditRetentionSettings
+          data={adminSettings}
+          loading={adminSettingsLoading}
+          loadError={adminSettingsError}
+          onSave={saveAdminSettings}
+        />
+      </div>
+
+      <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <AlertDialogContent data-testid="dialog-confirm-upgrade">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <ShieldAlert className="h-5 w-5 text-amber-600" />
+              Upgrade every saved report?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {force ? (
+                <>
+                  This will <strong>force-reprocess every report</strong>,
+                  including ones already on v2.1. Existing analysis data will be
+                  re-run through the v2.1 post-processor and overwritten in
+                  place.
+                </>
+              ) : (
+                <>
+                  This will re-run the v2.1 post-processor over every saved
+                  report that doesn't already match the current schema.
+                  Up-to-date reports will be skipped.
+                </>
+              )}{" "}
+              The run can take several minutes on large datasets and cannot be
+              cancelled mid-flight.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-upgrade">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirmOpen(false);
+                void runBackfill();
+              }}
+              data-testid="button-confirm-upgrade"
+            >
+              {force ? "Force upgrade all reports" : "Upgrade all reports"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={clearConfirmOpen}
+        onOpenChange={setClearConfirmOpen}
+      >
+        <AlertDialogContent data-testid="dialog-confirm-clear-last-run">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-amber-600" />
+              Clear the saved last-run summary?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This drops the persisted record of the most recent upgrade run,
+              so the summary, failures table, and "Retry these" button on this
+              page will disappear until the next run completes. The reports
+              themselves are not affected — only the saved summary view is
+              removed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="button-cancel-clear-last-run">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setClearConfirmOpen(false);
+                void clearLastRun();
+              }}
+              data-testid="button-confirm-clear-last-run"
+            >
+              Clear last run
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </Layout>
+  );
+}
+
+interface SummaryStatProps {
+  label: string;
+  value: number | string;
+  tone?: "default" | "success" | "danger" | "muted";
+  testId: string;
+}
+
+function SummaryStat({ label, value, tone = "default", testId }: SummaryStatProps) {
+  const toneClasses: Record<NonNullable<SummaryStatProps["tone"]>, string> = {
+    default: "text-slate-900",
+    success: "text-emerald-600",
+    danger: "text-red-600",
+    muted: "text-slate-500",
+  };
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white p-3">
+      <div className="text-[11px] uppercase tracking-wide text-slate-500 font-medium">
+        {label}
+      </div>
+      <div
+        className={`text-2xl font-semibold mt-1 ${toneClasses[tone]}`}
+        data-testid={testId}
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+interface LiveProgressPanelProps {
+  progress: ProgressState;
+  running: boolean;
+}
+
+function LiveProgressPanel({ progress, running }: LiveProgressPanelProps) {
+  const { total, processed, updated, skipped, failed, recent } = progress;
+  const pct = total > 0 ? Math.min(100, (processed / total) * 100) : 0;
+
+  return (
+    <div className="space-y-4" data-testid="panel-live-progress">
+      <Separator />
+      <div className="flex items-center gap-2">
+        {running ? (
+          <Loader2 className="h-5 w-5 text-brand-navy animate-spin" />
+        ) : (
+          <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+        )}
+        <h3 className="text-base font-semibold text-slate-900">
+          {running ? "Upgrade in progress" : "Upgrade finishing…"}
+        </h3>
+      </div>
+
+      <div>
+        <div className="flex items-center justify-between text-sm mb-2">
+          <span className="text-slate-700 font-medium" data-testid="text-progress-label">
+            {processed} of {total} reports processed
+          </span>
+          <span className="text-slate-500 tabular-nums" data-testid="text-progress-pct">
+            {Math.round(pct)}%
+          </span>
+        </div>
+        <Progress value={pct} data-testid="progress-bar-backfill" />
+        <div className="mt-2 flex flex-wrap gap-3 text-xs text-slate-600">
+          <span
+            className="flex items-center gap-1"
+            data-testid="text-live-updated"
+          >
+            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+            <span className="font-medium text-emerald-700">{updated}</span>{" "}
+            updated
+          </span>
+          <span
+            className="flex items-center gap-1"
+            data-testid="text-live-skipped"
+          >
+            <SkipForward className="h-3.5 w-3.5 text-slate-500" />
+            <span className="font-medium text-slate-700">{skipped}</span>{" "}
+            skipped
+          </span>
+          <span
+            className="flex items-center gap-1"
+            data-testid="text-live-failed"
+          >
+            <XCircle className="h-3.5 w-3.5 text-red-600" />
+            <span
+              className={`font-medium ${failed > 0 ? "text-red-700" : "text-slate-700"}`}
+            >
+              {failed}
+            </span>{" "}
+            failed
+          </span>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-slate-200 overflow-hidden">
+        <div className="bg-slate-50 px-4 py-2 flex items-center gap-2 border-b border-slate-200">
+          <Clock className="h-4 w-4 text-slate-500" />
+          <span className="text-sm font-medium text-slate-700">
+            Recent reports
+          </span>
+          <span className="text-xs text-slate-500">
+            (most recent first, last {MAX_RECENT})
+          </span>
+        </div>
+        {recent.length === 0 ? (
+          <div
+            className="px-4 py-6 text-sm text-slate-500 text-center"
+            data-testid="text-recent-empty"
+          >
+            Waiting for the first report to finish…
+          </div>
+        ) : (
+          <ul
+            className="divide-y divide-slate-100 max-h-72 overflow-y-auto"
+            data-testid="list-recent-reports"
+          >
+            {recent.map((r, idx) => (
+              <li
+                key={`${r.id}-${idx}`}
+                className="px-4 py-2 text-sm"
+                data-testid={`row-recent-${r.id}`}
+              >
+                <div className="flex items-center gap-3">
+                  <StatusIcon status={r.status} />
+                  <span
+                    className="font-medium text-slate-900 truncate flex-1 min-w-0"
+                    data-testid={`text-recent-company-${r.id}`}
+                  >
+                    {r.companyName}
+                  </span>
+                  {r.isWhatIf && (
+                    <Badge variant="outline" className="text-[10px] py-0">
+                      what-if
+                    </Badge>
+                  )}
+                  <StatusBadge status={r.status} />
+                  <span
+                    className="text-xs text-slate-500 tabular-nums w-16 text-right"
+                    data-testid={`text-recent-duration-${r.id}`}
+                  >
+                    {formatDuration(r.durationMs)}
+                  </span>
+                </div>
+                {r.status === "updated" &&
+                  r.upgrades &&
+                  r.upgrades.length > 0 && (
+                    <div
+                      className="mt-1 ml-7 flex flex-wrap gap-1"
+                      data-testid={`upgrades-recent-${r.id}`}
+                    >
+                      {r.upgrades.map((u) => (
+                        <UpgradeChip key={u.code} upgrade={u} />
+                      ))}
+                    </div>
+                  )}
+                {r.status === "updated" &&
+                  r.metricDeltas &&
+                  r.metricDeltas.length > 0 && (
+                    <div
+                      className="mt-1 ml-7 flex flex-wrap gap-1"
+                      data-testid={`metric-deltas-recent-${r.id}`}
+                    >
+                      {r.metricDeltas.map((d) => (
+                        <MetricDeltaChip key={d.code} delta={d} />
+                      ))}
+                    </div>
+                  )}
+                {r.status === "updated" &&
+                  r.upgrades &&
+                  r.upgrades.length > 0 &&
+                  (!r.metricDeltas || r.metricDeltas.length === 0) && (
+                    <div
+                      className="mt-1 ml-7 text-[11px] text-slate-500 italic"
+                      data-testid={`metric-deltas-recent-empty-${r.id}`}
+                    >
+                      Schema-only — no headline numbers moved
+                    </div>
+                  )}
+                {r.status === "updated" &&
+                  (!r.upgrades || r.upgrades.length === 0) &&
+                  (!r.metricDeltas || r.metricDeltas.length === 0) && (
+                    <div
+                      className="mt-1 ml-7 text-[11px] text-slate-500 italic"
+                      data-testid={`upgrades-recent-empty-${r.id}`}
+                    >
+                      Reprocessed (no schema changes)
+                    </div>
+                  )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+// Status banner above the audit log table summarising the most recent
+// retention sweep (success / failure / never run / load-error / loading).
+export function AuditCleanupBanner({
+  cleanup,
+  loading,
+  error,
+  intervalMs,
+}: {
+  cleanup: AuditCleanupStatus | null;
+  loading: boolean;
+  error: string | null;
+  // Sweeper interval as reported by the server. We treat a successful
+  // run older than ~2× this interval as "overdue" — i.e. the sweeper
+  // hasn't fired on schedule and the green banner would otherwise be a
+  // silent failure mode. `null` (older payload / load error) disables
+  // the overdue check.
+  intervalMs: number | null;
+}) {
+  if (loading && !cleanup && !error) {
+    return (
+      <div
+        className="mb-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 flex items-center gap-2"
+        data-testid="status-audit-cleanup-loading"
+      >
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        Loading audit cleanup status…
+      </div>
+    );
+  }
+
+  if (!cleanup && error) {
+    return (
+      <div
+        className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 flex items-start gap-2"
+        data-testid="status-audit-cleanup-load-error"
+      >
+        <AlertCircle className="h-3.5 w-3.5 text-amber-600 mt-0.5 shrink-0" />
+        <div>
+          <div className="font-medium">Unable to load cleanup status.</div>
+          <div
+            className="text-amber-700 mt-0.5 break-words"
+            data-testid="text-audit-cleanup-load-error"
+          >
+            {error}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!cleanup) {
+    return (
+      <div
+        className="mb-3 rounded-md border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600 flex items-center gap-2"
+        data-testid="status-audit-cleanup-none"
+      >
+        <Clock className="h-3.5 w-3.5 text-slate-500" />
+        <span>
+          No audit log cleanup recorded yet. The retention sweeper runs
+          shortly after boot and once a day after that.
+        </span>
+      </div>
+    );
+  }
+
+  const ranAtDate = new Date(cleanup.ranAt);
+  const ranAtAbsolute = formatAuditTimestamp(cleanup.ranAt);
+  const ranAtRelative = formatRelativeAge(ranAtDate);
+  const cutoffAbsolute = formatAuditTimestamp(cleanup.cutoff);
+
+  if (cleanup.status === "failure") {
+    return (
+      <div
+        className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 flex items-start gap-2"
+        data-testid="status-audit-cleanup-failure"
+      >
+        <AlertCircle className="h-3.5 w-3.5 text-red-600 mt-0.5 shrink-0" />
+        <div>
+          <div className="font-medium">
+            Audit log cleanup failed{" "}
+            <span
+              className="text-red-600 font-normal"
+              data-testid="text-audit-cleanup-ran-relative"
+              title={ranAtAbsolute}
+            >
+              ({ranAtRelative})
+            </span>
+          </div>
+          {cleanup.errorMessage && (
+            <div
+              className="text-red-600 mt-0.5 break-words"
+              data-testid="text-audit-cleanup-error"
+            >
+              {cleanup.errorMessage}
+            </div>
+          )}
+          <div className="text-red-500 mt-0.5">
+            Retention window: {cleanup.retentionDays} days. The sweeper will
+            retry on its next run; investigate if failures persist.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const removedLabel =
+    cleanup.removedCount === 1
+      ? "1 row removed"
+      : `${cleanup.removedCount.toLocaleString()} rows removed`;
+
+  // Overdue: the most recent run succeeded, but it landed more than
+  // ~2× the sweeper's configured interval ago. That means no cleanup
+  // has fired on schedule (server crash-loop, scheduler bug, sweeper
+  // deregistered) and a plain green banner would mask a real outage.
+  const overdueThresholdMs =
+    typeof intervalMs === "number" && intervalMs > 0 ? intervalMs * 2 : null;
+  const ageMs = Date.now() - ranAtDate.getTime();
+  const isOverdue =
+    overdueThresholdMs !== null &&
+    Number.isFinite(ageMs) &&
+    ageMs > overdueThresholdMs;
+  if (isOverdue) {
+    return (
+      <div
+        className="mb-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 flex items-start gap-2"
+        data-testid="status-audit-cleanup-overdue"
+      >
+        <AlertCircle className="h-3.5 w-3.5 text-amber-600 mt-0.5 shrink-0" />
+        <div>
+          <div>
+            <span className="font-medium">
+              Audit log cleanup overdue
+            </span>{" "}
+            — last successful run{" "}
+            <span
+              data-testid="text-audit-cleanup-ran-relative"
+              title={ranAtAbsolute}
+            >
+              {ranAtRelative}
+            </span>
+            {" ("}
+            <span data-testid="text-audit-cleanup-removed">{removedLabel}</span>
+            {")"}
+          </div>
+          <div className="text-amber-700 mt-0.5">
+            The sweeper is supposed to run roughly every{" "}
+            {Math.round((intervalMs ?? 0) / (60 * 60 * 1000))}h but hasn't
+            fired in over{" "}
+            {Math.round((overdueThresholdMs ?? 0) / (60 * 60 * 1000))}h.
+            Investigate the scheduler — recent admin activity may not be
+            getting pruned.
+          </div>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div
+      className="mb-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800 flex items-start gap-2"
+      data-testid="status-audit-cleanup-success"
+    >
+      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 mt-0.5 shrink-0" />
+      <div>
+        <div>
+          <span className="font-medium">Audit log last cleaned up</span>{" "}
+          <span
+            data-testid="text-audit-cleanup-ran-relative"
+            title={ranAtAbsolute}
+          >
+            {ranAtRelative}
+          </span>
+          {" — "}
+          <span data-testid="text-audit-cleanup-removed">{removedLabel}</span>
+        </div>
+        <div className="text-emerald-700 mt-0.5">
+          Retention window: {cleanup.retentionDays} days (cutoff{" "}
+          {cutoffAbsolute}).
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Relative-age string ("just now", "12 minutes ago", …) for the
+// cleanup banner's `ranAt`. Falls back to the absolute timestamp on
+// invalid input or future dates.
+function formatRelativeAge(when: Date): string {
+  const diffMs = Date.now() - when.getTime();
+  if (!Number.isFinite(diffMs)) return "at an unknown time";
+  if (diffMs < 0) return formatAuditTimestamp(when.toISOString());
+  const seconds = Math.floor(diffMs / 1000);
+  if (seconds < 60) return "just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} minute${minutes === 1 ? "" : "s"} ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days} day${days === 1 ? "" : "s"} ago`;
+  const months = Math.floor(days / 30);
+  if (months < 12) return `${months} month${months === 1 ? "" : "s"} ago`;
+  const years = Math.floor(days / 365);
+  return `${years} year${years === 1 ? "" : "s"} ago`;
+}
+
+// Operator-tunable retention window for the admin audit log. Saving an
+// integer here persists an override that wins over the
+// ADMIN_AUDIT_RETENTION_DAYS env var, so a non-engineer admin can shorten
+// retention for a noisy environment (or extend it during an investigation)
+// without a deploy. Clearing the input restores the env / default fallback.
+//
+// Validation mirrors the server's Zod schema (positive integer, ≤ 3650
+// days). We surface the same error inline so the operator sees what's
+// wrong without watching the network tab — and crucially, an invalid
+// value never reaches the storage layer where it could disable retention.
+function AuditRetentionSettings({
+  data,
+  loading,
+  loadError,
+  onSave,
+}: {
+  data: AdminSettingsResponse | null;
+  loading: boolean;
+  loadError: string | null;
+  onSave: (next: { auditRetentionDays: number | null }) => Promise<void>;
+}) {
+  const { toast } = useToast();
+  const stored = data?.settings.auditRetentionDays ?? null;
+  const effective = data?.effective.auditRetentionDays ?? null;
+
+  // Local draft so the input mirrors what the operator typed (incl.
+  // empty string = clear override) without round-tripping through the
+  // server on every keystroke. We re-sync from `stored` whenever the
+  // upstream value changes (initial load, or after a successful save).
+  const [draft, setDraft] = useState<string>(
+    stored == null ? "" : String(stored),
+  );
+  useEffect(() => {
+    setDraft(stored == null ? "" : String(stored));
+  }, [stored]);
+
+  const [saving, setSaving] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
+
+  // Confirmation prompt state for destructive shortenings. We keep the
+  // pending value in state so the dialog's confirm-button still has the
+  // exact number the operator typed when the click finally fires (the
+  // input itself isn't re-read at that point).
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingValue, setPendingValue] = useState<number | null>(null);
+  const [impactLoading, setImpactLoading] = useState(false);
+  const [impactCount, setImpactCount] = useState<number | null>(null);
+  const [impactError, setImpactError] = useState<string | null>(null);
+
+  // A change is "drastic" — and therefore worth a second click — when the
+  // operator is *shortening* the window AND either:
+  //   - the new value is below 7 days (deep cut into recent history), or
+  //   - the new value is less than half of the current effective window
+  //     (e.g. 90 → 30, 60 → 20). Extending retention is never destructive,
+  //     and small adjustments (90 → 75) shouldn't add friction.
+  const isDrasticShortening = (next: number | null): boolean => {
+    if (next === null) return false; // clearing override falls back to default; not destructive
+    if (effective === null) return false; // no baseline to compare against
+    if (next >= effective) return false; // extending or same — never prompt
+    return next < 7 || next * 2 < effective;
+  };
+
+  // Mirror the server-side Zod rules so an obviously-invalid value
+  // never even leaves the browser. Empty string is "clear override",
+  // not an error.
+  const parseDraft = (
+    raw: string,
+  ): { ok: true; value: number | null } | { ok: false; error: string } => {
+    const trimmed = raw.trim();
+    if (trimmed === "") return { ok: true, value: null };
+    if (!/^-?\d+$/.test(trimmed)) {
+      return {
+        ok: false,
+        error: "Enter a whole number of days, or leave blank to use the default.",
+      };
+    }
+    const n = Number(trimmed);
+    if (!Number.isFinite(n)) {
+      return { ok: false, error: "Enter a whole number of days." };
+    }
+    if (n <= 0) return { ok: false, error: "Must be at least 1 day." };
+    if (n > 3650) {
+      return { ok: false, error: "Must be 3650 days (10 years) or fewer." };
+    }
+    return { ok: true, value: n };
+  };
+
+  const draftMatchesStored =
+    (stored === null && draft.trim() === "") ||
+    (stored !== null && draft.trim() === String(stored));
+
+  // The actual persistence step — split out from `handleSave` so both the
+  // direct path (small / extending change) and the confirmation path
+  // (drastic shortening) can reuse it without duplicating error handling.
+  const persistValue = async (value: number | null) => {
+    setValidationError(null);
+    setSaving(true);
+    try {
+      await onSave({ auditRetentionDays: value });
+      toast({
+        title: "Retention window saved",
+        description:
+          value === null
+            ? "Cleared the override — falling back to the default."
+            : `Audit log will keep entries for ${value} day${value === 1 ? "" : "s"}.`,
+      });
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Failed to save settings";
+      setValidationError(message);
+      toast({
+        title: "Could not save settings",
+        description: message,
+        variant: "destructive",
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSave = async () => {
+    const parsed = parseDraft(draft);
+    if (!parsed.ok) {
+      setValidationError(parsed.error);
+      return;
+    }
+
+    // For drastic shortenings, surface the count of audit entries that
+    // would fall outside the new window and require a second explicit
+    // click before persisting. The fetch failing is non-fatal — we still
+    // open the dialog and let the operator confirm based on the policy
+    // change alone (the impact preview is best-effort context, not a gate).
+    if (isDrasticShortening(parsed.value)) {
+      setPendingValue(parsed.value);
+      setImpactCount(null);
+      setImpactError(null);
+      setImpactLoading(true);
+      setConfirmOpen(true);
+      try {
+        const res = await fetch(
+          `/api/admin/settings/retention-impact?days=${parsed.value}`,
+          { credentials: "include" },
+        );
+        if (!res.ok) {
+          throw new Error(`${res.status}: ${res.statusText}`);
+        }
+        const body = (await res.json()) as { affected?: number };
+        setImpactCount(typeof body.affected === "number" ? body.affected : 0);
+      } catch (err) {
+        setImpactError(
+          err instanceof Error ? err.message : "Could not estimate impact.",
+        );
+      } finally {
+        setImpactLoading(false);
+      }
+      return;
+    }
+
+    await persistValue(parsed.value);
+  };
+
+  return (
+    <>
+    <Card className="mt-6" data-testid="card-audit-retention-settings">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Clock className="h-5 w-5 text-brand-navy" />
+          Audit log retention
+        </CardTitle>
+        <CardDescription className="mt-1">
+          Set how many days of admin audit history to keep before the daily
+          sweeper deletes older entries. Shorten it for noisy environments;
+          extend it during an investigation. Leave blank to fall back to the
+          deploy-time default.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        {loading && !data ? (
+          <div
+            className="flex items-center gap-2 text-sm text-slate-500"
+            data-testid="state-admin-settings-loading"
+          >
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading current settings…
+          </div>
+        ) : loadError && !data ? (
+          <div
+            className="rounded-lg border border-red-200 bg-red-50 p-4 flex items-start gap-2"
+            data-testid="alert-admin-settings-load-error"
+          >
+            <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
+            <div className="text-sm text-red-700">
+              <div className="font-medium">Could not load admin settings</div>
+              <div className="text-red-600">{loadError}</div>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+              <div className="flex-1 max-w-xs">
+                <Label
+                  htmlFor="input-audit-retention-days"
+                  className="text-sm font-medium text-slate-900"
+                >
+                  Retention window (days)
+                </Label>
+                <Input
+                  id="input-audit-retention-days"
+                  type="number"
+                  min={1}
+                  max={3650}
+                  step={1}
+                  inputMode="numeric"
+                  placeholder="Use default"
+                  value={draft}
+                  onChange={(e) => {
+                    setDraft(e.target.value);
+                    if (validationError) setValidationError(null);
+                  }}
+                  disabled={saving}
+                  className="mt-1"
+                  data-testid="input-audit-retention-days"
+                />
+              </div>
+              <Button
+                onClick={() => void handleSave()}
+                disabled={saving || draftMatchesStored}
+                data-testid="button-save-audit-retention"
+              >
+                {saving ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : null}
+                Save
+              </Button>
+            </div>
+
+            {validationError && (
+              <div
+                className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 flex items-start gap-2"
+                data-testid="text-audit-retention-error"
+              >
+                <AlertCircle className="h-3.5 w-3.5 text-red-600 mt-0.5 shrink-0" />
+                <span>{validationError}</span>
+              </div>
+            )}
+
+            <div
+              className="text-xs text-slate-600"
+              data-testid="text-audit-retention-effective"
+            >
+              {stored !== null ? (
+                <>
+                  Override saved:{" "}
+                  <span className="font-medium tabular-nums">{stored}</span>{" "}
+                  day{stored === 1 ? "" : "s"}. The next sweep will use this
+                  value.
+                </>
+              ) : effective !== null ? (
+                <>
+                  No override stored. The scheduler is currently using{" "}
+                  <span className="font-medium tabular-nums">{effective}</span>{" "}
+                  day{effective === 1 ? "" : "s"} (from
+                  {" ADMIN_AUDIT_RETENTION_DAYS"} or the built-in default).
+                </>
+              ) : null}
+            </div>
+
+            <RetentionHistory
+              refreshKey={data?.settings.updatedAt ?? null}
+            />
+          </div>
+        )}
+      </CardContent>
+    </Card>
+
+    <AlertDialog
+      open={confirmOpen}
+      onOpenChange={(open) => {
+        if (saving) return; // don't allow dismissal while persisting
+        setConfirmOpen(open);
+      }}
+    >
+      <AlertDialogContent data-testid="dialog-confirm-shorten-retention">
+        <AlertDialogHeader>
+          <AlertDialogTitle className="flex items-center gap-2">
+            <AlertCircle className="h-5 w-5 text-amber-600" />
+            Shorten audit retention?
+          </AlertDialogTitle>
+          <AlertDialogDescription asChild>
+            <div className="space-y-2 text-sm">
+              <div>
+                You're cutting the audit retention window from{" "}
+                <span className="font-medium tabular-nums">
+                  {effective ?? "?"}
+                </span>{" "}
+                day{effective === 1 ? "" : "s"} to{" "}
+                <span
+                  className="font-medium tabular-nums"
+                  data-testid="text-shorten-retention-target"
+                >
+                  {pendingValue ?? "?"}
+                </span>{" "}
+                day{pendingValue === 1 ? "" : "s"}. The next sweep (within
+                24h) will permanently delete every admin audit entry older
+                than the new window.
+              </div>
+              <div data-testid="text-shorten-retention-impact">
+                {impactLoading ? (
+                  <span className="text-slate-500 inline-flex items-center gap-1">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    Estimating how many entries this affects…
+                  </span>
+                ) : impactError ? (
+                  <span className="text-slate-600">
+                    Could not estimate the number of affected entries
+                    ({impactError}). The deletion will still happen on the
+                    next sweep.
+                  </span>
+                ) : impactCount !== null && impactCount > 0 ? (
+                  <span className="text-amber-700">
+                    <strong className="tabular-nums">
+                      {impactCount.toLocaleString()}
+                    </strong>{" "}
+                    existing audit entr{impactCount === 1 ? "y" : "ies"}{" "}
+                    will fall outside the new window and be deleted.
+                  </span>
+                ) : (
+                  <span className="text-slate-600">
+                    No existing entries fall outside the new window yet, but
+                    future entries will be pruned more aggressively.
+                  </span>
+                )}
+              </div>
+            </div>
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel
+            disabled={saving}
+            data-testid="button-cancel-shorten-retention"
+          >
+            Cancel
+          </AlertDialogCancel>
+          <AlertDialogAction
+            disabled={saving}
+            onClick={(e) => {
+              e.preventDefault();
+              const value = pendingValue;
+              setConfirmOpen(false);
+              void persistValue(value);
+            }}
+            data-testid="button-confirm-shorten-retention"
+          >
+            Yes, shorten retention
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
+  );
+}
+
+// "Recent retention changes" mini-table inside the Audit log retention card.
+// Sources rows from the existing admin audit log filtered to the
+// `update-admin-settings` action so the control is self-auditing — an
+// operator can see at a glance who shortened or extended the window last
+// time, and how often it has been touched, without leaving the card.
+//
+// `refreshKey` re-triggers the fetch whenever the parent's persisted
+// settings row changes (i.e. after a successful save), so a freshly-saved
+// change appears at the top of the list immediately.
+function RetentionHistory({ refreshKey }: { refreshKey: string | null }) {
+  const [entries, setEntries] = useState<AdminAuditEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        // Pull 6 rows so we can compute the "old → new" delta for the
+        // 5 most-recent successful changes (each row's "old" comes from
+        // the row that follows it in time-descending order).
+        const params = new URLSearchParams({
+          action: "update-admin-settings",
+          status: "success",
+          limit: "6",
+          offset: "0",
+        });
+        const res = await fetch(
+          `/api/admin/audit-log?${params.toString()}`,
+          { credentials: "include" },
+        );
+        if (!res.ok) {
+          throw new Error(`${res.status}: ${res.statusText}`);
+        }
+        const data: AuditLogResponse = await res.json();
+        if (cancelled) return;
+        setEntries(data.entries ?? []);
+      } catch (err: unknown) {
+        if (cancelled) return;
+        const message = err instanceof Error ? err.message : String(err);
+        setError(message);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshKey]);
+
+  // Each audit row's `params.auditRetentionDays` is the *new* value the
+  // operator saved. The "old" value is whatever the prior (older) row
+  // saved — or, for the very oldest row in our window, "earlier" since
+  // we don't have visibility further back.
+  const rows = entries.slice(0, 5).map((entry, idx) => {
+    const newValue = extractRetentionDays(entry.params);
+    const olderEntry = entries[idx + 1];
+    const oldValue = olderEntry
+      ? extractRetentionDays(olderEntry.params)
+      : undefined;
+    return { entry, newValue, oldValue, hasOlder: olderEntry != null };
+  });
+
+  // Link target into the full audit log filtered to the same action so
+  // the operator can drill in without re-typing the filter. Stays inside
+  // /admin (the page they're on) so client routing handles it.
+  const fullLogHref = "/admin?action=update-admin-settings";
+
+  return (
+    <div
+      className="rounded-md border border-slate-200 bg-slate-50/60 p-3"
+      data-testid="section-retention-history"
+    >
+      <div className="flex items-center justify-between mb-2">
+        <div className="text-xs font-medium text-slate-700">
+          Recent retention changes
+        </div>
+        {entries.length > 0 && (
+          <a
+            href={fullLogHref}
+            className="text-xs text-blue-600 hover:text-blue-800 hover:underline"
+            data-testid="link-retention-history-all"
+          >
+            View all →
+          </a>
+        )}
+      </div>
+
+      {loading ? (
+        <div
+          className="flex items-center gap-2 text-xs text-slate-500"
+          data-testid="state-retention-history-loading"
+        >
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          Loading recent changes…
+        </div>
+      ) : error ? (
+        <div
+          className="rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800 flex items-start gap-2"
+          data-testid="state-retention-history-error"
+        >
+          <AlertCircle className="h-3.5 w-3.5 text-amber-600 mt-0.5 shrink-0" />
+          <span>Could not load retention change history: {error}</span>
+        </div>
+      ) : rows.length === 0 ? (
+        <div
+          className="text-xs text-slate-500"
+          data-testid="state-retention-history-empty"
+        >
+          No settings changes recorded yet.
+        </div>
+      ) : (
+        <div className="rounded-md border border-slate-200 bg-white overflow-hidden">
+          <table className="w-full text-xs">
+            <thead className="bg-slate-50 text-slate-500 text-[11px] uppercase tracking-wide">
+              <tr>
+                <th className="text-left px-3 py-1.5 font-medium">When</th>
+                <th className="text-left px-3 py-1.5 font-medium">Actor IP</th>
+                <th className="text-left px-3 py-1.5 font-medium">Change</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {rows.map(({ entry, newValue, oldValue, hasOlder }) => (
+                <tr
+                  key={entry.id}
+                  className="align-top"
+                  data-testid={`row-retention-history-${entry.id}`}
+                >
+                  <td
+                    className="px-3 py-1.5 text-slate-700 tabular-nums whitespace-nowrap"
+                    data-testid={`text-retention-history-when-${entry.id}`}
+                    title={entry.createdAt}
+                  >
+                    <a
+                      href={fullLogHref}
+                      className="text-blue-600 hover:text-blue-800 hover:underline"
+                      data-testid={`link-retention-history-${entry.id}`}
+                    >
+                      {formatAuditTimestamp(entry.createdAt)}
+                    </a>
+                  </td>
+                  <td
+                    className="px-3 py-1.5 text-slate-600 font-mono whitespace-nowrap"
+                    data-testid={`text-retention-history-ip-${entry.id}`}
+                  >
+                    {entry.actorIp ?? "—"}
+                  </td>
+                  <td
+                    className="px-3 py-1.5 text-slate-700"
+                    data-testid={`text-retention-history-change-${entry.id}`}
+                  >
+                    <span className="tabular-nums">
+                      {hasOlder
+                        ? formatRetentionValue(oldValue)
+                        : "earlier"}
+                    </span>
+                    <span className="mx-1.5 text-slate-400">→</span>
+                    <span className="tabular-nums font-medium">
+                      {formatRetentionValue(newValue)}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Pull `auditRetentionDays` out of an audit row's `params` blob, tolerating
+// the various shapes the JSON column can take (missing key → undefined,
+// explicit null → null, numeric string → number). Anything we can't parse
+// becomes `undefined` so the formatter renders it as "unknown" rather than
+// silently displaying a misleading value.
+function extractRetentionDays(
+  params: Record<string, unknown> | null,
+): number | null | undefined {
+  if (!params || typeof params !== "object") return undefined;
+  if (!("auditRetentionDays" in params)) return undefined;
+  const raw = (params as { auditRetentionDays: unknown }).auditRetentionDays;
+  if (raw === null) return null;
+  if (typeof raw === "number" && Number.isFinite(raw)) return raw;
+  if (typeof raw === "string" && /^-?\d+$/.test(raw.trim())) {
+    return Number(raw);
+  }
+  return undefined;
+}
+
+// Render one side of the "old → new" change cell. `null` means the
+// override was cleared (back to env-var / built-in default), `undefined`
+// means we couldn't read the value off the audit row.
+function formatRetentionValue(value: number | null | undefined): string {
+  if (value === null) return "default";
+  if (value === undefined) return "unknown";
+  return `${value} day${value === 1 ? "" : "s"}`;
+}
+
+/**
+ * Small pill rendered under the Download CSV/Excel buttons after a
+ * successful export, e.g. "Last exported: 2m ago (Excel, 1,243 rows)".
+ * Exists so an operator who's already saved a slice doesn't accidentally
+ * re-download the same data in the other format. Re-uses the page-wide
+ * `useNow` ticker so the relative time stays fresh without each chip
+ * spinning up its own interval.
+ */
+function LastAuditExportChip({
+  lastExport,
+}: {
+  lastExport: {
+    format: "csv" | "xlsx" | "pdf";
+    rows: number;
+    at: number;
+  } | null;
+}) {
+  const now = useNow();
+  if (!lastExport) return null;
+  const formatLabel =
+    lastExport.format === "xlsx"
+      ? "Excel"
+      : lastExport.format === "pdf"
+        ? "PDF"
+        : "CSV";
+  const rowsLabel = `${lastExport.rows.toLocaleString()} ${
+    lastExport.rows === 1 ? "row" : "rows"
+  }`;
+  const relative = formatRelativeTime(new Date(lastExport.at).toISOString(), now);
+  return (
+    <div
+      className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-600"
+      title={`Saved at ${new Date(lastExport.at).toLocaleString()}`}
+      data-testid="text-last-audit-export"
+    >
+      <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+      <span>
+        Last exported: {relative} ({formatLabel}, {rowsLabel})
+      </span>
+    </div>
+  );
+}
+
+interface RecentAdminActivityProps {
+  entries: AdminAuditEntry[];
+  total: number;
+  loading: boolean;
+  error: string | null;
+  filters: AuditFilters;
+  offset: number;
+  pageSize: number;
+  onChangeFilters: (next: Partial<AuditFilters>) => void;
+  onResetFilters: () => void;
+  onChangeOffset: (next: number) => void;
+  onRefresh: () => void;
+  // Export of the currently-filtered slice. The CSV/Excel buttons next
+  // to Refresh trigger `onExport(format)`; `exporting` is the format
+  // currently in flight (or null) so the spinner only spins on the
+  // pressed button and a second download can't be queued mid-flight.
+  onExport: (format: "csv" | "xlsx" | "pdf") => void;
+  exporting: null | "csv" | "xlsx" | "pdf";
+  // Most recent successful export of the currently-displayed slice (or
+  // null if none in this session, or if the operator changed filters
+  // since). Drives the "Last exported: …" chip under the Download buttons
+  // — see the chip's comment in the header for why this exists.
+  lastExport: {
+    format: "csv" | "xlsx" | "pdf";
+    rows: number;
+    at: number;
+  } | null;
+  cleanup: AuditCleanupStatus | null;
+  cleanupLoading: boolean;
+  cleanupError: string | null;
+  cleanupIntervalMs: number | null;
+}
+
+/**
+ * "Recent admin activity" panel: filtered, paginated view of the admin
+ * audit trail. By default shows the most recent page of activity; the
+ * operator can narrow by action, status, date range, or actor-IP substring
+ * and page through the matching results. Filters are managed by the parent
+ * so a backfill-triggered refresh re-fetches the current slice instead of
+ * resetting back to "most recent 25".
+ */
+export function RecentAdminActivity({
+  entries,
+  total,
+  loading,
+  error,
+  filters,
+  offset,
+  pageSize,
+  onChangeFilters,
+  onResetFilters,
+  onChangeOffset,
+  onRefresh,
+  onExport,
+  exporting,
+  lastExport,
+  cleanup,
+  cleanupLoading,
+  cleanupError,
+  cleanupIntervalMs,
+}: RecentAdminActivityProps) {
+  const { toast } = useToast();
+  // Local mirror of the IP filter so we can debounce keystrokes — without
+  // this, every typed character would fire a fresh /api/admin/audit-log
+  // request. The committed value is pushed to the parent (and thus to the
+  // server) 300ms after the operator stops typing.
+  const [ipDraft, setIpDraft] = useState(filters.ip);
+  useEffect(() => {
+    // Keep the draft in sync if the parent resets filters externally
+    // (e.g. via the "Clear" button).
+    setIpDraft(filters.ip);
+  }, [filters.ip]);
+  useEffect(() => {
+    if (ipDraft === filters.ip) return;
+    const handle = window.setTimeout(() => {
+      onChangeFilters({ ip: ipDraft });
+    }, 300);
+    return () => window.clearTimeout(handle);
+  }, [ipDraft, filters.ip, onChangeFilters]);
+
+  const hasActiveFilter =
+    (filters.action && filters.action !== "all") ||
+    (filters.status && filters.status !== "all") ||
+    Boolean(filters.since) ||
+    Boolean(filters.until) ||
+    Boolean(filters.ip.trim());
+
+  // Page boundaries for the Prev/Next controls. We compute against `total`
+  // rather than the page size so the operator can't page past the end of
+  // the filtered set even if the last page is short.
+  const rangeStart = total === 0 ? 0 : offset + 1;
+  const rangeEnd = Math.min(offset + entries.length, total);
+  const canPrev = offset > 0;
+  const canNext = offset + pageSize < total;
+
+  return (
+    <Card className="mt-6" data-testid="card-recent-admin-activity">
+      <CardHeader>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              <History className="h-5 w-5 text-brand-navy" />
+              Recent admin activity
+            </CardTitle>
+            <CardDescription className="mt-1">
+              Append-only trail of admin endpoint usage and access attempts —
+              who triggered what, from where, and when. Use the filters to
+              investigate "who overwrote report X two weeks ago?" or to spot
+              brute-force attempts on the admin password.
+            </CardDescription>
+          </div>
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={async () => {
+                const url =
+                  typeof window !== "undefined" ? window.location.href : "";
+                if (!url) return;
+                try {
+                  await navigator.clipboard.writeText(url);
+                  toast({
+                    title: "Link copied",
+                    description:
+                      "Share this URL to open the audit log with the same filters applied.",
+                  });
+                } catch {
+                  toast({
+                    title: "Copy failed",
+                    description:
+                      "Your browser blocked clipboard access. Please copy the URL from the address bar.",
+                    variant: "destructive",
+                  });
+                }
+              }}
+              disabled={!hasActiveFilter}
+              title={
+                hasActiveFilter
+                  ? "Copy a shareable URL that opens this filtered view"
+                  : "Apply at least one filter to share a link to this view"
+              }
+              data-testid="button-copy-audit-link"
+            >
+              <Link2 className="h-3.5 w-3.5 mr-1.5" />
+              Copy link
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onExport("csv")}
+              disabled={exporting !== null || total === 0}
+              title={
+                total === 0
+                  ? "No rows match the current filters"
+                  : "Download every row matching the current filters as CSV"
+              }
+              data-testid="button-download-audit-csv"
+            >
+              {exporting === "csv" ? (
+                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+              ) : (
+                <Download className="h-3.5 w-3.5 mr-1.5" />
+              )}
+              Download CSV
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onExport("xlsx")}
+              disabled={exporting !== null || total === 0}
+              title={
+                total === 0
+                  ? "No rows match the current filters"
+                  : "Download every row matching the current filters as an Excel workbook (real datetime + numeric cells, structured outcome on its own sheet)"
+              }
+              data-testid="button-download-audit-xlsx"
+            >
+              {exporting === "xlsx" ? (
+                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+              ) : (
+                <Download className="h-3.5 w-3.5 mr-1.5" />
+              )}
+              Download Excel
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onExport("pdf")}
+              disabled={exporting !== null || total === 0}
+              title={
+                total === 0
+                  ? "No rows match the current filters"
+                  : "Download every row matching the current filters as a print-ready PDF (active filters and timestamp at the top, paginated for archival)"
+              }
+              data-testid="button-download-audit-pdf"
+            >
+              {exporting === "pdf" ? (
+                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+              ) : (
+                <Download className="h-3.5 w-3.5 mr-1.5" />
+              )}
+              Download PDF
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onRefresh}
+              disabled={loading}
+              data-testid="button-refresh-audit-log"
+            >
+              {loading ? (
+                <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
+              ) : (
+                <RefreshCw className="h-3.5 w-3.5 mr-1.5" />
+              )}
+              Refresh
+            </Button>
+            </div>
+            <LastAuditExportChip lastExport={lastExport} />
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <AuditCleanupBanner
+          cleanup={cleanup}
+          loading={cleanupLoading}
+          error={cleanupError}
+          intervalMs={cleanupIntervalMs}
+        />
+        <div
+          className="mb-4 rounded-lg border border-slate-200 bg-slate-50 p-3"
+          data-testid="audit-filters"
+        >
+          <div className="flex items-center gap-2 mb-3 text-xs font-medium text-slate-600 uppercase tracking-wide">
+            <Filter className="h-3.5 w-3.5" />
+            Filters
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+            <div>
+              <Label
+                htmlFor="audit-filter-action"
+                className="text-xs text-slate-600"
+              >
+                Action
+              </Label>
+              <Select
+                value={filters.action}
+                onValueChange={(v) => onChangeFilters({ action: v })}
+              >
+                <SelectTrigger
+                  id="audit-filter-action"
+                  className="mt-1 h-9"
+                  data-testid="select-audit-action"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {AUDIT_ACTION_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label
+                htmlFor="audit-filter-status"
+                className="text-xs text-slate-600"
+              >
+                Status
+              </Label>
+              <Select
+                value={filters.status}
+                onValueChange={(v) => onChangeFilters({ status: v })}
+              >
+                <SelectTrigger
+                  id="audit-filter-status"
+                  className="mt-1 h-9"
+                  data-testid="select-audit-status"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All statuses</SelectItem>
+                  <SelectItem value="success">Success</SelectItem>
+                  <SelectItem value="failure">Failure</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label
+                htmlFor="audit-filter-since"
+                className="text-xs text-slate-600"
+              >
+                From
+              </Label>
+              <Input
+                id="audit-filter-since"
+                type="date"
+                value={filters.since}
+                max={filters.until || undefined}
+                onChange={(e) => onChangeFilters({ since: e.target.value })}
+                className="mt-1 h-9"
+                data-testid="input-audit-since"
+              />
+            </div>
+            <div>
+              <Label
+                htmlFor="audit-filter-until"
+                className="text-xs text-slate-600"
+              >
+                To
+              </Label>
+              <Input
+                id="audit-filter-until"
+                type="date"
+                value={filters.until}
+                min={filters.since || undefined}
+                onChange={(e) => onChangeFilters({ until: e.target.value })}
+                className="mt-1 h-9"
+                data-testid="input-audit-until"
+              />
+            </div>
+            <div>
+              <Label
+                htmlFor="audit-filter-ip"
+                className="text-xs text-slate-600"
+              >
+                Actor IP contains
+              </Label>
+              <Input
+                id="audit-filter-ip"
+                type="text"
+                value={ipDraft}
+                onChange={(e) => setIpDraft(e.target.value)}
+                placeholder="e.g. 10.0."
+                className="mt-1 h-9"
+                data-testid="input-audit-ip"
+              />
+            </div>
+          </div>
+          {hasActiveFilter && (
+            <div className="mt-3 flex justify-end">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onResetFilters}
+                data-testid="button-clear-audit-filters"
+              >
+                Clear filters
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {error ? (
+          <div
+            className="rounded-lg border border-red-200 bg-red-50 p-4 flex items-start gap-2"
+            data-testid="alert-audit-error"
+          >
+            <AlertCircle className="h-4 w-4 text-red-600 mt-0.5 shrink-0" />
+            <div className="text-sm text-red-700">
+              <div className="font-medium">Could not load audit log</div>
+              <div className="text-red-600">{error}</div>
+            </div>
+          </div>
+        ) : loading && entries.length === 0 ? (
+          <div
+            className="flex items-center gap-2 text-sm text-slate-500 py-4"
+            data-testid="state-audit-loading"
+          >
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Loading recent activity…
+          </div>
+        ) : entries.length === 0 ? (
+          <div
+            className="text-sm text-slate-500 text-center py-6"
+            data-testid="text-audit-empty"
+          >
+            {hasActiveFilter
+              ? "No activity matches the current filters."
+              : "No admin activity recorded yet. Run an action above to populate the trail."}
+          </div>
+        ) : (
+          <>
+            <AuditActivitySummary entries={entries} />
+            <div className="rounded-lg border border-slate-200 overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-44">When</TableHead>
+                    <TableHead>Action</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Actor IP</TableHead>
+                    <TableHead>Details</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {entries.map((entry) => (
+                    <AuditLogRow key={entry.id} entry={entry} />
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            <div className="mt-3 flex items-center justify-between text-sm text-slate-600">
+              <div data-testid="text-audit-range">
+                Showing{" "}
+                <span className="font-medium tabular-nums">
+                  {rangeStart}–{rangeEnd}
+                </span>{" "}
+                of{" "}
+                <span className="font-medium tabular-nums">{total}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    onChangeOffset(Math.max(0, offset - pageSize))
+                  }
+                  disabled={!canPrev || loading}
+                  data-testid="button-audit-prev"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5 mr-1" />
+                  Previous
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onChangeOffset(offset + pageSize)}
+                  disabled={!canNext || loading}
+                  data-testid="button-audit-next"
+                >
+                  Next
+                  <ChevronRight className="h-3.5 w-3.5 ml-1" />
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// Per-action counts for the summary chips at the top of the activity
+// panel. `failures` is a subset of `total` and drives the red highlight
+// so an admin-login-failed spike or burst of admin-access-denied is
+// visually obvious without the operator having to scan every row.
+interface AuditActionCount {
+  action: string;
+  total: number;
+  failures: number;
+}
+
+// Aggregate the visible audit entries into per-action counts, sorted by
+// frequency desc (then alphabetically by action code for stable ordering
+// when several actions tie). Pure so it can be exercised by tests in
+// isolation. Exported so unit tests can lock in the aggregation rules
+// without rendering the parent page.
+export function summarizeAuditEntries(
+  entries: AdminAuditEntry[],
+): AuditActionCount[] {
+  const counts = new Map<string, AuditActionCount>();
+  for (const entry of entries) {
+    const existing = counts.get(entry.action) ?? {
+      action: entry.action,
+      total: 0,
+      failures: 0,
+    };
+    existing.total += 1;
+    if (entry.status === "failure") existing.failures += 1;
+    counts.set(entry.action, existing);
+  }
+  return Array.from(counts.values()).sort((a, b) => {
+    if (b.total !== a.total) return b.total - a.total;
+    return a.action.localeCompare(b.action);
+  });
+}
+
+// Compact per-action summary shown above the audit table. Operates on
+// whatever slice the operator currently has loaded (the visible page),
+// which keeps the math honest — the chips always describe the rows the
+// operator can actually see and scroll through. A separate "spike"
+// banner appears when the visible page is dominated by failures so a
+// brute-force login burst or repeated access-denied is impossible to
+// miss even before reading the chips.
+function AuditActivitySummary({ entries }: { entries: AdminAuditEntry[] }) {
+  const counts = useMemo(() => summarizeAuditEntries(entries), [entries]);
+  if (counts.length === 0) return null;
+
+  const totalFailures = counts.reduce((sum, c) => sum + c.failures, 0);
+  // Spike heuristic: 3+ failures *and* failures are at least a third of
+  // the visible page. Both conditions matter — three failures buried in
+  // 200 successes isn't a spike, but three failures in a page of nine
+  // probably is. The threshold is intentionally low so a brute-force
+  // login attempt (typically 5–10 rapid failures) trips the banner on
+  // its first page.
+  const spike = totalFailures >= 3 && totalFailures * 3 >= entries.length;
+
+  return (
+    <div
+      className="mb-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2"
+      data-testid="audit-activity-summary"
+    >
+      <div className="flex items-center gap-2 text-xs font-medium text-slate-600 uppercase tracking-wide">
+        Most-called on this page
+      </div>
+      <div className="mt-2 flex flex-wrap gap-1.5">
+        {counts.map((c) => {
+          // Treat the chip as "warning red" when every event is a failure
+          // (covers admin-login-failed and admin-access-denied, which
+          // never have successes) or when failures dominate the chip's
+          // own counts. Mixed-but-mostly-fine actions stay slate.
+          const allFailure = c.total > 0 && c.failures === c.total;
+          const failureHeavy = c.failures >= 3 || c.failures * 2 >= c.total;
+          const danger = allFailure || (c.failures > 0 && failureHeavy);
+          const tone = danger
+            ? "border-red-200 bg-red-50 text-red-700"
+            : "border-slate-200 bg-white text-slate-700";
+          const failureSuffix =
+            c.failures > 0 && !allFailure
+              ? ` (${c.failures} failed)`
+              : "";
+          return (
+            <span
+              key={c.action}
+              className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium ${tone}`}
+              data-testid={`audit-summary-chip-${c.action}`}
+              title={`${c.total} ${actionLabel(c.action)} event${
+                c.total === 1 ? "" : "s"
+              } in this page${
+                c.failures > 0 ? ` (${c.failures} failed)` : ""
+              }`}
+            >
+              {actionLabel(c.action)}:{" "}
+              <span className="tabular-nums">{c.total}</span>
+              {failureSuffix && (
+                <span className="text-red-600">{failureSuffix}</span>
+              )}
+            </span>
+          );
+        })}
+      </div>
+      {spike && (
+        <div
+          className="mt-2 flex items-start gap-1.5 text-xs text-red-700"
+          data-testid="audit-activity-spike"
+        >
+          <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+          <span>
+            Failure spike: {totalFailures} of {entries.length} visible events
+            failed. Investigate before clearing this page.
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Format an ISO timestamp like "Apr 29, 12:34:56 PM" using the browser's
+// locale. Falls back to the raw string if Date construction fails.
+function formatAuditTimestamp(iso: string): string {
+  try {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    return d.toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+  } catch {
+    return iso;
+  }
+}
+
+// Human-readable label for the audit action codes recorded server-side.
+function actionLabel(action: string): string {
+  switch (action) {
+    case "backfill-reports":
+      return "Upgrade all reports";
+    case "admin-login":
+      return "Admin login";
+    case "admin-login-failed":
+      return "Admin login (failed)";
+    case "admin-access-denied":
+      return "Admin access denied";
+    case "update-admin-settings":
+      return "Update admin settings";
+    default:
+      return action;
+  }
+}
+
+function AuditLogRow({ entry }: { entry: AdminAuditEntry }) {
+  const isFailure = entry.status === "failure";
+  return (
+    <TableRow data-testid={`row-audit-${entry.id}`}>
+      <TableCell
+        className="text-xs text-slate-600 tabular-nums whitespace-nowrap"
+        data-testid={`text-audit-when-${entry.id}`}
+      >
+        {formatAuditTimestamp(entry.createdAt)}
+      </TableCell>
+      <TableCell
+        className="text-sm font-medium text-slate-900"
+        data-testid={`text-audit-action-${entry.id}`}
+      >
+        {actionLabel(entry.action)}
+      </TableCell>
+      <TableCell data-testid={`text-audit-status-${entry.id}`}>
+        {isFailure ? (
+          <Badge className="bg-red-100 text-red-700 hover:bg-red-100 text-[10px] py-0">
+            {entry.statusCode ?? "fail"}
+          </Badge>
+        ) : (
+          <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 text-[10px] py-0">
+            {entry.statusCode ?? "ok"}
+          </Badge>
+        )}
+      </TableCell>
+      <TableCell
+        className="font-mono text-xs text-slate-600"
+        data-testid={`text-audit-ip-${entry.id}`}
+      >
+        {entry.actorIp || "—"}
+      </TableCell>
+      <TableCell
+        className="text-xs text-slate-600 max-w-xl break-words"
+        data-testid={`text-audit-details-${entry.id}`}
+      >
+        <AuditDetails entry={entry} />
+      </TableCell>
+    </TableRow>
+  );
+}
+
+// Inline summary of an audit row's params/outcome/error so the operator
+// gets the gist without expanding raw JSON. Tailored per-action so each
+// row reads naturally:
+//   - backfill-reports success → "12 updated, 1 failed in 4.2s (force=1)"
+//   - backfill-reports failure → the error message
+//   - admin-login (failure)    → the error message
+function AuditDetails({ entry }: { entry: AdminAuditEntry }) {
+  if (entry.status === "failure") {
+    return (
+      <span className="text-red-600">
+        {entry.errorMessage || "Failed"}
+      </span>
+    );
+  }
+  if (entry.action === "backfill-reports" && entry.outcome) {
+    const o = entry.outcome as {
+      total?: number;
+      updated?: number;
+      skipped?: number;
+      failed?: number;
+      durationMs?: number;
+    };
+    const params = (entry.params ?? {}) as {
+      force?: boolean;
+      onlyIdsCount?: number;
+    };
+    const flags: string[] = [];
+    if (params.force) flags.push("force=1");
+    if (params.onlyIdsCount && params.onlyIdsCount > 0) {
+      flags.push(`retry ${params.onlyIdsCount}`);
+    }
+    const flagSuffix = flags.length ? ` (${flags.join(", ")})` : "";
+    const duration =
+      typeof o.durationMs === "number" ? formatDuration(o.durationMs) : "—";
+    return (
+      <span>
+        {o.updated ?? 0} updated, {o.skipped ?? 0} skipped, {o.failed ?? 0}{" "}
+        failed of {o.total ?? 0} in {duration}
+        {flagSuffix}
+      </span>
+    );
+  }
+  if (entry.action === "admin-login") {
+    return <span className="text-emerald-700">Elevated to admin</span>;
+  }
+  return <span className="text-slate-500">—</span>;
+}
+
+function StatusBadge({ status }: { status: BackfillReportResult["status"] }) {
+  if (status === "updated") {
+    return (
+      <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 text-[10px] py-0">
+        updated
+      </Badge>
+    );
+  }
+  if (status === "failed") {
+    return (
+      <Badge className="bg-red-100 text-red-700 hover:bg-red-100 text-[10px] py-0">
+        failed
+      </Badge>
+    );
+  }
+  return (
+    <Badge variant="outline" className="text-[10px] py-0">
+      skipped
+    </Badge>
+  );
+}

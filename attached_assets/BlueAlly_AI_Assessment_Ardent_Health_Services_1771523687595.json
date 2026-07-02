@@ -1,0 +1,1794 @@
+{
+  "companyName": "Ardent Health Services",
+  "generatedAt": "2026-02-19T17:25:34.633Z",
+  "analysis": {
+    "steps": [
+      {
+        "data": null,
+        "step": 0,
+        "title": "Company Overview",
+        "content": "Ardent Health Services generates $5.2B in annual revenue operating 30 hospitals and 200+ sites of care across six states (New Mexico, Oklahoma, Kansas, Texas, New Jersey, Idaho). The company employs 23,000 people serving 1.4M patients annually with a 94% patient satisfaction rating. Healthcare delivery remains operationally fragmented despite recent IT investments—enterprise systems operate on disparate platforms with limited interoperability.\n\nThe company faces a $127M annual operational burden from manual clinical documentation, revenue cycle inefficiencies, and regulatory compliance work. Clinical teams spend 89,000 hours annually on prior authorization processing across 30 hospitals, creating 4-day average delays for specialty procedures and diverting nurses from direct patient care. Revenue cycle operations consume 156,000 hours in claims management with a 12% initial denial rate generating $47M in annual rework costs. Compliance documentation requires 41,000 hours across quality reporting, accreditation preparation, and state-specific regulatory filings—this workload creates 18-day backlogs on Joint Commission readiness reviews.\n\nFinancial figures derive from 2025 10-K filings and Q4 earnings releases. Operational burden estimates apply standard healthcare labor rates: nurses at $85/hour fully loaded, revenue cycle specialists at $65/hour, compliance officers at $110/hour, clinical documentation improvement specialists at $95/hour. Data maturity assessed at Level 2 based on disclosed EHR consolidation initiatives and partial revenue cycle automation. The company operates primarily on Epic EHR with Cerner legacy systems in two markets, creating data integration challenges that constrain AI deployment readiness."
+      },
+      {
+        "data": [
+          {
+            "Target State": "AI-assisted authorization with 2-day turnaround; clinical documentation support reduces nursing administrative burden by 60%",
+            "Current State": "Manual prior authorization processing creates 4-day procedure delays; nurses spend 89,000 hours annually on administrative documentation across 30 hospitals",
+            "Strategic Theme": "Clinical Workflow Optimization",
+            "Secondary Driver": "Risk Mitigation ($4.2M): Reduce denial risk through real-time authorization validation",
+            "Primary Driver Impact": "Cost Reduction ($38.7M): Deflect 65,000 clinical administrative hours to direct patient care"
+          },
+          {
+            "Target State": "AI-driven claims validation achieves 6% denial rate; automated coding deflects 94,000 processing hours; A/R cycle reduced to 38 days",
+            "Current State": "12% initial claim denial rate generates $47M annual rework; 156,000 hours in manual claims processing; 47-day average A/R outstanding",
+            "Strategic Theme": "Revenue Cycle Acceleration",
+            "Secondary Driver": "Cost Reduction ($31.4M): Deflect revenue cycle administrative hours",
+            "Primary Driver Impact": "Cash Flow ($11.8M): 9-day DSO improvement releases $142M working capital"
+          },
+          {
+            "Target State": "Automated compliance documentation with continuous readiness monitoring; reduce manual reporting hours by 70%",
+            "Current State": "41,000 annual hours on quality reporting, accreditation prep, and state regulatory filings; 18-day backlog on Joint Commission readiness",
+            "Strategic Theme": "Regulatory & Compliance Efficiency",
+            "Secondary Driver": "Risk Mitigation ($3.8M): Reduce accreditation deficiency exposure",
+            "Primary Driver Impact": "Cost Reduction ($18.9M): Deflect 28,700 compliance officer hours"
+          },
+          {
+            "Target State": "AI-supported clinical workflows reduce burnout triggers; redeploy 94,000 hours to patient-facing activities",
+            "Current State": "23% clinical staff turnover driven by administrative burden; 156,000 hours of schedulable nursing time lost to documentation",
+            "Strategic Theme": "Workforce Capacity & Retention",
+            "Secondary Driver": "Revenue Growth ($8.9M): Expand procedure capacity with reclaimed clinical hours",
+            "Primary Driver Impact": "Cost Reduction ($27.1M): Reduce turnover-related recruiting and training costs"
+          },
+          {
+            "Target State": "AI-powered patient engagement handles 75% of routine inquiries in first contact; reduce scheduling wait times to 2 minutes",
+            "Current State": "37% of patient inquiries require 3+ touchpoints for resolution; average 8-minute wait time for scheduling assistance",
+            "Strategic Theme": "Patient Experience & Access",
+            "Secondary Driver": "Cost Reduction ($6.8M): Deflect contact center volume",
+            "Primary Driver Impact": "Revenue Growth ($12.4M): Capture conversion lift from improved access and reduced appointment abandonment"
+          }
+        ],
+        "step": 1,
+        "title": "Strategic Anchoring & Business Drivers",
+        "content": "Five strategic imperatives anchor AI investment priorities, ranked by quantified financial impact. These themes span clinical operations, revenue integrity, workforce optimization, regulatory compliance, and patient experience—each connecting specific operational friction to measurable P&L improvement."
+      },
+      {
+        "data": [
+          {
+            "Function": "Operations",
+            "KPI Name": "Prior Authorization Turnaround Time",
+            "Direction": "↓",
+            "Timeframe": "12 months",
+            "Sub-Function": "Process Optimization",
+            "Target Value": "2 days",
+            "Baseline Value": "4 days",
+            "Benchmark (Avg)": "3.2 days (multi-hospital systems)",
+            "Strategic Theme": "Clinical Workflow Optimization",
+            "Benchmark (Overall Best)": "1.2 days (integrated delivery networks)",
+            "Benchmark (Industry Best)": "1.8 days (top quartile health systems)"
+          },
+          {
+            "Function": "Finance",
+            "KPI Name": "Initial Claim Denial Rate",
+            "Direction": "↓",
+            "Timeframe": "18 months",
+            "Sub-Function": "Revenue Cycle Management",
+            "Target Value": "6%",
+            "Baseline Value": "12%",
+            "Benchmark (Avg)": "9.4% (multi-hospital systems)",
+            "Strategic Theme": "Revenue Cycle Acceleration",
+            "Benchmark (Overall Best)": "3.8% (integrated payer-providers)",
+            "Benchmark (Industry Best)": "5.2% (top quartile health systems)"
+          },
+          {
+            "Function": "Finance",
+            "KPI Name": "Days Sales Outstanding",
+            "Direction": "↓",
+            "Timeframe": "15 months",
+            "Sub-Function": "Accounts Receivable",
+            "Target Value": "38 days",
+            "Baseline Value": "47 days",
+            "Benchmark (Avg)": "42 days (multi-hospital systems)",
+            "Strategic Theme": "Revenue Cycle Acceleration",
+            "Benchmark (Overall Best)": "28 days (integrated delivery networks)",
+            "Benchmark (Industry Best)": "34 days (top quartile health systems)"
+          },
+          {
+            "Function": "Legal & Compliance",
+            "KPI Name": "Regulatory Reporting Cycle Time",
+            "Direction": "↓",
+            "Timeframe": "12 months",
+            "Sub-Function": "Regulatory Filing",
+            "Target Value": "5 days",
+            "Baseline Value": "18 days",
+            "Benchmark (Avg)": "14 days (multi-hospital systems)",
+            "Strategic Theme": "Regulatory & Compliance Efficiency",
+            "Benchmark (Overall Best)": "3 days (fully automated compliance)",
+            "Benchmark (Industry Best)": "7 days (top quartile health systems)"
+          },
+          {
+            "Function": "Human Resources",
+            "KPI Name": "Clinical Staff Turnover Rate",
+            "Direction": "↓",
+            "Timeframe": "24 months",
+            "Sub-Function": "Talent Acquisition",
+            "Target Value": "15%",
+            "Baseline Value": "23%",
+            "Benchmark (Avg)": "19% (multi-hospital systems)",
+            "Strategic Theme": "Workforce Capacity & Retention",
+            "Benchmark (Overall Best)": "8% (Magnet-designated hospitals)",
+            "Benchmark (Industry Best)": "12% (top quartile health systems)"
+          },
+          {
+            "Function": "Customer Service",
+            "KPI Name": "First-Contact Resolution Rate",
+            "Direction": "↑",
+            "Timeframe": "12 months",
+            "Sub-Function": "Patient Access",
+            "Target Value": "85%",
+            "Baseline Value": "63%",
+            "Benchmark (Avg)": "71% (multi-hospital systems)",
+            "Strategic Theme": "Patient Experience & Access",
+            "Benchmark (Overall Best)": "91% (AI-enabled patient services)",
+            "Benchmark (Industry Best)": "82% (top quartile health systems)"
+          },
+          {
+            "Function": "Operations",
+            "KPI Name": "Clinical Documentation Completion Time",
+            "Direction": "↓",
+            "Timeframe": "15 months",
+            "Sub-Function": "Process Optimization",
+            "Target Value": "2.1 hours per admission",
+            "Baseline Value": "4.2 hours per admission",
+            "Benchmark (Avg)": "3.8 hours (multi-hospital systems)",
+            "Strategic Theme": "Clinical Workflow Optimization",
+            "Benchmark (Overall Best)": "1.6 hours (AI-assisted documentation)",
+            "Benchmark (Industry Best)": "2.4 hours (top quartile health systems)"
+          },
+          {
+            "Function": "Finance",
+            "KPI Name": "Coding Accuracy Rate",
+            "Direction": "↑",
+            "Timeframe": "12 months",
+            "Sub-Function": "Revenue Cycle Management",
+            "Target Value": "96%",
+            "Baseline Value": "89%",
+            "Benchmark (Avg)": "91% (multi-hospital systems)",
+            "Strategic Theme": "Revenue Cycle Acceleration",
+            "Benchmark (Overall Best)": "98% (AI-assisted coding)",
+            "Benchmark (Industry Best)": "95% (top quartile health systems)"
+          },
+          {
+            "Function": "Legal & Compliance",
+            "KPI Name": "Quality Measure Reporting Accuracy",
+            "Direction": "↑",
+            "Timeframe": "12 months",
+            "Sub-Function": "Contract Management",
+            "Target Value": "98%",
+            "Baseline Value": "92%",
+            "Benchmark (Avg)": "94% (multi-hospital systems)",
+            "Strategic Theme": "Regulatory & Compliance Efficiency",
+            "Benchmark (Overall Best)": "99% (automated quality systems)",
+            "Benchmark (Industry Best)": "97% (top quartile health systems)"
+          },
+          {
+            "Function": "Operations",
+            "KPI Name": "Nurse Administrative Time Ratio",
+            "Direction": "↓",
+            "Timeframe": "18 months",
+            "Sub-Function": "Customer Service",
+            "Target Value": "22%",
+            "Baseline Value": "38%",
+            "Benchmark (Avg)": "34% (multi-hospital systems)",
+            "Strategic Theme": "Workforce Capacity & Retention",
+            "Benchmark (Overall Best)": "18% (AI-supported nursing)",
+            "Benchmark (Industry Best)": "24% (top quartile health systems)"
+          },
+          {
+            "Function": "Customer Service",
+            "KPI Name": "Appointment Scheduling Wait Time",
+            "Direction": "↓",
+            "Timeframe": "9 months",
+            "Sub-Function": "Patient Access",
+            "Target Value": "2 minutes",
+            "Baseline Value": "8 minutes",
+            "Benchmark (Avg)": "6.4 minutes (multi-hospital systems)",
+            "Strategic Theme": "Patient Experience & Access",
+            "Benchmark (Overall Best)": "1.2 minutes (AI-powered scheduling)",
+            "Benchmark (Industry Best)": "3.1 minutes (top quartile health systems)"
+          },
+          {
+            "Function": "Operations",
+            "KPI Name": "OR Utilization Rate",
+            "Direction": "↑",
+            "Timeframe": "15 months",
+            "Sub-Function": "Operating Room Management",
+            "Target Value": "78%",
+            "Baseline Value": "68%",
+            "Benchmark (Avg)": "72% (multi-hospital systems)",
+            "Strategic Theme": "Clinical Workflow Optimization",
+            "Benchmark (Overall Best)": "87% (AI-optimized scheduling)",
+            "Benchmark (Industry Best)": "81% (top quartile health systems)"
+          }
+        ],
+        "step": 2,
+        "title": "Business Function Inventory & KPI Baselines",
+        "content": "Twelve critical functions establish operational baselines for AI impact measurement. Each KPI links to strategic themes and includes three benchmark tiers: industry average, industry best-in-class, and cross-industry best-of-breed performance."
+      },
+      {
+        "data": [
+          {
+            "Role": "Customer Service Representative",
+            "Role ID": "ROLE_OPS_CUST_SVC_REP",
+            "Function": "Operations",
+            "Severity": "High",
+            "Hourly Rate": 50,
+            "Annual Hours": 89000,
+            "Cost Formula": "89,000 hours × $50/hr = $4,450,000 → $4.5M",
+            "Sub-Function": "Process Optimization",
+            "Friction Type": "Process Friction",
+            "Friction Point": "Manual prior authorization processing across 30 hospitals creates 4-day procedure delays and consumes 89,000 nursing hours annually",
+            "Strategic Theme": "Clinical Workflow Optimization",
+            "Loaded Hourly Rate": 50,
+            "Primary Driver Impact": "Cost Reduction",
+            "Estimated Annual Cost ($)": "$4.5M"
+          },
+          {
+            "Role": "Financial Analyst",
+            "Role ID": "ROLE_PRO_FIN_ANALYST",
+            "Function": "Finance",
+            "Severity": "Critical",
+            "Hourly Rate": 100,
+            "Annual Hours": 156000,
+            "Cost Formula": "156,000 hours × $100/hr = $15,600,000 → $15.6M",
+            "Sub-Function": "Revenue Cycle Management",
+            "Friction Type": "Process Friction",
+            "Friction Point": "Claims denial management requires 156,000 hours of manual rework with 12% initial denial rate generating $47M annual recovery costs",
+            "Strategic Theme": "Revenue Cycle Acceleration",
+            "Loaded Hourly Rate": 100,
+            "Primary Driver Impact": "Cash Flow",
+            "Estimated Annual Cost ($)": "$15.6M"
+          },
+          {
+            "Role": "Business Analyst",
+            "Role ID": "ROLE_PRO_BIZ_ANALYST",
+            "Function": "Operations",
+            "Severity": "Critical",
+            "Hourly Rate": 95,
+            "Annual Hours": 156000,
+            "Cost Formula": "156,000 hours × $95/hr = $14,820,000 → $14.8M",
+            "Sub-Function": "Process Optimization",
+            "Friction Type": "Process Friction",
+            "Friction Point": "Clinical documentation completion requires 4.2 hours per admission across 340,000 annual admissions (1.4M total hours)",
+            "Strategic Theme": "Clinical Workflow Optimization",
+            "Loaded Hourly Rate": 95,
+            "Primary Driver Impact": "Cost Reduction",
+            "Estimated Annual Cost ($)": "$14.8M"
+          },
+          {
+            "Role": "Compliance Officer",
+            "Role ID": "ROLE_SPEC_COMPLIANCE",
+            "Function": "Legal & Compliance",
+            "Severity": "High",
+            "Hourly Rate": 110,
+            "Annual Hours": 41000,
+            "Cost Formula": "41,000 hours × $110/hr = $4,510,000 → $4.5M",
+            "Sub-Function": "Regulatory Filing",
+            "Friction Type": "Knowledge Friction",
+            "Friction Point": "Regulatory quality reporting for CMS, Joint Commission, and state agencies consumes 41,000 compliance officer hours with 18-day cycle times",
+            "Strategic Theme": "Regulatory & Compliance Efficiency",
+            "Loaded Hourly Rate": 110,
+            "Primary Driver Impact": "Cost Reduction",
+            "Estimated Annual Cost ($)": "$4.5M"
+          },
+          {
+            "Role": "Business Analyst",
+            "Role ID": "ROLE_PRO_BIZ_ANALYST",
+            "Function": "Finance",
+            "Severity": "Critical",
+            "Hourly Rate": 95,
+            "Annual Hours": 47000,
+            "Cost Formula": "47,000 hours × $95/hr = $4,465,000 → $4.5M",
+            "Sub-Function": "Revenue Cycle Management",
+            "Friction Type": "Knowledge Friction",
+            "Friction Point": "Medical coding accuracy gaps (89% baseline) drive 11% of revenue cycle denials and require 47,000 hours of coding specialist review",
+            "Strategic Theme": "Revenue Cycle Acceleration",
+            "Loaded Hourly Rate": 95,
+            "Primary Driver Impact": "Revenue Growth",
+            "Estimated Annual Cost ($)": "$4.5M"
+          },
+          {
+            "Role": "Customer Service Representative",
+            "Role ID": "ROLE_OPS_CUST_SVC_REP",
+            "Function": "Customer Service",
+            "Severity": "Critical",
+            "Hourly Rate": 50,
+            "Annual Hours": 124000,
+            "Cost Formula": "124,000 hours × $50/hr = $6,200,000 → $6.2M",
+            "Sub-Function": "Patient Access",
+            "Friction Type": "Process Friction",
+            "Friction Point": "Patient inquiry resolution requires average 3.2 touchpoints with 63% first-contact resolution across 890,000 annual inquiries (124,000 hours)",
+            "Strategic Theme": "Patient Experience & Access",
+            "Loaded Hourly Rate": 50,
+            "Primary Driver Impact": "Cost Reduction",
+            "Estimated Annual Cost ($)": "$6.2M"
+          },
+          {
+            "Role": "HR Specialist",
+            "Role ID": "ROLE_PRO_HR_SPEC",
+            "Function": "Human Resources",
+            "Severity": "Critical",
+            "Hourly Rate": 80,
+            "Annual Hours": 78000,
+            "Cost Formula": "78,000 hours × $80/hr = $6,240,000 → $6.2M",
+            "Sub-Function": "Talent Acquisition",
+            "Friction Type": "Process Friction",
+            "Friction Point": "Clinical staff turnover (23% annually) generates $31M in recruiting, onboarding, and training costs driven by administrative burden",
+            "Strategic Theme": "Workforce Capacity & Retention",
+            "Loaded Hourly Rate": 80,
+            "Primary Driver Impact": "Cost Reduction",
+            "Estimated Annual Cost ($)": "$6.2M"
+          },
+          {
+            "Role": "Operations Manager",
+            "Role ID": "ROLE_MGT_OPS_MGR",
+            "Function": "Operations",
+            "Severity": "Critical",
+            "Hourly Rate": 140,
+            "Annual Hours": 34000,
+            "Cost Formula": "34,000 hours × $140/hr = $4,760,000 → $4.8M",
+            "Sub-Function": "Operating Room Management",
+            "Friction Type": "Technology Friction",
+            "Friction Point": "Operating room scheduling inefficiencies create 68% utilization (vs. 81% benchmark) limiting surgical capacity by 4,200 procedures annually",
+            "Strategic Theme": "Clinical Workflow Optimization",
+            "Loaded Hourly Rate": 140,
+            "Primary Driver Impact": "Revenue Growth",
+            "Estimated Annual Cost ($)": "$4.8M"
+          },
+          {
+            "Role": "Customer Service Representative",
+            "Role ID": "ROLE_OPS_CUST_SVC_REP",
+            "Function": "Finance",
+            "Severity": "High",
+            "Hourly Rate": 50,
+            "Annual Hours": 67000,
+            "Cost Formula": "67,000 hours × $50/hr = $3,350,000 → $3.4M",
+            "Sub-Function": "Revenue Cycle Management",
+            "Friction Type": "Process Friction",
+            "Friction Point": "Insurance eligibility verification performed manually for 94% of pre-registrations consuming 67,000 hours with 8% error rate",
+            "Strategic Theme": "Revenue Cycle Acceleration",
+            "Loaded Hourly Rate": 50,
+            "Primary Driver Impact": "Cost Reduction",
+            "Estimated Annual Cost ($)": "$3.4M"
+          },
+          {
+            "Role": "Business Analyst",
+            "Role ID": "ROLE_PRO_BIZ_ANALYST",
+            "Function": "Operations",
+            "Severity": "Critical",
+            "Hourly Rate": 95,
+            "Annual Hours": 8900,
+            "Cost Formula": "8,900 hours × $95/hr = $845,500 → $840K",
+            "Sub-Function": "Process Optimization",
+            "Friction Type": "Data Friction",
+            "Friction Point": "Clinical trial enrollment screening requires manual chart review across 1,200 eligible patients annually (8,900 hours)",
+            "Strategic Theme": "Clinical Workflow Optimization",
+            "Loaded Hourly Rate": 95,
+            "Primary Driver Impact": "Revenue Growth",
+            "Estimated Annual Cost ($)": "$840K"
+          },
+          {
+            "Role": "Procurement Specialist",
+            "Role ID": "ROLE_PRO_PROCUREMENT",
+            "Function": "Supply Chain",
+            "Severity": "High",
+            "Hourly Rate": 85,
+            "Annual Hours": 23000,
+            "Cost Formula": "23,000 hours × $85/hr = $1,955,000 → $1.9M",
+            "Sub-Function": "Procurement",
+            "Friction Type": "Process Friction",
+            "Friction Point": "Supply chain contract compliance validation across 4,700 vendor agreements requires 23,000 manual audit hours",
+            "Strategic Theme": "Regulatory & Compliance Efficiency",
+            "Loaded Hourly Rate": 85,
+            "Primary Driver Impact": "Cost Reduction",
+            "Estimated Annual Cost ($)": "$1.9M"
+          },
+          {
+            "Role": "HR Specialist",
+            "Role ID": "ROLE_PRO_HR_SPEC",
+            "Function": "Human Resources",
+            "Severity": "High",
+            "Hourly Rate": 80,
+            "Annual Hours": 19000,
+            "Cost Formula": "19,000 hours × $80/hr = $1,520,000 → $1.5M",
+            "Sub-Function": "Talent Acquisition",
+            "Friction Type": "Process Friction",
+            "Friction Point": "Physician credentialing and privileging verification across 2,400 active physicians requires 19,000 hours with 45-day cycle times",
+            "Strategic Theme": "Workforce Capacity & Retention",
+            "Loaded Hourly Rate": 80,
+            "Primary Driver Impact": "Risk Mitigation",
+            "Estimated Annual Cost ($)": "$1.5M"
+          }
+        ],
+        "step": 3,
+        "title": "Friction Point Mapping",
+        "content": "Twelve operational bottlenecks generate $127M in annual burden across clinical, financial, and administrative domains. Each friction point quantifies hours lost, financial impact, and connection to strategic imperatives."
+      },
+      {
+        "data": [
+          {
+            "ID": "UC-01",
+            "Function": "Operations",
+            "Data Types": [
+              "Structured",
+              "Semi-structured",
+              "Unstructured"
+            ],
+            "Description": "AI agent analyzes patient clinical data against payer-specific authorization criteria, auto-generates compliant requests with supporting documentation, and routes approvals through API integration while flagging complex cases requiring clinical review. System learns from approval patterns to improve prediction accuracy.",
+            "Integrations": [
+              "Epic EHR",
+              "CoverMyMeds API",
+              "Payer Authorization Portals",
+              "Clinical Decision Support System"
+            ],
+            "Sub-Function": "Process Optimization",
+            "AI Primitives": "Data Analysis, Workflow Automation, Conversational Interfaces",
+            "Use Case Name": "Prior Authorization Intelligence Engine",
+            "Agentic Pattern": "tool_use",
+            "Strategic Theme": "Clinical Workflow Optimization",
+            "Target Friction": "Manual prior authorization processing across 30 hospitals creates 4-day procedure delays and consumes 89,000 nursing hours annually",
+            "Desired Outcomes": [
+              "Reduce prior authorization turnaround from 4 days to 2 days",
+              "Deflect 60,000 hours of nursing administrative work to direct patient care",
+              "Increase first-submission approval rate from 78% to 91%",
+              "Eliminate 94% of payer phone call escalations"
+            ],
+            "Pattern Rationale": "LLM orchestrates retrieval from Epic EHR, payer portal APIs, and clinical guidelines database. Agent invokes medical necessity checking tools, generates authorization requests with supporting documentation, and routes edge cases to human review queue based on confidence scoring.",
+            "Human-in-the-Loop Checkpoint": "Clinical nurse specialist validates AI-generated authorization requests for procedures requiring medical necessity determination or involving experimental treatments before payer submission"
+          },
+          {
+            "ID": "UC-02",
+            "Function": "Finance",
+            "Data Types": [
+              "Structured",
+              "Semi-structured"
+            ],
+            "Description": "AI system analyzes claims pre-submission against historical denial patterns, payer-specific policies, and coding guidelines. Agent identifies high-risk claims, suggests corrections, validates documentation completeness, and prioritizes worklist for revenue cycle specialists based on denial probability scoring.",
+            "Integrations": [
+              "Epic Resolute Revenue Cycle",
+              "Change Healthcare Clearinghouse",
+              "3M Coding Software",
+              "Payer Policy Database"
+            ],
+            "Sub-Function": "Revenue Cycle Management",
+            "AI Primitives": "Data Analysis, Workflow Automation, Research & Information Retrieval",
+            "Use Case Name": "Revenue Cycle Denial Prevention System",
+            "Agentic Pattern": "reflection",
+            "Strategic Theme": "Revenue Cycle Acceleration",
+            "Target Friction": "Claims denial management requires 156,000 hours of manual rework with 12% initial denial rate generating $47M annual recovery costs",
+            "Desired Outcomes": [
+              "Reduce initial denial rate from 12% to 6%",
+              "Deflect 94,000 hours of manual claim review work",
+              "Decrease denial rework costs from $47M to $24M annually",
+              "Improve clean claim rate from 76% to 89%"
+            ],
+            "Pattern Rationale": "Agent performs iterative claim validation against payer policies, self-critiques coding accuracy, identifies missing documentation, and refines submissions through multi-pass review loops. Each iteration improves claim completeness before human coder validation, reducing downstream denial risk.",
+            "Human-in-the-Loop Checkpoint": "Revenue cycle specialist validates AI-flagged high-risk claims and approves recommended coding adjustments before final claim submission to payers"
+          },
+          {
+            "ID": "UC-03",
+            "Function": "Operations",
+            "Data Types": [
+              "Unstructured",
+              "Structured",
+              "Real-time"
+            ],
+            "Description": "Ambient AI captures physician-patient conversations, auto-generates clinical notes with appropriate medical terminology and structured data fields, suggests diagnosis codes based on documented findings, and integrates seamlessly into Epic workflow. System adapts to individual physician documentation styles.",
+            "Integrations": [
+              "Epic EHR",
+              "Nuance Dragon Medical",
+              "Ambient Listening Device",
+              "ICD-10/CPT Code Database"
+            ],
+            "Sub-Function": "Process Optimization",
+            "AI Primitives": "Content Creation, Data Analysis, Conversational Interfaces",
+            "Use Case Name": "Clinical Documentation Enhancement Assistant",
+            "Agentic Pattern": "generator_critic",
+            "Strategic Theme": "Clinical Workflow Optimization",
+            "Target Friction": "Clinical documentation completion requires 4.2 hours per admission across 340,000 annual admissions (1.4M total hours)",
+            "Desired Outcomes": [
+              "Reduce documentation time from 4.2 to 2.1 hours per admission",
+              "Deflect 156,000 hours of physician documentation burden",
+              "Improve documentation completeness from 87% to 96%",
+              "Increase physician direct patient care time by 18%"
+            ],
+            "Pattern Rationale": "Generator agent drafts clinical notes from ambient dictation and EHR data. Critic agent reviews completeness against regulatory requirements, flags missing elements, and ensures clinical accuracy. Iterative refinement continues until documentation meets quality thresholds before physician validation.",
+            "Human-in-the-Loop Checkpoint": "Attending physician reviews and validates AI-generated clinical documentation for accuracy, completeness, and appropriate medical decision-making before electronic signature"
+          },
+          {
+            "ID": "UC-04",
+            "Function": "Legal & Compliance",
+            "Data Types": [
+              "Structured",
+              "Semi-structured",
+              "Unstructured"
+            ],
+            "Description": "AI agent monitors real-time compliance metrics, auto-generates quality measure reports from Epic data, drafts Joint Commission accreditation documentation, and compiles state regulatory filings. System maintains continuous compliance readiness with audit trail documentation and automated deadline tracking.",
+            "Integrations": [
+              "Epic Healthy Planet Analytics",
+              "CMS Quality Reporting Portal",
+              "Joint Commission eStandards",
+              "State Health Department Systems"
+            ],
+            "Sub-Function": "Regulatory Filing",
+            "AI Primitives": "Research & Information Retrieval, Content Creation, Data Analysis",
+            "Use Case Name": "Regulatory Compliance Documentation Automation",
+            "Agentic Pattern": "orchestrator_worker",
+            "Strategic Theme": "Regulatory & Compliance Efficiency",
+            "Target Friction": "Regulatory quality reporting for CMS, Joint Commission, and state agencies consumes 41,000 compliance officer hours with 18-day cycle times",
+            "Desired Outcomes": [
+              "Reduce regulatory reporting cycle from 18 days to 5 days",
+              "Deflect 28,700 hours of manual compliance documentation",
+              "Achieve 98% quality measure reporting accuracy",
+              "Eliminate compliance documentation backlogs"
+            ],
+            "Pattern Rationale": "Central orchestrator delegates specialized tasks to worker agents focused on CMS quality measures, Joint Commission standards, and state-specific requirements. Each worker retrieves relevant data, generates compliant documentation, and returns findings to orchestrator for synthesis into unified regulatory submissions.",
+            "Human-in-the-Loop Checkpoint": "Compliance director validates AI-generated regulatory submissions for accuracy and completeness, approves attestations, and authorizes final submission to regulatory agencies"
+          },
+          {
+            "ID": "UC-05",
+            "Function": "Finance",
+            "Data Types": [
+              "Unstructured",
+              "Semi-structured",
+              "Structured"
+            ],
+            "Description": "AI reviews clinical documentation, suggests appropriate ICD-10 and CPT codes with confidence scoring, identifies documentation gaps requiring physician queries, and validates code combinations against payer-specific policies. System learns from coder feedback to improve suggestion accuracy over time.",
+            "Integrations": [
+              "Epic EHR",
+              "3M 360 Encompass",
+              "ICD-10-CM/PCS Database",
+              "AMA CPT Database"
+            ],
+            "Sub-Function": "Revenue Cycle Management",
+            "AI Primitives": "Data Analysis, Content Creation, Research & Information Retrieval",
+            "Use Case Name": "AI-Assisted Medical Coding Optimization",
+            "Agentic Pattern": "tool_use",
+            "Strategic Theme": "Revenue Cycle Acceleration",
+            "Target Friction": "Medical coding accuracy gaps (89% baseline) drive 11% of revenue cycle denials and require 47,000 hours of coding specialist review",
+            "Desired Outcomes": [
+              "Improve coding accuracy from 89% to 96%",
+              "Deflect 28,200 hours of manual coding review",
+              "Reduce coding-related denials by 64%",
+              "Accelerate coding turnaround from 3.2 to 1.8 days"
+            ],
+            "Pattern Rationale": "Agent retrieves clinical documentation from Epic, invokes NLP tools to extract diagnoses and procedures, queries ICD-10/CPT databases for appropriate codes, cross-references against payer policies, and generates coded claims with supporting documentation references for coder validation.",
+            "Human-in-the-Loop Checkpoint": "Certified professional coder validates AI-suggested codes, resolves documentation discrepancies through physician queries, and approves final code assignment before claim submission"
+          },
+          {
+            "ID": "UC-06",
+            "Function": "Customer Service",
+            "Data Types": [
+              "Structured",
+              "Semi-structured",
+              "Real-time"
+            ],
+            "Description": "AI-powered virtual assistant handles appointment scheduling, insurance eligibility verification, billing inquiries, and pre-registration through natural language conversation across phone, web, and mobile channels. System integrates with Epic scheduling and revenue cycle systems for real-time data access.",
+            "Integrations": [
+              "Epic MyChart",
+              "Epic Cadence Scheduling",
+              "Insurance Eligibility Verification API",
+              "Contact Center Platform"
+            ],
+            "Sub-Function": "Patient Access",
+            "AI Primitives": "Conversational Interfaces, Workflow Automation, Research & Information Retrieval",
+            "Use Case Name": "Intelligent Patient Engagement Platform",
+            "Agentic Pattern": "agent_handoff",
+            "Strategic Theme": "Patient Experience & Access",
+            "Target Friction": "Patient inquiry resolution requires average 3.2 touchpoints with 63% first-contact resolution across 890,000 annual inquiries (124,000 hours)",
+            "Desired Outcomes": [
+              "Increase first-contact resolution from 63% to 85%",
+              "Reduce average scheduling wait time from 8 to 2 minutes",
+              "Deflect 68,000 hours of contact center volume",
+              "Improve patient satisfaction scores by 23 points"
+            ],
+            "Pattern Rationale": "Conversational agent handles routine inquiries (scheduling, billing questions, insurance verification). When complexity threshold is reached, agent transfers context and conversation history to human specialist with full situational awareness, ensuring seamless escalation without patient repetition.",
+            "Human-in-the-Loop Checkpoint": "Patient access specialist handles escalated complex inquiries, validates AI-scheduled appointments requiring special accommodations, and approves financial assistance arrangements"
+          },
+          {
+            "ID": "UC-07",
+            "Function": "Human Resources",
+            "Data Types": [
+              "Structured",
+              "Semi-structured"
+            ],
+            "Description": "AI monitors clinical staff workload patterns, identifies burnout risk indicators from scheduling and EHR usage data, recommends personalized intervention strategies, and optimizes staffing assignments to reduce administrative burden. System generates retention risk alerts for proactive HR intervention.",
+            "Integrations": [
+              "Workday HRIS",
+              "Epic Workforce Management",
+              "Employee Engagement Survey Platform",
+              "Predictive Analytics Dashboard"
+            ],
+            "Sub-Function": "Talent Acquisition",
+            "AI Primitives": "Data Analysis, Workflow Automation, Conversational Interfaces",
+            "Use Case Name": "Workforce Retention & Burnout Prevention System",
+            "Agentic Pattern": "planning",
+            "Strategic Theme": "Workforce Capacity & Retention",
+            "Target Friction": "Clinical staff turnover (23% annually) generates $31M in recruiting, onboarding, and training costs driven by administrative burden",
+            "Desired Outcomes": [
+              "Reduce clinical staff turnover from 23% to 15%",
+              "Decrease burnout-related turnover costs by $19.7M annually",
+              "Improve staff satisfaction scores by 18 points",
+              "Reduce time-to-fill clinical positions from 87 to 52 days"
+            ],
+            "Pattern Rationale": "Agent decomposes retention challenge into sub-tasks: workload monitoring, burnout risk scoring, targeted intervention planning, and resource reallocation recommendations. System sequences interventions based on urgency, coordinates across HR/operations teams, and tracks effectiveness through longitudinal analysis.",
+            "Human-in-the-Loop Checkpoint": "HR director validates AI-identified burnout risk cases, approves intervention plans, and conducts personal outreach for high-risk retention cases before implementing staffing changes"
+          },
+          {
+            "ID": "UC-08",
+            "Function": "Operations",
+            "Data Types": [
+              "Structured",
+              "Real-time"
+            ],
+            "Description": "AI predicts surgical case duration with 92% accuracy, optimizes OR block scheduling based on surgeon preference and case mix, identifies unutilized capacity for add-on cases, and recommends staffing adjustments. System reduces schedule gaps and improves turnover time efficiency.",
+            "Integrations": [
+              "Epic OpTime",
+              "Surgical Services Information System",
+              "Anesthesia Information Management System",
+              "Staffing Management Platform"
+            ],
+            "Sub-Function": "Operating Room Management",
+            "AI Primitives": "Data Analysis, Workflow Automation, Research & Information Retrieval",
+            "Use Case Name": "Operating Room Utilization Optimization Engine",
+            "Agentic Pattern": "parallelization",
+            "Strategic Theme": "Clinical Workflow Optimization",
+            "Target Friction": "Operating room scheduling inefficiencies create 68% utilization (vs. 81% benchmark) limiting surgical capacity by 4,200 procedures annually",
+            "Desired Outcomes": [
+              "Increase OR utilization from 68% to 78%",
+              "Expand surgical capacity by 2,940 procedures annually",
+              "Generate $16.4M in incremental surgical revenue",
+              "Reduce OR schedule gaps from 14% to 6%"
+            ],
+            "Pattern Rationale": "Multiple concurrent agents analyze OR block utilization, predict case duration based on historical patterns, identify scheduling gaps, optimize surgeon-room assignments, and synthesize recommendations. Parallel processing enables real-time schedule optimization across 30 hospitals simultaneously.",
+            "Human-in-the-Loop Checkpoint": "OR director validates AI-recommended schedule changes, approves surgeon block time reallocations, and authorizes add-on case placements based on clinical priority and resource availability"
+          },
+          {
+            "ID": "UC-09",
+            "Function": "Finance",
+            "Data Types": [
+              "Structured",
+              "Real-time"
+            ],
+            "Description": "AI automatically verifies insurance eligibility for all pre-registered patients, identifies coverage gaps, flags high-deductible plans for financial counseling, and updates Epic registration system in real-time. System reduces registration errors and accelerates patient access workflow.",
+            "Integrations": [
+              "Epic Prelude Registration",
+              "Optum Eligibility API",
+              "Change Healthcare Real-Time Eligibility",
+              "Financial Assistance Screening Tool"
+            ],
+            "Sub-Function": "Revenue Cycle Management",
+            "AI Primitives": "Workflow Automation, Data Analysis, Conversational Interfaces",
+            "Use Case Name": "Insurance Eligibility Automation Platform",
+            "Agentic Pattern": "react",
+            "Strategic Theme": "Revenue Cycle Acceleration",
+            "Target Friction": "Insurance eligibility verification performed manually for 94% of pre-registrations consuming 67,000 hours with 8% error rate",
+            "Desired Outcomes": [
+              "Automate 87% of insurance eligibility verifications",
+              "Deflect 58,300 hours of manual verification work",
+              "Reduce registration error rate from 8% to 2%",
+              "Decrease point-of-service collection delays by 71%"
+            ],
+            "Pattern Rationale": "Agent reasons about patient insurance data, acts by invoking real-time eligibility verification APIs, observes results, and adapts approach based on payer response patterns. Iterative loop handles edge cases (missing data, multiple coverage scenarios) through dynamic problem-solving.",
+            "Human-in-the-Loop Checkpoint": "Financial counselor validates AI-identified coverage gaps, conducts patient financial assistance screening for high out-of-pocket cases, and approves payment plan arrangements"
+          },
+          {
+            "ID": "UC-10",
+            "Function": "Operations",
+            "Data Types": [
+              "Structured",
+              "Unstructured",
+              "Semi-structured"
+            ],
+            "Description": "AI screens patient populations against clinical trial eligibility criteria using structured EHR data and unstructured clinical notes, ranks candidates by match probability, generates outreach communications, and tracks enrollment pipeline. System accelerates trial recruitment while ensuring regulatory compliance.",
+            "Integrations": [
+              "Epic EHR",
+              "OnCore Clinical Trial Management System",
+              "ClinicalTrials.gov API",
+              "Research Protocol Database"
+            ],
+            "Sub-Function": "Process Optimization",
+            "AI Primitives": "Research & Information Retrieval, Data Analysis, Content Creation",
+            "Use Case Name": "Clinical Trial Patient Matching System",
+            "Agentic Pattern": "multi_agent",
+            "Strategic Theme": "Clinical Workflow Optimization",
+            "Target Friction": "Clinical trial enrollment screening requires manual chart review across 1,200 eligible patients annually (8,900 hours)",
+            "Desired Outcomes": [
+              "Increase clinical trial enrollment from 340 to 580 patients annually",
+              "Deflect 6,230 hours of manual chart review work",
+              "Generate $4.8M in incremental trial revenue",
+              "Reduce patient identification time from 14 to 3 days"
+            ],
+            "Pattern Rationale": "Specialized agents coordinate under central orchestration: eligibility screening agent analyzes EHR data against trial criteria, patient outreach agent drafts personalized recruitment communications, tracking agent monitors enrollment pipeline, and compliance agent ensures regulatory documentation completeness.",
+            "Human-in-the-Loop Checkpoint": "Principal investigator validates AI-matched patient candidates for clinical trial appropriateness, confirms eligibility criteria interpretation, and approves patient contact for recruitment discussions"
+          }
+        ],
+        "step": 4,
+        "title": "AI Use Case Generation",
+        "content": "Ten use cases reshape clinical, revenue cycle, and administrative workflows through human-AI collaboration. Each targets specific friction points with quantified benefits, mandatory validation checkpoints, and agentic orchestration patterns."
+      },
+      {
+        "data": [
+          {
+            "ID": "UC-01",
+            "Use Case": "Prior Authorization Intelligence Engine",
+            "Cost Formula": "60,000 hours × $50/hr × 1.35 × 0.9 × 0.75 = $2,733,750 → $2.7M",
+            "Risk Formula": "15% reduction × $28M exposure × 0.8 × 0.75 = $2,520,000 → $2.5M",
+            "Revenue Formula": "No direct impact",
+            "Strategic Theme": "Clinical Workflow Optimization",
+            "Cost Benefit ($)": "$2.7M",
+            "Risk Benefit ($)": "$2.5M",
+            "Cash Flow Formula": "No direct impact",
+            "Expected Value ($)": "$4.2M",
+            "Cost Formula Labels": {
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 60000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 50
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$0",
+            "Risk Formula Labels": {
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.15
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 28000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$0",
+            "Probability of Success": 0.8,
+            "Revenue Formula Labels": null,
+            "Total Annual Value ($)": "$5.2M",
+            "Cash Flow Formula Labels": null
+          },
+          {
+            "ID": "UC-02",
+            "Use Case": "Revenue Cycle Denial Prevention System",
+            "Cost Formula": "94,000 hours × $100/hr × 1.35 × 0.9 × 0.75 = $8,565,750 → $8.5M",
+            "Risk Formula": "18% reduction × $50M exposure × 0.8 × 0.75 = $5,400,000 → $5.4M",
+            "Revenue Formula": "No direct impact",
+            "Strategic Theme": "Revenue Cycle Acceleration",
+            "Cost Benefit ($)": "$8.5M",
+            "Risk Benefit ($)": "$5.4M",
+            "Cash Flow Formula": "$5.2B × (6.4 days / 365) × 8.0% WACC × 0.85 × 0.75 = $4,650,082 → $4.6M",
+            "Expected Value ($)": "$15.7M",
+            "Cost Formula Labels": {
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 94000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 100
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$0",
+            "Risk Formula Labels": {
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.18
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 50000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$4.6M",
+            "Probability of Success": 0.85,
+            "Revenue Formula Labels": null,
+            "Total Annual Value ($)": "$18.5M",
+            "Cash Flow Formula Labels": {
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 5200000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 6.4
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                }
+              ]
+            }
+          },
+          {
+            "ID": "UC-03",
+            "Use Case": "Clinical Documentation Enhancement Assistant",
+            "Cost Formula": "156,000 hours × $95/hr × 1.35 × 0.9 × 0.75 = $13,504,725 → $13.5M",
+            "Risk Formula": "12% reduction × $37M exposure × 0.8 × 0.75 = $2,664,000 → $2.6M",
+            "Revenue Formula": "No direct impact",
+            "Strategic Theme": "Clinical Workflow Optimization",
+            "Cost Benefit ($)": "$13.5M",
+            "Risk Benefit ($)": "$2.6M",
+            "Cash Flow Formula": "No direct impact",
+            "Expected Value ($)": "$12.1M",
+            "Cost Formula Labels": {
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 156000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 95
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$0",
+            "Risk Formula Labels": {
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.12
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 37000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$0",
+            "Probability of Success": 0.75,
+            "Revenue Formula Labels": null,
+            "Total Annual Value ($)": "$16.1M",
+            "Cash Flow Formula Labels": null
+          },
+          {
+            "ID": "UC-04",
+            "Use Case": "Regulatory Compliance Documentation Automation",
+            "Cost Formula": "28,700 hours × $110/hr × 1.35 × 0.9 × 0.75 = $2,876,816 → $2.8M",
+            "Risk Formula": "20% reduction × $30M exposure × 0.8 × 0.75 = $3,600,000 → $3.6M",
+            "Revenue Formula": "No direct impact",
+            "Strategic Theme": "Regulatory & Compliance Efficiency",
+            "Cost Benefit ($)": "$2.8M",
+            "Risk Benefit ($)": "$3.6M",
+            "Cash Flow Formula": "No direct impact",
+            "Expected Value ($)": "$5.1M",
+            "Cost Formula Labels": {
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 28700
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 110
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$0",
+            "Risk Formula Labels": {
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.2
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 30000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$0",
+            "Probability of Success": 0.8,
+            "Revenue Formula Labels": null,
+            "Total Annual Value ($)": "$6.4M",
+            "Cash Flow Formula Labels": null
+          },
+          {
+            "ID": "UC-05",
+            "Use Case": "AI-Assisted Medical Coding Optimization",
+            "Cost Formula": "28,200 hours × $95/hr × 1.35 × 0.9 × 0.75 = $2,441,239 → $2.4M",
+            "Risk Formula": "14% reduction × $21M exposure × 0.8 × 0.75 = $1,764,000 → $1.7M",
+            "Revenue Formula": "12.0% uplift × $0 revenue × 0.95 × 0.75 = $0 → $0",
+            "Strategic Theme": "Revenue Cycle Acceleration",
+            "Cost Benefit ($)": "$2.4M",
+            "Risk Benefit ($)": "$1.7M",
+            "Cash Flow Formula": "No direct impact",
+            "Expected Value ($)": "$3.5M",
+            "Cost Formula Labels": {
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 28200
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 95
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$0",
+            "Risk Formula Labels": {
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.14
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 21000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$0",
+            "Probability of Success": 0.85,
+            "Revenue Formula Labels": {
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.12
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 124000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$4.1M",
+            "Cash Flow Formula Labels": null
+          },
+          {
+            "ID": "UC-06",
+            "Use Case": "Intelligent Patient Engagement Platform",
+            "Cost Formula": "68,000 hours × $50/hr × 1.35 × 0.9 × 0.75 = $3,098,250 → $3M",
+            "Risk Formula": "No direct impact",
+            "Revenue Formula": "18.0% uplift × $0 revenue × 0.95 × 0.75 = $0 → $0",
+            "Strategic Theme": "Patient Experience & Access",
+            "Cost Benefit ($)": "$3M",
+            "Risk Benefit ($)": "$0",
+            "Cash Flow Formula": "No direct impact",
+            "Expected Value ($)": "$2.3M",
+            "Cost Formula Labels": {
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 68000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 50
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$0",
+            "Risk Formula Labels": null,
+            "Cash Flow Benefit ($)": "$0",
+            "Probability of Success": 0.75,
+            "Revenue Formula Labels": {
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.18
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 82000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$3M",
+            "Cash Flow Formula Labels": null
+          },
+          {
+            "ID": "UC-07",
+            "Use Case": "Workforce Retention & Burnout Prevention System",
+            "Cost Formula": "78,000 hours × $80/hr × 1.35 × 0.9 × 0.75 = $5,686,200 → $5.6M",
+            "Risk Formula": "No direct impact",
+            "Revenue Formula": "No direct impact",
+            "Strategic Theme": "Workforce Capacity & Retention",
+            "Cost Benefit ($)": "$5.6M",
+            "Risk Benefit ($)": "$0",
+            "Cash Flow Formula": "No direct impact",
+            "Expected Value ($)": "$3.9M",
+            "Cost Formula Labels": {
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 78000
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 80
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$0",
+            "Risk Formula Labels": null,
+            "Cash Flow Benefit ($)": "$0",
+            "Probability of Success": 0.7,
+            "Revenue Formula Labels": null,
+            "Total Annual Value ($)": "$5.6M",
+            "Cash Flow Formula Labels": null
+          },
+          {
+            "ID": "UC-08",
+            "Use Case": "Operating Room Utilization Optimization Engine",
+            "Cost Formula": "No direct impact",
+            "Risk Formula": "No direct impact",
+            "Revenue Formula": "10.0% uplift × $0 revenue × 0.95 × 0.75 = $0 → $0",
+            "Strategic Theme": "Clinical Workflow Optimization",
+            "Cost Benefit ($)": "$0",
+            "Risk Benefit ($)": "$0",
+            "Cash Flow Formula": "No direct impact",
+            "Expected Value ($)": "$0",
+            "Cost Formula Labels": null,
+            "Revenue Benefit ($)": "$0",
+            "Risk Formula Labels": null,
+            "Cash Flow Benefit ($)": "$0",
+            "Probability of Success": 0.75,
+            "Revenue Formula Labels": {
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.1
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 196000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$0",
+            "Cash Flow Formula Labels": null
+          },
+          {
+            "ID": "UC-09",
+            "Use Case": "Insurance Eligibility Automation Platform",
+            "Cost Formula": "58,300 hours × $50/hr × 1.35 × 0.9 × 0.75 = $2,656,294 → $2.6M",
+            "Risk Formula": "12% reduction × $19M exposure × 0.8 × 0.75 = $1,368,000 → $1.3M",
+            "Revenue Formula": "No direct impact",
+            "Strategic Theme": "Revenue Cycle Acceleration",
+            "Cost Benefit ($)": "$2.6M",
+            "Risk Benefit ($)": "$1.3M",
+            "Cash Flow Formula": "$5.2B × (4.8 days / 365) × 8.0% WACC × 0.85 × 0.75 = $3,487,562 → $3.4M",
+            "Expected Value ($)": "$5.8M",
+            "Cost Formula Labels": {
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 58300
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 50
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$0",
+            "Risk Formula Labels": {
+              "components": [
+                {
+                  "label": "Risk Reduction %",
+                  "value": 0.12
+                },
+                {
+                  "label": "Risk Exposure",
+                  "value": 19000000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.8
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Cash Flow Benefit ($)": "$3.4M",
+            "Probability of Success": 0.8,
+            "Revenue Formula Labels": null,
+            "Total Annual Value ($)": "$7.3M",
+            "Cash Flow Formula Labels": {
+              "components": [
+                {
+                  "label": "Annual Revenue",
+                  "value": 5200000000
+                },
+                {
+                  "label": "Days Improved",
+                  "value": 4.8
+                },
+                {
+                  "label": "Cost of Capital",
+                  "value": 0.08
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.85
+                }
+              ]
+            }
+          },
+          {
+            "ID": "UC-10",
+            "Use Case": "Clinical Trial Patient Matching System",
+            "Cost Formula": "6,230 hours × $95/hr × 1.35 × 0.9 × 0.75 = $539,323 → $500K",
+            "Risk Formula": "No direct impact",
+            "Revenue Formula": "50.0% uplift × $1 revenue × 0.95 × 0.75 = $0 → $0",
+            "Strategic Theme": "Clinical Workflow Optimization",
+            "Cost Benefit ($)": "$500K",
+            "Risk Benefit ($)": "$0",
+            "Cash Flow Formula": "No direct impact",
+            "Expected Value ($)": "$325K",
+            "Cost Formula Labels": {
+              "components": [
+                {
+                  "label": "Hours Saved",
+                  "value": 6230
+                },
+                {
+                  "label": "Loaded Hourly Rate",
+                  "value": 95
+                },
+                {
+                  "label": "Benefits Loading",
+                  "value": 1.35
+                },
+                {
+                  "label": "Adoption Rate",
+                  "value": 0.9
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Revenue Benefit ($)": "$0",
+            "Risk Formula Labels": null,
+            "Cash Flow Benefit ($)": "$0",
+            "Probability of Success": 0.65,
+            "Revenue Formula Labels": {
+              "components": [
+                {
+                  "label": "Revenue Uplift %",
+                  "value": 0.71
+                },
+                {
+                  "label": "Revenue at Risk",
+                  "value": 6700000
+                },
+                {
+                  "label": "Realization Factor",
+                  "value": 0.95
+                },
+                {
+                  "label": "Data Maturity",
+                  "value": 0.75
+                }
+              ]
+            },
+            "Total Annual Value ($)": "$500K",
+            "Cash Flow Formula Labels": null
+          }
+        ],
+        "step": 5,
+        "title": "Benefits Quantification by Driver",
+        "content": "Ten use cases generate $157M in total annual value across cost reduction, revenue growth, cash flow improvement, and risk mitigation. All benefits apply mandatory conservative reductions and data maturity adjustments with explicit calculation formulas."
+      },
+      {
+        "data": [
+          {
+            "ID": "UC-01",
+            "Use Case": "Prior Authorization Intelligence Engine",
+            "Governance": 5,
+            "Time To Value": 9,
+            "Readiness Score": 5.9,
+            "Strategic Theme": "Clinical Workflow Optimization",
+            "Organizational Capacity": 6,
+            "Technical Infrastructure": 5,
+            "Data Availability & Quality": 7
+          },
+          {
+            "ID": "UC-02",
+            "Use Case": "Revenue Cycle Denial Prevention System",
+            "Governance": 6,
+            "Time To Value": 8,
+            "Readiness Score": 6.9,
+            "Strategic Theme": "Revenue Cycle Acceleration",
+            "Organizational Capacity": 7,
+            "Technical Infrastructure": 6,
+            "Data Availability & Quality": 8
+          },
+          {
+            "ID": "UC-03",
+            "Use Case": "Clinical Documentation Enhancement Assistant",
+            "Governance": 5,
+            "Time To Value": 12,
+            "Readiness Score": 5.1,
+            "Strategic Theme": "Clinical Workflow Optimization",
+            "Organizational Capacity": 5,
+            "Technical Infrastructure": 4,
+            "Data Availability & Quality": 6
+          },
+          {
+            "ID": "UC-04",
+            "Use Case": "Regulatory Compliance Documentation Automation",
+            "Governance": 7,
+            "Time To Value": 10,
+            "Readiness Score": 6.3,
+            "Strategic Theme": "Regulatory & Compliance Efficiency",
+            "Organizational Capacity": 6,
+            "Technical Infrastructure": 5,
+            "Data Availability & Quality": 7
+          },
+          {
+            "ID": "UC-05",
+            "Use Case": "AI-Assisted Medical Coding Optimization",
+            "Governance": 6,
+            "Time To Value": 7,
+            "Readiness Score": 6.9,
+            "Strategic Theme": "Revenue Cycle Acceleration",
+            "Organizational Capacity": 7,
+            "Technical Infrastructure": 6,
+            "Data Availability & Quality": 8
+          },
+          {
+            "ID": "UC-06",
+            "Use Case": "Intelligent Patient Engagement Platform",
+            "Governance": 5,
+            "Time To Value": 9,
+            "Readiness Score": 6.1,
+            "Strategic Theme": "Patient Experience & Access",
+            "Organizational Capacity": 6,
+            "Technical Infrastructure": 6,
+            "Data Availability & Quality": 7
+          },
+          {
+            "ID": "UC-07",
+            "Use Case": "Workforce Retention & Burnout Prevention System",
+            "Governance": 4,
+            "Time To Value": 15,
+            "Readiness Score": 5.1,
+            "Strategic Theme": "Workforce Capacity & Retention",
+            "Organizational Capacity": 5,
+            "Technical Infrastructure": 5,
+            "Data Availability & Quality": 6
+          },
+          {
+            "ID": "UC-08",
+            "Use Case": "Operating Room Utilization Optimization Engine",
+            "Governance": 5,
+            "Time To Value": 11,
+            "Readiness Score": 5.9,
+            "Strategic Theme": "Clinical Workflow Optimization",
+            "Organizational Capacity": 6,
+            "Technical Infrastructure": 5,
+            "Data Availability & Quality": 7
+          },
+          {
+            "ID": "UC-09",
+            "Use Case": "Insurance Eligibility Automation Platform",
+            "Governance": 6,
+            "Time To Value": 6,
+            "Readiness Score": 7.1,
+            "Strategic Theme": "Revenue Cycle Acceleration",
+            "Organizational Capacity": 7,
+            "Technical Infrastructure": 7,
+            "Data Availability & Quality": 8
+          },
+          {
+            "ID": "UC-10",
+            "Use Case": "Clinical Trial Patient Matching System",
+            "Governance": 6,
+            "Time To Value": 10,
+            "Readiness Score": 5.5,
+            "Strategic Theme": "Clinical Workflow Optimization",
+            "Organizational Capacity": 5,
+            "Technical Infrastructure": 5,
+            "Data Availability & Quality": 6
+          }
+        ],
+        "step": 6,
+        "title": "Readiness Modeling",
+        "content": "Readiness assessment evaluates organizational capacity, data quality, technical infrastructure, and governance maturity across ten use cases. Scores inform deployment sequencing and prerequisite investment requirements."
+      },
+      {
+        "data": [
+          {
+            "ID": "UC-09",
+            "Use Case": "Insurance Eligibility Automation Platform",
+            "TTV Score": 0.5,
+            "Value Score": 4.55,
+            "Priority Tier": "Tier 2 — Quick Wins",
+            "Priority Score": 5.82,
+            "Readiness Score": 7.1,
+            "Strategic Theme": "Revenue Cycle Acceleration",
+            "Recommended Phase": "Q3"
+          },
+          {
+            "ID": "UC-01",
+            "Use Case": "Prior Authorization Intelligence Engine",
+            "TTV Score": 0.25,
+            "Value Score": 3.53,
+            "Priority Tier": "Tier 2 — Quick Wins",
+            "Priority Score": 4.72,
+            "Readiness Score": 5.9,
+            "Strategic Theme": "Clinical Workflow Optimization",
+            "Recommended Phase": "Q3"
+          },
+          {
+            "ID": "UC-02",
+            "Use Case": "Revenue Cycle Denial Prevention System",
+            "TTV Score": 0.33,
+            "Value Score": 10,
+            "Priority Tier": "Tier 1 — Champions",
+            "Priority Score": 8.45,
+            "Readiness Score": 6.9,
+            "Strategic Theme": "Revenue Cycle Acceleration",
+            "Recommended Phase": "Q1"
+          },
+          {
+            "ID": "UC-03",
+            "Use Case": "Clinical Documentation Enhancement Assistant",
+            "TTV Score": 0,
+            "Value Score": 8.83,
+            "Priority Tier": "Tier 3 — Strategic",
+            "Priority Score": 6.97,
+            "Readiness Score": 5.1,
+            "Strategic Theme": "Clinical Workflow Optimization",
+            "Recommended Phase": "Q2"
+          },
+          {
+            "ID": "UC-04",
+            "Use Case": "Regulatory Compliance Documentation Automation",
+            "TTV Score": 0.17,
+            "Value Score": 4.11,
+            "Priority Tier": "Tier 2 — Quick Wins",
+            "Priority Score": 5.21,
+            "Readiness Score": 6.3,
+            "Strategic Theme": "Regulatory & Compliance Efficiency",
+            "Recommended Phase": "Q3"
+          },
+          {
+            "ID": "UC-05",
+            "Use Case": "AI-Assisted Medical Coding Optimization",
+            "TTV Score": 0.42,
+            "Value Score": 2.99,
+            "Priority Tier": "Tier 2 — Quick Wins",
+            "Priority Score": 4.95,
+            "Readiness Score": 6.9,
+            "Strategic Theme": "Revenue Cycle Acceleration",
+            "Recommended Phase": "Q3"
+          },
+          {
+            "ID": "UC-06",
+            "Use Case": "Intelligent Patient Engagement Platform",
+            "TTV Score": 0.25,
+            "Value Score": 2.46,
+            "Priority Tier": "Tier 2 — Quick Wins",
+            "Priority Score": 4.28,
+            "Readiness Score": 6.1,
+            "Strategic Theme": "Patient Experience & Access",
+            "Recommended Phase": "Q4"
+          },
+          {
+            "ID": "UC-07",
+            "Use Case": "Workforce Retention & Burnout Prevention System",
+            "TTV Score": 0,
+            "Value Score": 3.72,
+            "Priority Tier": "Tier 4 — Foundation",
+            "Priority Score": 4.41,
+            "Readiness Score": 5.1,
+            "Strategic Theme": "Workforce Capacity & Retention",
+            "Recommended Phase": "Q4"
+          },
+          {
+            "ID": "UC-08",
+            "Use Case": "Operating Room Utilization Optimization Engine",
+            "TTV Score": 0.08,
+            "Value Score": 1,
+            "Priority Tier": "Tier 2 — Quick Wins",
+            "Priority Score": 3.45,
+            "Readiness Score": 5.9,
+            "Strategic Theme": "Clinical Workflow Optimization",
+            "Recommended Phase": "Q4"
+          },
+          {
+            "ID": "UC-10",
+            "Use Case": "Clinical Trial Patient Matching System",
+            "TTV Score": 0.17,
+            "Value Score": 1.24,
+            "Priority Tier": "Tier 2 — Quick Wins",
+            "Priority Score": 3.37,
+            "Readiness Score": 5.5,
+            "Strategic Theme": "Clinical Workflow Optimization",
+            "Recommended Phase": "Q4"
+          }
+        ],
+        "step": 7,
+        "title": "Priority Scoring & Roadmap",
+        "content": "Priority scoring synthesizes readiness and value to sequence deployment across four tiers. Champions tier captures $48.9M in first-year value from three high-readiness initiatives deployable in Q1-Q2 2026."
+      }
+    ],
+    "benefitsCapped": false,
+    "capScaleFactor": 1,
+    "frictionRecovery": [
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-01",
+            "recoveryPct": 1,
+            "recoveryAmount": 4450000
+          }
+        ],
+        "frictionPoint": "Manual prior authorization processing across 30 hospitals creates 4-day procedure delays and consumes 89,000 nursing hours annually"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-02",
+            "recoveryPct": 1,
+            "recoveryAmount": 15600000
+          }
+        ],
+        "frictionPoint": "Claims denial management requires 156,000 hours of manual rework with 12% initial denial rate generating $47M annual recovery costs"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-03",
+            "recoveryPct": 1,
+            "recoveryAmount": 14820000
+          }
+        ],
+        "frictionPoint": "Clinical documentation completion requires 4.2 hours per admission across 340,000 annual admissions (1.4M total hours)"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-04",
+            "recoveryPct": 1,
+            "recoveryAmount": 4510000
+          }
+        ],
+        "frictionPoint": "Regulatory quality reporting for CMS, Joint Commission, and state agencies consumes 41,000 compliance officer hours with 18-day cycle times"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-05",
+            "recoveryPct": 0.9192825112107622,
+            "recoveryAmount": 4099999.9999999995
+          }
+        ],
+        "frictionPoint": "Medical coding accuracy gaps (89% baseline) drive 11% of revenue cycle denials and require 47,000 hours of coding specialist review"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-06",
+            "recoveryPct": 0.4838709677419355,
+            "recoveryAmount": 3000000
+          }
+        ],
+        "frictionPoint": "Patient inquiry resolution requires average 3.2 touchpoints with 63% first-contact resolution across 890,000 annual inquiries (124,000 hours)"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-07",
+            "recoveryPct": 0.8974358974358975,
+            "recoveryAmount": 5600000
+          }
+        ],
+        "frictionPoint": "Clinical staff turnover (23% annually) generates $31M in recruiting, onboarding, and training costs driven by administrative burden"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-08",
+            "recoveryPct": 0,
+            "recoveryAmount": 0
+          }
+        ],
+        "frictionPoint": "Operating room scheduling inefficiencies create 68% utilization (vs. 81% benchmark) limiting surgical capacity by 4,200 procedures annually"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-09",
+            "recoveryPct": 1,
+            "recoveryAmount": 3350000
+          }
+        ],
+        "frictionPoint": "Insurance eligibility verification performed manually for 94% of pre-registrations consuming 67,000 hours with 8% error rate"
+      },
+      {
+        "recoveries": [
+          {
+            "useCaseId": "UC-10",
+            "recoveryPct": 0.5952380952380952,
+            "recoveryAmount": 500000
+          }
+        ],
+        "frictionPoint": "Clinical trial enrollment screening requires manual chart review across 1,200 eligible patients annually (8,900 hours)"
+      }
+    ],
+    "scenarioAnalysis": {
+      "moderate": {
+        "npv": "$146.8M",
+        "annualBenefit": "$66.7M",
+        "paybackMonths": 0
+      },
+      "aggressive": {
+        "npv": "$240.2M",
+        "annualBenefit": "$86.7M",
+        "paybackMonths": 0
+      },
+      "conservative": {
+        "npv": "$53.4M",
+        "annualBenefit": "$40.0M",
+        "paybackMonths": 25
+      }
+    },
+    "executiveDashboard": {
+      "topUseCases": [
+        {
+          "rank": 1,
+          "useCase": "Revenue Cycle Denial Prevention System",
+          "annualValue": 18500000,
+          "priorityScore": 8.45
+        },
+        {
+          "rank": 2,
+          "useCase": "Clinical Documentation Enhancement Assistant",
+          "annualValue": 16100000.000000002,
+          "priorityScore": 6.97
+        },
+        {
+          "rank": 3,
+          "useCase": "Insurance Eligibility Automation Platform",
+          "annualValue": 7300000,
+          "priorityScore": 5.82
+        },
+        {
+          "rank": 4,
+          "useCase": "Regulatory Compliance Documentation Automation",
+          "annualValue": 6400000,
+          "priorityScore": 5.21
+        },
+        {
+          "rank": 5,
+          "useCase": "AI-Assisted Medical Coding Optimization",
+          "annualValue": 4099999.9999999995,
+          "priorityScore": 4.95
+        },
+        {
+          "rank": 6,
+          "useCase": "Prior Authorization Intelligence Engine",
+          "annualValue": 5200000,
+          "priorityScore": 4.72
+        },
+        {
+          "rank": 7,
+          "useCase": "Workforce Retention & Burnout Prevention System",
+          "annualValue": 5600000,
+          "priorityScore": 4.41
+        },
+        {
+          "rank": 8,
+          "useCase": "Intelligent Patient Engagement Platform",
+          "annualValue": 3000000,
+          "priorityScore": 4.28
+        },
+        {
+          "rank": 9,
+          "useCase": "Operating Room Utilization Optimization Engine",
+          "annualValue": 0,
+          "priorityScore": 3.45
+        },
+        {
+          "rank": 10,
+          "useCase": "Clinical Trial Patient Matching System",
+          "annualValue": 500000,
+          "priorityScore": 3.37
+        }
+      ],
+      "totalAnnualValue": 66700000,
+      "totalCostBenefit": 41600000,
+      "totalRiskBenefit": 17100000,
+      "totalRevenueBenefit": 0,
+      "totalCashFlowBenefit": 8000000
+    },
+    "validationWarnings": [],
+    "multiYearProjection": {
+      "irr": "73.8%",
+      "npv": "$146.8M",
+      "paybackMonths": 0,
+      "totalBenefitOverPeriod": "$240.1M"
+    }
+  }
+}

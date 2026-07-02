@@ -1,0 +1,1 @@
+- [Gzip compression vs streaming](compression-streaming.md) — global compression() is on; real-time streams must set Cache-Control: no-transform or they get buffered.

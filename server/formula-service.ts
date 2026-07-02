@@ -252,13 +252,13 @@ export const AVAILABLE_INPUTS: Record<string, { label: string; description: stri
   totalAnnualImpact: { label: "Total Annual Impact ($)", description: "Sum of all benefit categories", category: "calculated" },
   probabilityOfSuccess: { label: "Probability of Success (%)", description: "Estimated success probability", category: "risk" },
   timeToValueMonths: { label: "Time to Value (months)", description: "Months until value realization", category: "timing" },
-  effortScore: { label: "Effort Score (0-100)", description: "Implementation effort estimate", category: "effort" },
+  effortScore: { label: "Readiness Score (0-100)", description: "Implementation readiness estimate", category: "effort" },
   valueScore: { label: "Value Score (0-100)", description: "Normalized value score", category: "calculated" },
   ttvScore: { label: "TTV Score (0-100)", description: "Time-to-value score", category: "calculated" },
   maxTotalImpact: { label: "Max Total Impact ($)", description: "Highest impact among all use cases", category: "context" },
   weightValue: { label: "Value Weight (%)", description: "Weight for value in priority scoring", category: "weights" },
   weightTtv: { label: "TTV Weight (%)", description: "Weight for time-to-value in scoring", category: "weights" },
-  weightEffort: { label: "Effort Weight (%)", description: "Weight for effort in priority scoring", category: "weights" },
+  weightEffort: { label: "Readiness Weight (%)", description: "Weight for readiness in priority scoring", category: "weights" },
   avgInputTokens: { label: "Avg Input Tokens", description: "Average input tokens per AI call", category: "ai" },
   avgOutputTokens: { label: "Avg Output Tokens", description: "Average output tokens per AI call", category: "ai" },
   inputTokenCost: { label: "Input Token Cost ($/1M)", description: "Cost per million input tokens", category: "ai" },
@@ -267,7 +267,6 @@ export const AVAILABLE_INPUTS: Record<string, { label: string; description: stri
   cachingEffectiveness: { label: "Caching Effectiveness (%)", description: "Percentage of cached prompts", category: "ai" },
   promptCachingDiscount: { label: "Prompt Caching Discount (%)", description: "Discount for cached prompts", category: "ai" },
   implementationCost: { label: "Implementation Cost ($)", description: "One-time implementation cost", category: "costs" },
-  annualTokenCost: { label: "Annual Token Cost ($)", description: "Annual AI API costs", category: "calculated" },
 };
 
 export function getInputsByCategory(): Record<string, { key: string; label: string; description: string }[]> {

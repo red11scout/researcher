@@ -2,14 +2,49 @@
 // Instead, we bypass proxy per-request only for Anthropic API calls in ai-service.ts
 
 import express, { type Request, Response, NextFunction } from "express";
+import cookieParser from 'cookie-parser';
+import compression from "compression";
 import { registerRoutes } from "./routes";
+import { setupAuth, securityHeaders } from "./auth";
 import { serveStatic } from "./static";
+import { startAdminAuditRetentionScheduler } from "./admin-audit-retention";
 import { createServer } from "http";
 import path from "path";
 import fs from "fs";
 
+function validateEnvironment() {
+  const hasAnthropicKey = !!(process.env.AI_INTEGRATIONS_ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY);
+  const hasDbUrl = !!process.env.DATABASE_URL;
+  
+  const missing: string[] = [];
+  if (!hasAnthropicKey) missing.push('ANTHROPIC_API_KEY');
+  if (!hasDbUrl) missing.push('DATABASE_URL');
+  
+  if (missing.length > 0) {
+    console.error(`FATAL: Missing required environment variables: ${missing.join(', ')}`);
+    console.error('Please configure these in your Replit secrets.');
+    // Don't throw - just warn. The app should still start for configuration.
+  } else {
+    console.log('All required environment variables present');
+  }
+}
+
+validateEnvironment();
+
 const app = express();
 const httpServer = createServer(app);
+
+// Apply security headers BEFORE any static mounts so every response —
+// including /attached_assets/* PDFs — carries X-Content-Type-Options,
+// X-Frame-Options: DENY, X-XSS-Protection, and Referrer-Policy.
+// (setupAuth() also installs these later via app.use(securityHeaders),
+// but Express short-circuits on the first matching middleware for static
+// responses, so the early mount below would otherwise bypass them.)
+app.use(securityHeaders);
+
+// Gzip/deflate all responses (large report JSON payloads + static JS/CSS).
+// Registered early so it covers attached_assets, the API, and the built client.
+app.use(compression());
 
 // Serve attached_assets folder for PDF downloads (before other routes)
 const attachedAssetsPath = path.resolve(process.cwd(), "attached_assets");
@@ -25,13 +60,17 @@ declare module "http" {
 
 app.use(
   express.json({
+    limit: "25mb",
     verify: (req, _res, buf) => {
       req.rawBody = buf;
     },
   }),
 );
 
-app.use(express.urlencoded({ extended: false }));
+app.use(express.urlencoded({ extended: false, limit: "25mb" }));
+app.use(cookieParser());
+
+setupAuth(app);
 
 export function log(message: string, source = "express") {
   const formattedTime = new Date().toLocaleTimeString("en-US", {
@@ -73,6 +112,11 @@ app.use((req, res, next) => {
 (async () => {
   await registerRoutes(httpServer, app);
 
+  // Start the admin_audit_log retention sweeper. Runs once shortly after
+  // boot and then every 24h to delete rows older than the retention
+  // window (default 90 days, override via ADMIN_AUDIT_RETENTION_DAYS).
+  startAdminAuditRetentionScheduler();
+
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
@@ -96,6 +140,9 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = parseInt(process.env.PORT || "5000", 10);
+  httpServer.timeout = 960000;
+  httpServer.keepAliveTimeout = 720000;
+  httpServer.headersTimeout = 725000;
   httpServer.listen(
     {
       port,
