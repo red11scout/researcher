@@ -10,6 +10,7 @@ import {
   resolveRetentionDays as resolveAuditRetentionDays,
   CLEANUP_INTERVAL_MS as ADMIN_AUDIT_CLEANUP_INTERVAL_MS,
 } from "./admin-audit-retention";
+import { maybeDispatchOverdueAlert } from "./admin-audit-overdue-alert";
 import { recordAdminAudit } from "./auth";
 import { buildAssumptionExcelWorkbook, buildAssumptionJSON } from "./assumption-export";
 import { formatReportAsJson, formatReportAsMarkdown } from "./export-formatters";
@@ -1463,6 +1464,21 @@ Return ONLY valid JSON with this structure:
         return res.json({
           cleanup: null,
           intervalMs: ADMIN_AUDIT_CLEANUP_INTERVAL_MS,
+        });
+      }
+      // Best-effort push alert when the most recent successful run is
+      // overdue. The check runs on every banner poll but is rate-limited
+      // inside `maybeDispatchOverdueAlert` so a 30s polling cadence
+      // doesn't translate into a notification storm. Failure-status
+      // rows are skipped — those already produce console errors and
+      // the banner shows them in red; the silent-failure mode the
+      // alert exists to catch is "no successful row for >2× the
+      // interval".
+      if (row.status === "success") {
+        void maybeDispatchOverdueAlert({
+          lastRanAt: new Date(row.ranAt),
+          intervalMs: ADMIN_AUDIT_CLEANUP_INTERVAL_MS,
+          retentionDays: row.retentionDays,
         });
       }
       res.json({
